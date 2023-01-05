@@ -1,6 +1,6 @@
 import time
 from utils.plotting_functions import plt
-from ClassProcess import FractionalBrownianNoise
+from ClassFractionalBrownianNoise import FractionalBrownianNoise
 from utils.math_functions import np
 
 def plotting_complexity():
