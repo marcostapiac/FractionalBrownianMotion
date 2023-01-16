@@ -1,5 +1,5 @@
 from utils.math_functions import np, chi2
-from src.ClassProcess import FractionalBrownianNoise
+from src.ClassFractionalBrownianNoise import FractionalBrownianNoise
 
 
 def standardise_sample(fBn_sample, invL):

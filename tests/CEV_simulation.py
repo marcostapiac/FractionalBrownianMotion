@@ -1,0 +1,29 @@
+from src.ClassFractionalCEV import FractionalCEV
+from utils.plotting_functions import plot, plot_subplots, plt
+from utils.math_functions import np
+from tqdm import tqdm
+
+
+def simulate(muU=1., muX=.5, gamma=1., N=2 ** 11, T=10, H=0.8, X0=1., U0=0., save=False):
+    sigmaX = np.sqrt(muX * gamma / 0.55)
+    deltaT = T / N
+    X = []
+    for _ in tqdm(range(1)):
+        m = FractionalCEV(muU=muU, muX=muX, sigmaX=sigmaX, gamma=gamma, X0=X0, U0=U0)
+        Xs, Us = m.euler_simulation(H=H, N=N, deltaT=deltaT)
+        X.append(Xs)
+    # plot(np.arange(0, T + deltaT, step=deltaT), X, label_args=[None for _ in range(1)], xlabel="Time",
+    #     ylabel="Vol Path", title="Individual Simulation Paths")
+
+    plot_subplots(np.arange(0, T + deltaT, step=deltaT), [Xs, Us], [None, None], ["Time", "Time"],
+                  ["Volatility", "Log Price"],
+                  "Fractional CEV Simulation")
+    if save:
+        plt.savefig("SamplefCIRLongMem.png", bbox_inches="tight", transparent=True)
+        plt.show()
+        plt.close()
+    else:
+        plt.show()
+
+
+simulate(save=True)

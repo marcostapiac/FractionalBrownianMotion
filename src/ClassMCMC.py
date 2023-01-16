@@ -12,7 +12,7 @@ class MCMC:
     def accept_reject(self, newP, currentP):
         logProbProp = np.log(self.proposal_likelihood(currentP, newP)) - np.log(
             self.proposal_likelihood(newP, currentP))
-        logProbLL = np.log(self.likelihood(newP)) - np.log(self.likelihood(currentP))
+        logProbLL = np.log(self.likelihood()) - np.log(self.likelihood()) #newP, currP respectively in likelihood calls
         logAccProb = logProbProp + logProbLL
         u = self.rng.uniform(0., 1., size=1)
         if u < np.exp(min(0., logAccProb)):
