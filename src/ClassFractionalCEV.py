@@ -12,7 +12,7 @@ class FractionalCEV:
         self.volVol = sigmaX
         self.meanRev = gamma
         self.initialVol = X0
-        self.initialLogPrice = X0 #U0
+        self.initialLogPrice = U0
         self.rng = rng
 
     def get_initial_state(self):
@@ -24,7 +24,7 @@ class FractionalCEV:
         return incs
 
     def lamperti(self, x):
-        return (1. / self.volVol) * np.log(x / self.initialVol)
+        return np.power(self.volVol,-1) * np.log(x / self.initialVol)
 
     def inverse_lamperti(self, Z):
         return self.initialVol * np.exp(self.volVol * Z)
@@ -33,22 +33,22 @@ class FractionalCEV:
         """ Increment log prices """
         driftU = self.obsMean - 0.5 * np.exp(currX)
         stdU = np.sqrt(deltaT) * np.exp(currX / 2.)
-        #return currX + np.sqrt(deltaT)*self.rng.normal()
+        # return currX + np.sqrt(deltaT)*self.rng.normal()
         return prev + driftU * deltaT + stdU * self.rng.normal()
 
     def increment_state(self, prev, deltaT, M):
         """ Increment volatilities """
         driftZ = self.meanRev * self.volMean * np.power(self.volVol * self.initialVol, -1) * np.exp(-self.volVol * prev)
-        driftZ += -0.5 * self.volVol * (self.initialVol + 1.)
+        driftZ += -0.5 * self.volVol - self.meanRev * np.power(self.volVol, -1)
         return prev + driftZ * deltaT + M
 
     def observation_mean(self, prevObs, currX, deltaT):
-        #return currX
-        return prevObs + (self.obsMean - 0.5 * np.exp(currX)) * deltaT
+        # return currX
+        return prevObs + (self.obsMean - 0.5 * np.exp(currX)) * deltaT # U_i-1 +(muU-0.5exp(X))delta
 
     def observation_var(self, currX, deltaT):
-        #return deltaT
-        return np.exp(currX) * deltaT
+        # return deltaT
+        return np.exp(currX) * deltaT # delta exp(currX)
 
     def state_simulation(self, H, N, deltaT, X0=None, Ms=None, gaussRvs=None):
         if X0 is None:
@@ -62,7 +62,6 @@ class FractionalCEV:
         return self.inverse_lamperti(np.array(Zs))
 
     def euler_simulation(self, H, N, deltaT, Ms=None, gaussRvs=None):
-        """ Full time Euler-Maruyama Simulation of Heston Vol Model """
         Zs = [self.lamperti(self.initialVol)]
         Us = [self.initialLogPrice]
         if Ms is None:

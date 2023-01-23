@@ -12,10 +12,8 @@ def test(muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 8, T=5.0, nPartic
     Xs, Us = m.euler_simulation(H=H, N=N, deltaT=deltaT)  # Simulated data
     L = Us.size
     """ Ideal scenario where true model parameters are known and data is simulated from model """
-    pf = FractionalParticleFilter(nParticles=nParticles, muU=muU, muX=muX,
-                               sigmaX=sigmaX, gamma=gamma,
-                               X0=X0,
-                               U0=U0, deltaT=deltaT, H=H, N=N)
+    model = FractionalCEV(muU=muU, muX=muX, sigmaX=sigmaX, gamma=gamma, X0=X0, U0=U0)
+    pf = FractionalParticleFilter(nParticles=nParticles, model=model, deltaT=deltaT, H=H, N=N)
     plot_subplots(np.arange(0, T + deltaT, step=deltaT), [Xs, Us], [None, None], ["Time", "Time"],
                   ["Volatility", "Log Price"],
                   "Project Model Simulation")

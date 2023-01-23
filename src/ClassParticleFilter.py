@@ -1,7 +1,4 @@
 from utils.math_functions import np, logsumexp, snorm
-from src.ClassFractionalCIR import FractionalCIR
-from src.ClassFractionalCEV import FractionalCEV
-
 from p_tqdm import t_map
 from functools import partial
 from copy import deepcopy
@@ -66,12 +63,11 @@ class ParticleFilter:
 
 
 class FractionalParticleFilter(ParticleFilter):
-    def __init__(self, nParticles, muU, muX, sigmaX, gamma, X0, U0, deltaT, H, N,
+    def __init__(self, nParticles, model, deltaT, H, N,
                  rng=np.random.default_rng()):
         super().__init__(nParticles, rng=rng)
-        self.generator = FractionalCEV(muU=muU, muX=muX, sigmaX=sigmaX, gamma=gamma, X0=X0, U0=U0)
-        self.particles = [ProjectParticle(model=self.generator, deltaT=deltaT, H=H, N=N, rng=rng) for _ in
-                          range(nParticles)]
+        self.generator = model
+        self.particles = [ProjectParticle(model=self.generator, deltaT=deltaT, H=H, N=N, rng=rng) for _ in range(nParticles)]
         self.logLEstimate = self.compute_incremental_likelihood(isLog=True)
 
     @staticmethod

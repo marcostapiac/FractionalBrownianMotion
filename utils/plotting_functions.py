@@ -4,20 +4,18 @@ from utils.math_functions import np
 import numbers
 
 
-def plot_subplots(time_ax, lines, label_args, xlabels, ylabels, title, isLatex=True, fig=None, ax=None):
+def plot_subplots(time_ax, lines, label_args, xlabels, ylabels, title, fig=None, ax=None, saveTransparent=False):
     """ Plotting function ot plot multiple traces in same figure but different axis"""
     try:
         assert (len(lines) == len(xlabels) and len(lines) == len(ylabels))
     except AssertionError:
         return RuntimeError("Please add as many x-y axis labels as lines to plot")
-    if isLatex:
-        matplotlib.rcParams.update({
-            'font.family': 'serif',
-            'text.usetex': True,
-            'pgf.rcfonts': False,
-        })
-    else:
-        plt.style.use('ggplot')
+    plt.style.use('ggplot')
+    matplotlib.rcParams.update({
+        'font.family': 'serif',
+        'text.usetex': True,
+        'pgf.rcfonts': False,
+    })
     if (fig and ax) is None:
         L = len(lines)
         fig, ax = plt.subplots(L, 1)
@@ -25,27 +23,29 @@ def plot_subplots(time_ax, lines, label_args, xlabels, ylabels, title, isLatex=T
         ax[i].plot(time_ax, lines[i], label=label_args[i], lw=1.1, marker='.', markersize=1)
         ax[i].set_xlabel(xlabels[i])
         ax[i].set_ylabel(ylabels[i])
-        ax[i].xaxis.label.set_color('white')  # setting up X-axis label color to yellow
-        ax[i].yaxis.label.set_color('white')
-        ax[i].tick_params(axis='x', colors='white')  # setting up X-axis tick color to red
-        ax[i].tick_params(axis='y', colors='white')
-        ax[i].grid(visible=True)
-        ax[i].legend()
-
-    fig.patch.set_alpha(0.0)
-    fig.suptitle(title, color="white")
+        if saveTransparent:
+            ax[i].xaxis.label.set_color('white')  # setting up X-axis label color to yellow
+            ax[i].yaxis.label.set_color('white')
+            ax[i].tick_params(axis='x', colors='white')  # setting up X-axis tick color to red
+            ax[i].tick_params(axis='y', colors='white')
+            ax[i].grid(visible=True)
+            ax[i].legend()
+    if saveTransparent:
+        fig.patch.set_alpha(0.0)
+        fig.suptitle(title, color="white")
+    else:
+        fig.suptitle(title)
     plt.tight_layout()
 
 
-def plot(time_ax, lines, label_args, xlabel, ylabel, title, isLatex=True, fig=None, ax=None, saveTransparent=False):
+def plot(time_ax, lines, label_args, xlabel, ylabel, title, fig=None, ax=None, saveTransparent=False):
     """ Plotting function to plot multiple traces in same figure and axis object"""
     plt.style.use('ggplot')
-    if isLatex:
-        matplotlib.rcParams.update({
-            'font.family': 'serif',
-            'text.usetex': True,
-            'pgf.rcfonts': False,
-        })
+    matplotlib.rcParams.update({
+        'font.family': 'serif',
+        'text.usetex': True,
+        'pgf.rcfonts': False,
+    })
     if (fig and ax) is None:
         fig, ax = plt.subplots()
     for i in range(len(lines)):
@@ -67,7 +67,7 @@ def plot(time_ax, lines, label_args, xlabel, ylabel, title, isLatex=True, fig=No
 
 def plot_fBm_process(time_ax, paths, label_args, xlabel=None, ylabel=None, title="Sample Paths", isLatex=True,
                      fig=None,
-                     ax=None):
+                     ax=None, saveTransparent=False):
     plt.style.use('ggplot')
     if isLatex:
         matplotlib.rcParams.update({
@@ -87,12 +87,15 @@ def plot_fBm_process(time_ax, paths, label_args, xlabel=None, ylabel=None, title
     else:
         ax.set_xlabel(xlabel)
         ax.set_ylabel(ylabel)
-    fig.patch.set_alpha(0.0)
-    ax.xaxis.label.set_color('white')  # setting up X-axis label color to yellow
-    ax.yaxis.label.set_color('white')
-    ax.tick_params(axis='x', colors='white')  # setting up X-axis tick color to red
-    ax.tick_params(axis='y', colors='white')
-    ax.set_title(title, color="white")
+    if saveTransparent:
+        fig.patch.set_alpha(0.0)
+        ax.xaxis.label.set_color('white')  # setting up X-axis label color to yellow
+        ax.yaxis.label.set_color('white')
+        ax.tick_params(axis='x', colors='white')  # setting up X-axis tick color to red
+        ax.tick_params(axis='y', colors='white')
+        ax.set_title(title, color="white")
+    else:
+        ax.set_title(title)
     ax.legend()
 
 

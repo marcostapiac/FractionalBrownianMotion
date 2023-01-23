@@ -6,18 +6,18 @@ def prior_H(rng=np.random.default_rng()):
 
 
 def prior_gamma(params, rng=np.random.default_rng()):
-    scale = params
-    return rng.exponential(scale=scale)
+    rate = params
+    return rng.exponential(scale=1./rate)
 
 
 def prior_muX(params, rng=np.random.default_rng()):
-    scale = params
-    return rng.exponential(scale=scale)
+    rate = params
+    return rng.exponential(scale=1./rate)
 
 
 def prior_sigmaX(params, rng=np.random.default_rng()):
-    alpha, beta = params
-    return np.sqrt(1. / rng.gamma(shape=alpha, scale=1. / beta))
+    alpha, rate = params
+    return np.sqrt(1. / rng.gamma(shape=alpha, scale= 1./rate))
 
 
 def prior_muU(params, rng=np.random.default_rng()):

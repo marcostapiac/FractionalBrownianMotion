@@ -35,7 +35,7 @@ class FractionalCIR:
         """ Increment log prices """
         driftU = self.obsMean - 0.5 * np.exp(currX)
         stdU = np.sqrt(deltaT) * np.exp(currX / 2.)
-        return currX + np.sqrt(deltaT)*self.rng.normal()
+        #return currX + np.sqrt(deltaT)*self.rng.normal()
         return prev + driftU * deltaT + stdU * self.rng.normal()
 
     def increment_state(self, prev, deltaT, M):
@@ -44,11 +44,11 @@ class FractionalCIR:
         return prev + driftZ * deltaT + M
 
     def observation_mean(self, prevObs, currX, deltaT):
-        return currX
+        #return currX
         return prevObs + (self.obsMean - 0.5 * np.exp(currX)) * deltaT
 
     def observation_var(self, currX, deltaT):
-        return deltaT
+        #return deltaT
         return np.exp(currX)*deltaT
 
     def state_simulation(self, H, N, deltaT, X0=None, Ms=None, gaussRvs=None):

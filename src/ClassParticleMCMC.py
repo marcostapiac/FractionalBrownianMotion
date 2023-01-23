@@ -8,7 +8,7 @@ from functools import partial
 from copy import deepcopy
 from utils.plotting_functions import plot_subplots, plot, plt
 from src.priors import prior
-from src.posteriors import posteriors
+from src.CIR_posteriors import posteriors
 
 
 class ParticleMCMC(MCMC):
