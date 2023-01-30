@@ -5,7 +5,7 @@ def prior_H(rng=np.random.default_rng()):
     return rng.uniform(0., 1.)
 
 
-def prior_gamma(params, rng=np.random.default_rng()):
+def prior_alpha(params, rng=np.random.default_rng()):
     mean, sigma = params
     return truncnorm.rvs(a=-mean / sigma, b=np.inf, loc=mean, scale=sigma)
 
@@ -25,9 +25,9 @@ def prior_muU(params, rng=np.random.default_rng()):
     return rng.normal(loc=mean, scale=sigma)
 
 
-def prior(muUParams, gammaParams, muXParams, sigmaXParams, rng=np.random.default_rng()):
+def prior(muUParams, alphaParams, muXParams, sigmaXParams, rng=np.random.default_rng()):
     return np.array(
-        [prior_muU(params=muUParams, rng=rng), prior_gamma(params=gammaParams, rng=rng), prior_muX(params=muXParams,
+        [prior_muU(params=muUParams, rng=rng), prior_alpha(params=alphaParams, rng=rng), prior_muX(params=muXParams,
                                                                                                    rng=rng),
          prior_sigmaX(
              params=sigmaXParams, rng=rng), prior_H(rng=rng)])

@@ -1,6 +1,6 @@
+from src.ClassLogSVModel import LogSVModel
 from utils.math_functions import np, gammaDist, snorm, acf
 from utils.plotting_functions import plot_subplots
-from src.ClassLogSVModel import LogSVModel
 
 
 def calculate_ACF(data):
@@ -27,7 +27,7 @@ def preprocessing(logvol2s):
 def get_prior_parameters(isStationary=True):
     if isStationary:
         return -0.7, 0.01, 1., 1.
-    return np.atleast_2d([-0.723, 0.9]).T, 0.1*np.eye(N=2, M=2), 4.8, .5
+    return np.atleast_2d([-0.723, 0.9]).T, 0.1 * np.eye(N=2, M=2), 4.8, .5
 
 
 def sample_b_prior():
@@ -37,7 +37,7 @@ def sample_b_prior():
 
 def sample_b_posterior(Hs, a, b, s):
     """ Only to be used if enforcing stationarity """
-    proposed = b+np.random.uniform(low=-0.1,high=0.1) #np.random.normal(loc=b, scale=0.01)
+    proposed = b + np.random.uniform(low=-0.1, high=0.1)  # np.random.normal(loc=b, scale=0.01)
     if not (-1 <= proposed <= 1):
         return b
     logAccProb = -((b - proposed) / (2 * np.power(s, 2))) * np.sum(
@@ -108,7 +108,9 @@ def sample_logvols(prices, prevIterLogVols, a, b, s, rho=0.33):
     assert (proposed.shape[0] == prevIterLogVols[1:T + 1].shape[0] and nextTimeLogVols.shape[0] ==
             prevTimeLogVols.shape[0])
     logPropProb = snorm.logpdf(proposed, loc=np.sqrt(1. - np.power(rho, 2)) * prevIterLogVols[1:T + 1],
-                               scale=rho) - snorm.logpdf(prevIterLogVols[1:T + 1], loc=np.sqrt(1. - np.power(rho, 2)) * proposed, scale=rho)  # Should be 0?
+                               scale=rho) - snorm.logpdf(prevIterLogVols[1:T + 1],
+                                                         loc=np.sqrt(1. - np.power(rho, 2)) * proposed,
+                                                         scale=rho)  # Should be 0?
     logLLProb = snorm.logpdf(prices, loc=0., scale=np.exp(0.5 * proposed)) - snorm.logpdf(prices, loc=0.,
                                                                                           scale=np.exp(
                                                                                               0.5 * prevIterLogVols[
@@ -167,7 +169,7 @@ def main(nIters, isStationary=True):
             a = sample_a_posterior(pMean=priorMean, pCov=priorCov, logVol2s=lv2s, b=bs[i - 1], s=ss[i - 1])
             b = sample_b_posterior(lv2s[:lv2s.shape[0] - 1], a=a, b=b, s=ss[i - 1])
         else:
-            a, b = sample_a_b_posterior(pMean=priorMean, pCov=priorCov, Zs=Z, lnH1s=H1, s=ss[i - 1])[:,0]
+            a, b = sample_a_b_posterior(pMean=priorMean, pCov=priorCov, Zs=Z, lnH1s=H1, s=ss[i - 1])[:, 0]
         s = sample_s_posterior(priorShape=alpha0, priorScale=beta0, Zs=Z, lnH1s=H1, a=a, b=b)
         print(a, b, s)
         las.append(a)
@@ -176,9 +178,11 @@ def main(nIters, isStationary=True):
     bACF = calculate_ACF(np.array(bs))
     aACF = calculate_ACF(np.array(las))
     sACF = calculate_ACF(np.array(ss))
-    ESS = max(min(np.squeeze(np.nonzero((bACF<1e-3))), default=1), min(np.squeeze(np.nonzero((aACF<1e-3))),default=1), min(np.squeeze(np.nonzero((sACF<1e-3))),default=1))
-    plot_traces(np.array(bACF).shape[0], aACF, bACF, sACF, title = "Metropolis-within-Gibbs ACF")
-    plot_traces(int((nIters)/ESS), las[::ESS],bs[::ESS], ss[::ESS],title = "Metropolis-within-Gibbs Trace Plots")
+    ESS = max(min(np.squeeze(np.nonzero((bACF < 1e-3))), default=1),
+              min(np.squeeze(np.nonzero((aACF < 1e-3))), default=1),
+              min(np.squeeze(np.nonzero((sACF < 1e-3))), default=1))
+    plot_traces(np.array(bACF).shape[0], aACF, bACF, sACF, title="Metropolis-within-Gibbs ACF")
+    plot_traces(int((nIters) / ESS), las[::ESS], bs[::ESS], ss[::ESS], title="Metropolis-within-Gibbs Trace Plots")
     burnIn = 4000
     print(np.mean(las[burnIn::ESS]), np.mean(bs[burnIn::ESS]), np.mean(ss[burnIn::ESS]))
 

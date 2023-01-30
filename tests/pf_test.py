@@ -1,8 +1,9 @@
-from utils.math_functions import np
-from src.ClassFractionalCEV import FractionalCEV
 from tqdm import tqdm
-from utils.plotting_functions import plot_subplots, plot, plt
+
+from src.ClassFractionalCEV import FractionalCEV
 from src.ClassParticleFilter import FractionalParticleFilter
+from utils.math_functions import np
+from utils.plotting_functions import plot_subplots, plot, plt
 
 
 def test(muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 8, T=5.0, nParticles=100, save=False):
@@ -27,12 +28,12 @@ def test(muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 8, T=5.0, nPartic
         # Use MC approximations using normalised weights
         predLogPrice.append(pf.get_obs_mean_posterior())  # Log price forecast for index j+1
         predVol.append(pf.get_vol_mean_posterior(vol=Xs[j]))  # Vol estimate for index j
-        pf.move_after_resample(deltaT=deltaT, rho=0.2)
+        pf.move_after_resample(currObs=Us[:j + 1], deltaT=deltaT, rho=0.2)
     plot(np.arange(0., T + deltaT, step=deltaT), [Us, predLogPrice], ["True Log Price", "Optimal Forecast"], "Time",
          "Log Price",
          "Price Forecasting")
     if save:
-        plt.savefig("PfTestEasyObsModelLogPrice.png", bbox_inches="tight", transparent=True)
+        plt.savefig("../pngs/PfTestHardObsModelLogPrice.png", bbox_inches="tight", transparent=True)
         plt.show()
         plt.close()
     else:
@@ -41,7 +42,7 @@ def test(muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 8, T=5.0, nPartic
     plot(np.arange(0, T + deltaT, step=deltaT), [Xs, predVol], ["True Vol", "Optimal Estimate"], "Time", "Volatility",
          "Volatility Smoothing")
     if save:
-        plt.savefig("PfTestEasyObsModelVol.png", bbox_inches="tight", transparent=True)
+        plt.savefig("../pngs/PfTestHardObsModelVol.png", bbox_inches="tight", transparent=True)
         plt.show()
         plt.close()
     else:

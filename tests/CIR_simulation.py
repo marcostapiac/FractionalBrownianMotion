@@ -1,10 +1,11 @@
-from src.ClassFractionalCIR import FractionalCIR
-from utils.plotting_functions import plot, plot_subplots, plt
-from utils.math_functions import np
 from tqdm import tqdm
 
+from src.ClassFractionalCIR import FractionalCIR
+from utils.math_functions import np
+from utils.plotting_functions import plot_subplots, plt
 
-def simulate(muU=1., muX=.5, gamma=1., N=2 ** 11, T=10, H=0.8, X0=1., U0=0., save=False):
+
+def simulate(muU=1., muX=.5, gamma=1., N=2 ** 11, T=10, H=0.8, X0=1., U0=0., saveFig=False):
     sigmaX = np.sqrt(muX * gamma / 0.55)
     print(2. * muX * gamma / np.power(sigmaX, 2) - 0.5)
     deltaT = T / N
@@ -19,12 +20,12 @@ def simulate(muU=1., muX=.5, gamma=1., N=2 ** 11, T=10, H=0.8, X0=1., U0=0., sav
     plot_subplots(np.arange(0, T + deltaT, step=deltaT), [Xs, Us], [None, None], ["Time", "Time"],
                   ["Volatility", "Log Price"],
                   "Project Model Simulation")
-    if save:
-        plt.savefig("SamplefCIRLongMem.png", bbox_inches="tight")
+    if saveFig:
+        plt.savefig("../pngs/SamplefCIRLongMem.png", bbox_inches="tight")
         plt.show()
         plt.close()
     else:
         plt.show()
 
 
-simulate(save=False)
+simulate(saveFig=True)

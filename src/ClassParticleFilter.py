@@ -1,7 +1,9 @@
-from utils.math_functions import np, logsumexp, snorm
-from p_tqdm import t_map
-from functools import partial
 from copy import deepcopy
+from functools import partial
+
+from p_tqdm import t_map
+
+from utils.math_functions import np, logsumexp, snorm, multsnorm
 
 
 class Particle:
@@ -67,7 +69,8 @@ class FractionalParticleFilter(ParticleFilter):
                  rng=np.random.default_rng()):
         super().__init__(nParticles, rng=rng)
         self.generator = model
-        self.particles = [ProjectParticle(model=self.generator, deltaT=deltaT, H=H, N=N, rng=rng) for _ in range(nParticles)]
+        self.particles = [ProjectParticle(model=self.generator, deltaT=deltaT, H=H, N=N, rng=rng) for _ in
+                          range(nParticles)]
         self.logLEstimate = self.compute_incremental_likelihood(isLog=True)
 
     @staticmethod
@@ -80,17 +83,27 @@ class FractionalParticleFilter(ParticleFilter):
                                  disable=True)
         return weightIncrements
 
-    def particle_move(self, particle, deltaT, rho=0.1):
+    def particle_move(self, particle, currObs, deltaT, rho=0.1):
         particle.gaussRvs = np.sqrt(1. - np.power(rho, 2)) * particle.gaussRvs + rho * self.rng.normal(
             size=len(particle.gaussRvs))  # pCn
         particle.fBmIncrements = particle.generator.sample_increments(deltaT=deltaT, H=particle.H, N=particle.N,
                                                                       gaussRvs=particle.gaussRvs)  # N fBn samples, Step 3
         L = len(particle.trajectory)
-        particle.trajectory = particle.generator.state_simulation(H=particle.H, N=L - 1, deltaT=deltaT,
-                                                                  Ms=particle.fBmIncrements[:L])
+        Xnew = particle.generator.state_simulation(H=particle.H, N=L - 1, deltaT=deltaT,
+                                                   Ms=particle.fBmIncrements[:L])
+        Xcurr = particle.trajectory
+        muU = self.generator.obsMean
+        N = currObs.shape[0] - 1
+        logAccProb = multsnorm.logpdf(currObs[1:], mean=currObs[:N] + muU * deltaT - 0.5 * deltaT * np.exp(Xnew[1:]),
+                                      cov=deltaT * np.exp(0.5 * Xnew[1:]) @ np.exp(0.5 * Xnew[1:].T))
+        logAccProb -= multsnorm.logpdf(currObs[1:], mean=currObs[:N] + muU * deltaT - 0.5 * deltaT * np.exp(Xcurr[1:]),
+                                       cov=deltaT * np.exp(0.5 * Xcurr[1:]) @ np.exp(0.5 * Xcurr[1:].T))
+        u = self.rng.uniform(low=0., high=1.)
+        if np.log(u) <= min(0., logAccProb):
+            particle.trajectory = Xnew
 
-    def move_after_resample(self, deltaT, rho=0.014):
-        t_map(partial(self.particle_move, deltaT=deltaT, rho=rho), self.particles, disable=True)
+    def move_after_resample(self, currObs, deltaT, rho=0.014):
+        t_map(partial(self.particle_move, currObs=currObs, deltaT=deltaT, rho=rho), self.particles, disable=True)
 
     def run_filter(self, observation, deltaT, index, vol=None):
         self.logWghts = self.increment_particles(obs=observation, deltaT=deltaT,

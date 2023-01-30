@@ -3,7 +3,7 @@ from utils.math_functions import np, truncnorm
 
 def obs_mean_posterior(priorParams, obs, vols, deltaT, rng):
     mu0, sigma0 = priorParams
-    invSigmaIs = np.power(deltaT,-1) * np.exp(-vols[1:])  # 1/sigma_{i}^{2}
+    invSigmaIs = np.power(deltaT, -1) * np.exp(-vols[1:])  # 1/sigma_{i}^{2}
     a1 = np.power(sigma0, -2) + np.power(deltaT, 2) * np.sum(invSigmaIs)  # TODO: More efficient through matrix mult?
     a2 = mu0 * np.power(sigma0, -2) + deltaT * np.sum(
         (np.diff(obs) + 0.5 * np.exp(vols[1:]) * deltaT) * invSigmaIs)  # TODO: Efficiency?
@@ -21,7 +21,7 @@ def vol_meanRev_posterior(priorParams, suff3, suff4, sigmaX, deltaT, H, rng):
 
 def vol_mean_posterior(priorParams, suff1, suff2, gamma, sigmaX, deltaT, H, N, rng):
     eta = priorParams
-    d1 = suff1 * np.power(gamma,2)*(np.power(sigmaX, -2) * np.power(deltaT, -2. * H + 2.))
+    d1 = suff1 * np.power(gamma, 2) * (np.power(sigmaX, -2) * np.power(deltaT, -2. * H + 2.))
     d2 = N * np.power(gamma / sigmaX, 2) * np.power(deltaT, -2. * H + 2.)
     d2 += suff2 * gamma * np.power(sigmaX, -2) * np.power(deltaT, -2. * H + 1.)
     postMean = (d2 - eta) * np.power(d1, -1)
@@ -47,7 +47,7 @@ def posteriors(muUParams, gammaParams, muXParams, sigmaXParams, deltaT, observat
     suff4 = np.sum((np.diff(latents) * (muX - latents[:N])) / latents[:N])  # (Xi-Xi-1)(muX - Xi-1)/Xi-1
     suff5 = np.sum(np.power(np.diff(latents), 2) / latents[:N])  # (Xi-Xi-1)^2/Xi-1
     newObsMean = obs_mean_posterior(priorParams=muUParams,
-                                    obs=observations, vols=latents, deltaT=deltaT,  rng=rng)
+                                    obs=observations, vols=latents, deltaT=deltaT, rng=rng)
     newSigmaX = vol_sigma_posterior(
         priorParams=sigmaXParams, suff3=suff3, suff4=suff4, suff5=suff5, gamma=gamma, deltaT=deltaT, N=N, H=H,
         rng=rng)

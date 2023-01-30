@@ -1,5 +1,5 @@
-from utils.math_functions import np
 from src.ClassFractionalBrownianNoise import FractionalBrownianNoise
+from utils.math_functions import np
 
 
 class FractionalCEV:
@@ -24,7 +24,7 @@ class FractionalCEV:
         return incs
 
     def lamperti(self, x):
-        return np.power(self.volVol,-1) * np.log(x / self.initialVol)
+        return np.power(self.volVol, -1) * np.log(x / self.initialVol)
 
     def inverse_lamperti(self, Z):
         return self.initialVol * np.exp(self.volVol * Z)
@@ -44,11 +44,11 @@ class FractionalCEV:
 
     def observation_mean(self, prevObs, currX, deltaT):
         # return currX
-        return prevObs + (self.obsMean - 0.5 * np.exp(currX)) * deltaT # U_i-1 +(muU-0.5exp(X))delta
+        return prevObs + (self.obsMean - 0.5 * np.exp(currX)) * deltaT  # U_i-1 +(muU-0.5exp(X))delta
 
     def observation_var(self, currX, deltaT):
         # return deltaT
-        return np.exp(currX) * deltaT # delta exp(currX)
+        return np.exp(currX) * deltaT  # delta exp(currX)
 
     def state_simulation(self, H, N, deltaT, X0=None, Ms=None, gaussRvs=None):
         if X0 is None:

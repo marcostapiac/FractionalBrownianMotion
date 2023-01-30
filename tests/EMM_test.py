@@ -1,6 +1,7 @@
-from utils.math_functions import np, minimize, snorm
-from utils.plotting_functions import plot, plt
 import pandas as pd
+
+from utils.math_functions import np, minimize
+from utils.plotting_functions import plot, plt
 
 
 def plot_simulated(obs_data, vol_data, T_horizon):
@@ -10,7 +11,7 @@ def plot_simulated(obs_data, vol_data, T_horizon):
          title="GARCH(1,1) Model", fig=fig, ax=ax[0])
     plot(time, lines=[vol_data], label_args=["Volatility Process"], xlabel="Time", ylabel="Volatility Process",
          title="GARCH(1,1) Model", fig=fig, ax=ax[1])
-    #plt.close()
+    # plt.close()
 
 
 def true_model(ht1, a=-0.736, b=0.9, s=0.363):

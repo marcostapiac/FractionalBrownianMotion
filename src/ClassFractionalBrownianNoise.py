@@ -7,6 +7,7 @@ class FractionalBrownianNoise:
         self.rng = rng
 
     def covariance(self, lag):
+        """ Covariance and variance function for INCREMENTS ONLY"""
         return 0.5 * (abs(lag + 1) ** (2 * self.H) + abs(lag - 1) ** (2 * self.H) - 2 * abs(lag) ** (2 * self.H))
 
     def spectral_helper(self, x):
@@ -130,5 +131,4 @@ class FractionalBrownianNoise:
         cs = [np.conjugate(fourier_coeffs[N_samples - k]) for k in range(int(np.ceil(N_samples / 2)) + 1, N_samples)]
         fourier_coeffs = np.append(fourier_coeffs, cs)
         samples = np.fft.fft(fourier_coeffs)  # Samples should be real
-        # assert ((np.isreal(samples) == True).all())
         return np.real(samples)

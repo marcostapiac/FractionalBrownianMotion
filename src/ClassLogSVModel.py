@@ -31,7 +31,7 @@ class LogSVModel:
         return np.array(logVolData)
 
     def simulate_obs(self, T_horizon):
-        if self.get_log_vol() != self.a/(1.-self.b):
+        if self.get_log_vol() != self.a / (1. - self.b):
             raise RuntimeError("Ensure path is simulated from t=0")
         else:
             obsData = []

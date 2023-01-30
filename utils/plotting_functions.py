@@ -1,6 +1,6 @@
 import matplotlib
 import matplotlib.pyplot as plt
-from utils.math_functions import np
+from utils.math_functions import np, acf, snorm, truncnorm, sinvgamma
 import numbers
 
 
@@ -189,27 +189,104 @@ def qqplot(x, y, xlabel="", ylabel="", plottitle="", quantiles=None, interpolati
     ax.legend()
 
 
-def histogramplot(rvs, pdf_vals, axis, num_bins=100, xlabel="", ylabel="", plottitle="", plottlabel="", ax=None):
-    """ Function to compare generated process with density at t = T_{horizon} """
+def histogramplot(rvs, pdf_vals=None, axis=None, num_bins=100, xlabel="", ylabel="", plottitle="", plottlabel="",
+                  fig=None, ax=None):
     plt.style.use('ggplot')
-    if ax is None:
-        ax = plt.gca()
+    if (fig and ax) is None:
+        fig, ax = plt.subplots()
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_title(plottitle)
-    binvals, _, _ = plt.hist(rvs, num_bins, density=True, label="Histogram of Process at $t = T_{horizon}$")
-    ax.plot(axis, pdf_vals, label=plottlabel)
+    binvals, _, _ = plt.hist(rvs, num_bins, density=True, label="Histogram")
+    if pdf_vals is not None:
+        ax.plot(axis, pdf_vals, label=plottlabel, color="red")
     plt.legend()
-    plt.show()
+    return fig, ax, binvals
 
 
-def boxplot(data, xlabel="", ylabel="", plottitle="", dataLabels="", ax=None):
+def gibbs_histogram_plot(Thetas, burnOut, plottitle, trueVals, priorParams):
+    muUPriorParams, alphaPriorParams, muXPriorParams, sigmaXPriorParams = priorParams
+
+    fig, ax, binvals = histogramplot(Thetas[burnOut:, 0], xlabel="Observation Mean", ylabel="PDF",
+                                     plottitle=plottitle)
+    ax.axvline(trueVals[0], label="True Parameter Value $ " + str(round(trueVals[0], 3)) + " $", color="blue")
+    axis = np.linspace(snorm.ppf(0.001, loc=muUPriorParams[0], scale=muUPriorParams[1]),
+                       snorm.ppf(0.999, loc=muUPriorParams[0], scale=muUPriorParams[1]), num=1000)
+    pdfVals = snorm.pdf(axis, loc=muUPriorParams[0], scale=muUPriorParams[1])
+    ax.plot(axis, pdfVals * (np.max(binvals) / np.max(pdfVals)), label="Prior Distribution", color="orange")
+    plt.legend()
+
+    fig, ax, binvals = histogramplot(Thetas[burnOut:, 1], xlabel="Volatility Standardised Mean Reversion", ylabel="PDF",
+                                     plottitle=plottitle)
+    ax.axvline(trueVals[1], label="True Parameter Value $ " + str(round(trueVals[1], 3)) + " $", color="blue")
+    mean, sigma = alphaPriorParams[0], alphaPriorParams[1]
+    axis = np.linspace(truncnorm.ppf(q=0.001, a=-mean / sigma, b=np.inf, loc=mean, scale=sigma),
+                       truncnorm.ppf(q=0.999, a=-mean / sigma, b=np.inf, loc=mean, scale=sigma), num=1000)
+    pdfVals = truncnorm.pdf(axis, a=-mean / sigma, b=np.inf, loc=mean, scale=sigma)
+    ax.plot(axis, pdfVals * (np.max(binvals) / np.max(pdfVals)), label="Prior Distribution",
+            color="orange")
+    plt.legend()
+
+    fig, ax, binvals = histogramplot(Thetas[burnOut:, 2], xlabel="Volatility Mean", ylabel="PDF",
+                                     plottitle=plottitle)
+    ax.axvline(trueVals[2], label="True Parameter Value $ " + str(round(trueVals[2], 3)) + " $", color="blue")
+    mean, sigma = muXPriorParams[0], muXPriorParams[1]
+    axis = np.linspace(truncnorm.ppf(q=0.001, a=-mean / sigma, b=np.inf, loc=mean, scale=sigma),
+                       truncnorm.ppf(q=0.999, a=-mean / sigma, b=np.inf, loc=mean, scale=sigma), num=1000)
+    pdfVals = truncnorm.pdf(axis, a=-mean / sigma, b=np.inf, loc=mean, scale=sigma)
+    ax.plot(axis, pdfVals * np.max(binvals) / np.max(pdfVals), label="Prior Distribution",
+            color="orange")
+    plt.legend()
+
+    fig, ax, binVals = histogramplot(Thetas[burnOut:, 3], xlabel="Volatility Std", ylabel="PDF",
+                                     plottitle=plottitle)
+    ax.axvline(trueVals[3], label="True Parameter Value $ " + str(round(trueVals[3], 3)) + " $", color="blue")
+    alpha0, beta0 = sigmaXPriorParams
+    axis = np.linspace(sinvgamma.ppf(0.001, a=alpha0, loc=0., scale=beta0),
+                       sinvgamma.ppf(0.999, a=alpha0, loc=0., scale=beta0), num=1000)
+    pdfVals = sinvgamma.pdf(axis, a=alpha0, scale=beta0)
+    ax.plot(axis, pdfVals * (np.max(binvals) / np.max(pdfVals)), label="Prior Distribution",
+            color="orange")
+    plt.legend()
+
+
+def boxplot(data, xlabel="", ylabel="", plottitle="", dataLabels="", fig=None, ax=None):
     plt.style.use('ggplot')
-    if ax is None:
-        ax = plt.gca()
+    if (fig and ax) is None:
+        fig, ax = plt.subplots()
     ax.boxplot(data, labels=dataLabels)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_title(plottitle)
     plt.legend()
-    plt.show()
+
+
+def plot_parameter_traces(S, Thetas):
+    plot(np.arange(0, S + 1, step=1), [Thetas[:, 0]], ["Observation Mean"], "Gibbs Iteration", "Observation Mean",
+         "Gibbs Sampler")
+    plot(np.arange(0, S + 1, step=1), [Thetas[:, 1]], ["Volatility Standardised Mean Reversion"], "Gibbs Iteration",
+         "Volatility Standardised Mean Reversion",
+         "Gibbs Sampler")
+    plot(np.arange(0, S + 1, step=1), [Thetas[:, 2]], ["Volatility Mean"], "Gibbs Iteration", "Volatility Mean",
+         "Gibbs Sampler")
+    plot(np.arange(0, S + 1, step=1), [Thetas[:, 3]], ["Volatility Std Parameter"], "Gibbs Iteration",
+         "Volatility Std Parameter",
+         "Gibbs Sampler")
+
+
+def plot_autocorrfns(Thetas):
+    acfObsMean = acf(Thetas[:, 0])
+    acfVolMeanRev = acf(Thetas[:, 1])
+    acfVolMean = acf(Thetas[:, 2])
+    acfVolStd = acf(Thetas[:, 3])
+    S = acfVolMean.shape[0]
+    plot(np.arange(0, S, step=1), [acfObsMean], ["Observation Mean"], "Lag", "Observation Mean",
+         "Autocorrelation Function")
+    plot(np.arange(0, S, step=1), [acfVolMeanRev], ["Volatility Mean Reversion"], "Lag",
+         "Volatility Mean Reversion",
+         "Autocorrelation Function")
+    plot(np.arange(0, S, step=1), [acfVolMean], ["Volatility Mean"], "Lag", "Volatility Mean",
+         "Autocorrelation Function")
+    plot(np.arange(0, S, step=1), [acfVolStd], ["Volatility Std Parameter"], "Lag",
+         "Volatility Std Parameter",
+         "Autocorrelation Function")
