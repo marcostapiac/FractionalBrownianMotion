@@ -5,16 +5,15 @@ from src.ClassFractionalCEV import FractionalCEV
 from src.load_data import load_data
 from src.priors_Zs import prior
 from utils.math_functions import np
-from utils.plotting_functions import plt, gibbs_histogram_plot, plot_subplots
+from utils.plotting_functions import plt, gibbs_histogram_plot, plot_subplots, plot_parameter_traces
 
 
-def test_no_H(S=20000, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 10, T=1e-3 * 2 ** 10,
+def test_no_H(S=30000, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 12, T=1e-3 * 2 ** 12,
               rng=np.random.default_rng(), loadData=False):
     sigmaX = np.sqrt(muX * gamma / 0.55)
-    print(sigmaX)
     alpha = gamma / sigmaX
     deltaT = T / N
-    m = FractionalCEV(muU=muU, gamma=gamma, muX=muX, sigmaX=sigmaX, X0=X0, U0=U0)
+    m = FractionalCEV(muU=muU, alpha=alpha, muX=muX, sigmaX=sigmaX, X0=X0, U0=U0)
     if not loadData:
         Xs, Us = m.euler_simulation(H=H, N=N, deltaT=deltaT)  # Simulated data
         plot_subplots(np.arange(0, T + deltaT, step=deltaT), [Xs, Us], [None, None], ["Time", "Time"],
@@ -46,15 +45,16 @@ def test_no_H(S=20000, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 10,
                                                         rng=rng, alphaAcc=alphaAcc, volAcc=volAcc, sigmaXAcc=sigmaXAcc)
         Thetas.append(theta)
     Thetas = np.array(Thetas).reshape((S + 1, 5))
-    burnOut = 2000
-    Thetas[:, 1] *= Thetas[:, 3]
+    burnOut = int(S / 10)
     print("Alpha, ObsMean, SigmaX Acceptance Rates: " + str(alphaAcc / S) + ", " + str(volAcc / S) + ", " + str(
         sigmaXAcc / S))
-    # plot_parameter_traces(S=S, Thetas=Thetas)
+    plot_parameter_traces(S=S, Thetas=Thetas)
     # plot_autocorrfns(Thetas=Thetas)
-    gibbs_histogram_plot(Thetas, burnOut, plottitle="Fully Observed Gibbs Histogram", trueVals=[muU, gamma, muX, sigmaX**2],
+    Thetas[:, 3] *= Thetas[:, 3]
+    gibbs_histogram_plot(Thetas, burnOut, plottitle="Fully Observed MCMC Histogram",
+                         trueVals=[muU, alpha, muX, sigmaX ** 2],
                          priorParams=[muUParams, alphaParams, muXParams, sigmaXParams])
     plt.show()
 
 
-test_no_H(loadData=False)
+test_no_H(loadData=True)

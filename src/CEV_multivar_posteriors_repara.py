@@ -43,54 +43,52 @@ def generate_V_matrix(vols, sigmaX, N, deltaT=None, H=None, invfBnCovMat=None):
     return mat
 
 
-def vol_sigma_posterior(priorParams, vols, muX, gamma, deltaT, V_matrix, N, rng):
-    alpha, beta = priorParams
-    b1 = alpha + 0.5 * N
-    muN = gamma * muX * deltaT + vols[:N] * (1. - gamma * deltaT)
+def vol_sigma_posterior(priorParams, vols, alpha, gamma, deltaT, V_matrix, N, rng):
+    alpha0, beta0 = priorParams
+    b1 = alpha0 + 0.5 * N
+    muN = alpha * deltaT + vols[:N] * (1. - gamma * deltaT)
     driftless = np.reshape(vols[1:] - muN, (N, 1))
-    b2 = beta + 0.5 * np.squeeze(driftless.T @ V_matrix @ driftless)
+    b2 = beta0 + 0.5 * np.squeeze(driftless.T @ V_matrix @ driftless)
     return np.sqrt(1. / rng.gamma(shape=b1, scale=1. / b2))
 
 
-def vol_meanRev_posterior(priorParams, muX, vols, deltaT, V_matrix, N):
+def vol_alpha_posterior(priorParams, V_matrix, gamma, vols, deltaT, N):
     mu0, sigma0 = priorParams
-    driftless = muX * deltaT - deltaT * np.reshape(vols[:N], (N, 1))
-    assert (driftless.shape[0] == N and driftless.shape[1] == 1)
-    partial_c = driftless.T @ V_matrix
-    c1 = np.squeeze(partial_c @ driftless) + np.power(sigma0, -2)
-    c2 = mu0 * np.power(sigma0, -2) + np.squeeze(partial_c @ np.reshape(np.diff(vols), (N, 1)))
-    postMean = c2 * np.power(c1, -1)
-    postStd = np.power(c1, -0.5)
-    return truncnorm.rvs(a=-postMean / postStd, b=np.inf, loc=postMean, scale=postStd)
-
-
-def vol_mean_posterior(priorParams, V_matrix, gamma, vols, deltaT, N):
-    mu0, sigma0 = priorParams
-    ones = np.ones(shape=V_matrix.shape[0])
-    d1 = np.power(gamma * deltaT, 2) * (ones.T @ V_matrix @ ones) + np.power(sigma0,
-                                                                             -2)  # TODO: ISSUE WITH VERY SMALL DELTAT LEADS TO LARGE VARIANCE
-    driftless = np.reshape(np.diff(vols) + gamma * deltaT * vols[:N], (N, 1))
-    d2 = mu0 * np.power(sigma0, -2) + gamma * deltaT * np.sum(V_matrix @ driftless, axis=0)
+    d1 = np.power(deltaT, 2) * np.squeeze(np.sum(V_matrix)) + np.power(sigma0,-2)  # TODO: ISSUE WITH VERY SMALL DELTAT LEADS TO LARGE VARIANCE
+    driftless = np.reshape(vols[1:] -vols[:N] + gamma * deltaT * vols[:N], (N, 1))
+    d2 = mu0 * np.power(sigma0, -2) + deltaT * np.sum(driftless.T@V_matrix, axis=1)
     postMean = (d2) * np.power(d1, -1)
     postStd = np.power(d1, -0.5)
     return truncnorm.rvs(a=-postMean / postStd, b=np.inf, loc=postMean, scale=postStd)
 
 
+def vol_meanRev_posterior(priorParams, alpha, vols, deltaT, V_matrix, N):
+    mu0, sigma0 = priorParams
+    XN1 = np.reshape(vols[:N], (N,1))
+    driftless = np.reshape(np.diff(vols) - alpha*deltaT, (N,1))
+    assert (driftless.shape[0] == N and driftless.shape[1] == 1)
+    c1 = np.power(deltaT,2)*np.squeeze(XN1.T@V_matrix@XN1) + np.power(sigma0, -2)
+    c2 = mu0 * np.power(sigma0, -2) - deltaT*np.squeeze(driftless.T @ V_matrix @ XN1)
+    postMean = c2 * np.power(c1, -1)
+    postStd = np.power(c1, -0.5)
+    return truncnorm.rvs(a=-postMean / postStd, b=np.inf, loc=postMean, scale=postStd)
+
 def posteriors(muUParams, gammaParams, muXParams, sigmaXParams, deltaT, observations, latents, theta, V=None,
                invfBnCovMat=None,
                rng=np.random.default_rng()):
-    muU, gamma, muX, sigmaX, H = theta
+    muU, gamma, alpha, sigmaX, H = theta
     N = latents.shape[0] - 1
-    if V is None:
-        V = generate_V_matrix(vols=latents, sigmaX=sigmaX, N=N, H=H, deltaT=deltaT, invfBnCovMat=invfBnCovMat)
-    assert (V.shape[0] == V.shape[1] and V.shape[0] == N)
     newObsMean = obs_mean_posterior(priorParams=muUParams,
                                     obs=observations, vols=latents, deltaT=deltaT, N=N, rng=rng)
-    newVolMean = vol_mean_posterior(priorParams=muXParams, V_matrix=V, gamma=gamma, vols=latents, deltaT=deltaT, N=N)
-    newMeanRev = vol_meanRev_posterior(priorParams=gammaParams, muX=newVolMean, vols=latents, deltaT=deltaT,
-                                       V_matrix=V, N=N)
+    if V is None:
+        V = generate_V_matrix(vols=latents, sigmaX=1., N=N, H=H, deltaT=deltaT, invfBnCovMat=invfBnCovMat)
+    assert (V.shape[0] == V.shape[1] and V.shape[0] == N)
     newSigmaX = vol_sigma_posterior(
-        priorParams=sigmaXParams, vols=latents, gamma=newMeanRev, muX=newVolMean, deltaT=deltaT,
-        V_matrix=V * np.power(sigmaX, 2),
+        priorParams=sigmaXParams, vols=latents, gamma=gamma, alpha=alpha, deltaT=deltaT,
+        V_matrix=V,
         rng=rng, N=N)
-    return np.array([newObsMean, newMeanRev, newVolMean, newSigmaX, H])
+    V *= np.power(newSigmaX, -2)
+    newAlpha = vol_alpha_posterior(priorParams=muXParams, V_matrix=V, gamma=gamma, vols=latents, deltaT=deltaT, N=N)
+    newMeanRev = vol_meanRev_posterior(priorParams=gammaParams, alpha=newAlpha, vols=latents, deltaT=deltaT,
+                                       V_matrix=V, N=N)
+    return np.array([newObsMean, newMeanRev, newAlpha, newSigmaX, H])

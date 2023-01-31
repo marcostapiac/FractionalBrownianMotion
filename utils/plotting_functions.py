@@ -207,45 +207,45 @@ def histogramplot(rvs, pdf_vals=None, axis=None, num_bins=100, xlabel="", ylabel
 def gibbs_histogram_plot(Thetas, burnOut, plottitle, trueVals, priorParams):
     muUPriorParams, alphaPriorParams, muXPriorParams, sigmaXPriorParams = priorParams
 
-    fig, ax, binvals = histogramplot(Thetas[burnOut:, 0], xlabel="Observation Mean", ylabel="PDF",
+    fig, ax, binVals = histogramplot(Thetas[burnOut:, 0], xlabel="Observation Mean", ylabel="PDF",
                                      plottitle=plottitle)
     ax.axvline(trueVals[0], label="True Parameter Value $ " + str(round(trueVals[0], 3)) + " $", color="blue")
     axis = np.linspace(snorm.ppf(0.001, loc=muUPriorParams[0], scale=muUPriorParams[1]),
                        snorm.ppf(0.999, loc=muUPriorParams[0], scale=muUPriorParams[1]), num=1000)
     pdfVals = snorm.pdf(axis, loc=muUPriorParams[0], scale=muUPriorParams[1])
-    ax.plot(axis, pdfVals * (np.max(binvals) / np.max(pdfVals)), label="Prior Distribution", color="orange")
+    ax.plot(axis, pdfVals * (np.max(binVals) / np.max(pdfVals)), label="Scaled Prior Distribution", color="orange")
     plt.legend()
 
-    fig, ax, binvals = histogramplot(Thetas[burnOut:, 1], xlabel="Volatility Standardised Mean Reversion", ylabel="PDF",
+    fig, ax, binVals = histogramplot(Thetas[burnOut:, 1], xlabel="Volatility Standardised Mean Reversion", ylabel="PDF",
                                      plottitle=plottitle)
     ax.axvline(trueVals[1], label="True Parameter Value $ " + str(round(trueVals[1], 3)) + " $", color="blue")
     mean, sigma = alphaPriorParams[0], alphaPriorParams[1]
     axis = np.linspace(truncnorm.ppf(q=0.001, a=-mean / sigma, b=np.inf, loc=mean, scale=sigma),
                        truncnorm.ppf(q=0.999, a=-mean / sigma, b=np.inf, loc=mean, scale=sigma), num=1000)
     pdfVals = truncnorm.pdf(axis, a=-mean / sigma, b=np.inf, loc=mean, scale=sigma)
-    ax.plot(axis, pdfVals * (np.max(binvals) / np.max(pdfVals)), label="Prior Distribution",
+    ax.plot(axis, pdfVals * (np.max(binVals) / np.max(pdfVals)), label="Scaled Prior Distribution",
             color="orange")
     plt.legend()
 
-    fig, ax, binvals = histogramplot(Thetas[burnOut:, 2], xlabel="Volatility Mean", ylabel="PDF",
+    fig, ax, binVals = histogramplot(Thetas[burnOut:, 2], xlabel="Volatility Mean", ylabel="PDF",
                                      plottitle=plottitle)
     ax.axvline(trueVals[2], label="True Parameter Value $ " + str(round(trueVals[2], 3)) + " $", color="blue")
     mean, sigma = muXPriorParams[0], muXPriorParams[1]
     axis = np.linspace(truncnorm.ppf(q=0.001, a=-mean / sigma, b=np.inf, loc=mean, scale=sigma),
                        truncnorm.ppf(q=0.999, a=-mean / sigma, b=np.inf, loc=mean, scale=sigma), num=1000)
     pdfVals = truncnorm.pdf(axis, a=-mean / sigma, b=np.inf, loc=mean, scale=sigma)
-    ax.plot(axis, pdfVals * np.max(binvals) / np.max(pdfVals), label="Prior Distribution",
+    ax.plot(axis, pdfVals * np.max(binVals) / np.max(pdfVals), label="Scaled Prior Distribution",
             color="orange")
     plt.legend()
 
-    fig, ax, binVals = histogramplot(Thetas[burnOut:, 3], xlabel="Volatility Std", ylabel="PDF",
+    fig, ax, binVals = histogramplot(Thetas[burnOut:, 3], xlabel="Volatility Variance", ylabel="PDF",
                                      plottitle=plottitle)
     ax.axvline(trueVals[3], label="True Parameter Value $ " + str(round(trueVals[3], 3)) + " $", color="blue")
     alpha0, beta0 = sigmaXPriorParams
-    axis = np.linspace(sinvgamma.ppf(0.001, a=alpha0, loc=0., scale=beta0),
-                       sinvgamma.ppf(0.999, a=alpha0, loc=0., scale=beta0), num=1000)
+    axis = np.linspace(sinvgamma.ppf(0.35, a=alpha0, loc=0., scale=beta0),
+                       sinvgamma.ppf(0.65, a=alpha0, loc=0., scale=beta0), num=1000)
     pdfVals = sinvgamma.pdf(axis, a=alpha0, scale=beta0)
-    ax.plot(axis, pdfVals * (np.max(binvals) / np.max(pdfVals)), label="Prior Distribution",
+    ax.plot(axis, pdfVals * (np.max(binVals) / np.max(pdfVals)), label="Scaled Prior Distribution",
             color="orange")
     plt.legend()
 
@@ -262,16 +262,16 @@ def boxplot(data, xlabel="", ylabel="", plottitle="", dataLabels="", fig=None, a
 
 
 def plot_parameter_traces(S, Thetas):
-    plot(np.arange(0, S + 1, step=1), [Thetas[:, 0]], ["Observation Mean"], "Gibbs Iteration", "Observation Mean",
-         "Gibbs Sampler")
-    plot(np.arange(0, S + 1, step=1), [Thetas[:, 1]], ["Volatility Standardised Mean Reversion"], "Gibbs Iteration",
+    plot(np.arange(0, S + 1, step=1), [Thetas[:, 0]], ["Observation Mean"], "Algorithm Iteration", "Observation Mean",
+         "Metropolis-within-Gibbs Sampler")
+    plot(np.arange(0, S + 1, step=1), [Thetas[:, 1]], ["Volatility Standardised Mean Reversion"], "Algorithm Iteration",
          "Volatility Standardised Mean Reversion",
-         "Gibbs Sampler")
-    plot(np.arange(0, S + 1, step=1), [Thetas[:, 2]], ["Volatility Mean"], "Gibbs Iteration", "Volatility Mean",
-         "Gibbs Sampler")
-    plot(np.arange(0, S + 1, step=1), [Thetas[:, 3]], ["Volatility Std Parameter"], "Gibbs Iteration",
-         "Volatility Std Parameter",
-         "Gibbs Sampler")
+         "Metropolis-within-Gibbs Sampler")
+    plot(np.arange(0, S + 1, step=1), [Thetas[:, 2]], ["Volatility Mean"], "Algorithm Iteration", "Volatility Mean",
+         "Metropolis-within-Gibbs Sampler")
+    plot(np.arange(0, S + 1, step=1), [Thetas[:, 3]], ["Volatility Variance Parameter"], "Algorithm Iteration",
+         "Volatility Variance Parameter",
+         "Metropolis-within-Gibbs Sampler")
 
 
 def plot_autocorrfns(Thetas):
@@ -287,6 +287,6 @@ def plot_autocorrfns(Thetas):
          "Autocorrelation Function")
     plot(np.arange(0, S, step=1), [acfVolMean], ["Volatility Mean"], "Lag", "Volatility Mean",
          "Autocorrelation Function")
-    plot(np.arange(0, S, step=1), [acfVolStd], ["Volatility Std Parameter"], "Lag",
-         "Volatility Std Parameter",
+    plot(np.arange(0, S, step=1), [acfVolStd], ["Volatility Variance Parameter"], "Lag",
+         "Volatility Variance Parameter",
          "Autocorrelation Function")

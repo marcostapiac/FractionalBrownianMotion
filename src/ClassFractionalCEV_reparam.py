@@ -4,13 +4,13 @@ from utils.math_functions import np
 
 class FractionalCEV:
 
-    def __init__(self, muU, alpha, sigmaX, muX, X0, U0, rng=np.random.default_rng()):
+    def __init__(self, muU, alpha, sigmaX, gamma, X0, U0, rng=np.random.default_rng()):
         assert (alpha > 0.)  # For mean-reversion and not exponential explosion
         assert (X0 > 0.)  # Initial vol cannot be 0
         self.obsMean = muU  # Log price process mean
-        self.volMean = muX
+        self.alpha = alpha
         self.volVol = sigmaX
-        self.stanMeanRev = alpha
+        self.gamma = gamma
         self.initialVol = X0
         self.initialLogPrice = U0
         self.rng = rng
@@ -38,8 +38,8 @@ class FractionalCEV:
 
     def increment_state(self, prev, deltaT, M):
         """ Increment volatilities """
-        driftZ = self.stanMeanRev * self.volMean*np.power(self.initialVol, -1) * np.exp(-self.volVol * prev)
-        driftZ += -0.5 * self.volVol - self.stanMeanRev
+        driftZ = self.alpha * np.power(self.volVol*self.initialVol, -1) * np.exp(-self.volVol * prev)
+        driftZ += -0.5 * self.volVol - self.gamma/self.volVol
         return prev + driftZ * deltaT + M
 
     def observation_mean(self, prevObs, currX, deltaT):
