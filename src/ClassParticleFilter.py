@@ -3,7 +3,7 @@ from functools import partial
 
 from p_tqdm import t_map
 
-from utils.math_functions import np, logsumexp, snorm, multsnorm
+from utils.math_functions import np, logsumexp, snorm, smultnorm
 
 
 class Particle:
@@ -94,10 +94,12 @@ class FractionalParticleFilter(ParticleFilter):
         Xcurr = particle.trajectory
         muU = self.generator.obsMean
         N = currObs.shape[0] - 1
-        logAccProb = multsnorm.logpdf(currObs[1:], mean=currObs[:N] + muU * deltaT - 0.5 * deltaT * np.exp(Xnew[1:]),
-                                      cov=deltaT * np.exp(0.5 * Xnew[1:]) @ np.exp(0.5 * Xnew[1:].T))
-        logAccProb -= multsnorm.logpdf(currObs[1:], mean=currObs[:N] + muU * deltaT - 0.5 * deltaT * np.exp(Xcurr[1:]),
-                                       cov=deltaT * np.exp(0.5 * Xcurr[1:]) @ np.exp(0.5 * Xcurr[1:].T))
+        # TODO: Symmetric positive definite ISSUE
+        logAccProb = smultnorm.logpdf(currObs[1:], mean=currObs[:N] + muU * deltaT - 0.5 * deltaT * np.exp(Xnew[1:]),
+                                      cov=deltaT * np.exp(0.5 * np.reshape(Xnew[1:], (N,1))) @ np.exp(0.5 * np.reshape(Xnew[1:], (N,1)).T))
+        logAccProb -= smultnorm.logpdf(currObs[1:], mean=currObs[:N] + muU * deltaT - 0.5 * deltaT * np.exp(Xcurr[1:]),
+                                       cov=deltaT * np.exp(0.5 * np.reshape(Xcurr[1:], (N,1))) @ np.exp(0.5 * np.reshape(Xcurr[1:], (N,1)).T))
+        # TODO: Do I need to include p(X0:N|theta) here? (I don't think so, target is p(X0:N|Y0:N))
         u = self.rng.uniform(low=0., high=1.)
         if np.log(u) <= min(0., logAccProb):
             particle.trajectory = Xnew

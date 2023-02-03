@@ -1,8 +1,8 @@
 from tqdm import tqdm
 
-from utils.math_functions import np, truncnorm, snorm, sinvgamma
+from utils.math_functions import np, truncnorm, snorm, sinvgamma, slognorm, smultnorm
 
-
+from utils.plotting_functions import histogramplot, plt, plot
 
 def sigmaX_MH_Zs(priorParams, transformedVols, currSigmaX, alpha, muX, deltaT, invfBnCovMat, X0, N, rng):
     alpha0, beta0 = priorParams
@@ -72,64 +72,6 @@ def generate_V_matrix(vols, sigmaX, N, deltaT=None, H=None, invfBnCovMat=None):
     return mat
 
 
-def alpha_MH(priorParams, transformedVols, currAlpha, sigmaX, deltaT, muX, suff, invfBnCovMat, N, rng):
-    priorMean, priorScale = priorParams
-    ZN1 = transformedVols[:N]
-    ZN = np.reshape(transformedVols[1:], (N, 1))
-    a = np.reshape(ZN1 - 0.5 * sigmaX * deltaT, (N, 1))
-    b = np.reshape(muX * deltaT * suff - deltaT, (N, 1))
-    partialD = b.T @ invfBnCovMat
-    d1 = partialD @ b
-    d2 = partialD @ (ZN - a)
-    llMean = d2 * np.power(d1, -1)
-    llStd = np.power(d1, -0.5)
-    # Propose new parameter
-    proposalScale = 3.
-    newAlpha = truncnorm.rvs(a=-currAlpha / proposalScale, b=np.inf, loc=currAlpha, scale=proposalScale)
-    # Likelihood
-    logAccProb = snorm.logpdf(newAlpha, loc=llMean, scale=llStd) - snorm.logpdf(currAlpha, loc=llMean, scale=llStd)
-    # Prior likelihood
-    logAccProb += truncnorm.logpdf(x=newAlpha, a=-priorMean / priorScale, b=np.inf, loc=priorMean, scale=priorScale)
-    logAccProb -= truncnorm.logpdf(x=currAlpha, a=-priorMean / priorScale, b=np.inf, loc=priorMean, scale=priorScale)
-    # Proposal likelihood
-    logAccProb += truncnorm.logpdf(x=currAlpha, a=-newAlpha / proposalScale, b=np.inf, loc=newAlpha,
-                                   scale=proposalScale) - truncnorm.logpdf(
-        x=newAlpha, a=-currAlpha / proposalScale, b=np.inf, loc=currAlpha, scale=proposalScale)
-    u = rng.uniform(low=0., high=1.)
-    if np.log(u) <= min(0., logAccProb):
-        return newAlpha, 1
-    return currAlpha, 0
-
-
-def muX_MH(priorParams, transformedVols, currVolMean, alpha, deltaT, sigmaX, suff, invfBnCovMat, N, rng):
-    priorMean, priorScale = priorParams
-    ZN1 = transformedVols[:N]
-    ZN = np.reshape(transformedVols[1:], (N, 1))
-    a = np.reshape(ZN1 - alpha * deltaT - 0.5 * sigmaX * deltaT, (N, 1))
-    b = np.reshape(alpha * deltaT * suff, (N, 1))
-    partialD = b.T @ invfBnCovMat
-    d1 = partialD @ b
-    d2 = partialD @ (ZN - a)
-    llMean = d2 * np.power(d1, -1)
-    llStd = np.power(d1, -0.5)
-    # Propose new parameter with TruncNorm_{0}(muX, 1.)
-    proposalScale = 3.
-    newVolMean = truncnorm.rvs(a=-currVolMean / proposalScale, b=np.inf, loc=currVolMean, scale=proposalScale)
-    # Likelihood
-    logAccProb = snorm.logpdf(newVolMean, loc=llMean, scale=llStd) - snorm.logpdf(currVolMean, loc=llMean, scale=llStd)
-    # Prior likelihood
-    logAccProb += truncnorm.logpdf(x=newVolMean, a=-priorMean / priorScale, b=np.inf, loc=priorMean, scale=priorScale)
-    logAccProb -= truncnorm.logpdf(x=currVolMean, a=-priorMean / priorScale, b=np.inf, loc=priorMean, scale=priorScale)
-    # Proposal Likelihood
-    logAccProb += truncnorm.logpdf(x=currVolMean, a=-newVolMean / proposalScale, b=np.inf, loc=newVolMean,
-                                   scale=proposalScale) - truncnorm.logpdf(
-        x=newVolMean, a=-currVolMean / proposalScale, b=np.inf, loc=currVolMean, scale=proposalScale)
-    u = rng.uniform(low=0., high=1.)
-    if np.log(u) <= min(0., logAccProb):
-        return newVolMean, 1
-    return currVolMean, 0
-
-
 def alpha_Gibbs(priorParams, transformedVols, sigmaX, deltaT, muX, suff, invfBnCovMat, N, rng):
     priorMean, priorScale = priorParams
     ZN1 = transformedVols[:N]
@@ -143,7 +85,7 @@ def alpha_Gibbs(priorParams, transformedVols, sigmaX, deltaT, muX, suff, invfBnC
     llStd = np.power(d1, -0.5)
     # Sample new parameter
     newAlpha = truncnorm.rvs(a=-llMean / llStd, b=np.inf, loc=llMean, scale=llStd)
-    return newAlpha, 1
+    return newAlpha
 
 
 def muX_Gibbs(priorParams, transformedVols, alpha, deltaT, sigmaX, suff, invfBnCovMat, N, rng):
@@ -159,7 +101,7 @@ def muX_Gibbs(priorParams, transformedVols, alpha, deltaT, sigmaX, suff, invfBnC
     llStd = np.power(d1, -0.5)
     # Propose new parameter with TruncNorm_{0}(muX, 1.)
     newVolMean = truncnorm.rvs(a=-llMean / llStd, b=np.inf, loc=llMean, scale=llStd)
-    return newVolMean, 1
+    return newVolMean
 
 
 def sigmaX_MH(priorParams, vols, currSigmaX, alpha, muX, deltaT, V_mat, N, rng):
@@ -168,31 +110,62 @@ def sigmaX_MH(priorParams, vols, currSigmaX, alpha, muX, deltaT, V_mat, N, rng):
     dashMuN = alpha * deltaT * np.reshape(muX - vols[:N], (N, 1))
     currDriftless = np.reshape(diffX / currSigmaX, (N, 1)) - dashMuN
     # Propose new parameter
-    proposalScale = 2.
-    newSigmaX = np.sqrt(
-        truncnorm.rvs(a=-currSigmaX ** 2 / proposalScale, b=np.inf, loc=currSigmaX ** 2, scale=proposalScale))
-    # Prior likelihood
-    logAccProb = sinvgamma.logpdf(x=newSigmaX ** 2, a=alpha0, scale=beta0) - sinvgamma.logpdf(x=currSigmaX ** 2,
-                                                                                               a=alpha0, scale=beta0)
-    if logAccProb == -np.inf:
+    proposalScale = .01
+    newSigmaX = snorm.rvs(loc=currSigmaX, scale=proposalScale)
+    #newSigmaX = slognorm.rvs(scale=currSigmaX, s=proposalScale)
+    print(newSigmaX, currSigmaX)
+    if newSigmaX <= 0.:
         return currSigmaX, 0
     else:
-        newDriftless = np.reshape(diffX / newSigmaX, (N, 1)) - dashMuN
+        # Prior likelihood
+        logAccProb = sinvgamma.logpdf(x=newSigmaX ** 2, a=alpha0, scale=beta0) - sinvgamma.logpdf(x=currSigmaX ** 2,
+                                                                                                  a=alpha0, scale=beta0)
+        newDriftless = np.reshape(diffX / (newSigmaX), (N, 1)) - dashMuN
         # Likelihood
-        logAccProb += -N * (np.log(newSigmaX) - np.log(currSigmaX)) - 0.5 * (
+        logAccProb += -N * (np.log(newSigmaX) - np.log(currSigmaX)) - 0.5 * np.squeeze(
                 newDriftless.T @ V_mat @ newDriftless - currDriftless.T @ V_mat @ currDriftless)
         # Proposal Likelihood
-        logAccProb += truncnorm.logpdf(x=currSigmaX ** 2, a=-newSigmaX ** 2 / proposalScale, b=np.inf, loc=newSigmaX ** 2,
-                                       scale=proposalScale)
-        logAccProb -= truncnorm.logpdf(x=newSigmaX ** 2, a=-currSigmaX ** 2 / proposalScale, b=np.inf, loc=currSigmaX ** 2,
-                                       scale=proposalScale)
+        logAccProb += snorm.logpdf(x=currSigmaX, loc=newSigmaX, scale=proposalScale)
+        logAccProb -= snorm.logpdf(x=newSigmaX, loc=currSigmaX, scale=proposalScale)
+        #logAccProb += slognorm.logpdf(x=currSigmaX, scale=newSigmaX, s=proposalScale)
+        #logAccProb -= slognorm.logpdf(x=newSigmaX, scale=currSigmaX, s=proposalScale)
         u = rng.uniform(low=0., high=1.)
         if np.log(u) <= min(0., logAccProb):
-            return newSigmaX, 1
+            return (newSigmaX), 1
         return currSigmaX, 0
 
+def latents_MH(i, generator, theta, X0, U0, latents, transformedLatents, observations, invfBnCovMat, N, deltaT,  rng, rho=0.02):
+    muU, alpha, muX, sigmaX, H = theta
+    """ Get current path """
+    currXs = latents
+    currZs = transformedLatents
+    currGaussIncs = generator.gaussIncs
+    """ Update model """
+    generator.__init__(muU=muU, alpha=alpha, muX=muX, sigmaX=sigmaX, X0=X0, U0=U0)
+    """ PcN proposal for increments """
+    # TODO: Try smaller prop var (rho)
+    newGaussIncs = np.sqrt(1. - np.power(rho, 2)) * currGaussIncs + rho * rng.normal(size=len(currGaussIncs))  # pCn
+    newXs = generator.state_simulation(H=H, N=N, deltaT=deltaT, gaussRvs=newGaussIncs)
+    newZs = generator.lamperti(newXs)
+    """ Calculate acceptance probability: Observation likelihood """
+    newXN1 = np.reshape(newXs[1:], (N, ))
+    currXN1 = np.reshape(currXs[1:], (N, ))
+    #logAccProb = smultnorm.logpdf(x=np.exp(-0.5*newXN1)*observations[1:],mean=np.exp(-0.5*newXN1)*(observations[:N]+(muU-0.5*np.exp(newXs[1:]))*deltaT), cov=deltaT*np.eye(N))
+    #logAccProb -= smultnorm.logpdf(x=np.exp(-0.5*currXN1)*observations[1:],mean=np.exp(-0.5*currXN1)*(observations[:N]+(muU-0.5*np.exp(currXs[1:]))*deltaT), cov=deltaT*np.eye(N))
+    logAccProb = smultnorm.logpdf(x=observations, mean=newXs, cov=deltaT*np.eye(N+1))
+    logAccProb -= smultnorm.logpdf(x=observations, mean=currXs, cov=deltaT*np.eye(N+1))
+    u = rng.uniform(low=0., high=1.)
+    if np.log(u) <= min(0., logAccProb):
+        return generator, newXs, newZs
+    if i%10 == 0:
+        plot(np.arange(0., N*deltaT + deltaT, step=deltaT), [newXs, currXs], ["new", "old"], "Time", "Pos", "Title")
+        plt.show()
+    return generator, currXs, currZs
+
+
+
 def posteriors(muUParams, alphaParams, muXParams, sigmaXParams, deltaT, observations, latents, transformedLatents,
-               theta, X0, alphaAcc, volAcc, sigmaXAcc,
+               theta, X0, sigmaXAcc,
                invfBnCovMat=None, V=None,
                rng=np.random.default_rng()):
     muU, alpha, muX, sigmaX, H = theta
@@ -200,21 +173,21 @@ def posteriors(muUParams, alphaParams, muXParams, sigmaXParams, deltaT, observat
     newObsMean = obs_mean_posterior(priorParams=muUParams,
                                     obs=observations, vols=latents, deltaT=deltaT, N=N, rng=rng)
     suff = np.power(latents[:N], -1)
-    newAlpha, isAcc = alpha_Gibbs(priorParams=alphaParams, transformedVols=transformedLatents,
+    newAlpha = alpha_Gibbs(priorParams=alphaParams, transformedVols=transformedLatents,
                                   sigmaX=sigmaX, deltaT=deltaT,
                                   muX=muX, invfBnCovMat=invfBnCovMat, suff=suff, N=N, rng=rng)
-    alphaAcc += isAcc
-    newVolMean, isAcc = muX_Gibbs(priorParams=muXParams, transformedVols=transformedLatents,
+    newVolMean = muX_Gibbs(priorParams=muXParams, transformedVols=transformedLatents,
                                   alpha=newAlpha, deltaT=deltaT, sigmaX=sigmaX, suff=suff, invfBnCovMat=invfBnCovMat,
                                   N=N,
                                   rng=rng)
-    volAcc += isAcc
     if V is None:
         V = generate_V_matrix(vols=latents, sigmaX=1., N=N, H=H, deltaT=deltaT, invfBnCovMat=invfBnCovMat)
     assert (V.shape[0] == V.shape[1] and V.shape[0] == N)
+    # TODO: Try multiple iterations of sigmaX (can thin or can store all)
+
     newSigmaX, isAcc = sigmaX_MH(priorParams=sigmaXParams, vols=latents, currSigmaX=sigmaX,
-                                 alpha=alpha, muX=muX, deltaT=deltaT, V_mat=V,
+                                 alpha=newAlpha, muX=newVolMean, deltaT=deltaT, V_mat=V,
                                  N=N,
                                  rng=rng)
     sigmaXAcc += isAcc
-    return np.array([newObsMean, newAlpha, newVolMean, newSigmaX, H]), alphaAcc, volAcc, sigmaXAcc
+    return np.array([newObsMean, newAlpha, newVolMean, newSigmaX, H]), sigmaXAcc

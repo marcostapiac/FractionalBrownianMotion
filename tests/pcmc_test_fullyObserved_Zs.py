@@ -8,7 +8,7 @@ from utils.math_functions import np
 from utils.plotting_functions import plt, gibbs_histogram_plot, plot_subplots, plot_parameter_traces
 
 
-def test_no_H(S=30000, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 12, T=1e-3 * 2 ** 12,
+def test_no_H(S=250000, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 7, T=1e-3 * 2 ** 7,
               rng=np.random.default_rng(), loadData=False):
     sigmaX = np.sqrt(muX * gamma / 0.55)
     alpha = gamma / sigmaX
@@ -34,19 +34,19 @@ def test_no_H(S=30000, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 12,
     theta = prior(muUParams=muUParams, alphaParams=alphaParams, muXParams=muXParams, sigmaXParams=sigmaXParams)
     theta[4] = H
     Thetas = [theta]
-    alphaAcc, volAcc, sigmaXAcc = 0., 0., 0.
+    sigmaXAcc = 0.
     for _ in tqdm(range(S)):
-        theta, alphaAcc, volAcc, sigmaXAcc = posteriors(muUParams=muUParams, alphaParams=alphaParams,
+        theta,  sigmaXAcc = posteriors(muUParams=muUParams, alphaParams=alphaParams,
                                                         muXParams=muXParams,
                                                         sigmaXParams=sigmaXParams, deltaT=deltaT, observations=Us,
                                                         latents=Xs,
                                                         transformedLatents=Zs, X0=X0,
                                                         theta=theta, invfBnCovMat=invfBnCovMat, V=V_mat_dash,
-                                                        rng=rng, alphaAcc=alphaAcc, volAcc=volAcc, sigmaXAcc=sigmaXAcc)
+                                                        rng=rng, sigmaXAcc=sigmaXAcc)
         Thetas.append(theta)
     Thetas = np.array(Thetas).reshape((S + 1, 5))
     burnOut = int(S / 10)
-    print("Alpha, ObsMean, SigmaX Acceptance Rates: " + str(alphaAcc / S) + ", " + str(volAcc / S) + ", " + str(
+    print("Alpha, ObsMean, SigmaX Acceptance Rates: " + str(
         sigmaXAcc / S))
     plot_parameter_traces(S=S, Thetas=Thetas)
     # plot_autocorrfns(Thetas=Thetas)

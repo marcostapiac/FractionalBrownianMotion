@@ -11,8 +11,9 @@ def box_plots(S=100, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 7, T=
               loadData=False, saveFig=True):
     """ Generate data """
     sigmaX = np.sqrt(muX * gamma / 0.55)
+    alpha = gamma/sigmaX
     deltaT = T / N
-    model = FractionalCEV(muU=muU, muX=muX, sigmaX=sigmaX, gamma=gamma, X0=X0, U0=U0)
+    model = FractionalCEV(muU=muU, muX=muX, sigmaX=sigmaX, alpha=alpha, X0=X0, U0=U0)
     if not loadData:
         Xs, Us = model.euler_simulation(H=H, N=N, deltaT=deltaT)  # Simulated data
         plot_subplots(np.arange(0, T + deltaT, step=deltaT), [Xs, Us], [None, None], ["Time", "Time"],

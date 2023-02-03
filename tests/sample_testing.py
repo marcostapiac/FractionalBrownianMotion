@@ -19,9 +19,10 @@ def chisquared_test(N, H, M):
     fbn = FractionalBrownianNoise(H)
     invL = np.linalg.inv(
         np.linalg.cholesky(np.atleast_2d(
-            [[fbn.covariance(i - j) for j in range(N)] for i in range(N)])))
+            [[fbn.covariance(i - j) for j in range(N)] for i in tqdm(range(N))])))
     alpha = 0.05
     crit = chi2.ppf(q=1 - alpha, df=N - 1)  # Upper alpha quantile, and dOf = N - 1
+    print(crit)
     for _ in tqdm(range(M)):
         Z = fbn.davies_and_harte_simulation(N)
         tss = chiSquared(Z, invL)
@@ -30,4 +31,4 @@ def chisquared_test(N, H, M):
 
 
 if __name__ == "__main__":
-    print(chisquared_test(N=2 ** 10, H=0.3, M=1000))
+    print(chisquared_test(N=2 ** 12, H=0.8, M=1000))

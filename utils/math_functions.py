@@ -5,11 +5,12 @@ from scipy.stats import gamma as gammaDist
 from scipy.stats import norm as snorm
 from scipy.stats import truncnorm
 from scipy.stats import beta
-from scipy.stats import multivariate_normal as multsnorm
+from scipy.stats import multivariate_normal as smultnorm
 from scipy.optimize import minimize
 from scipy.special import gamma as gammafnc
 from scipy.stats import invgamma as sinvgamma
 from scipy.stats import ncx2
+from scipy.stats import lognorm as slognorm
 import pandas as pd
 
 

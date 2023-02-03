@@ -26,12 +26,12 @@ def test_no_H(S=20000, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 7, 
         SH = np.power(deltaT, 2 * H) * fBn_covariance_matrix(N=N, H=H)
         invfBnCovMat = np.linalg.inv(SH)
     # TODO: MAP Optimisation for param initialisation
-    muUParams, gammaParams, muXParams, sigmaXParams = (0., 3.), (0., 1.), (0., .5), (2.1, np.power(1., 2) * 3.1)
+    muUParams, alphaParams, muXParams, sigmaXParams = (0., 3.), (0., 1.), (0., .5), (2.1, np.power(1., 2) * 3.1)
     theta = prior(muUParams=muUParams, gammaParams=gammaParams, muXParams=muXParams, sigmaXParams=sigmaXParams)
     theta[4] = H
     Thetas = [theta]
-    m = FractionalCEV(muU=theta[0], alpha=theta[1], muX=theta[2], sigmaX=theta[3], X0=X0, U0=U0)
-    Xs = m.state_simulation(H=theta[4], N=N, deltaT=deltaT)
+    #m = FractionalCEV(muU=theta[0], alpha=theta[1], muX=theta[2], sigmaX=theta[3], X0=X0, U0=U0)
+    #Xs = m.state_simulation(H=theta[4], N=N, deltaT=deltaT)
     for _ in tqdm(range(S)):
         theta = posteriors(muUParams=muUParams, gammaParams=gammaParams, muXParams=muXParams,
                            sigmaXParams=sigmaXParams, deltaT=deltaT, observations=Us, latents=Xs, theta=theta, invfBnCovMat=invfBnCovMat,
@@ -39,8 +39,8 @@ def test_no_H(S=20000, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 7, 
         Thetas.append(theta)
         if max(Xs) > 10:
             print(theta)
-        m.__init__(muU=theta[0], alpha=theta[1], muX=theta[2], sigmaX=theta[3], X0=X0, U0=U0)
-        Xs = m.state_simulation(H=theta[4], N=N, deltaT=deltaT)
+        #m.__init__(muU=theta[0], alpha=theta[1], muX=theta[2], sigmaX=theta[3], X0=X0, U0=U0)
+        #Xs = m.state_simulation(H=theta[4], N=N, deltaT=deltaT)
     Thetas = np.array(Thetas).reshape((S + 1, 5))
     burnOut = int(S/10)
     plot_parameter_traces(S=S, Thetas=Thetas)

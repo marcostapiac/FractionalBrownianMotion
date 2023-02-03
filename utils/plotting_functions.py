@@ -276,14 +276,14 @@ def plot_parameter_traces(S, Thetas):
 
 def plot_autocorrfns(Thetas):
     acfObsMean = acf(Thetas[:, 0])
-    acfVolMeanRev = acf(Thetas[:, 1])
+    acfAlpha = acf(Thetas[:, 1])
     acfVolMean = acf(Thetas[:, 2])
     acfVolStd = acf(Thetas[:, 3])
     S = acfVolMean.shape[0]
     plot(np.arange(0, S, step=1), [acfObsMean], ["Observation Mean"], "Lag", "Observation Mean",
          "Autocorrelation Function")
-    plot(np.arange(0, S, step=1), [acfVolMeanRev], ["Volatility Mean Reversion"], "Lag",
-         "Volatility Mean Reversion",
+    plot(np.arange(0, S, step=1), [acfAlpha], ["Standardised Volatility Mean Reversion"], "Lag",
+         "Standardised Volatility Mean Reversion",
          "Autocorrelation Function")
     plot(np.arange(0, S, step=1), [acfVolMean], ["Volatility Mean"], "Lag", "Volatility Mean",
          "Autocorrelation Function")
