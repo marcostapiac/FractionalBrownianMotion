@@ -1,10 +1,10 @@
+import numpy as np
 from tqdm import tqdm
 
-from src.CEV_multivar_posteriors_Zs import posteriors, generate_V_matrix, fBn_covariance_matrix
-from src.ClassFractionalCEV import FractionalCEV
+from src.classes.ClassFractionalCEV import FractionalCEV
 from src.load_data import load_data
-from src.priors_Zs import prior
-from utils.math_functions import np
+from utils.distributions.CEV_multivar_posteriors_Zs import posteriors, generate_V_matrix, fBn_covariance_matrix
+from utils.distributions.priors_Zs import prior
 from utils.plotting_functions import plt, gibbs_histogram_plot, plot_subplots, plot_parameter_traces
 
 
@@ -36,13 +36,13 @@ def test_no_H(S=250000, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 7,
     Thetas = [theta]
     sigmaXAcc = 0.
     for _ in tqdm(range(S)):
-        theta,  sigmaXAcc = posteriors(muUParams=muUParams, alphaParams=alphaParams,
-                                                        muXParams=muXParams,
-                                                        sigmaXParams=sigmaXParams, deltaT=deltaT, observations=Us,
-                                                        latents=Xs,
-                                                        transformedLatents=Zs, X0=X0,
-                                                        theta=theta, invfBnCovMat=invfBnCovMat, V=V_mat_dash,
-                                                        rng=rng, sigmaXAcc=sigmaXAcc)
+        theta, sigmaXAcc = posteriors(muUParams=muUParams, alphaParams=alphaParams,
+                                      muXParams=muXParams,
+                                      sigmaXParams=sigmaXParams, deltaT=deltaT, observations=Us,
+                                      latents=Xs,
+                                      transformedLatents=Zs, X0=X0,
+                                      theta=theta, invfBnCovMat=invfBnCovMat, V=V_mat_dash,
+                                      rng=rng, sigmaXAcc=sigmaXAcc)
         Thetas.append(theta)
     Thetas = np.array(Thetas).reshape((S + 1, 5))
     burnOut = int(S / 10)

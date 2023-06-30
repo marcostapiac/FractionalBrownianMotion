@@ -1,5 +1,9 @@
-from src.ClassLogSVModel import LogSVModel
-from utils.math_functions import np, gammaDist, snorm, acf
+import numpy as np
+from scipy.stats import gamma as gammaDist
+from scipy.stats import norm as snorm
+
+from src.classes.ClassLogSVModel import LogSVModel
+from utils.math_functions import acf
 from utils.plotting_functions import plot_subplots
 
 

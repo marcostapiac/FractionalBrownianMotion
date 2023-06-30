@@ -1,5 +1,6 @@
-from src.ClassFractionalCEV import FractionalCEV
-from utils.math_functions import np
+import numpy as np
+
+from src.classes.ClassFractionalCEV import FractionalCEV
 from utils.plotting_functions import plot_subplots, plt
 
 

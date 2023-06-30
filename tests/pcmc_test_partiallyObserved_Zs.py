@@ -1,16 +1,15 @@
+import numpy as np
 from tqdm import tqdm
 
-from src.CEV_multivar_posteriors_Zs import posteriors, fBn_covariance_matrix, generate_V_matrix, latents_MH
-from src.ClassFractionalCEV import FractionalCEV
+from src.classes.ClassFractionalCEV import FractionalCEV
 from src.load_data import load_data
 from src.store_data import store_data
-from src.priors_Zs import prior
-from utils.math_functions import np
-from utils.plotting_functions import plt, gibbs_histogram_plot, plot_subplots, histogramplot, plot_parameter_traces, \
-    plot
+from utils.distributions.CEV_multivar_posteriors_Zs import posteriors, fBn_covariance_matrix, latents_MH
+from utils.distributions.priors_Zs import prior
+from utils.plotting_functions import plt, gibbs_histogram_plot, plot_subplots, histogramplot, plot_parameter_traces
 
 
-def test_no_H(S=300000, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 7, T=1e-3 * 2 ** 7,
+def test_no_H(S=1000000, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 7, T=1e-3 * 2 ** 7,
               rng=np.random.default_rng(), loadData=False):
     sigmaX = np.sqrt(muX * gamma / 0.55)
     alpha = gamma / sigmaX
@@ -48,9 +47,9 @@ def test_no_H(S=300000, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 7,
                                       theta=theta, invfBnCovMat=invfBnCovMat,
                                       rng=rng, sigmaXAcc=sigmaXAcc)
         Thetas = np.vstack([Thetas, theta])
-        if i>0 and i % 10000 == 1:
-            print(sigmaXAcc/i)
-            fig, ax, binVals = histogramplot(Thetas[int(i/8):, 3], xlabel="Volatility Variance",
+        if i > 0 and i % 10000 == 1:
+            print(sigmaXAcc / i)
+            fig, ax, binVals = histogramplot(Thetas[int(i / 8):, 3], xlabel="Volatility Variance",
                                              ylabel="PDF",
                                              plottitle="plottitle")
             ax.axvline(sigmaX, label="True Parameter Value $ " + str(round(sigmaX, 3)) + " $", color="blue")
@@ -61,9 +60,9 @@ def test_no_H(S=300000, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 7,
 
     burnOut = int(S / 8)
     print("SigmaX Acceptance Rates: " + str(sigmaXAcc / S))
+    Thetas[:, 3] *= Thetas[:, 3]
     plot_parameter_traces(S=S, Thetas=Thetas)
     # plot_autocorrfns(Thetas=Thetas)
-    Thetas[:, 3] *= Thetas[:, 3]
     gibbs_histogram_plot(Thetas, burnOut, plottitle="Partially Observed MCMC Histogram",
                          trueVals=[muU, alpha, muX, sigmaX ** 2],
                          priorParams=[muUParams, alphaParams, muXParams, sigmaXParams])

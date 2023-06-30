@@ -1,8 +1,9 @@
 import cProfile
 
-from src.CEV_multivar_posteriors import generate_V_matrix, fBn_covariance_matrix
-from src.ClassFractionalCEV import FractionalCEV
-from utils.math_functions import np
+import numpy as np
+
+from src.classes.ClassFractionalCEV import FractionalCEV
+from utils.distributions.CEV_multivar_posteriors import generate_V_matrix, fBn_covariance_matrix
 
 
 def covariance_computation(muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 12, T=1e-3 * 2 ** 12):

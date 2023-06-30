@@ -1,6 +1,7 @@
+import numpy as np
 import pandas as pd
+from scipy.optimize import minimize
 
-from utils.math_functions import np, minimize
 from utils.plotting_functions import plot, plt
 
 

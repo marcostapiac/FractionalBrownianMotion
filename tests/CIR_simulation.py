@@ -1,7 +1,7 @@
+import numpy as np
 from tqdm import tqdm
 
-from src.ClassFractionalCIR import FractionalCIR
-from utils.math_functions import np
+from src.classes.ClassFractionalCIR import FractionalCIR
 from utils.plotting_functions import plot_subplots, plt
 
 

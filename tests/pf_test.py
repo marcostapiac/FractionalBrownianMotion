@@ -1,8 +1,8 @@
+import numpy as np
 from tqdm import tqdm
 
-from src.ClassFractionalCEV import FractionalCEV
-from src.ClassParticleFilter import FractionalParticleFilter
-from utils.math_functions import np
+from src.classes.ClassFractionalCEV import FractionalCEV
+from src.classes.ClassParticleFilter import FractionalParticleFilter
 from utils.plotting_functions import plot_subplots, plot, plt
 
 

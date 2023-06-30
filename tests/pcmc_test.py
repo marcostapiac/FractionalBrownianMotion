@@ -1,10 +1,11 @@
+import numpy as np
+from scipy.stats import beta
 from tqdm import tqdm
 
-from src.CIR_posteriors import posteriors
-from src.ClassFractionalCEV import FractionalCEV
-from src.ClassParticleFilter import FractionalParticleFilter
-from src.priors import prior
-from utils.math_functions import np, beta
+from src.classes.ClassFractionalCEV import FractionalCEV
+from src.classes.ClassParticleFilter import FractionalParticleFilter
+from utils.distributions.CIR_posteriors import posteriors
+from utils.distributions.priors import prior
 from utils.plotting_functions import plot_subplots
 
 

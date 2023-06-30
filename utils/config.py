@@ -1,0 +1,1 @@
+ROOT_DIR = /Users/marcos/GitHubRepos/FractionalBrownianMotion/

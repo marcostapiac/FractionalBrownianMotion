@@ -1,9 +1,9 @@
+import numpy as np
 from tqdm import tqdm
 
-from src.ClassFractionalCEV import FractionalCEV
-from src.ClassParticleFilter import FractionalParticleFilter
+from src.classes.ClassFractionalCEV import FractionalCEV
+from src.classes.ClassParticleFilter import FractionalParticleFilter
 from src.load_data import load_data
-from utils.math_functions import np
 from utils.plotting_functions import plot_subplots, plt, boxplot
 
 
@@ -11,7 +11,7 @@ def box_plots(S=100, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 7, T=
               loadData=False, saveFig=True):
     """ Generate data """
     sigmaX = np.sqrt(muX * gamma / 0.55)
-    alpha = gamma/sigmaX
+    alpha = gamma / sigmaX
     deltaT = T / N
     model = FractionalCEV(muU=muU, muX=muX, sigmaX=sigmaX, alpha=alpha, X0=X0, U0=U0)
     if not loadData:

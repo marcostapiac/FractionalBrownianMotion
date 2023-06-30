@@ -1,17 +1,17 @@
+import numpy as np
 from tqdm import tqdm
 
-from src.CEV_multivar_posteriors import posteriors, generate_V_matrix, fBn_covariance_matrix
-from src.ClassFractionalCEV import FractionalCEV
-from src.load_data import load_data, load_fBn_covariance
-from src.priors import prior
-from utils.math_functions import np
+from src.classes.ClassFractionalCEV import FractionalCEV
+from src.load_data import load_data
+from utils.distributions.CEV_multivar_posteriors import posteriors, generate_V_matrix, fBn_covariance_matrix
+from utils.distributions.priors import prior
 from utils.plotting_functions import plt, plot_subplots, gibbs_histogram_plot
 
 
 def test_no_H(S=20000, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 10, T=1e-3 * 2 ** 10,
               rng=np.random.default_rng(), loadData=False):
     sigmaX = np.sqrt(muX * gamma / 0.55)
-    alpha = gamma/sigmaX
+    alpha = gamma / sigmaX
     deltaT = T / N
     if not loadData:
         m = FractionalCEV(muU=muU, alpha=alpha, muX=muX, sigmaX=sigmaX, X0=X0, U0=U0)
@@ -39,11 +39,12 @@ def test_no_H(S=20000, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 10,
                            rng=rng)
         Thetas.append(theta)
     Thetas = np.array(Thetas).reshape((S + 1, 5))
-    burnOut = int(S/10)
+    burnOut = int(S / 10)
     # plot_parameter_traces(S=S, Thetas=Thetas)
     # plot_autocorrfns(Thetas=Thetas)
-    Thetas[:,3] *= Thetas[:,3]
-    gibbs_histogram_plot(Thetas, burnOut, plottitle= "Fully Observed MCMC Histogram", trueVals=[muU, gamma, muX, sigmaX**2],
+    Thetas[:, 3] *= Thetas[:, 3]
+    gibbs_histogram_plot(Thetas, burnOut, plottitle="Fully Observed MCMC Histogram",
+                         trueVals=[muU, gamma, muX, sigmaX ** 2],
                          priorParams=[muUParams, gammaParams, muXParams, sigmaXParams])
     plt.show()
 

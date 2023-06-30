@@ -1,5 +1,9 @@
-from utils.math_functions import snorm, slognorm, truncnorm, np, sinvgamma, gammaDist
-from utils.plotting_functions import histogramplot, plt, plot
+import numpy as np
+from scipy.stats import gamma as gammaDist
+from scipy.stats import invgamma as sinvgamma
+
+from utils.plotting_functions import histogramplot, plt
+
 """
 lognormscale, lognorms = 0.8, .7
 rvs = slognorm.rvs(scale=lognormscale, s=lognorms, size=2000)
@@ -16,8 +20,9 @@ histogramplot(rvs=rvs, axis=axis, pdf_vals=pdfVals, xlabel="x", ylabel="pdf", pl
 plt.show()
 """
 invGammaAlpha, invGammaBeta = 1., 1.
-rvs = 1./gammaDist.rvs(a=invGammaAlpha, scale=invGammaBeta, size=2000)
-axis = np.linspace(sinvgamma.ppf(0.0001, a=invGammaAlpha, scale=invGammaBeta), sinvgamma.ppf(0.8, a=invGammaAlpha, scale=invGammaBeta), 2000)
+rvs = 1. / gammaDist.rvs(a=invGammaAlpha, scale=invGammaBeta, size=2000)
+axis = np.linspace(sinvgamma.ppf(0.0001, a=invGammaAlpha, scale=invGammaBeta),
+                   sinvgamma.ppf(0.8, a=invGammaAlpha, scale=invGammaBeta), 2000)
 pdfVals = sinvgamma.pdf(axis, a=invGammaAlpha, scale=invGammaBeta)
 print(max(rvs))
 histogramplot(rvs=rvs, axis=axis, pdf_vals=pdfVals, xlabel="x", ylabel="pdf", plottitle="Inverse gamma", plottlabel="")

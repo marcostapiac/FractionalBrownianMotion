@@ -1,5 +1,6 @@
-from src.ClassFractionalBrownianNoise import FractionalBrownianNoise
-from utils.math_functions import np
+import numpy as np
+
+from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from utils.plotting_functions import plot_fBm_process, plt
 
 
@@ -8,16 +9,16 @@ def plotting_paths(save=True):
     N = 2 ** 10
     Hs = np.linspace(0.3, 0.9, N_paths + 1, endpoint=False)[1:]
     paths = []
-    deltaT = 1e-3  # for Circulan
+    deltaT = 1e-3  # for Circulant
     T = deltaT * N  # for Circulant
     for i in range(N_paths):
         fbn = FractionalBrownianNoise(Hs[i])
-        Z = np.power(deltaT, Hs[i]) * fbn.davies_and_harte_simulation(
+        Z = np.power(deltaT, Hs[i]) * fbn.circulant_simulation(
             N)  # If using Circulant/CRMD need to scale by deltaT/(N ** Hs[i])
         X = np.cumsum(Z)
         paths.append(X)
     time_ax = np.arange(0, T, step=deltaT)
-    plot_fBm_process(time_ax, paths, isLatex=True, label_args=Hs, title="Fractional Brownian Motion Sample Paths")
+    plot_fBm_process(time_ax, paths, label_args=Hs, title="Fractional Brownian Motion Sample Paths")
     if save:
         plt.savefig("../pngs/SamplefBmPathsCirculant.png", bbox_inches="tight", transparent=False)
         plt.show()
