@@ -1,4 +1,5 @@
-from utils.math_functions import np, truncnorm
+import numpy as np
+from scipy.stats import truncnorm
 
 
 def prior_H(rng=np.random.default_rng()):

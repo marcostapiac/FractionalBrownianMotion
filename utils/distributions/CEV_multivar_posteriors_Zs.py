@@ -1,6 +1,9 @@
+import numpy as np
 from numba import njit, prange
-
-from utils.math_functions import np, truncnorm, snorm, sinvgamma, smultnorm
+from scipy.stats import invgamma as sinvgamma
+from scipy.stats import multivariate_normal as smultnorm
+from scipy.stats import norm as snorm
+from scipy.stats import truncnorm
 
 
 def obs_mean_posterior(priorParams, obs, vols, deltaT, N, rng):

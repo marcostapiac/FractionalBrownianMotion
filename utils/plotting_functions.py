@@ -1,7 +1,16 @@
+import numbers
+from types import NoneType
+from typing import Union
+
 import matplotlib
 import matplotlib.pyplot as plt
-from utils.math_functions import np, acf, snorm, truncnorm, sinvgamma
-import numbers
+import numpy as np
+from scipy.stats import invgamma as sinvgamma, kstest
+from scipy.stats import norm as snorm
+from scipy.stats import truncnorm
+from sklearn.manifold import TSNE
+
+from utils.math_functions import acf
 
 
 def plot_subplots(time_ax, lines, label_args, xlabels, ylabels, title, fig=None, ax=None, saveTransparent=False):
@@ -65,24 +74,16 @@ def plot(time_ax, lines, label_args, xlabel, ylabel, title, fig=None, ax=None, s
     plt.tight_layout()
 
 
-def plot_fBm_process(time_ax, paths, label_args, xlabel=None, ylabel=None, title="Sample Paths", isLatex=True,
+def plot_fBm_process(time_ax, paths, label_args, xlabel=None, ylabel=None, title="Sample Paths",
                      fig=None,
                      ax=None, saveTransparent=False):
     plt.style.use('ggplot')
-    if isLatex:
-        matplotlib.rcParams.update({
-            'font.family': 'serif',
-            'text.usetex': True,
-            'pgf.rcfonts': False,
-        })
-    else:
-        plt.style.use('ggplot')
     if (fig and ax) is None:
         fig, ax = plt.subplots()
     for i in range(len(paths)):
         ax.step(time_ax, paths[i], label="$H = " + str(round(label_args[i], 3)) + "$", lw=1.2)
     if (xlabel and ylabel) is None:
-        ax.set_xlabel("Time", )
+        ax.set_xlabel("Time")
         ax.set_ylabel("Position")
     else:
         ax.set_xlabel(xlabel)
@@ -290,3 +291,53 @@ def plot_autocorrfns(Thetas):
     plot(np.arange(0, S, step=1), [acfVolStd], ["Volatility Variance Parameter"], "Lag",
          "Volatility Variance Parameter",
          "Autocorrelation Function")
+
+
+def plot_loss_epochs(epochs: np.ndarray, train_loss: np.ndarray, val_loss: Union[NoneType, np.array] = None,
+                     toSave: bool = False, saveName: Union[NoneType, str] = None) -> None:
+    plt.style.use('ggplot')
+    matplotlib.rcParams.update({
+        'font.family': 'serif',
+        'text.usetex': True,
+        'pgf.rcfonts': False,
+    })
+    plt.plot(epochs, train_loss, color="b", label="Train MSE")
+    if val_loss is not None: plt.plot(epochs, val_loss, label="Validation MSE")
+    plt.xlabel("Epochs")
+    plt.ylabel("Loss Function")
+    plt.title("Learning Curves")
+    plt.legend()
+    plt.tight_layout()
+    if toSave:
+        if saveName is None:
+            raise ValueError("If you want to save the image, provide a file name")
+        plt.savefig("../pngs/" + str(saveName) + ".png", bbox_inches="tight", transparent=False)
+    plt.show()
+
+
+def plot_tSNE(x: np.ndarray, y: np.ndarray, labels: list[str]) -> None:
+    assert (len(labels) == 2)
+    x_embed = TSNE().fit_transform(x)
+    y_embed = TSNE().fit_transform(y)
+    plt.scatter(x_embed[:, 0], x_embed[:, 1], label=labels[0])
+    plt.scatter(y_embed[:, 0], y_embed[:, 1], label=labels[1])
+    plt.title("t-SNE Plot")
+    plt.xlabel("Embedding Dim 1")
+    plt.ylabel("Embedding Dim 2")
+    plt.tight_layout()
+    plt.legend()
+    plt.show()
+
+
+def plot_diffusion_marginals(forward_samples: np.ndarray, reverse_samples: np.ndarray, timeDim: int,
+                             diffTime: int) -> None:
+    for t in np.arange(start=0, stop=timeDim, step=1):
+        forward_t = forward_samples[:, t].flatten()
+        reverse_samples_t = reverse_samples[:, t].flatten()
+        qqplot(x=forward_t,
+               y=reverse_samples_t, xlabel="Fwd Samples at Diff Time {}".format(diffTime),
+               ylabel="Reverse Samples at Diff Time {}".format(diffTime),
+               plottitle="Marginal Q-Q Plot at Time Dim {}".format(t + 1), log=False)
+        print(kstest(forward_t, reverse_samples_t))
+        plt.show()
+        plt.close()

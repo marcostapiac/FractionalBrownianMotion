@@ -1,6 +1,6 @@
+import numpy as np
+from scipy.stats import truncnorm
 from tqdm import tqdm
-
-from utils.math_functions import np, truncnorm
 
 
 def obs_mean_posterior(priorParams, obs, vols, deltaT, N, rng):
