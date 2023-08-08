@@ -1,19 +1,36 @@
+import matplotlib
 import numpy as np
 import torch
+from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
-from utils.math_functions import chiSquared_test, fBm_to_fBn, generate_fBm, compute_fBm_cov
+from utils.data_processing import evaluate_SDE_performance, evaluate_SDE_HigherDim_performance
+from utils.math_functions import generate_CEV
 from utils.plotting_functions import plot_diffusion_marginals, plot_dataset
 
+plt.style.use('ggplot')
+matplotlib.rcParams.update({
+    'font.family': 'serif',
+    'text.usetex': True,
+    'pgf.rcfonts': False,
+})
+
 if __name__ == "__main__":
-    h, td = 0.7, 2
-    numDiffSteps = 100
+    H, td = .7, 256
+    muU = 1.
+    muX = 2.
+    alpha = 1.
+    sigmaX = 0.5
+    X0 = 1.
+    U0 = 0.
     numSamples = 10000
+    numDiffSteps = 100
     rng = np.random.default_rng()
 
-    data = generate_fBm(H=h, T=td, S=numSamples, rng=rng)
-    trial_data = torch.from_numpy(data)
+    trial_data = generate_CEV(H=H, T=td, S=numSamples, alpha=alpha, sigmaX=sigmaX, muU=muU, muX=muX, X0=X0, U0=U0,
+                              rng=rng)
+
+    trial_data = torch.from_numpy(trial_data)
 
     # Forward process for clarity only
     var_max = torch.Tensor([1. ** 2]).to(torch.float32)
@@ -41,31 +58,17 @@ if __name__ == "__main__":
         z = torch.randn_like(x)
         t = reversed_timesteps[i]
         dt = 1. / numDiffSteps
-        diffCoeffSqrd = var_min * torch.pow((var_max / var_min), t) * 2. * torch.log(var_max / var_min)*dt
+        diffCoeffSqrd = var_min * torch.pow((var_max / var_min), t) * 2. * torch.log(var_max / var_min) * dt
         score = -(x - trial_data) / (var_min * torch.pow((var_max / var_min), t))
         x = x + (diffCoeffSqrd * score) + torch.sqrt(diffCoeffSqrd) * z
         for j in range(10):
             z = torch.randn_like(x)
-            e = 2 * (0.1 * np.linalg.norm(z) / np.linalg.norm(g)) ** 2
+            e = 2 * (0.1 * np.linalg.norm(z) / np.linalg.norm(score)) ** 2
             x = x + e * score + np.sqrt(2. * e) * z
         reversed_sampless.append(x.numpy())
 
     true_samples = sampless[0]
     generated_samples = reversed_sampless[-1]
 
-    print("Original Data Sample Mean :: Dim 1 {} :: Dim 2 {}".format(*np.mean(true_samples, axis=0)))
-    print("Generated Data Sample Mean :: Dim 1 {} :: Dim 2 {}".format(*np.mean(generated_samples, axis=0)))
-    print("Expected Mean :: Dim 1 {} :: Dim 2 {}".format(0., 0.))
-    print("Original Data :: \n [[{}, {}]\n[{},{}]]".format(*np.cov(true_samples, rowvar=False).flatten()))
-    print("Generated Data :: \n [[{}, {}]\n[{},{}]]".format(*np.cov(generated_samples, rowvar=False).flatten()))
-    print("Expected :: \n [[{}, {}]\n[{},{}]]".format(
-        *compute_fBm_cov(FractionalBrownianNoise(H=h, rng=rng), td=td).flatten()))
 
-    # Chi-2 test for joint distribution of the fractional Brownian noise
-    c2 = chiSquared_test(T=td, H=h, samples=fBm_to_fBn(generated_samples))
-    print("Chi-Squared test for target: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], c2[1],
-                                                                                                       c2[2]))
-
-    plot_dataset(true_samples, generated_samples)
-
-    plot_diffusion_marginals(true_samples, generated_samples, timeDim=td, diffTime=0)
+    evaluate_SDE_HigherDim_performance(trial_data.numpy(), reversed_sampless[-1],td=td)

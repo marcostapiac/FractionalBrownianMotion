@@ -5,12 +5,20 @@ from typing import Union
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import seaborn as sns
 from scipy.stats import invgamma as sinvgamma, kstest
 from scipy.stats import norm as snorm
 from scipy.stats import truncnorm
 from sklearn.manifold import TSNE
 
 from utils.math_functions import acf
+
+plt.style.use('ggplot')
+matplotlib.rcParams.update({
+    'font.family': 'serif',
+    'text.usetex': True,
+    'pgf.rcfonts': False,
+})
 
 
 def plot_subplots(time_ax, lines, label_args, xlabels, ylabels, title, fig=None, ax=None, saveTransparent=False):
@@ -19,12 +27,6 @@ def plot_subplots(time_ax, lines, label_args, xlabels, ylabels, title, fig=None,
         assert (len(lines) == len(xlabels) and len(lines) == len(ylabels))
     except AssertionError:
         return RuntimeError("Please add as many x-y axis labels as lines to plot")
-    plt.style.use('ggplot')
-    matplotlib.rcParams.update({
-        'font.family': 'serif',
-        'text.usetex': True,
-        'pgf.rcfonts': False,
-    })
     if (fig and ax) is None:
         L = len(lines)
         fig, ax = plt.subplots(L, 1)
@@ -49,12 +51,6 @@ def plot_subplots(time_ax, lines, label_args, xlabels, ylabels, title, fig=None,
 
 def plot(time_ax, lines, label_args, xlabel, ylabel, title, fig=None, ax=None, saveTransparent=False):
     """ Plotting function to plot multiple traces in same figure and axis object"""
-    plt.style.use('ggplot')
-    matplotlib.rcParams.update({
-        'font.family': 'serif',
-        'text.usetex': True,
-        'pgf.rcfonts': False,
-    })
     if (fig and ax) is None:
         fig, ax = plt.subplots()
     for i in range(len(lines)):
@@ -77,7 +73,6 @@ def plot(time_ax, lines, label_args, xlabel, ylabel, title, fig=None, ax=None, s
 def plot_fBm_process(time_ax, paths, label_args, xlabel=None, ylabel=None, title="Sample Paths",
                      fig=None,
                      ax=None, saveTransparent=False):
-    plt.style.use('ggplot')
     if (fig and ax) is None:
         fig, ax = plt.subplots()
     for i in range(len(paths)):
@@ -139,7 +134,6 @@ def qqplot(x, y, xlabel="", ylabel="", plottitle="", quantiles=None, interpolati
         Keyword arguments to pass to matplotlib.axes.Axes.scatter() when drawing
         the q-q plot.
     """
-    plt.style.use('ggplot')
     plt.rc('font', size=font_size)
     plt.rc('axes', titlesize=title_size)
     x1 = x
@@ -192,7 +186,6 @@ def qqplot(x, y, xlabel="", ylabel="", plottitle="", quantiles=None, interpolati
 
 def histogramplot(rvs, pdf_vals=None, axis=None, num_bins=100, xlabel="", ylabel="", plottitle="", plottlabel="",
                   fig=None, ax=None):
-    plt.style.use('ggplot')
     if (fig and ax) is None:
         fig, ax = plt.subplots()
     ax.set_xlabel(xlabel)
@@ -252,7 +245,6 @@ def gibbs_histogram_plot(Thetas, burnOut, plottitle, trueVals, priorParams):
 
 
 def boxplot(data, xlabel="", ylabel="", plottitle="", dataLabels="", fig=None, ax=None):
-    plt.style.use('ggplot')
     if (fig and ax) is None:
         fig, ax = plt.subplots()
     ax.boxplot(data, labels=dataLabels)
@@ -295,12 +287,6 @@ def plot_autocorrfns(Thetas):
 
 def plot_loss_epochs(epochs: np.ndarray, train_loss: np.ndarray, val_loss: Union[NoneType, np.array] = None,
                      toSave: bool = False, saveName: Union[NoneType, str] = None) -> None:
-    plt.style.use('ggplot')
-    matplotlib.rcParams.update({
-        'font.family': 'serif',
-        'text.usetex': True,
-        'pgf.rcfonts': False,
-    })
     plt.plot(epochs, train_loss, color="b", label="Train MSE")
     if val_loss is not None: plt.plot(epochs, val_loss, label="Validation MSE")
     plt.xlabel("Epochs")
@@ -315,12 +301,13 @@ def plot_loss_epochs(epochs: np.ndarray, train_loss: np.ndarray, val_loss: Union
     plt.show()
 
 
-def plot_tSNE(x: np.ndarray, y: np.ndarray, labels: list[str]) -> None:
-    assert (len(labels) == 2)
+def plot_tSNE(x: np.ndarray, labels: list[str], y: Union[NoneType, np.ndarray] = None) -> None:
+    assert (len(labels) == 1 or len(labels) == 2)
     x_embed = TSNE().fit_transform(x)
-    y_embed = TSNE().fit_transform(y)
     plt.scatter(x_embed[:, 0], x_embed[:, 1], label=labels[0])
-    plt.scatter(y_embed[:, 0], y_embed[:, 1], label=labels[1])
+    if y is not None:
+        y_embed = TSNE().fit_transform(y)
+        plt.scatter(y_embed[:, 0], y_embed[:, 1], label=labels[1])
     plt.title("t-SNE Plot")
     plt.xlabel("Embedding Dim 1")
     plt.ylabel("Embedding Dim 2")
@@ -341,3 +328,27 @@ def plot_diffusion_marginals(forward_samples: np.ndarray, reverse_samples: np.nd
         print(kstest(forward_t, reverse_samples_t))
         plt.show()
         plt.close()
+
+
+def plot_diffCov_heatmap(true_cov: np.ndarray, gen_cov: np.ndarray, annot: bool = True) -> None:
+    s = 100 * (gen_cov - true_cov) / true_cov
+    sns.heatmap(s, annot=annot)
+    print("Average absolute percentage error: ", np.mean(np.abs(s)))
+    plt.title("% Difference between true and generated covariance matrices")
+    plt.show()
+
+
+def plot_dataset(forward_samples: np.ndarray, reverse_samples: np.ndarray) -> None:
+    fig = plt.figure()
+    ax = fig.add_subplot(1, 1, 1)
+    ax.scatter(forward_samples[:, 0], forward_samples[:, 1], alpha=0.6, label="Original Data")
+    n = min(10000, reverse_samples.shape[0] // 5)
+    ax.scatter(reverse_samples[:n, 0], reverse_samples[:n, 1], alpha=0.6, label="Generated Samples")
+    ax.grid(False)
+    ax.set_aspect('equal', adjustable='box')
+    strtitle = "Scatter Plot of Final Reverse Samples"
+    ax.set_title(strtitle)
+    ax.set_xlabel("Time Dim 1")
+    ax.set_ylabel("Time Dim 2")
+    plt.legend()
+    plt.show()

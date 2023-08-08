@@ -1,3 +1,6 @@
+from types import NoneType
+from typing import Union
+
 import numpy as np
 from numpy import abs
 from scipy.special import gamma as gammafnc
@@ -8,11 +11,19 @@ class FractionalBrownianNoise:
         self.H = H
         self.rng = rng
 
-    def covariance(self, lag):
-        """ Covariance and variance function for INCREMENTS ONLY"""
+    def scale_to_unit_time_interval(self, N: int, samples: np.ndarray):
+        assert (samples.shape[0] == N)
+        return np.power(1. / N, self.H) * samples
+
+    def covariance(self, lag: int) -> float:
+        """ Covariance and variance function for INCREMENTS ONLY with delta_T = 1.0 """
         return 0.5 * (abs(lag + 1) ** (2 * self.H) + abs(lag - 1) ** (2 * self.H) - 2 * abs(lag) ** (2 * self.H))
 
-    def spectral_helper(self, x):
+    def fBm_covariance(self, t1: int, t2: int) -> float:
+        """ Covariance and variance function for MOTION with delta_T = 1.0 """
+        return 0.5 * (abs(t1) ** (2. * self.H) + abs(t2) ** (2. * self.H) - abs(t1 - t2) ** (2. * self.H))
+
+    def spectral_helper(self, x: np.ndarray) -> np.ndarray:
         """ Approximation of spectral density based on Paxon """
         B3 = np.squeeze(np.sum(
             [np.power((2. * np.pi * j + x), -2. * self.H - 1) + np.power((2. * np.pi * j - x), -2. * self.H - 1) for j
@@ -24,11 +35,11 @@ class FractionalBrownianNoise:
                       8. * self.H * np.pi)
         return (1.0002 - 0.000134 * x) * (B3 - np.power(2., -7.65 * self.H - 7.4))
 
-    def spectral_density(self, x):
+    def spectral_density(self, x: np.ndarray) -> float:
         return 2. * np.sin(np.pi * self.H) * gammafnc(2. * self.H + 1.) * (1 - np.cos(x)) * (
                 np.power(np.abs(x), -1 - 2. * self.H) + self.spectral_helper(x))
 
-    def hosking_simulation(self, N_samples):
+    def hosking_simulation(self, N_samples: int) -> np.ndarray:
         samples = np.atleast_2d([self.rng.normal()])  # Row vector
         d = np.atleast_2d([self.covariance(lag=1)]).T  # Column vector
         c = np.atleast_2d([d[0, 0]]).T  # Column vector
@@ -47,9 +58,9 @@ class FractionalBrownianNoise:
             d = np.vstack([d - phi * np.flip(d, axis=0), phi])  # Flip 'd' vertically
             mu = np.squeeze(np.flip(samples, axis=1) @ d)  # Flip row vector horizontally
             c = np.vstack([c, self.covariance(lag=i + 2)])  # No need to tranpose if c is already column
-        return np.squeeze(samples)
+        return self.scale_to_unit_time_interval(N_samples, np.squeeze(samples))
 
-    def circulant_simulation(self, N_samples, gaussRvs=None):
+    def circulant_simulation(self, N_samples: int, gaussRvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
         assert (type(N_samples) == int and (gaussRvs is not None and len(gaussRvs) == 2 * N_samples) or not gaussRvs)
         W = np.atleast_2d([complex(0., 0.)] * (2 * N_samples)).T
         assert (W.shape[1] > 0 and W.shape[0] == 2 * N_samples)
@@ -71,9 +82,9 @@ class FractionalBrownianNoise:
         lambdas = np.fft.ifft(c)  # Should be real
         dotPs = np.diag(np.atleast_2d(np.sqrt(lambdas)).T @ W.T)
         Zs = np.fft.fft(dotPs)  # TOD0: Check implementation divides by root of length of dotPs
-        return np.real(Zs[:N_samples])
+        return self.scale_to_unit_time_interval(N_samples, np.real(Zs[:N_samples]))
 
-    def crmd_simulation(self, N_samples, l, r):
+    def crmd_simulation(self, N_samples: int, l: int, r: int) -> np.ndarray:
         g = int(np.ceil(np.log2(N_samples)))
         Zprev = [self.rng.normal()]
         for i in range(1, g + 1):
@@ -117,10 +128,10 @@ class FractionalBrownianNoise:
                 Zcurr.append(np.squeeze(Z1))
                 Zcurr.append(np.squeeze(Z2))
             Zprev = Zcurr
-        return np.array(
-            Zprev[:N_samples])  # Remember to multiply by 2**(self.H*g) if desire increments over deltaT = 1.
+        return self.scale_to_unit_time_interval(N_samples, np.array(
+            Zprev[:N_samples]))  # Remember to multiply by 2**(self.H*g) if desire increments over deltaT = 1.
 
-    def paxon_simulation(self, N_samples):
+    def paxon_simulation(self, N_samples: int) -> np.ndarray:
         """ Spectral method for approximate samples of Fractional Brownian Noise for N = 2**k """
         fourier_coeffs = np.array([0.])
         for k in range(1, int(np.ceil(N_samples / 2))):  # Range must be integers
@@ -133,4 +144,4 @@ class FractionalBrownianNoise:
         cs = [np.conjugate(fourier_coeffs[N_samples - k]) for k in range(int(np.ceil(N_samples / 2)) + 1, N_samples)]
         fourier_coeffs = np.append(fourier_coeffs, cs)
         samples = np.fft.fft(fourier_coeffs)  # Samples should be real
-        return np.real(samples)
+        return self.scale_to_unit_time_interval(N_samples, np.real(samples))

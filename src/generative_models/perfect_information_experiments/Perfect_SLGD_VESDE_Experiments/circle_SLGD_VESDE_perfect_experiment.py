@@ -24,17 +24,19 @@ if __name__ == "__main__":
     # Forward process for clarity only
     var_max = torch.Tensor([1. ** 2]).to(torch.float32)
     var_min = torch.Tensor([0.01 ** 2]).to(torch.float32)
-    timesteps = torch.linspace(start=1e-5, end=1., steps=numDiffSteps).to(torch.float32)
+    indices = torch.linspace(start=0, end=numDiffSteps, steps=numDiffSteps)
     vars = var_min * torch.pow((var_max / var_min),
-                               timesteps)  # SLGD defines noise sequence from big to small for REVERSE process, but this sequence corresponds to the FORWARD noise schedule
-
+                               indices / (
+                                       numDiffSteps - 1))  # SLGD defines noise sequence from big to small for REVERSE process, but this sequence corresponds to the FORWARD noise schedule
     sampless = []
     sampless.append(trial_data.numpy())
+    timesteps = torch.linspace(start=1e-3, end=1., steps=numDiffSteps).to(torch.float32)
     for i in range(0, numDiffSteps):
         t = timesteps[i]
         x0s = trial_data.to(torch.float32)
         z = torch.randn_like(x0s)
-        x = x0s + torch.sqrt(vars[i]) * z
+        var_t = var_min * (var_max / var_min) ** t
+        x = x0s + torch.sqrt(var_t) * z
         sampless.append(x.numpy())
 
     reversed_sampless = []
@@ -45,11 +47,16 @@ if __name__ == "__main__":
     for i in tqdm(iterable=range(0, numDiffSteps), dynamic_ncols=False,
                   desc="Sampling :: ", position=0):
         z = torch.randn_like(x)
-        dt = 1. / numDiffSteps
         t = reversed_timesteps[i]
-        diffCoeffSqrd = var_min * torch.pow((var_max / var_min), t) * 2. * torch.log(var_max / var_min)
-        score = -(x - trial_data) / (vars[(numDiffSteps - 1 - i)])
-        x = x + (diffCoeffSqrd * score) * dt + torch.sqrt(dt * diffCoeffSqrd) * z
+        # dt = 1. / numDiffSteps
+        # diffCoeffSqrd = var_min * torch.pow((var_max / var_min), t) * 2. * torch.log(var_max / var_min)
+        # x = x + (diffCoeffSqrd * score) * dt + torch.sqrt(dt * diffCoeffSqrd) * z
+        for j in range(10):
+            z = torch.randn_like(x)
+            g = -(x - trial_data) / (var_min * torch.pow((var_max / var_min), t))
+            e = 2 * (1. * np.linalg.norm(z) / np.linalg.norm(
+                g)) ** 2  # noise-to-scale ratio needs to change dependent on data
+            x = x + e * g + np.sqrt(2. * e) * z
         reversed_sampless.append(x.numpy())
 
     true_samples = sampless[0]

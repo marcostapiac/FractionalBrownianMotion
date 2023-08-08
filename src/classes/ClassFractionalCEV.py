@@ -22,9 +22,9 @@ class FractionalCEV:
     def get_initial_state(self):
         return self.initialVol
 
-    def sample_increments(self, deltaT: float, H: int, N: int, gaussRvs: np.ndarray) -> np.ndarray:
+    def sample_increments(self, deltaT: float, H: float, N: int, gaussRvs: np.ndarray) -> np.ndarray:
         fBn = FractionalBrownianNoise(H=H, rng=self.rng)
-        incs = np.power(deltaT, H) * fBn.circulant_simulation(N_samples=N, gaussRvs=gaussRvs)
+        incs = fBn.circulant_simulation(N_samples=N, gaussRvs=gaussRvs)  # Scale over time-scale included in circulant
         return incs
 
     def lamperti(self, x: Union[np.ndarray, float]) -> Union[np.ndarray, float]:
@@ -69,7 +69,8 @@ class FractionalCEV:
             Zs.append(self.increment_state(prev=Zs[i - 1], deltaT=deltaT, M=Ms[i - 1]))
         return self.inverse_lamperti(np.array(Zs))
 
-    def euler_simulation(self, H, N, deltaT, Ms=None, gaussRvs=None):
+    def euler_simulation(self, H: float, N: int, deltaT: float, Ms=None, gaussRvs=None):
+        assert (0. < H < 1. and deltaT == 1. / N)  # Ensure we simulate from 0 to 1
         Zs = [self.lamperti(self.initialVol)]
         Us = [self.initialLogPrice]
         if gaussRvs is None:
