@@ -36,7 +36,7 @@ if __name__ == "__main__":
     plt.show()
 
     # Forward sampling only shown for clarity, not needed
-    ts = np.linspace(start=1e-3, stop=1., num=N)  # Empirically better samples with 1e-3
+    ts = np.linspace(start=1e-3, stop=.1, num=N)  # Empirically better samples with 1e-3
     noises = []
     sampless = []
     sampless.append(trial_data)
@@ -54,7 +54,7 @@ if __name__ == "__main__":
     x = rng.normal(size=trial_data.shape)
     reversed_sampless.append(x)
 
-    timesteps = np.linspace(1., stop=1e-3, num=N)  # Empirically better samples with 1e-3
+    timesteps = np.linspace(.1, stop=1e-3, num=N)  # Empirically better samples with 1e-3
 
     for i in tqdm((range(N))):
         dt = 1. / N
@@ -74,10 +74,10 @@ if __name__ == "__main__":
     print("Original Data :: \n [[{}, {}]\n[{},{}]]".format(*np.cov(true_samples, rowvar=False).flatten()))
     print("Generated Data :: \n [[{}, {}]\n[{},{}]]".format(*np.cov(generated_samples, rowvar=False).flatten()))
     print("Expected :: \n [[{}, {}]\n[{},{}]]".format(
-        *compute_fBm_cov(FractionalBrownianNoise(H=h, rng=rng), td=td).flatten()))
+        *compute_fBm_cov(FractionalBrownianNoise(H=h, rng=rng), td=td, isUnitInterval=True).flatten()))
 
     # Chi-2 test for joint distribution of the fractional Brownian noise
-    c2 = chiSquared_test(T=td, H=h, samples=fBm_to_fBn(generated_samples))
+    c2 = chiSquared_test(T=td, H=h, samples=fBm_to_fBn(generated_samples), isUnitInterval=True)
     print("Chi-Squared test for target: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], c2[1],
                                                                                                        c2[2]))
 

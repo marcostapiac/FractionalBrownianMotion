@@ -78,11 +78,11 @@ class ScoreNet(nn.Module):
     def forward(self, x, t):
         # Obtain the Gaussian random feature embedding for t
         embed = self.act(self.embed(t.squeeze()))
-        print(embed.shape)
+        x = x.unsqueeze(1)
         # Encoding path
         h1 = self.conv1(x)
         ## Incorporate information from t
-        print(h1.shape, self.dense1(embed).shape)
+        print(h1.shape, embed.shape, self.dense1(embed).shape)
         h1 += self.dense1(embed)
         ## Group normalization
         h1 = self.gnorm1(h1)

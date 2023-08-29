@@ -1,45 +1,7 @@
-from typing import Callable
-
 import numpy as np
 import torch
 from torch import nn
-from torch.functional import F
 
-
-@torch.jit.script
-def silu(x):
-    return x * torch.sigmoid(x)
-class DiffusionEmbedding(nn.Module):
-    def __init__(self, diff_embed_size, diff_hidden_size, max_steps):
-        super().__init__()
-        self.register_buffer('embedding', self._build_embedding(diff_embed_size=diff_embed_size, max_steps=max_steps), persistent=False)
-        self.projection1 = nn.Linear(2*diff_embed_size, diff_hidden_size)
-        self.projection2 = nn.Linear(diff_hidden_size, diff_hidden_size)
-
-    def forward(self, diffusion_step):
-        if diffusion_step.dtype in [torch.int32, torch.int64]:
-            x = self.embedding[diffusion_step]
-        else:
-            x = self._lerp_embedding(diffusion_step)
-        x = self.projection1(x)
-        x = silu(x)
-        x = self.projection2(x)
-        x = silu(x)
-        return x
-
-    def _lerp_embedding(self, t):
-        low_idx = torch.floor(t).long()
-        high_idx = torch.ceil(t).long()
-        low = self.embedding[low_idx]
-        high = self.embedding[high_idx]
-        return low + (t - low_idx).unsqueeze(-1)*(high - low)
-
-    def _build_embedding(self, diff_embed_size:int, max_steps:int):
-        steps = torch.arange(max_steps).unsqueeze(1)  # [max_steps,1]
-        dims = torch.arange(diff_embed_size).unsqueeze(0)  # [max_steps,diff_input_size]
-        table = steps * 10.0 ** (dims * 4.0 / 63.0)  # [max_steps,diff_input_size]
-        table = torch.cat([torch.sin(table), torch.cos(table)], dim=1)
-        return table
 
 def get_timestep_embedding(timesteps: torch.Tensor, embedding_dim: int):
     """
@@ -71,26 +33,28 @@ class MLP(nn.Module):
         self.output_shape = output_shape
         self.bias = bias
         i = 0
-        self.hiddenLayers = nn.ModuleList()
+        self.hiddenLayers = []
         while i < len(self.hidden_shapes):
-            if i == 0:
-                newLayer = nn.Sequential(nn.Linear(in_features=self.input_shape, out_features=self.hidden_shapes[i], bias=self.bias))
-            else:
-                newLayer = nn.Sequential(nn.Linear(in_features=self.hidden_shapes[i-1], out_features=self.hidden_shapes[i], bias=self.bias))
+            hs = self.hidden_shapes[i]
+            newLayer = nn.Sequential(
+                nn.Linear(in_features=self.input_shape, out_features=hs, bias=self.bias)
+            ) if i == 0 else nn.Sequential(
+                nn.Linear(in_features=hs, out_features=hs, bias=self.bias)
+            )
             self.hiddenLayers.append(newLayer)
             i += 1
         self.finalLayer = nn.Linear(in_features=self.hidden_shapes[-1], out_features=self.output_shape,
                                     bias=False)  # x.shape[-1]
 
-    def forward(self, x:torch.Tensor, act:Callable, *args):
+    def forward(self, x):
         for layer in self.hiddenLayers:
             x = layer(x)
-            x = act(x, *args)
+            x = torch.sin(x)
         x = self.finalLayer.forward(x)
         return x
 
 
-class NaiveMLP(nn.Module):
+class MyMLP(nn.Module):
     """Create a naive MLP network.
 
     Args:
@@ -103,16 +67,17 @@ class NaiveMLP(nn.Module):
 
     def __init__(
             self,
-            temb_dim: int,
-            max_diff_steps:int,
             output_shape: int,
             enc_shapes: list,
+            temb_dim: int,
             dec_shapes: list,
     ):
         super().__init__()
         self.temb_dim = temb_dim
         t_enc_dim = temb_dim * 2
-        self.diffusion_embedding = DiffusionEmbedding(diff_embed_size= self.temb_dim, diff_hidden_size=self.temb_dim, max_steps=max_diff_steps) #get_timestep_embedding
+
+        self.net = MLP(input_shape=t_enc_dim * 2, hidden_shapes=dec_shapes,
+                       output_shape=output_shape)
 
         self.t_encoder = MLP(input_shape=self.temb_dim,
                              hidden_shapes=enc_shapes, output_shape=t_enc_dim
@@ -122,24 +87,21 @@ class NaiveMLP(nn.Module):
                              hidden_shapes=enc_shapes, output_shape=t_enc_dim
                              )
 
-        self.net = MLP(input_shape=t_enc_dim * 2, hidden_shapes=dec_shapes,
-                       output_shape=output_shape)
-
     def forward(self, x: torch.Tensor, t: torch.Tensor):
         # t = torch.from_numpy(np.array([t])).to(torch.float32)
         if len(x.shape) == 3:
             x = x.squeeze(1)
-        assert (len(x.shape) == 2 and len(t.shape) == 1 and x.shape[0] == t.shape[0])
-        temb = self.diffusion_embedding(t.reshape(-1)) #, self.temb_dim)
+        #assert (len(x.shape) > 1 and len(t.shape) > 1 and x.shape[0] == t.shape[0])
+        temb = get_timestep_embedding(t.reshape(-1), self.temb_dim)
         assert (temb.shape[0] == t.shape[0] and temb.shape[1] == self.temb_dim)
-        temb = self.t_encoder.forward(temb, F.leaky_relu, 0.4)
+        temb = self.t_encoder(temb)
         assert (temb.shape[0] == t.shape[0] and temb.shape[1] == self.temb_dim * 2)
-        xemb = self.x_encoder(x, F.leaky_relu, 0.4)
+        xemb = self.x_encoder(x)
         assert (xemb.shape[0] == x.shape[0] and xemb.shape[1] == self.temb_dim * 2)
         temb = torch.broadcast_to(temb, [xemb.shape[0], *temb.shape[1:]])
         h = torch.cat([xemb, temb], dim=-1)
         assert (h.shape[0] == x.shape[0] and h.shape[1] == self.temb_dim * 2 * 2)
-        out = -self.net.forward(h, F.leaky_relu, 0.4)
+        out = -self.net(h)
         return out
 
 

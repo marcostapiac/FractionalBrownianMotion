@@ -6,31 +6,43 @@ from torch import nn
 
 """ NOTE: The model below is an adaptation of the implementation of pytorch-ts """
 
-"""
+
+@torch.jit.script
+def silu(x):
+    return x * torch.sigmoid(x)
+
+
 class DiffusionEmbedding(nn.Module):
-    def __init__(self, dim, proj_dim, max_steps=10000):  # Changed maximum number of diffusion steps
+    def __init__(self, diff_embed_size, diff_hidden_size, max_steps):
         super().__init__()
-        self.register_buffer(
-            "embedding", self._build_embedding(dim, max_steps), persistent=False
-        )
-        self.projection1 = nn.Linear(dim * 2, proj_dim)
-        self.projection2 = nn.Linear(proj_dim, proj_dim)
+        self.register_buffer('embedding', self._build_embedding(diff_embed_size=diff_embed_size, max_steps=max_steps), persistent=False)
+        self.projection1 = nn.Linear(2*diff_embed_size, diff_hidden_size)
+        self.projection2 = nn.Linear(diff_hidden_size, diff_hidden_size)
 
     def forward(self, diffusion_step):
-        x = self.embedding[diffusion_step]
+        if diffusion_step.dtype in [torch.int32, torch.int64]:
+            x = self.embedding[diffusion_step]
+        else:
+            x = self._lerp_embedding(diffusion_step)
         x = self.projection1(x)
-        x = F.silu(x)
+        x = silu(x)
         x = self.projection2(x)
-        x = F.silu(x)
+        x = silu(x)
         return x
 
-    def _build_embedding(self, dim, max_steps):
-        steps = torch.arange(max_steps).unsqueeze(1)  # [T,1]
-        dims = torch.arange(dim).unsqueeze(0)  # [1,dim]
-        table = steps * 10.0 ** (dims * 4.0 / dim)  # [T,dim]
+    def _lerp_embedding(self, t):
+        low_idx = torch.floor(t).long()
+        high_idx = torch.ceil(t).long()
+        low = self.embedding[low_idx]
+        high = self.embedding[high_idx]
+        return low + (t - low_idx).unsqueeze(-1)*(high - low)
+
+    def _build_embedding(self, diff_embed_size:int, max_steps:int):
+        steps = torch.arange(max_steps).unsqueeze(1)  # [max_steps,1]
+        dims = torch.arange(diff_embed_size).unsqueeze(0)  # [max_steps,diff_input_size]
+        table = steps * 10.0 ** (dims * 4.0 / 63.0)  # [max_steps,diff_input_size]
         table = torch.cat([torch.sin(table), torch.cos(table)], dim=1)
         return table
-"""
 
 
 def get_timestep_embedding(timesteps: torch.Tensor, embedding_dim: int):
@@ -55,17 +67,16 @@ def get_timestep_embedding(timesteps: torch.Tensor, embedding_dim: int):
 
 
 class ResidualBlock(nn.Module):
-    def __init__(self, hidden_size, residual_channels, dilation):
+    def __init__(self, diffusion_hidden_size, residual_channels, dilation):
         super().__init__()
         self.dilated_conv = nn.Conv1d(
             residual_channels,
             2 * residual_channels,
             3,
             padding=dilation,
-            dilation=dilation,
-            padding_mode="circular",
+            dilation=dilation
         )
-        self.diffusion_projection = nn.Linear(hidden_size, residual_channels)
+        self.diffusion_projection = nn.Linear(diffusion_hidden_size, residual_channels)  # hidden_size = 512
 
         self.output_projection = nn.Conv1d(residual_channels, 2 * residual_channels, 1)
 
@@ -81,7 +92,7 @@ class ResidualBlock(nn.Module):
         y = torch.sigmoid(gate) * torch.tanh(filter)
 
         y = self.output_projection(y)
-        y = F.leaky_relu(y, 0.4)
+        # y = F.leaky_relu(y, 0.4)
         residual, skip = torch.chunk(y, 2, dim=1)
         return (x + residual) / math.sqrt(2.0), skip
 
@@ -89,30 +100,31 @@ class ResidualBlock(nn.Module):
 class TimeSeriesNoiseMatching(nn.Module):
     def __init__(
             self,
-            residual_layers:int=8,
-            residual_channels:int=8,
-            dilation_cycle_length:int=2,
-            residual_hidden:int=32,
+            max_diff_steps: int,
+            diff_embed_size: int,
+            diff_hidden_size: int,
+            residual_layers: int = 10,
+            residual_channels: int = 8,
+            dilation_cycle_length: int = 10
     ):
         super().__init__()
-        self.time_emb_dim = residual_hidden
 
         self.input_projection = nn.Conv1d(
-            1, residual_channels, 1, padding=2)
-        self.diffusion_embedding = get_timestep_embedding
+            1, residual_channels, 1)
+        self.diffusion_embedding = DiffusionEmbedding(diff_embed_size= diff_embed_size, diff_hidden_size=diff_hidden_size, max_steps=max_diff_steps) #get_timestep_embedding
 
         self.residual_layers = nn.ModuleList(
             [
                 ResidualBlock(
                     residual_channels=residual_channels,
                     dilation=2 ** (i % dilation_cycle_length),
-                    hidden_size=residual_hidden,
+                    diffusion_hidden_size = diff_hidden_size
                 )
                 for i in range(residual_layers)
             ]
         )
-        self.skip_projection = nn.Conv1d(residual_channels, residual_channels, 3)
-        self.output_projection = nn.Conv1d(residual_channels, 1, 3)
+        self.skip_projection = nn.Conv1d(residual_channels, residual_channels, 1)
+        self.output_projection = nn.Conv1d(residual_channels, 1, 1)
 
         nn.init.kaiming_normal_(self.input_projection.weight)
         nn.init.kaiming_normal_(self.skip_projection.weight)
@@ -120,17 +132,18 @@ class TimeSeriesNoiseMatching(nn.Module):
 
     def forward(self, inputs, times):
         inputs = inputs.unsqueeze(1)
-        diffusion_step = self.diffusion_embedding(times, embedding_dim=self.time_emb_dim)
         x = self.input_projection(inputs)
-        x = F.leaky_relu(x, 0.4)
+        x = F.leaky_relu(x, 0.01)
+
+        diffusion_step = self.diffusion_embedding(times)#, embedding_dim=self.time_emb_dim)
         skip = []
         for layer in self.residual_layers:
             x, skip_connection = layer(x, diffusion_step)
-            x= F.leaky_relu(x,0.4)
+            x = F.leaky_relu(x, 0.01)
             skip.append(skip_connection)
 
         x = torch.sum(torch.stack(skip), dim=0) / math.sqrt(len(self.residual_layers))
         x = self.skip_projection(x)
-        x = F.leaky_relu(x, 0.4)
+        x = F.leaky_relu(x, 0.01)
         x = self.output_projection(x)
         return x

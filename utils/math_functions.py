@@ -191,9 +191,9 @@ def chiSquared_test(T: int, H: float, isUnitInterval: bool, samples: Union[np.nd
     return critLow, np.sum(ts), critUpp
 
 
-def generate_circles(T: int, S: int) -> np.array:
+def generate_circles(T: int, S: int, noise:float) -> np.array:
     assert (T == 2)
     X, y = datasets.make_circles(
-        n_samples=S, noise=0.0, random_state=None, factor=.5)
+        n_samples=S, noise=noise, random_state=None, factor=.5)
     sample = X * 4
     return sample

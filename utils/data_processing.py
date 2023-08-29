@@ -49,7 +49,10 @@ def save_and_train_diffusion_model(data: np.ndarray, model_filename: str, batch_
 
     """ Prepare optimiser """
     optimiser = torch.optim.Adam((diffusion.parameters()), lr=lr)  # No need to move to device
-
+    params = 0
+    for item in optimiser.param_groups[0]["params"]:
+        params += np.prod(item.shape)
+    print("Number of model parameters : {}".format(params))
     """ Training """
     train_loss, val_loss = train_diffusion_model(diffusion=diffusion, trainLoader=trainLoader,
                                                  valLoader=valLoader,
@@ -139,7 +142,6 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
     plot_diffCov_heatmap(expec_cov, gen_cov, annot=annot)
     S = min(true_samples.shape[0], generated_samples.shape[0])
     true_samples, generated_samples = true_samples[:S], generated_samples[:S]
-    plot_tSNE(true_samples, y=generated_samples, labels=["True Samples", "Generated Samples"])
 
     # Chi-2 test for joint distribution of the fractional Brownian noise
     c2 = chiSquared_test(T=td, H=h, samples=fBm_to_fBn(true_samples), isUnitInterval=unitInterval)
@@ -149,6 +151,9 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
     c2 = chiSquared_test(T=td, H=h, samples=fBm_to_fBn(generated_samples), isUnitInterval=unitInterval)
     print("Chi-Squared test for target: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], c2[1],
                                                                                                        c2[2]))
+
+    plot_tSNE(true_samples, y=generated_samples, labels=["True Samples", "Generated Samples"]) \
+        if td > 2 else plot_dataset(true_samples, generated_samples)
     if evalMarginals: plot_diffusion_marginals(true_samples, generated_samples, timeDim=td, diffTime=0)
 
     """
@@ -162,13 +167,46 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
                          num_permutations=1000)))
     """
 
+def compute_circle_proportions(true_samples:np.ndarray, generated_samples:np.ndarray)->None:
+    innerb = 0
+    outerb = 0
+    innerf = 0
+    outerf = 0
+    S = true_samples.shape[0]
+    for i in range(S):
+        bkwd = generated_samples[i]
+        fwd = true_samples[i]
+        rb = np.sqrt(bkwd[0] ** 2 + bkwd[1] ** 2)
+        rf = np.sqrt(fwd[0] ** 2 + fwd[1] ** 2)
+        if rb <= 2.1:
+            innerb += 1
+        elif 3.9 <= rb:
+            outerb += 1
+        if rf <= 2.1:
+            innerf += 1
+        elif 3.9 <= rf:
+            outerf += 1
+
+    print("Generated: Inner {} vs Outer {}".format(innerb / S, outerb / S))
+    print("True: Inner {} vs Outer {}".format(innerf / S, outerf / S))
 
 def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.ndarray, td: int) -> None:
     """ Computes metrics to quantify how close the generated samples are from the desired distribution """
 
+    print("True Data Sample Mean :: ", np.mean(true_samples, axis=0))
+    print("Generated Data Sample Mean :: ", np.mean(generated_samples, axis=0))
+    true_cov = np.cov(true_samples, rowvar=False)
+    print("True Data :: ", true_cov)
+    gen_cov = np.cov(generated_samples, rowvar=False)
+    print("Generated Data :: ", gen_cov)
+
     plot_dataset(true_samples, generated_samples)
 
     plot_diffusion_marginals(true_samples, generated_samples, timeDim=td, diffTime=0)
+
+    compute_circle_proportions(true_samples, generated_samples)
+
+
 
     # Permutation test for kernel statistic
     # test_L = min(2000, true_samples.shape[0])
@@ -180,39 +218,7 @@ def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.
     #    permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=energy_statistic,
     #                     num_permutations=1000)))
 
-
 def evaluate_SDE_performance(true_samples: np.ndarray, generated_samples: np.ndarray, td: int) -> None:
-    """ Computes metrics to quantify how close the generated samples are from the desired distribution """
-
-    print("True Data Sample Mean :: Dim 1 {} :: Dim 2 {}".format(*np.mean(true_samples, axis=0)))
-    print("Generated Data Sample Mean :: Dim 1 {} :: Dim 2 {}".format(*np.mean(generated_samples, axis=0)))
-    true_cov = np.cov(true_samples, rowvar=False)
-    print("True Data :: \n [[{}, {}]\n[{},{}]]".format(*true_cov.flatten()))
-    gen_cov = np.cov(generated_samples, rowvar=False)
-    print("Generated Data :: \n [[{}, {}]\n[{},{}]]".format(*gen_cov.flatten()))
-
-    plot_diffCov_heatmap(true_cov, gen_cov)
-
-    S = min(true_samples.shape[0], generated_samples.shape[0])
-    true_samples, generated_samples = true_samples[:S], generated_samples[:S]
-
-    plot_tSNE(true_samples, y=generated_samples, labels=["Original", "Generated"])
-    plot_dataset(true_samples, generated_samples)
-    plot_diffusion_marginals(true_samples, generated_samples, timeDim=td, diffTime=0)
-    """
-    test_L = min(2000, true_samples.shape[0])
-    true_samples, generated_samples = true_samples[:test_L], generated_samples[:test_L]
-    print("MMD Permutation test: p-value {}".format(
-        permutation_test(true_samples, generated_samples, compute_statistic=MMD_statistic,
-                         num_permutations=1000)))
-    # Permutation test for energy statistic
-    print("Energy Permutation test: p-value {}".format(
-        permutation_test(true_samples, generated_samples, compute_statistic=energy_statistic,
-                         num_permutations=1000)))
-    """
-
-
-def evaluate_SDE_HigherDim_performance(true_samples: np.ndarray, generated_samples: np.ndarray, td: int) -> None:
     """ Computes metrics to quantify how close the generated samples are from the desired distribution """
 
     print("True Data Sample Mean :: ", np.mean(true_samples, axis=0))

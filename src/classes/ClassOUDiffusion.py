@@ -7,12 +7,13 @@ from tqdm import tqdm
 
 class OUDiffusion(nn.Module):
     def __init__(self, device: torch.cuda.Device, model, N: int, trainEps: float,
-                 rng: np.random.Generator = np.random.default_rng(), *args, **kwargs):
+                 rng: np.random.Generator = np.random.default_rng(), Tdiff: float = 1., *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.torchDevice = device
         self.model = model
         self.numDiffSteps = N
         self.trainEps = trainEps
+        self.endDiffTime = Tdiff
 
         self.rng = rng
 
@@ -34,17 +35,14 @@ class OUDiffusion(nn.Module):
                                   trainLoader: torch.utils.data.DataLoader) -> float:
         mean_loss = MeanMetric()
         self.train()
-        timesteps = torch.linspace(self.trainEps, end=1., steps=self.numDiffSteps)
+        timesteps = torch.linspace(self.trainEps, end=self.endDiffTime, steps=self.numDiffSteps)
         for x0s in iter(trainLoader):  # Iterate over batches (training data is already randomly selected)
             x0s = x0s[0]  # TODO: For some reason the original x0s is a list
             ts = torch.randint(low=0, high=self.numDiffSteps, dtype=torch.int32,
                                size=(x0s.shape[0],))  # Randomly sample uniform time integer
             diffTimes = timesteps[ts].view(x0s.shape[0], *([1] * len(x0s.shape[1:])))
             xts, true_score = self.forward_process(dataSamples=x0s, diffusionTimes=diffTimes)
-
-            # A single batch of data should have dimensions [batch_size, channelNum, size_of_each_datapoint]
-            xts = torch.unsqueeze(xts, 1)
-            pred = self.model.forward(xts, diffTimes)
+            pred = self.model.forward(xts, diffTimes.squeeze(-1))
             loss = self.training_loss_fn(
                 weighted_predicted=self.get_loss_weighting(diffTimes) * pred.squeeze(1),
                 weighted_true=self.get_loss_weighting(diffTimes) * true_score)
@@ -56,7 +54,7 @@ class OUDiffusion(nn.Module):
 
     def evaluate_diffusion_model(self, loader: torch.utils.data.DataLoader) -> float:
         mean_loss = MeanMetric()
-        timesteps = torch.linspace(1e-5, end=1., steps=self.numDiffSteps)
+        timesteps = torch.linspace(self.trainEps, end=self.endDiffTime, steps=self.numDiffSteps)
         for x0s in (iter(loader)):
             self.eval()
             with torch.no_grad():
@@ -66,11 +64,7 @@ class OUDiffusion(nn.Module):
 
                 diffTimes = timesteps[ts].view(x0s.shape[0], *([1] * len(x0s.shape[1:])))
                 xts, true_score = self.forward_process(dataSamples=x0s, diffusionTimes=diffTimes)
-
-                # A single batch of data should have dimensions [batch_size, channelNum, size_of_each_datapoint]
-                xts = torch.unsqueeze(xts, 1)
-                pred = self.model.forward(xts, diffTimes)
-
+                pred = self.model.forward(xts, diffTimes.squeeze(-1))
                 loss = self.training_loss_fn(
                     weighted_predicted=self.get_loss_weighting(diffTimes) * pred.squeeze(1),
                     weighted_true=self.get_loss_weighting(diffTimes) * true_score)
@@ -78,21 +72,23 @@ class OUDiffusion(nn.Module):
                 mean_loss.update(loss.detach().item())
         return float(mean_loss.compute().item())
 
-    def reverse_process(self, dataSize: int, timeDim: int, reverseTimes: torch.Tensor, data:np.ndarray, timeLim: int = 0) -> np.ndarray:
+    def reverse_process(self, dataSize: int, timeDim: int, sampleEps: float, data: np.ndarray,
+                        timeLim: int = 0) -> np.ndarray:
         """ Reverse process for D datapoints of size T """
         # Ensure we don't sample from times we haven't seen during training
-        assert (reverseTimes[-1] >= self.trainEps and reverseTimes.shape[0] == self.numDiffSteps)
-        x = torch.randn((dataSize, timeDim), device=self.torchDevice)
+        assert (sampleEps >= self.trainEps)
+        x = torch.randn((dataSize, timeDim), device=self.torchDevice).to(torch.float32)
         self.model.eval()
         dt = 1. / self.numDiffSteps
+        reverseTimes = torch.linspace(start=self.endDiffTime, end=sampleEps, steps=self.numDiffSteps)
         with torch.no_grad():
             for i in tqdm(iterable=(range(timeLim, self.numDiffSteps)), dynamic_ncols=False,
                           desc="Sampling :: ", position=0):
                 ts = reverseTimes[i] * torch.ones((dataSize, 1), dtype=torch.long,
                                                   device=self.torchDevice)  # time-index for each data-sample
-                predicted_score = self.model.forward(x.unsqueeze(1), ts)
+                predicted_score = self.model.forward(x, ts.squeeze(-1)).squeeze(1)  # Score == Noise/STD!
                 z = torch.randn_like(x)
-                x = x + (0.5 * x + predicted_score.squeeze(1)) * dt + np.sqrt(dt) * z
+                x = x + (0.5 * x + predicted_score) * dt + np.sqrt(dt) * z
 
             return x.detach().numpy()  # Approximately distributed according to desired distribution
 

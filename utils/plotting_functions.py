@@ -1,6 +1,6 @@
 import numbers
 from types import NoneType
-from typing import Union
+from typing import Union, Optional
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -329,21 +329,24 @@ def plot_diffusion_marginals(forward_samples: np.ndarray, reverse_samples: np.nd
         plt.show()
         plt.close()
 
+def plot_heatmap(map:np.ndarray, annot:bool, title:str)->None:
+    sns.heatmap(map, annot=annot)
+    plt.title(title)
+    plt.show()
 
 def plot_diffCov_heatmap(true_cov: np.ndarray, gen_cov: np.ndarray, annot: bool = True) -> None:
     s = 100 * (gen_cov - true_cov) / true_cov
-    sns.heatmap(s, annot=annot)
     print("Average absolute percentage error: ", np.mean(np.abs(s)))
-    plt.title("% Difference between true and generated covariance matrices")
-    plt.show()
+    plot_heatmap(map=np.abs(s), title="% Difference between true and generated covariance matrices", annot=annot)
 
 
-def plot_dataset(forward_samples: np.ndarray, reverse_samples: np.ndarray) -> None:
+def plot_dataset(forward_samples: np.ndarray, reverse_samples: np.ndarray, labels:Optional[Union[list[str], NoneType]]=None) -> None:
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
-    ax.scatter(forward_samples[:, 0], forward_samples[:, 1], alpha=0.6, label="Original Data")
-    n = min(10000, reverse_samples.shape[0] // 5)
-    ax.scatter(reverse_samples[:n, 0], reverse_samples[:n, 1], alpha=0.6, label="Generated Samples")
+    labels = ["Original Data", "Generated Samples"] if labels is None else labels
+    ax.scatter(forward_samples[:, 0], forward_samples[:, 1], alpha=0.6, label=labels[0])
+    n = 10000
+    ax.scatter(reverse_samples[:n, 0], reverse_samples[:n, 1], alpha=0.6, label=labels[1])
     ax.grid(False)
     ax.set_aspect('equal', adjustable='box')
     strtitle = "Scatter Plot of Final Reverse Samples"
@@ -352,3 +355,28 @@ def plot_dataset(forward_samples: np.ndarray, reverse_samples: np.ndarray) -> No
     ax.set_ylabel("Time Dim 2")
     plt.legend()
     plt.show()
+
+
+def plot_eigenvalues(expec_cov: np.ndarray, generated_cov: np.ndarray, labels:list[str]) -> None:
+    assert(expec_cov.shape == generated_cov.shape and len(labels) == 2)
+    eigs1 = np.sort(np.linalg.eigvals(expec_cov))
+    eigs2 = np.sort(np.linalg.eigvals(generated_cov))
+    Ne = eigs1.shape[0]
+    indicators = np.linspace(1, Ne, num=Ne, dtype=int)
+    print(len(indicators), indicators)
+    plt.scatter(indicators, eigs1, label=labels[0])
+    plt.scatter(indicators, eigs2, label=labels[1])
+    plt.legend()
+    plt.xlabel("Eigenvalue Indicator")
+    plt.ylabel("Eigenvalues")
+    plt.title("Plot of Eigenvalues for Covariance Matrices")
+    plt.show()
+
+
+def compare_against_isotropic_Gaussian(forward_samples:np.ndarray, td:int, diffTime:Union[int, float], rng:np.random.Generator)->None:
+    """ Function generates comparison plots between forward samples at 'diffTime' and standard isotropic Gaussian """
+    assert(forward_samples.shape[1] == td)
+    stdn_samples = rng.normal(size=(forward_samples.shape[0], td))
+    labels = ["Forward Samples at time {}".format((diffTime)), "Standard Normal Samples"]
+    if td==2: plot_dataset(forward_samples=forward_samples, reverse_samples=stdn_samples, labels=labels)
+    plot_heatmap(np.cov(forward_samples, rowvar=False), title="Covariance matrix at forward time {}".format(diffTime), annot=False if td > 16 else True)
