@@ -11,7 +11,7 @@ from src.classes.TimeDependentScoreNetworks.ClassTimeSeriesNoiseMatching import 
 from utils import config
 from utils.data_processing import save_and_train_diffusion_model
 from utils.math_functions import generate_circles
-from utils.plotting_functions import plot_diffusion_marginals
+from utils.plotting_functions import plot_final_diffusion_marginals
 
 LR = 1e-3
 NUM_EPOCHS = 100
@@ -25,7 +25,7 @@ def observation_model(latent: np.ndarray) -> np.ndarray:
 def evaluate_performance(true_samples: np.ndarray, generated_samples: np.ndarray) -> None:
     """ Computes metrics to quantify how close the generated samples are from the desired distribution """
 
-    plot_diffusion_marginals(true_samples, generated_samples, timeDim=td, diffTime=0)
+    plot_final_diffusion_marginals(true_samples, generated_samples, timeDim=td)
 
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)

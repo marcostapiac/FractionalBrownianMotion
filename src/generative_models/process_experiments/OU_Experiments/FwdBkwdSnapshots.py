@@ -8,7 +8,7 @@ from sklearn import datasets
 from tqdm import tqdm
 
 from utils import config
-from utils.plotting_functions import plot_diffusion_marginals, plot_dataset, qqplot
+from utils.plotting_functions import plot_final_diffusion_marginals, plot_dataset, qqplot
 
 plt.style.use('ggplot')
 matplotlib.rcParams.update({
@@ -71,7 +71,7 @@ for i in range(N + 1):
         plt.show()
 
 plot_dataset(algData, bkwd_samples[0])
-plot_diffusion_marginals(algData, bkwd_samples[0], timeDim=td, diffTime=0)
+plot_final_diffusion_marginals(algData, bkwd_samples[0], timeDim=td)
 
 # Check if issue is still present if we compare samples from same datasets
 qqplot(x=algData[:, 0],
@@ -114,7 +114,7 @@ prunedData = np.array(prunedData)
 idxs = np.random.randint(0, algData.shape[0], size=algData.shape[0] - prunedData.shape[0])
 prunedAlgData = np.delete(algData, idxs, axis=0)
 plot_dataset(prunedAlgData, prunedData)
-plot_diffusion_marginals(prunedAlgData, prunedData, timeDim=td, diffTime=0)
+plot_final_diffusion_marginals(prunedAlgData, prunedData, timeDim=td)
 
 # Is the problem the distribution of points in each of the concetric circles?
 innerb = 0

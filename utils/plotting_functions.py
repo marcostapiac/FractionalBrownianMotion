@@ -18,6 +18,7 @@ matplotlib.rcParams.update({
     'font.family': 'serif',
     'text.usetex': True,
     'pgf.rcfonts': False,
+    'text.latex.preamble': r"\usepackage{amsmath}"
 })
 
 
@@ -309,35 +310,34 @@ def plot_tSNE(x: np.ndarray, labels: list[str], y: Union[NoneType, np.ndarray] =
         y_embed = TSNE().fit_transform(y)
         plt.scatter(y_embed[:, 0], y_embed[:, 1], label=labels[1])
     plt.title("t-SNE Plot")
-    plt.xlabel("Embedding Dim 1")
-    plt.ylabel("Embedding Dim 2")
+    plt.xlabel("$\\textbf{Embedding Dim 1}$")
+    plt.ylabel("$\\textbf{Embedding Dim 2}$")
     plt.tight_layout()
     plt.legend()
     plt.show()
 
 
-def plot_diffusion_marginals(forward_samples: np.ndarray, reverse_samples: np.ndarray, timeDim: int,
-                             diffTime: int) -> None:
+def plot_final_diffusion_marginals(forward_samples: np.ndarray, reverse_samples: np.ndarray, timeDim: int) -> None:
     for t in np.arange(start=0, stop=timeDim, step=1):
         forward_t = forward_samples[:, t].flatten()
         reverse_samples_t = reverse_samples[:, t].flatten()
         qqplot(x=forward_t,
-               y=reverse_samples_t, xlabel="Fwd Samples at Diff Time {}".format(diffTime),
-               ylabel="Reverse Samples at Diff Time {}".format(diffTime),
+               y=reverse_samples_t, xlabel="$\\textbf{Original Data Samples {}}$",
+               ylabel="$\\textbf{Final Reverse Diffusion Samples}$",
                plottitle="Marginal Q-Q Plot at Time Dim {}".format(t + 1), log=False)
         print(kstest(forward_t, reverse_samples_t))
         plt.show()
         plt.close()
 
 def plot_heatmap(map:np.ndarray, annot:bool, title:str)->None:
-    sns.heatmap(map, annot=annot)
+    sns.heatmap(map, annot=annot, annot_kws={'size': 15})
     plt.title(title)
     plt.show()
 
 def plot_diffCov_heatmap(true_cov: np.ndarray, gen_cov: np.ndarray, annot: bool = True) -> None:
     s = 100 * (gen_cov - true_cov) / true_cov
     print("Average absolute percentage error: ", np.mean(np.abs(s)))
-    plot_heatmap(map=np.abs(s), title="% Difference between true and generated covariance matrices", annot=annot)
+    plot_heatmap(map=np.abs(s), title="Difference in Covariance Matrices", annot=annot)
 
 
 def plot_dataset(forward_samples: np.ndarray, reverse_samples: np.ndarray, labels:Optional[Union[list[str], NoneType]]=None) -> None:
@@ -346,13 +346,13 @@ def plot_dataset(forward_samples: np.ndarray, reverse_samples: np.ndarray, label
     labels = ["Original Data", "Generated Samples"] if labels is None else labels
     ax.scatter(forward_samples[:, 0], forward_samples[:, 1], alpha=0.6, label=labels[0])
     n = 10000
-    ax.scatter(reverse_samples[:n, 0], reverse_samples[:n, 1], alpha=0.6, label=labels[1])
+    ax.scatter(reverse_samples[:n, 0], reverse_samples[:n, 1], alpha=0.3, label=labels[1])
     ax.grid(False)
     ax.set_aspect('equal', adjustable='box')
-    strtitle = "Scatter Plot of Final Reverse Samples"
+    strtitle = "Scatter Plot of Final Reverse Diffusion Samples"
     ax.set_title(strtitle)
-    ax.set_xlabel("Time Dim 1")
-    ax.set_ylabel("Time Dim 2")
+    ax.set_xlabel("$\\textbf{Time Dim 1}$")
+    ax.set_ylabel("$\\textbf{Time Dim 2}$")
     plt.legend()
     plt.show()
 

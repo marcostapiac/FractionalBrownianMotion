@@ -9,7 +9,7 @@ from src.classes.TimeDependentScoreNetworks.ClassTimeSeriesNoiseMatching import 
 from utils import config
 from utils.data_processing import save_and_train_diffusion_model, evaluate_fBm_HigherDim_performance
 from utils.math_functions import generate_fBn, chiSquared_test, generate_fBm, fBm_to_fBn
-from utils.plotting_functions import plot_dataset, plot_diffusion_marginals
+from utils.plotting_functions import plot_dataset, plot_final_diffusion_marginals
 
 LR = 1e-3
 NUM_EPOCHS = 40

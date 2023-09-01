@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from utils.math_functions import generate_fBm, chiSquared_test, fBm_to_fBn, compute_fBm_cov
-from utils.plotting_functions import plot_diffusion_marginals, plot_dataset
+from utils.plotting_functions import plot_final_diffusion_marginals, plot_dataset
 
 plt.style.use('ggplot')
 matplotlib.rcParams.update({
@@ -18,7 +18,7 @@ if __name__ == "__main__":
     h = 0.7
     td = 2
     N = 1000  # In OU, constant noise schedule implies need for longer diffusion chain (try with 100)
-    numSamples = 100000
+    numSamples = 10000
     rng = np.random.default_rng()
     data = generate_fBm(H=h, T=td, S=numSamples, rng=rng)
 
@@ -28,10 +28,11 @@ if __name__ == "__main__":
     ax = fig.add_subplot(1, 1, 1)
     ax.scatter(trial_data[:, 0], trial_data[:, 1], alpha=0.6)
     ax.grid(False)
-    strtitle = "Scatter Plot of 2-dimensional fBn"
+    ax.set_aspect("equal")
+    strtitle = "Scatter Plot of 2-dimensional fBm"
     ax.set_title(strtitle)
-    ax.set_xlabel("Time Dim 1")
-    ax.set_ylabel("Time Dim 2")
+    ax.set_xlabel("$\\textbf{Time Dim 1}$")
+    ax.set_ylabel("$\\textbf{Time Dim 2}$")
     plt.legend()
     plt.show()
 
@@ -83,4 +84,4 @@ if __name__ == "__main__":
 
     plot_dataset(true_samples, generated_samples)
 
-    plot_diffusion_marginals(true_samples, generated_samples, timeDim=td, diffTime=0)
+    plot_final_diffusion_marginals(true_samples, generated_samples, timeDim=td)

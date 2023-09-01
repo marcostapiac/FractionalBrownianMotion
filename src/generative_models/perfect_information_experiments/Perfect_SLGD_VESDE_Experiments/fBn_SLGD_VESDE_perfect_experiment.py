@@ -4,7 +4,7 @@ from tqdm import tqdm
 
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from utils.math_functions import chiSquared_test, generate_fBn, compute_fBn_cov
-from utils.plotting_functions import plot_diffusion_marginals, plot_dataset
+from utils.plotting_functions import plot_final_diffusion_marginals, plot_dataset
 
 if __name__ == "__main__":
     h, td = 0.7, 2
@@ -64,9 +64,9 @@ if __name__ == "__main__":
     assert (np.cov(generated_samples.T)[0, 1] == np.cov(generated_samples.T)[1, 0])
 
     # Chi-2 test for joint distribution of the fractional Brownian noise
-    c2 = chiSquared_test(T=td, H=h, samples=generated_samples)
+    c2 = chiSquared_test(T=td, H=h, samples=generated_samples, isUnitInterval=True)
     print("Chi-Squared test for target: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], c2[1],
                                                                                                        c2[2]))
-    plot_diffusion_marginals(true_samples, generated_samples, timeDim=td, diffTime=0)
+    plot_final_diffusion_marginals(true_samples, generated_samples, timeDim=td)
 
     plot_dataset(true_samples, generated_samples)

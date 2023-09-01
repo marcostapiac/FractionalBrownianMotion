@@ -4,7 +4,7 @@ from tqdm import tqdm
 
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from utils.math_functions import chiSquared_test, fBm_to_fBn, generate_fBm, compute_fBm_cov
-from utils.plotting_functions import plot_diffusion_marginals, plot_dataset
+from utils.plotting_functions import plot_final_diffusion_marginals, plot_dataset
 
 if __name__ == "__main__":
     h, td = 0.7, 2
@@ -68,4 +68,4 @@ if __name__ == "__main__":
 
     plot_dataset(true_samples, generated_samples)
 
-    plot_diffusion_marginals(true_samples, generated_samples, timeDim=td, diffTime=0)
+    plot_final_diffusion_marginals(true_samples, generated_samples, timeDim=td)

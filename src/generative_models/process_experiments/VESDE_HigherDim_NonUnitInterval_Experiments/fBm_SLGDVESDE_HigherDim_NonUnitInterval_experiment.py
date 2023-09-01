@@ -8,9 +8,9 @@ from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.classes.ClassVESDEDiffusion import VESDEDiffusion
 from src.classes.TimeDependentScoreNetworks.ClassTimeSeriesNoiseMatching import TimeSeriesNoiseMatching
 from utils import config
-from utils.data_processing import save_and_train_diffusion_model, evaluate_fBm_HigherDim_performance
+from utils.data_processing import save_and_train_diffusion_model
 from utils.math_functions import generate_fBn, chiSquared_test, generate_fBm, fBm_to_fBn, compute_fBm_cov
-from utils.plotting_functions import plot_dataset, plot_diffusion_marginals
+from utils.plotting_functions import plot_dataset, plot_final_diffusion_marginals
 
 LR = 1e-3
 NUM_EPOCHS = 100

@@ -24,14 +24,6 @@ trialPairs = [(1., 500), (1., 1000), (1.,2000)]
 
 
 for Tdiff, Ndiff in trialPairs:
-#Tdiff, Ndiff = 10., 1000
-#beta_min = 0.1
-#beta_max = 20.
-#sigma_min = 0.1
-#sigma_max = 9.
-#for i in range(3):
-# VPtimes = 0.5*OUtimes**2*(beta_max-beta_min)+OUtimes*beta_min
-#VEtimes = sigma_min**2*(sigma_max/sigma_min)**(2.*OUtimes)
     effTimes = np.linspace(start=eps, stop=Tdiff, num=Ndiff)
     # Compute KL divergence
     vars0 = (1. - np.exp(-effTimes[1:]))

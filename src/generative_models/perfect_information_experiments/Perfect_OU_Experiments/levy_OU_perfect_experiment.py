@@ -4,7 +4,7 @@ from matplotlib import pyplot as plt
 from tqdm import tqdm
 
 from levy_processes.mean_mixture_processes import NormalGammaProcess
-from utils.plotting_functions import plot_diffusion_marginals
+from utils.plotting_functions import plot_final_diffusion_marginals
 
 plt.style.use('ggplot')
 matplotlib.rcParams.update({
@@ -92,4 +92,4 @@ if __name__ == "__main__":
     plt.legend()
     plt.show()
 
-    plot_diffusion_marginals(true_samples, generated_samples, timeDim=2, diffTime=0)
+    plot_final_diffusion_marginals(true_samples, generated_samples, timeDim=2)

@@ -13,7 +13,7 @@ from utils.data_processing import save_and_train_diffusion_model, evaluate_fBm_p
 from utils.math_functions import generate_fBn, generate_fBm
 
 LR = 1e-3
-NUM_EPOCHS = 400
+NUM_EPOCHS = 20
 BATCH_SIZE = 64
 
 
@@ -23,7 +23,7 @@ def run_experiment(hurst: float, timeDim: int, dataSize: int, diffusion: ClassVP
     assert (0. < hurst < 1.)
     """ Perform ancestral sampling given model """
     fBm_samples = diffusion.reverse_process(dataSize=dataSize, timeDim=timeDim, timeLim=0,
-                                               sampleEps=sampleEps, data=data, sigNoiseRatio=0.075, numLangevinSteps=10)
+                                               sampleEps=sampleEps, data=data, sigNoiseRatio=0.075, numLangevinSteps=0)
     true_samples = generate_fBm(H=hurst, T=timeDim, S=dataSize, rng=rng)
     annot = False if timeDim > 16 else True
     evalMargs = False if timeDim > 16 else True
@@ -33,12 +33,12 @@ if __name__ == "__main__":
     # Data parameters
     h, td = 0.7, 32
     numSamples = 1000000
-    availableData = 10289 * 10
+    availableData = 124913 * 10
 
     # Training parameters
     trainEps = 1e-3
     sampleEps = 1e-3
-    N = 1000*int(np.log(td)+1) # +1 or not?
+    N = 1000*max(1,int(np.log2(td)-1)) # if td > 2
     Tdiff = 1.
     beta_min = 0.1
     beta_max = 20.
@@ -47,7 +47,7 @@ if __name__ == "__main__":
     temb_dim = 32
     enc_shapes = [8,16,32]
     dec_shapes = enc_shapes[::-1]
-    # TSM Architecture parameters
+    # TSM Architecture parameters ___ or 124913
     residual_layers = 10
     residual_channels = 8
     diff_hidden_size = 32
@@ -88,6 +88,6 @@ if __name__ == "__main__":
         model = save_and_train_diffusion_model(data,
                                                model_filename=modelFileName,
                                                batch_size=BATCH_SIZE, nEpochs=NUM_EPOCHS, lr=LR, diffusion=diffusion)
-    s = 100000
+    s = 30000
     data = data[:s, :]
     run_experiment(diffusion=model, timeDim=td, dataSize=s, data=data, sampleEps=sampleEps, hurst=h, rng=rng)

@@ -24,7 +24,7 @@ if __name__ == "__main__":
 
     # Diffusion parameters
     N = 1000
-    Tdiffs = [0.6, 1., 3.5, 10.]
+    Tdiffs = [0.6]#, 1., 3.5, 10.]
     rng = np.random.default_rng()
 
     # TSM Architecture parameters

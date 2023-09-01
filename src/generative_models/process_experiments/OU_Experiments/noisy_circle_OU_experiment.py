@@ -57,7 +57,7 @@ if __name__ == "__main__":
         td,
         N, Tdiff, trainEps, temb_dim, residual_layers, residual_channels, diff_hidden_size)
 
-    modelChoice = "TSM"  # "TSM"
+    modelChoice = "MLP"  # "TSM"
     modelFileName = mlpFileName if modelChoice == "MLP" else tsmFileName
     scoreModel = TimeSeriesNoiseMatching(diff_embed_size=temb_dim, diff_hidden_size=diff_hidden_size, max_diff_steps=N,
                                          residual_layers=residual_layers,

@@ -10,7 +10,7 @@ from src.classes.TimeDependentScoreNetworks.ClassTimeSeriesNoiseMatching import 
 from utils import config
 from utils.data_processing import save_and_train_diffusion_model
 from utils.math_functions import generate_fBn, chiSquared_test
-from utils.plotting_functions import plot_dataset, plot_diffusion_marginals
+from utils.plotting_functions import plot_dataset, plot_final_diffusion_marginals
 
 LR = 1e-4
 NUM_EPOCHS = 400
@@ -34,7 +34,7 @@ def evaluate_performance(true_samples: np.ndarray, generated_samples: np.ndarray
     c2 = chiSquared_test(T=td, H=h, samples=generated_samples)
     print("Chi-Squared test for target: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], c2[1],
                                                                                                        c2[2]))
-    plot_diffusion_marginals(true_samples, generated_samples, timeDim=td, diffTime=0)
+    plot_final_diffusion_marginals(true_samples, generated_samples, timeDim=td)
 
     plot_dataset(true_samples, generated_samples)
 

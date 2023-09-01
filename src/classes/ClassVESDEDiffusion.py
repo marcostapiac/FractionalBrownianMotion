@@ -118,11 +118,9 @@ class VESDEDiffusion(nn.Module):
 
                 i_s = i * torch.ones((dataSize, 1), dtype=torch.long, device=self.torchDevice)
                 ts = reverseTimes[i_s]  # time-index for each data-sample
-                #dt = 1. / self.numDiffSteps
                 predicted_score = self.model.forward(x, ts.squeeze(-1)).squeeze(1)  # Score == Noise/STD!-(x - data) / (effTimes)
                 drift_var_param = self.vars[self.numDiffSteps -1 -i] - (self.vars[self.numDiffSteps -1 - i-1] if i < self.numDiffSteps -1 else torch.Tensor([0]))
                 noise_var_param = drift_var_param*self.vars[self.numDiffSteps -1 - i-1]/self.vars[self.numDiffSteps -1 - i] if i < self.numDiffSteps - 1 else torch.Tensor([0])
-                print((self.numDiffSteps -1 -i, self.numDiffSteps -1 -i-1),drift_var_param, noise_var_param)
                 z = torch.randn_like(x)
                 x = x + drift_var_param * predicted_score + torch.sqrt(noise_var_param) * z
                 for _ in range(numLangevinSteps):

@@ -2,6 +2,7 @@ import pickle
 
 import numpy as np
 import torch
+from tqdm import tqdm
 
 from src.classes import ClassVESDEDiffusion
 from src.classes.ClassVESDEDiffusion import VESDEDiffusion
@@ -19,8 +20,8 @@ BATCH_SIZE = 256
 def run_experiment(timeDim: int, dataSize: int, diffusion: ClassVESDEDiffusion, sampleEps: float,circlenoise:float,
                    data: np.ndarray) -> None:
     """ Perform ancestral sampling given model """
-    circle_samples = diffusion.reverse_process(dataSize=dataSize, timeDim=timeDim, timeLim=0, numLangevinSteps=10,
-                                               sampleEps=sampleEps, data=data,sigNoiseRatio=.01)
+    circle_samples = diffusion.reverse_process(dataSize=dataSize, timeDim=timeDim, timeLim=0, numLangevinSteps=0,
+                                               sampleEps=sampleEps, data=data,sigNoiseRatio=0.)
     true_samples = generate_circles(T=timeDim, S=dataSize, noise=circlenoise)
     evaluate_circle_performance(true_samples, circle_samples, td=timeDim)
 
@@ -29,7 +30,7 @@ if __name__ == "__main__":
     # Data parameters
     td = 2
     numSamples = 3000000
-    availableData = 10289*10
+    availableData = 11313*10
     cnoise = 0.03
 
     # Training data
@@ -39,14 +40,14 @@ if __name__ == "__main__":
     Tdiff = 1.
 
     # Model parameters
-    std_max = 9.
+    std_max = 12.
     std_min = 0.01
 
-    # MLP Architecture parameters
+    # MLP Architecture parameters (13704)
     temb_dim = 32
     enc_shapes = [8, 16, 32]
     dec_shapes = enc_shapes[::-1]
-    # TSM Architecture parameters
+    # TSM Architecture parameters (11313)
     residual_layers = 10
     residual_channels = 8
     diff_hidden_size = 32
@@ -54,10 +55,10 @@ if __name__ == "__main__":
     mlpFileName = config.ROOT_DIR + "src/generative_models/models/trained_MLP_noisy_circle_VESDE_model_T{}_Ndiff{}_Tdiff{}_trainEps{:.0e}_StdMax{:.4f}_StdMin{:.4f}_TembDim{}_EncShapes{}".format(
         td,
         N, Tdiff, trainEps, std_max, std_min, temb_dim, enc_shapes)
-    tsmFileName = config.ROOT_DIR + "src/generative_models/models/trained_TSM_noisy_circle_VPSDE_model_T{}_Ndiff{}_Tdiff{}_trainEps{:.0e}_StdMax{:.4f}_StdMin{:.4f}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}".format(
+    tsmFileName = config.ROOT_DIR + "src/generative_models/models/trained_TSM_noisy_circle_VESDE_model_T{}_Ndiff{}_Tdiff{}_trainEps{:.0e}_StdMax{:.4f}_StdMin{:.4f}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}".format(
         td,
         N, Tdiff, trainEps, std_max, std_min, temb_dim, residual_layers, residual_channels, diff_hidden_size)
-    modelChoice = "MLP"  # "TSM"
+    modelChoice = "TSM"  # "TSM"
     modelFileName = mlpFileName if modelChoice == "MLP" else tsmFileName
     rng = np.random.default_rng()
 

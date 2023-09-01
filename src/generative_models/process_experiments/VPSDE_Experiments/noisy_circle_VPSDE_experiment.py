@@ -55,7 +55,7 @@ if __name__ == "__main__":
     tsmFileName = config.ROOT_DIR + "src/generative_models/models/trained_TSM_noisy_circle_VPSDE_model_T{}_Ndiff{}_Tdiff{}_trainEps{:.0e}_BetaMax{:.4f}_BetaMin{:.4f}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}".format(
         td,
         N, Tdiff, trainEps, beta_max, beta_min, temb_dim, residual_layers, residual_channels, diff_hidden_size)
-    modelChoice = "MLP"  # "TSM"
+    modelChoice = "TSM"  # "TSM"
     modelFileName = mlpFileName if modelChoice == "MLP" else tsmFileName
 
     rng = np.random.default_rng()

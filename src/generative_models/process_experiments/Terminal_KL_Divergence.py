@@ -9,7 +9,7 @@ matplotlib.rcParams.update({
     'font.family': 'serif',
     'text.usetex': True,
     'pgf.rcfonts': False,
-    'font.weight': 700,
+    'text.latex.preamble': r"\usepackage{amsmath}"
 })
 fig, ax = plt.subplots()
 
@@ -39,7 +39,7 @@ for i in range(3):
     else:
         # VE SDE
         std_min = np.sqrt(0.1)
-        std_max = np.sqrt(20.)
+        std_max = np.sqrt(40.)
         vars0 = std_min**2*(std_max/std_min)**(2.*times)
         means0 = np.vstack([data]*S).reshape((S, td))
         vars1 = 0. * vars0 + np.power(std_max, 2.)
@@ -52,8 +52,8 @@ for i in range(3):
     KLs = 0.5 * (traceTerms + logTerm + distanceTerm - td)
     ax.plot(times, KLs, label=label)
 
-ax.set_xlabel("Terminal Diffusion Time ${T_{d}}$")
-ax.set_title("KL Divergence")
+ax.set_xlabel("$\\textbf{Terminal Diffusion Time } \\boldsymbol{T_{d}}$")
+ax.set_title("Terminal KL Divergence")
 ax.set_yscale("log")
 ax.legend()
 plt.show()

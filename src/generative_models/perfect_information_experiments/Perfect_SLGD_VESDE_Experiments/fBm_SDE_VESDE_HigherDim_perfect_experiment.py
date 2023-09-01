@@ -4,9 +4,8 @@ import torch
 from matplotlib import pyplot as plt
 from tqdm import tqdm
 
-from utils.data_processing import evaluate_SDE_performance, evaluate_SDE_HigherDim_performance
 from utils.math_functions import generate_CEV
-from utils.plotting_functions import plot_diffusion_marginals, plot_dataset
+from utils.plotting_functions import plot_final_diffusion_marginals, plot_dataset
 
 plt.style.use('ggplot')
 matplotlib.rcParams.update({

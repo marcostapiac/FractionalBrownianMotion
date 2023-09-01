@@ -8,7 +8,7 @@ from src.classes import ClassOUDiffusion, ClassVESDEDiffusion, ClassVPSDEDiffusi
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from utils.math_functions import compute_fBn_cov, chiSquared_test, permutation_test, MMD_statistic, energy_statistic, \
     fBm_to_fBn, compute_fBm_cov
-from utils.plotting_functions import plot_loss_epochs, plot_diffusion_marginals, plot_dataset, plot_diffCov_heatmap, \
+from utils.plotting_functions import plot_loss_epochs, plot_final_diffusion_marginals, plot_dataset, plot_diffCov_heatmap, \
     plot_tSNE
 
 
@@ -111,7 +111,7 @@ def evaluate_fBn_performance(true_samples: np.ndarray, generated_samples: np.nda
 
     plot_dataset(true_samples, generated_samples)
     plot_tSNE(true_samples, y=generated_samples, labels=["Original", "Generated"])
-    plot_diffusion_marginals(true_samples, generated_samples, timeDim=td, diffTime=0)
+    plot_final_diffusion_marginals(true_samples, generated_samples, timeDim=td)
 
     """
     # Permutation test for kernel statistic
@@ -154,7 +154,7 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
 
     plot_tSNE(true_samples, y=generated_samples, labels=["True Samples", "Generated Samples"]) \
         if td > 2 else plot_dataset(true_samples, generated_samples)
-    if evalMarginals: plot_diffusion_marginals(true_samples, generated_samples, timeDim=td, diffTime=0)
+    if evalMarginals: plot_final_diffusion_marginals(true_samples, generated_samples, timeDim=td)
 
     """
     test_L = min(2000, true_samples.shape[0])
@@ -202,7 +202,8 @@ def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.
 
     plot_dataset(true_samples, generated_samples)
 
-    plot_diffusion_marginals(true_samples, generated_samples, timeDim=td, diffTime=0)
+    plot_diffCov_heatmap(true_cov=true_cov, gen_cov=gen_cov)
+    plot_final_diffusion_marginals(true_samples, generated_samples, timeDim=td)
 
     compute_circle_proportions(true_samples, generated_samples)
 
