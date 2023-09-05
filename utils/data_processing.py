@@ -1,19 +1,27 @@
 import pickle
 
 import numpy as np
+import pandas as pd
 import torch
 from torch.utils.data import DataLoader
 
-from src.classes import ClassOUDiffusion, ClassVESDEDiffusion, ClassVPSDEDiffusion
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
-from utils.math_functions import compute_fBn_cov, chiSquared_test, permutation_test, MMD_statistic, energy_statistic, \
-    fBm_to_fBn, compute_fBm_cov
-from utils.plotting_functions import plot_loss_epochs, plot_final_diffusion_marginals, plot_dataset, plot_diffCov_heatmap, \
-    plot_tSNE
+from src.classes.ClassFractionalCEV import FractionalCEV
+from src.generative_modelling.models import ClassOUDiffusion, ClassVPSDEDiffusion, ClassVESDEDiffusion
+from utils.math_functions import chiSquared_test, reduce_to_fBn, compute_fBm_cov, permutation_test, \
+    energy_statistic, MMD_statistic
+from utils.plotting_functions import plot_and_save_loss_epochs, plot_final_diffusion_marginals, plot_dataset, \
+    plot_diffCov_heatmap, \
+    plot_tSNE, plot_subplots
 
 
 def prepare_data(data: np.ndarray, batch_size: int) -> [DataLoader, DataLoader, DataLoader]:
-    S, T = data.shape
+    """
+    Split data into train, eval, test sets and create DataLoaders for training
+        :param data: Training data
+        :param batch_size: Batch size
+        :return: Train, Validation, Test dataloaders
+    """
     dataset = torch.utils.data.TensorDataset(torch.from_numpy(data).float())
     train, val, test = torch.utils.data.random_split(dataset, [0.8, 0.1, 0.1])
     trainLoader, valLoader, testLoader = DataLoader(train, batch_size=batch_size, shuffle=True), \
@@ -26,6 +34,15 @@ def train_diffusion_model(diffusion: type[ClassVPSDEDiffusion, ClassVESDEDiffusi
                           trainLoader: torch.utils.data.DataLoader,
                           valLoader: torch.utils.data.DataLoader, opt: torch.optim.Optimizer, nEpochs: int) -> [
     np.array, np.array]:
+    """
+    Abstract function to train model
+        :param diffusion: Untrained model
+        :param trainLoader: Training data DataLoader
+        :param valLoader: Validation data DataLoader
+        :param opt: Optimiser
+        :param nEpochs: Number of training epochs
+        :return: Train and Validation Losses
+    """
     # TODO: Need to move variables to correct device -- but which ones?
     train_losses = []
     val_losses = []
@@ -44,21 +61,35 @@ def save_and_train_diffusion_model(data: np.ndarray, model_filename: str, batch_
                                    nEpochs: int, lr: float,
                                    diffusion: type[ClassVPSDEDiffusion, ClassVESDEDiffusion, ClassOUDiffusion]) -> \
         type[ClassVPSDEDiffusion, ClassVESDEDiffusion, ClassOUDiffusion]:
-    """ Prepare data for training """
+    """
+    Abstract function which calls training function, plots losses, and saves trained model
+        :param data: Training dataset
+        :param model_filename: Filename to store trained model
+        :param batch_size: Size of batch during training
+        :param nEpochs: Number of training epochs
+        :param lr: Learning rate for optimiser
+        :param diffusion: Untrained diffusion model
+        :return: Trained diffusion model
+    """
     trainLoader, valLoader, testLoader = prepare_data(data, batch_size=batch_size)
 
-    """ Prepare optimiser """
+    # Set up optimiser
     optimiser = torch.optim.Adam((diffusion.parameters()), lr=lr)  # No need to move to device
+
+    # Compute number of parameters
     params = 0
     for item in optimiser.param_groups[0]["params"]:
         params += np.prod(item.shape)
     print("Number of model parameters : {}".format(params))
-    """ Training """
+
+    # Call training function
     train_loss, val_loss = train_diffusion_model(diffusion=diffusion, trainLoader=trainLoader,
                                                  valLoader=valLoader,
                                                  opt=optimiser, nEpochs=nEpochs)
-    plot_loss_epochs(epochs=np.arange(1, nEpochs + 1, step=1), val_loss=val_loss, train_loss=np.array(train_loss))
-    """ Save model """
+    # Plot loss curves
+    plot_and_save_loss_epochs(epochs=np.arange(1, nEpochs + 1, step=1), val_loss=val_loss,
+                              train_loss=np.array(train_loss))
+    # Save trained model to pickle file
     file = open(model_filename, "wb")
     pickle.dump(diffusion, file)
     file.close()
@@ -69,6 +100,13 @@ def check_convergence_at_diffTime(diffusion: type[ClassVPSDEDiffusion, ClassVESD
                                   t: int, dataSamples: np.ndarray) -> [np.ndarray,
                                                                        np.ndarray,
                                                                        list[str]]:
+    """
+    Function generates forward process and backward process samples from the same diffusion time index
+        :param diffusion: Trained diffusion model
+        :param t: Diffusion time index
+        :param dataSamples: Exact samples from $p_{data}$
+        :return: (Forward process samples, Backward process samples, Labels for each)
+    """
     forward_samples_at_t, _ = diffusion.forward_process(dataSamples=torch.from_numpy(dataSamples),
                                                         diffusionTimes=torch.ones(dataSamples.shape[0],
                                                                                   dtype=torch.long) * (
@@ -80,56 +118,22 @@ def check_convergence_at_diffTime(diffusion: type[ClassVPSDEDiffusion, ClassVESD
     return forward_samples_at_t.numpy(), backward_samples_at_t, labels
 
 
-def evaluate_fBn_performance(true_samples: np.ndarray, generated_samples: np.ndarray, h: float, td: int,
-                             rng: np.random.Generator, unitInterval: bool) -> None:
-    """ Computes metrics to quantify how close the generated samples are from the desired distribution """
-
-    print("Original Data Sample Mean :: Dim 1 {} :: Dim 2 {}".format(*np.mean(true_samples, axis=0)))
-    print("Generated Data Sample Mean :: Dim 1 {} :: Dim 2 {}".format(*np.mean(generated_samples, axis=0)))
-    expec_mean = np.array([0., 0.])
-    print("Expected Mean :: Dim 1 {} :: Dim 2 {}".format(*expec_mean))
-    print("Original Data :: \n [[{}, {}]\n[{},{}]]".format(*np.cov(true_samples, rowvar=False).flatten()))
-    gen_cov = np.cov(generated_samples, rowvar=False)
-    print("Generated Data :: \n [[{}, {}]\n[{},{}]]".format(*gen_cov.flatten()))
-    expec_cov = compute_fBn_cov(FractionalBrownianNoise(H=h, rng=rng), td=td, isUnitInterval=unitInterval)
-    print("Expected :: \n [[{}, {}]\n[{},{}]]".format(*expec_cov.flatten()))
-
-    assert (np.cov(generated_samples.T)[0, 1] == np.cov(generated_samples.T)[1, 0])
-
-    # Chi-2 test for joint distribution of the fractional Brownian noise
-    c2 = chiSquared_test(T=td, H=h, samples=true_samples, isUnitInterval=unitInterval)
-    print("Chi-Squared test for original: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], c2[1],
-                                                                                                         c2[2]))
-    # Chi-2 test for joint distribution of the fractional Brownian noise
-    c2 = chiSquared_test(T=td, H=h, samples=generated_samples, isUnitInterval=unitInterval)
-    print("Chi-Squared test for target: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], c2[1],
-                                                                                                       c2[2]))
-    plot_diffCov_heatmap(expec_cov, gen_cov)
-
-    S = min(true_samples.shape[0], generated_samples.shape[0])
-    true_samples, generated_samples = true_samples[:S], generated_samples[:S]
-
-    plot_dataset(true_samples, generated_samples)
-    plot_tSNE(true_samples, y=generated_samples, labels=["Original", "Generated"])
-    plot_final_diffusion_marginals(true_samples, generated_samples, timeDim=td)
-
+def evaluate_performance(true_samples: np.ndarray, generated_samples: np.ndarray, h: float, td: int,
+                         rng: np.random.Generator, unitInterval: bool, annot: bool, evalMarginals: bool,
+                         isfBm: bool) -> None:
     """
-    # Permutation test for kernel statistic
-    test_L = min(2000, true_samples.shape[0])
-    print("MMD Permutation test: p-value {}".format(
-        permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=MMD_statistic,
-                         num_permutations=1000)))
-    # Permutation test for energy statistic
-    print("Energy Permutation test: p-value {}".format(
-        permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=energy_statistic,
-                         num_permutations=1000)))
+    Computes metrics to quantify how close the generated samples are from the desired distribution
+        :param true_samples: Exact samples of fractional Brownian motion (or its increments)
+        :param generated_samples: Final reverse-time diffusion samples
+        :param h: Hurst index
+        :param td: Length of timeseries / dimensionality of each datapoint
+        :param rng: Default random number generator
+        :param unitInterval: Indicates whether fBm was simulated on [0,1] or [0, td]
+        :param annot: Indicates whether to annotate covariance plot
+        :param evalMarginals: Indicates whether to plot marginal Q-Q plots and compute associated KS statistic
+        :param isfBm: Indicates whether samples are fBm or its increments
+        :return: None
     """
-
-
-def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.ndarray, h: float, td: int,
-                             rng: np.random.Generator, unitInterval: bool, annot: bool, evalMarginals: bool) -> None:
-    """ Computes metrics to quantify how close the generated samples are from the desired distribution """
-
     print("True Data Sample Mean :: ", np.mean(true_samples, axis=0))
     print("Generated Data Sample Mean :: ", np.mean(generated_samples, axis=0))
     true_cov = np.cov(true_samples, rowvar=False)
@@ -144,11 +148,11 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
     true_samples, generated_samples = true_samples[:S], generated_samples[:S]
 
     # Chi-2 test for joint distribution of the fractional Brownian noise
-    c2 = chiSquared_test(T=td, H=h, samples=fBm_to_fBn(true_samples), isUnitInterval=unitInterval)
+    c2 = chiSquared_test(T=td, H=h, samples=reduce_to_fBn(true_samples, reduce=isfBm), isUnitInterval=unitInterval)
     print("Chi-Squared test for true: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], c2[1],
                                                                                                      c2[2]))
     # Chi-2 test for joint distribution of the fractional Brownian noise
-    c2 = chiSquared_test(T=td, H=h, samples=fBm_to_fBn(generated_samples), isUnitInterval=unitInterval)
+    c2 = chiSquared_test(T=td, H=h, samples=reduce_to_fBn(generated_samples, reduce=isfBm), isUnitInterval=unitInterval)
     print("Chi-Squared test for target: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], c2[1],
                                                                                                        c2[2]))
 
@@ -156,7 +160,7 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
         if td > 2 else plot_dataset(true_samples, generated_samples)
     if evalMarginals: plot_final_diffusion_marginals(true_samples, generated_samples, timeDim=td)
 
-    """
+    # Permutation test for kernel statistic
     test_L = min(2000, true_samples.shape[0])
     print("MMD Permutation test: p-value {}".format(
         permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=MMD_statistic,
@@ -165,9 +169,15 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
     print("Energy Permutation test: p-value {}".format(
         permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=energy_statistic,
                          num_permutations=1000)))
-    """
 
-def compute_circle_proportions(true_samples:np.ndarray, generated_samples:np.ndarray)->None:
+
+def compute_circle_proportions(true_samples: np.ndarray, generated_samples: np.ndarray) -> None:
+    """
+    Function computes approximate ratio of samples in inner vs outer circle of circle dataset
+        :param true_samples: data samples exactly using sklearn's "make_circle" function
+        :param generated_samples: final reverse-time diffusion samples
+        :return: None
+    """
     innerb = 0
     outerb = 0
     innerf = 0
@@ -190,8 +200,15 @@ def compute_circle_proportions(true_samples:np.ndarray, generated_samples:np.nda
     print("Generated: Inner {} vs Outer {}".format(innerb / S, outerb / S))
     print("True: Inner {} vs Outer {}".format(innerf / S, outerf / S))
 
+
 def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.ndarray, td: int) -> None:
-    """ Computes metrics to quantify how close the generated samples are from the desired distribution """
+    """
+    Compute various quantitative and qualitative metrics on final reverse-time diffusion samples for circle dataset
+        :param true_samples: Exact samples from circle dataset
+        :param generated_samples: Final reverse-time diffusion samples
+        :param td: Dimension of each sample
+        :return: None
+    """
 
     print("True Data Sample Mean :: ", np.mean(true_samples, axis=0))
     print("Generated Data Sample Mean :: ", np.mean(generated_samples, axis=0))
@@ -207,60 +224,76 @@ def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.
 
     compute_circle_proportions(true_samples, generated_samples)
 
-
-
     # Permutation test for kernel statistic
-    # test_L = min(2000, true_samples.shape[0])
-    # print("MMD Permutation test: p-value {}".format(
-    #    permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=MMD_statistic,
-    #                     num_permutations=1000)))
-    # Permutation test for energy statistic
-    # print("Energy Permutation test: p-value {}".format(
-    #    permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=energy_statistic,
-    #                     num_permutations=1000)))
-
-def evaluate_SDE_performance(true_samples: np.ndarray, generated_samples: np.ndarray, td: int) -> None:
-    """ Computes metrics to quantify how close the generated samples are from the desired distribution """
-
-    print("True Data Sample Mean :: ", np.mean(true_samples, axis=0))
-    print("Generated Data Sample Mean :: ", np.mean(generated_samples, axis=0))
-    true_cov = np.cov(true_samples, rowvar=False)
-    print("True Data :: ", true_cov)
-    gen_cov = np.cov(generated_samples, rowvar=False)
-    print("Generated Data :: ", gen_cov)
-
-    plot_diffCov_heatmap(true_cov, gen_cov, annot=False)
-
-    S = min(true_samples.shape[0], generated_samples.shape[0])
-    true_samples, generated_samples = true_samples[:S], generated_samples[:S]
-    plot_tSNE(true_samples, y=generated_samples, labels=["True Samples", "Generated Samples"])
-
-    """
     test_L = min(2000, true_samples.shape[0])
-    true_samples, generated_samples = true_samples[:test_L], generated_samples[:test_L]
     print("MMD Permutation test: p-value {}".format(
-        permutation_test(true_samples, generated_samples, compute_statistic=MMD_statistic,
+        permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=MMD_statistic,
                          num_permutations=1000)))
     # Permutation test for energy statistic
     print("Energy Permutation test: p-value {}".format(
-        permutation_test(true_samples, generated_samples, compute_statistic=energy_statistic,
+        permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=energy_statistic,
                          num_permutations=1000)))
-    """
 
 
 def compare_fBm_to_approximate_fBm(generated_samples: np.ndarray, h: float, td: int, rng: np.random.Generator) -> None:
+    """
+    Plot tSNE comparing final reverse-time diffusion fBm samples to approximate fBm samples from approximate simulations
+        :param generated_samples: Exact fBm samples
+        :param h: Hurst index
+        :param td: Dimension of each sample
+        :param rng: Random number generator
+        :return: None
+    """
     generator = FractionalBrownianNoise(H=h, rng=rng)
     S = min(20000, generated_samples.shape[0])
     approx_samples = np.empty((S, td))
     for _ in range(S):
-        approx_samples[_, :] = generator.paxon_simulation(N_samples=td).cumsum()
+        approx_samples[_, :] = generator.paxon_simulation(
+            N_samples=td).cumsum()  # TODO: Are we including initial sample?
     plot_tSNE(generated_samples, y=approx_samples,
               labels=["Reverse Diffusion Samples", "Approximate Samples: Paxon Method"])
 
 
 def compare_fBm_to_normal(generated_samples: np.ndarray, td: int, rng: np.random.Generator) -> None:
+    """
+    Plot tSNE comparing reverse-time diffusion samples to standard normal samples
+        :param generated_samples: Exact fBm samples
+        :param td: Dimension of each sample
+        :param rng: Random number generator
+        :return: None
+    """
     S = min(20000, generated_samples.shape[0])
     normal_rvs = np.empty((S, td))
     for _ in range(S):
         normal_rvs[_, :] = rng.standard_normal(td)
     plot_tSNE(generated_samples, y=normal_rvs, labels=["Reverse Diffusion Samples", "Standard Normal RVS"])
+
+
+def gen_and_store_statespace_data(Xs=None, Us=None, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 11,
+                                  T=1e-3 * 2 ** 11):
+    """
+    Generate observation and latent signal from CEV model and store it as pickle file
+        :param Xs: Optional parameter, array containing latent signal process
+        :param Us: Optional parameter, array containing observation process
+        :param muU: Drift parameter for observation process
+        :param muX: Drift parameter for latent process
+        :param gamma: Mean reversion parameter for latent process
+        :param X0: Initial value for latent process
+        :param U0: Initial value for observation process
+        :param H: Hurst Index
+        :param N: Length of time series
+        :param T: Terminal simualtion time for a process on [0, T]
+        :return: None
+    """
+    assert ((Xs is None and Us is None) or (Xs is not None and Us is not None))
+    sigmaX = np.sqrt(muX * gamma / 0.55)
+    alpha = gamma / sigmaX
+    deltaT = T / N
+    if Xs is None:
+        m = FractionalCEV(muU=muU, muX=muX, sigmaX=sigmaX, alpha=alpha, X0=X0, U0=U0)
+        Xs, Us = m.euler_simulation(H=H, N=N, deltaT=deltaT)  # Simulated data
+    df = pd.DataFrame.from_dict(data={'Log-Price': Us, 'Volatility': Xs})
+    plot_subplots(np.arange(0, T + deltaT, step=deltaT), [Xs, Us], [None, None], ["Time", "Time"],
+                  ["Volatility", "Log Price"],
+                  "Project Model Simulation")
+    df.to_csv('../data/raw_data_simpleObsModel_{}_{}.csv'.format(int(np.log2(N)), int(10 * H)), index=False)

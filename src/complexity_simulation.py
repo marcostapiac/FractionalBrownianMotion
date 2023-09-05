@@ -1,6 +1,7 @@
 import time
 
 from ClassFractionalBrownianNoise import FractionalBrownianNoise
+
 from utils.math_functions import np
 from utils.plotting_functions import plt
 

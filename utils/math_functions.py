@@ -13,15 +13,30 @@ from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.classes.ClassFractionalCEV import FractionalCEV
 
 
-def logsumexp(w: np.ndarray, h: callable, x: np.ndarray, axis=0, isLog=False):
+def logsumexp(w: np.ndarray, x: np.ndarray, h: callable, axis: int = 0, isLog: bool = False):
+    """
+    Function to efficiently compute weighted mean of transformed data
+    :param w: Logarithmic weights
+    :param x: Data to compute weighted mean
+    :param h: Function to transform data
+    :param axis: Indicates along which axis to compute summation
+    :param isLog: Indicates whether to return log (True) or exact probabilities
+    :return: Weighted mean of data
+    """
     c = np.max(w)
-    broad_l = broadcast_to((w - c).flatten(), x.T.shape).T
+    broad_l = broadcast_to((w - c).flatten(), x.T.shape).T  # Broadcast "w-c" into shape of data
     if isLog:
-        return c + log((exp(broad_l) * h(x)).sum(axis=axis))
+        return c + log((exp(broad_l) * h(x)).sum(axis=axis))  # Compute element-wise multiplication and sum
     return exp(c) * (exp(broad_l) * h(x)).sum(axis=axis)
 
 
-def acf(data, size=None):
+def acf(data: np.ndarray, size: Union[NoneType, int] = None):
+    """
+    Function to compute auto-correlation function
+    :param data: Dataset
+    :param size: Number of FFT points
+    :return:  Auto-correlation function evaluated on N discrete points
+    """
     # Nearest size with power of 2
     N = data.shape[0]
     if size is None:
@@ -33,25 +48,14 @@ def acf(data, size=None):
     return acorr
 
 
-def calc_quantile_CRPS(target: np.ndarray, forecast: np.ndarray, mean_scaler: float = 0., scaler: float = 1.) -> float:
-    target = target * scaler + mean_scaler
-    forecast = forecast * scaler + mean_scaler
-    S, T = target.shape
-    quantiles = np.arange(0.05, 1.0, 0.05)
-    denom = np.sum(np.abs(target))
-    CRPS = 0.
-    for i in range(len(quantiles)):
-        q_pred = []
-        for k in range(S):
-            for j in range(T):
-                q_pred.append(np.quantile(forecast[k, j: j + 1], quantiles[i], axis=1))
-            q_pred = np.concatenate(q_pred, 0)
-            q_loss = 2 * np.sum(np.abs((q_pred - target) * ((target[k, j] <= q_pred) * 1.0 - quantiles[i])))
-            CRPS += q_loss / denom
-    return CRPS / len(quantiles)
-
-
 def MMD_statistic(data: np.ndarray, n1: int, permute: bool = True) -> float:
+    """
+    Function to cmpute Maximum Mean Discrepancy
+    :param data: Data on which to compute statistic
+    :param n1: Number of datapoints to consider
+    :param permute: Indicates whether to permute data (True) or not
+    :return: MMD statistic
+    """
     if permute: np.random.shuffle(data)
     x, y = data[:n1, :], data[n1:, :]
 
@@ -74,6 +78,13 @@ def MMD_statistic(data: np.ndarray, n1: int, permute: bool = True) -> float:
 
 
 def energy_statistic(data: np.ndarray, n1: int, permute: bool = True) -> float:
+    """
+    Function to compute energy statistic
+    :param data: Data on which to compute statistic
+    :param n1: Number of datapoints to consider
+    :param permute: Indicates whether to permute data (True) or not
+    :return: Energy statistic
+    """
     if permute: np.random.shuffle(data)
     x, y = data[:n1, :], data[n1:, :]
     S, T = x.shape
@@ -90,14 +101,12 @@ def energy_statistic(data: np.ndarray, n1: int, permute: bool = True) -> float:
 def permutation_test(data1: np.ndarray, data2: np.ndarray, num_permutations: int, compute_statistic: callable) -> float:
     """
     Perform a permutation test for samples from multivariate distributions.
+        :param data1: (numpy.ndarray): Data array for group 1 with shape (n1, T).
+        :param data2: (numpy.ndarray): Data array for group 2 with shape (n2, T).
+        :param num_permutations: (int): Number of permutations to perform.
+        :param compute_statistic: function to compute statistic
 
-    Parameters:
-    data1 (numpy.ndarray): Data array for group 1 with shape (n1, T).
-    data2 (numpy.ndarray): Data array for group 2 with shape (n2, T).
-    num_permutations (int): Number of permutations to perform.
-
-    Returns:
-    float: The p-value of the permutation test.
+        :return: The p-value of the permutation test.
     """
     combined_data = np.concatenate((data1, data2), axis=0)
     assert (data1.shape[0] == data2.shape[0] and data1.shape[1] == data2.shape[1])
@@ -115,11 +124,15 @@ def permutation_test(data1: np.ndarray, data2: np.ndarray, num_permutations: int
 
 
 def generate_fBn(H: float, T: int, S: int, rng: np.random.Generator) -> np.array:
-    """ Always generate in unit time interval """
+    """
+    Function generates samples of fractional Brownian noise
+        :param H: (float) Hurst parameter
+        :param T: (int) Length of each samples
+        :param S: (int) Number of samples
+        :param rng: (random.Generator) Default random number generator
+        :return: (np.ndarray) fBn samples
+    """
     generator = FractionalBrownianNoise(H=H, rng=rng)
-    # pool = mp.Pool(mp.cpu_count())
-    # data = pool.starmap(generator.circulant_simulation, tqdm([(T,None) for _ in range(S)]))
-    # pool.close()
     data = np.zeros((S, T))
     for i in tqdm(range(S)):
         data[i, :] = generator.circulant_simulation(T, None)
@@ -127,48 +140,100 @@ def generate_fBn(H: float, T: int, S: int, rng: np.random.Generator) -> np.array
 
 
 def generate_fBm(H: float, T: int, S: int, rng: np.random.Generator) -> np.array:
+    """
+    Function generates samples of fractional Brownian motion
+        :param H: Hurst parameter
+        :param T: Length of each sample
+        :param S: Number of samples
+        :param rng: Random number generator
+        :return: fBm samples
+    """
     data = generate_fBn(H=H, T=T, S=S, rng=rng)
     return np.cumsum(data, axis=1)
 
 
 def generate_CEV(H: float, T: int, S: int, alpha: float, sigmaX: float, muU: float, muX: float, X0: float,
                  U0: float, rng: np.random.Generator) -> np.ndarray:
+    """
+    Function generates samples of latent signal from Constant Elasticity of Variance model
+        :param H: Hurst index
+        :param T: Length of time series
+        :param S: Number of samples
+        :param alpha: Mean reversion parameter in latent process
+        :param sigmaX: Volatility parameter in latent signal
+        :param muU: Drift parameter in observation process
+        :param muX: Drift parameter in latent process
+        :param X0: Initial value for latent process
+        :param U0: Initial value for observation process
+        :param rng: Random number generator
+        :return: CEV samples
+    """
     cevGen = FractionalCEV(muU=muU, alpha=alpha, sigmaX=sigmaX, muX=muX, X0=X0, U0=U0, rng=rng)
-    # pool = mp.Pool(mp.cpu_count())
-    # data = pool.starmap(cevGen.state_simulation, tqdm([(H, T, 1./T) for _ in range(S)]))
-    # pool.close()
     data = np.zeros((S, T))
     for i in tqdm(range(S)):
-        data[i, :] = cevGen.state_simulation(H, T, 1. / T)[1:]
-    return data  # np.array(data)[:, 1:].reshape((S, T))  # Remove initial value at t=0
+        data[i, :] = cevGen.state_simulation(H, T, 1. / T)[1:]  # Remove initial value at t=0
+    return data
 
 
-def fBm_to_fBn(fBm_timeseries: np.ndarray) -> np.array:
-    T = fBm_timeseries.shape[1]
-    return fBm_timeseries - np.insert(fBm_timeseries[:, :T - 1], 0, 0., axis=1)
+def reduce_to_fBn(timeseries: np.ndarray, reduce: bool) -> np.array:
+    """
+    Tranform samples of
+        :param timeseries: fBm/fBn samples
+        :param reduce: Indicates whether timeseries is fBm (True) or fBn (false)
+        :return: fBn samples
+    """
+    T = timeseries.shape[1]
+    if reduce:
+        return timeseries - np.insert(timeseries[:, :T - 1], 0, 0., axis=1)
+    return timeseries
 
 
-def compute_fBn_cov(fBn_generator: ClassFractionalBrownianNoise, td: int, isUnitInterval: bool) -> np.ndarray:
-    # td is the dimensionality of the time-series, but we enforce natural time in [0,1.]
+def compute_fBn_cov(fBn_generator: ClassFractionalBrownianNoise, T: int, isUnitInterval: bool) -> np.ndarray:
+    """
+    Compute covariance matrix of Fractional Brownian Noise
+    :param fBn_generator: Class defining process generator
+    :param T: Covariance matrix dimensionality
+    :param isUnitInterval: Indicates whether to re-scale fBn covariance from [0,td] to [0,1]
+    :return: Covariance matrix
+    """
     cov = (np.atleast_2d(
-        [[fBn_generator.covariance((i - j)) for j in range(td)] for i in
-         tqdm(range(td))]))
-    if isUnitInterval: cov *= np.power(1. / td, 2. * fBn_generator.H)
+        [[fBn_generator.covariance((i - j)) for j in range(T)] for i in
+         tqdm(range(T))]))
+    if isUnitInterval: cov *= np.power(1. / T, 2. * fBn_generator.H)
     return cov
 
 
-def compute_fBm_cov(fBn_generator: ClassFractionalBrownianNoise, td: int, isUnitInterval: bool) -> np.ndarray:
-    # td is the dimensionality of the time-series, but we enforce natural time in [0,1.]
+def compute_fBm_cov(fBn_generator: ClassFractionalBrownianNoise, T: int, isUnitInterval: bool) -> np.ndarray:
+    """
+        Compute covariance matrix of Fractional Brownian Noise
+        :param fBn_generator: Class defining process generator
+        :param T: Covariance matrix dimensionality
+        :param isUnitInterval: Indicates whether to re-scale fBn covariance from [0,td] to [0,1]
+        :return: Covariance matrix
+    """
     cov = (np.atleast_2d(
-        [[fBn_generator.fBm_covariance(i, j) for j in range(1, td + 1)] for i
+        [[fBn_generator.fBm_covariance(i, j) for j in range(1, T + 1)] for i
          in
-         tqdm(range(1, td + 1))]))
-    if isUnitInterval: cov *= np.power(1. / td, 2. * fBn_generator.H)
+         tqdm(range(1, T + 1))]))
+    if isUnitInterval: cov *= np.power(1. / T, 2. * fBn_generator.H)
     return cov
 
 
-def chiSquared_test(T: int, H: float, isUnitInterval: bool, samples: Union[np.ndarray, NoneType] = None, M: Union[int, NoneType] = None,
+def chiSquared_test(T: int, H: float, isUnitInterval: bool, samples: Union[np.ndarray, NoneType] = None,
+                    M: Union[int, NoneType] = None,
                     invL: Union[np.ndarray, NoneType] = None) -> [float, float, float]:
+    """
+    Function which compute chi-squared test from Ton Dieker's 2004 thesis see
+    http://www.columbia.edu/~ad3217/fbm/thesisold.pdf
+        :param T: Length of each sample
+        :param H: Hurst index
+        :param isUnitInterval: Indicates whether fBn is generated on [0,1] (True) or [0, T]
+        :param samples: fBn data
+        :param M: Optional parameter which provides number of samples to consider for the test
+        :param invL: Optional parameter which provides pre-computed inverse covariance matrix
+        :return: Lower critical test value, critical statistic, Upper critical value
+    """
+
     assert ((M is None and samples is not None) or (M is not None and samples is None))
 
     def standardise_sample(fBn_sample, invL):
@@ -191,8 +256,13 @@ def chiSquared_test(T: int, H: float, isUnitInterval: bool, samples: Union[np.nd
     return critLow, np.sum(ts), critUpp
 
 
-def generate_circles(T: int, S: int, noise:float) -> np.array:
-    assert (T == 2)
+def generate_circles(S: int, noise: float) -> np.array:
+    """
+    Generate circle dataset
+    :param S: Number of samples
+    :param noise: Noise standard deviation on each sample
+    :return: Circle samples
+    """
     X, y = datasets.make_circles(
         n_samples=S, noise=noise, random_state=None, factor=.5)
     sample = X * 4

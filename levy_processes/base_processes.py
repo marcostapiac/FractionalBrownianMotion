@@ -359,9 +359,9 @@ class GIGProcess(JumpLevyProcess):
         def simulate_internal_jumps(self, rate, M, gamma_0, truncation):
             _, x = self.q1.simulate_jumps(rate, M, gamma_0, truncation)
             _, x = self.accept_reject_simulation(x, x, thinning_func=lambda xs: (
-                        np.abs(self.outer.lambd) * incgammal(np.abs(self.outer.lambd), (self.z0 ** 2) * xs / (
-                        2. * (self.outer.delta ** 2))) / np.power(
-                    (self.z0 ** 2) * xs / (2. * self.outer.delta ** 2), np.abs(self.outer.lambd))), rate=rate)
+                    np.abs(self.outer.lambd) * incgammal(np.abs(self.outer.lambd), (self.z0 ** 2) * xs / (
+                    2. * (self.outer.delta ** 2))) / np.power(
+                (self.z0 ** 2) * xs / (2. * self.outer.delta ** 2), np.abs(self.outer.lambd))), rate=rate)
             z = self.__generate_z(x)
             jtimes, jsizes = self.accept_reject_simulation(x, z, thinning_func=self.thinning_func, rate=rate)
             return jtimes, jsizes

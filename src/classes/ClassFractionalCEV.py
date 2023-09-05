@@ -7,7 +7,8 @@ from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 
 class FractionalCEV:
 
-    def __init__(self, muU, alpha, sigmaX, muX, X0, U0, rng=np.random.default_rng()):
+    def __init__(self, muU: float, alpha: float, sigmaX: float, muX: float, X0: float, U0: float,
+                 rng: np.random.Generator = np.random.default_rng()):
         assert (alpha > 0.)  # For mean-reversion and not exponential explosion
         assert (X0 > 0.)  # Initial vol cannot be 0
         self.obsMean = muU  # Log price process mean
@@ -22,39 +23,38 @@ class FractionalCEV:
     def get_initial_state(self):
         return self.initialVol
 
-    def sample_increments(self, deltaT: float, H: float, N: int, gaussRvs: np.ndarray) -> np.ndarray:
+    def sample_increments(self, H: float, N: int, gaussRvs: np.ndarray) -> np.ndarray:
         fBn = FractionalBrownianNoise(H=H, rng=self.rng)
-        incs = fBn.circulant_simulation(N_samples=N, gaussRvs=gaussRvs)  # Scale over time-scale included in circulant
+        incs = fBn.circulant_simulation(N_samples=N, gaussRvs=gaussRvs)  # Scale over timescale included in circulant
         return incs
 
     def lamperti(self, x: Union[np.ndarray, float]) -> Union[np.ndarray, float]:
         return np.power(self.volVol, -1) * np.log(x / self.initialVol)
 
-    def inverse_lamperti(self, Z):
+    def inverse_lamperti(self, Z: np.ndarray):
         return self.initialVol * np.exp(self.volVol * Z)
 
-    def increment_simulation(self, prev, currX, deltaT):
+    def increment_simulation(self, prev: np.ndarray, currX: np.ndarray, deltaT: float):
         """ Increment log prices """
         driftU = self.obsMean - 0.5 * np.exp(currX)
         stdU = np.sqrt(deltaT) * np.exp(currX / 2.)
-        # return currX + np.sqrt(deltaT) * self.rng.normal()
         return prev + driftU * deltaT + stdU * self.rng.normal()
 
-    def increment_state(self, prev, deltaT, M):
+    def increment_state(self, prev: np.ndarray, deltaT: float, M: int):
         """ Increment volatilities """
         driftZ = self.stanMeanRev * self.volMean * np.power(self.initialVol, -1) * np.exp(-self.volVol * prev)
         driftZ += -0.5 * self.volVol - self.stanMeanRev
         return prev + driftZ * deltaT + M
 
-    def observation_mean(self, prevObs, currX, deltaT):
-        # return currX
+    def observation_mean(self, prevObs: np.ndarray, currX: np.ndarray, deltaT: float):
         return prevObs + (self.obsMean - 0.5 * np.exp(currX)) * deltaT  # U_i-1 +(muU-0.5exp(X))delta
 
-    def observation_var(self, currX, deltaT):
+    def observation_var(self, currX: np.ndarray, deltaT: float):
         # return deltaT
         return np.exp(currX) * deltaT  # delta exp(currX)
 
-    def state_simulation(self, H, N, deltaT, X0=None, Ms=None, gaussRvs=None):
+    def state_simulation(self, H: float, N: int, deltaT: float, X0: float = None, Ms: np.ndarray = None,
+                         gaussRvs: np.ndarray = None):
         if X0 is None:
             Zs = [self.lamperti(self.initialVol)]
         else:
@@ -69,7 +69,7 @@ class FractionalCEV:
             Zs.append(self.increment_state(prev=Zs[i - 1], deltaT=deltaT, M=Ms[i - 1]))
         return self.inverse_lamperti(np.array(Zs))
 
-    def euler_simulation(self, H: float, N: int, deltaT: float, Ms=None, gaussRvs=None):
+    def euler_simulation(self, H: float, N: int, deltaT: float, Ms: np.ndarray = None, gaussRvs: np.ndarray = None):
         assert (0. < H < 1. and deltaT == 1. / N)  # Ensure we simulate from 0 to 1
         Zs = [self.lamperti(self.initialVol)]
         Us = [self.initialLogPrice]

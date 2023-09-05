@@ -1,6 +1,6 @@
 import numbers
 from types import NoneType
-from typing import Union, Optional
+from typing import Union, Optional, Tuple, Mapping
 
 import matplotlib
 import matplotlib.pyplot as plt
@@ -22,17 +22,32 @@ matplotlib.rcParams.update({
 })
 
 
-def plot_subplots(time_ax, lines, label_args, xlabels, ylabels, title, fig=None, ax=None, saveTransparent=False):
-    """ Plotting function ot plot multiple traces in same figure but different axis"""
+def plot_subplots(time_ax: np.ndarray, data: np.ndarray, label_args: np.ndarray[Union[NoneType, str]],
+                  xlabels: np.ndarray[Union[NoneType, str]], ylabels: np.ndarray[Union[NoneType, str]],
+                  globalTitle: str, fig: Union[NoneType, matplotlib.figure.Figure] = None,
+                  ax: Union[NoneType, np.ndarray[matplotlib.axes.Axis]] = None, saveTransparent: bool = False):
+    """
+    Plotting function ot plot multiple traces in same figure but DIFFERENT axis
+    :param time_ax: MCMC timeline
+    :param data: Data containing MCMC trace values
+    :param label_args: Labels for each plot
+    :param xlabels: X-axis labels
+    :param ylabels: Y-axis labels
+    :param title: Global title
+    :param fig: Figure object
+    :param ax: Axis object or Array of
+    :param saveTransparent: Indicates whether to remove background from figure
+    :return: None
+    """
     try:
-        assert (len(lines) == len(xlabels) and len(lines) == len(ylabels))
+        assert (len(data) == len(xlabels) and len(data) == len(ylabels))
     except AssertionError:
         return RuntimeError("Please add as many x-y axis labels as lines to plot")
     if (fig and ax) is None:
-        L = len(lines)
+        L = len(data)
         fig, ax = plt.subplots(L, 1)
-    for i in range(len(lines)):
-        ax[i].plot(time_ax, lines[i], label=label_args[i], lw=1.1, marker='.', markersize=1)
+    for i in range(len(data)):
+        ax[i].plot(time_ax, data[i], label=label_args[i], lw=1.1, marker='.', markersize=1)
         ax[i].set_xlabel(xlabels[i])
         ax[i].set_ylabel(ylabels[i])
         if saveTransparent:
@@ -41,21 +56,36 @@ def plot_subplots(time_ax, lines, label_args, xlabels, ylabels, title, fig=None,
             ax[i].tick_params(axis='x', colors='white')  # setting up X-axis tick color to red
             ax[i].tick_params(axis='y', colors='white')
             ax[i].grid(visible=True)
-            ax[i].legend()
+        ax[i].legend()
     if saveTransparent:
         fig.patch.set_alpha(0.0)
-        fig.suptitle(title, color="white")
+        fig.suptitle(globalTitle, color="white")
     else:
-        fig.suptitle(title)
+        fig.suptitle(globalTitle)
     plt.tight_layout()
+    plt.show()
 
 
-def plot(time_ax, lines, label_args, xlabel, ylabel, title, fig=None, ax=None, saveTransparent=False):
-    """ Plotting function to plot multiple traces in same figure and axis object"""
+def plot(time_ax, data, label_args: np.ndarray[str], xlabel: str, ylabel: str, title: str,
+         fig: matplotlib.figure.Figure = None, ax: matplotlib.axes.Axis = None, saveTransparent: bool = False):
+    """
+    Plotting function to plot multiple traces in SAME figure and axis object
+    :param time_ax: MCMC timeline
+    :param data: Data containing MCMC trace values
+    :param label_args: Labels for each plot
+    :param xlabels: X-axis label
+    :param ylabels: Y-axis label
+    :param title: Plot title
+    :param fig: Figure object
+    :param ax: Axis object
+    :param saveTransparent: Indicates whether to remove background from figure
+    :return: None
+
+    """
     if (fig and ax) is None:
         fig, ax = plt.subplots()
-    for i in range(len(lines)):
-        ax.step(time_ax, lines[i], label=label_args[i], lw=1.1, marker='.')
+    for i in range(len(data)):
+        ax.step(time_ax, data[i], label=label_args[i], lw=1.2, marker='.')
     if saveTransparent:
         fig.patch.set_alpha(0.0)
         ax.xaxis.label.set_color('white')  # setting up X-axis label color to yellow
@@ -71,33 +101,11 @@ def plot(time_ax, lines, label_args, xlabel, ylabel, title, fig=None, ax=None, s
     plt.tight_layout()
 
 
-def plot_fBm_process(time_ax, paths, label_args, xlabel=None, ylabel=None, title="Sample Paths",
-                     fig=None,
-                     ax=None, saveTransparent=False):
-    if (fig and ax) is None:
-        fig, ax = plt.subplots()
-    for i in range(len(paths)):
-        ax.step(time_ax, paths[i], label="$H = " + str(round(label_args[i], 3)) + "$", lw=1.2)
-    if (xlabel and ylabel) is None:
-        ax.set_xlabel("Time")
-        ax.set_ylabel("Position")
-    else:
-        ax.set_xlabel(xlabel)
-        ax.set_ylabel(ylabel)
-    if saveTransparent:
-        fig.patch.set_alpha(0.0)
-        ax.xaxis.label.set_color('white')  # setting up X-axis label color to yellow
-        ax.yaxis.label.set_color('white')
-        ax.tick_params(axis='x', colors='white')  # setting up X-axis tick color to red
-        ax.tick_params(axis='y', colors='white')
-        ax.set_title(title, color="white")
-    else:
-        ax.set_title(title)
-    ax.legend()
-
-
-def qqplot(x, y, xlabel="", ylabel="", plottitle="", quantiles=None, interpolation='nearest', ax=None, rug=False,
-           rug_length=0.05, rug_kwargs=None, font_size=14, title_size=14, log=True, **kwargs):
+def qqplot(x: np.ndarray, y: np.ndarray, xlabel: str = "", ylabel: str = "", plottitle: str = "",
+           quantiles: Union[NoneType, int, np.ndarray] = None, interpolation: str = 'nearest',
+           ax: matplotlib.axes.Axis = None, rug: bool = False,
+           rug_length: float = 0.05, rug_kwargs: Union[NoneType, Mapping] = None, font_size: int = 14,
+           title_size: int = 14, log: bool = True, **kwargs) -> None:
     """Draw a quantile-quantile plot for `x` versus `y`.
 
     Parameters
@@ -185,8 +193,11 @@ def qqplot(x, y, xlabel="", ylabel="", plottitle="", quantiles=None, interpolati
     ax.legend()
 
 
-def histogramplot(rvs, pdf_vals=None, axis=None, num_bins=100, xlabel="", ylabel="", plottitle="", plottlabel="",
-                  fig=None, ax=None):
+def plot_histogram(rvs: np.ndarray, pdf_vals: Union[NoneType, np.ndarray] = None,
+                   xlinspace: Union[NoneType, np.ndarray] = None, num_bins: int = 100, xlabel: str = "",
+                   ylabel: str = "", plottitle: str = "", plottlabel: str = "",
+                   fig: matplotlib.figure.Figure = None, ax: Union[NoneType, matplotlib.axes.Axis] = None) -> Tuple[
+    matplotlib.figure.Figure, matplotlib.axes.Axis, np.ndarray]:
     if (fig and ax) is None:
         fig, ax = plt.subplots()
     ax.set_xlabel(xlabel)
@@ -194,16 +205,17 @@ def histogramplot(rvs, pdf_vals=None, axis=None, num_bins=100, xlabel="", ylabel
     ax.set_title(plottitle)
     binvals, _, _ = plt.hist(rvs, num_bins, density=True, label="Histogram")
     if pdf_vals is not None:
-        ax.plot(axis, pdf_vals, label=plottlabel, color="red")
+        ax.plot(xlinspace, pdf_vals, label=plottlabel, color="red")
     plt.legend()
     return fig, ax, binvals
 
 
-def gibbs_histogram_plot(Thetas, burnOut, plottitle, trueVals, priorParams):
+def gibbs_histogram_plot(thetas: np.ndarray, burnOut: int, titlePlot: str, trueVals: np.ndarray,
+                         priorParams: np.ndarray) -> None:
     muUPriorParams, alphaPriorParams, muXPriorParams, sigmaXPriorParams = priorParams
 
-    fig, ax, binVals = histogramplot(Thetas[burnOut:, 0], xlabel="Observation Mean", ylabel="PDF",
-                                     plottitle=plottitle)
+    fig, ax, binVals = plot_histogram(thetas[burnOut:, 0], xlabel="Observation Mean", ylabel="PDF",
+                                      plottitle=titlePlot)
     ax.axvline(trueVals[0], label="True Parameter Value $ " + str(round(trueVals[0], 3)) + " $", color="blue")
     axis = np.linspace(snorm.ppf(0.001, loc=muUPriorParams[0], scale=muUPriorParams[1]),
                        snorm.ppf(0.999, loc=muUPriorParams[0], scale=muUPriorParams[1]), num=1000)
@@ -211,8 +223,9 @@ def gibbs_histogram_plot(Thetas, burnOut, plottitle, trueVals, priorParams):
     ax.plot(axis, pdfVals * (np.max(binVals) / np.max(pdfVals)), label="Scaled Prior Distribution", color="orange")
     plt.legend()
 
-    fig, ax, binVals = histogramplot(Thetas[burnOut:, 1], xlabel="Volatility Standardised Mean Reversion", ylabel="PDF",
-                                     plottitle=plottitle)
+    fig, ax, binVals = plot_histogram(thetas[burnOut:, 1], xlabel="Volatility Standardised Mean Reversion",
+                                      ylabel="PDF",
+                                      plottitle=titlePlot)
     ax.axvline(trueVals[1], label="True Parameter Value $ " + str(round(trueVals[1], 3)) + " $", color="blue")
     mean, sigma = alphaPriorParams[0], alphaPriorParams[1]
     axis = np.linspace(truncnorm.ppf(q=0.001, a=-mean / sigma, b=np.inf, loc=mean, scale=sigma),
@@ -222,8 +235,8 @@ def gibbs_histogram_plot(Thetas, burnOut, plottitle, trueVals, priorParams):
             color="orange")
     plt.legend()
 
-    fig, ax, binVals = histogramplot(Thetas[burnOut:, 2], xlabel="Volatility Mean", ylabel="PDF",
-                                     plottitle=plottitle)
+    fig, ax, binVals = plot_histogram(thetas[burnOut:, 2], xlabel="Volatility Mean", ylabel="PDF",
+                                      plottitle=titlePlot)
     ax.axvline(trueVals[2], label="True Parameter Value $ " + str(round(trueVals[2], 3)) + " $", color="blue")
     mean, sigma = muXPriorParams[0], muXPriorParams[1]
     axis = np.linspace(truncnorm.ppf(q=0.001, a=-mean / sigma, b=np.inf, loc=mean, scale=sigma),
@@ -233,8 +246,8 @@ def gibbs_histogram_plot(Thetas, burnOut, plottitle, trueVals, priorParams):
             color="orange")
     plt.legend()
 
-    fig, ax, binVals = histogramplot(Thetas[burnOut:, 3], xlabel="Volatility Variance", ylabel="PDF",
-                                     plottitle=plottitle)
+    fig, ax, binVals = plot_histogram(thetas[burnOut:, 3], xlabel="Volatility Variance", ylabel="PDF",
+                                      plottitle=titlePlot)
     ax.axvline(trueVals[3], label="True Parameter Value $ " + str(round(trueVals[3], 3)) + " $", color="blue")
     alpha0, beta0 = sigmaXPriorParams
     axis = np.linspace(sinvgamma.ppf(0.35, a=alpha0, loc=0., scale=beta0),
@@ -245,49 +258,93 @@ def gibbs_histogram_plot(Thetas, burnOut, plottitle, trueVals, priorParams):
     plt.legend()
 
 
-def boxplot(data, xlabel="", ylabel="", plottitle="", dataLabels="", fig=None, ax=None):
+def plot_and_save_boxplot(data: np.ndarray, xlabel: str = "", ylabel: str = "", title_plot: str = "",
+                          dataLabels: str = "", toSave: bool = False, saveName: str = "",
+                          fig: matplotlib.figure.Figure = None, ax: matplotlib.axes.Axis = None) -> None:
+    """
+    Plot boxplot of data
+    :param data: Data
+    :param xlabel: X-axis label
+    :param ylabel: Y-axis label
+    :param plottitle: Title for plot
+    :param dataLabels: Legend for boxplots
+    :param fig: Figure object
+    :param ax: Axis object
+    :param toSave: Indicates whether to save figure or not
+    :param saveName: Filename for saved figure
+    :return: None
+    """
     if (fig and ax) is None:
         fig, ax = plt.subplots()
     ax.boxplot(data, labels=dataLabels)
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
-    ax.set_title(plottitle)
+    ax.set_title(title_plot)
     plt.legend()
+    plt.show()
+    if toSave: plt.savefig(saveName, bbox_inches="tight")
+    plt.show()
+    plt.close()
 
 
-def plot_parameter_traces(S, Thetas):
-    plot(np.arange(0, S + 1, step=1), [Thetas[:, 0]], ["Observation Mean"], "Algorithm Iteration", "Observation Mean",
+def plot_parameter_traces(S: int, thetas: np.ndarray) -> None:
+    """
+    Helper function to plot MCMC evolution of parameters
+    :param S: Number of MCMC steps
+    :param thetas: Parameters
+    :return: None
+    """
+    plot(np.arange(0, S + 1, step=1), thetas[:, 0], np.array(["Observation Mean"]), "Algorithm Iteration",
+         "Observation Mean",
          "Metropolis-within-Gibbs Sampler")
-    plot(np.arange(0, S + 1, step=1), [Thetas[:, 1]], ["Volatility Standardised Mean Reversion"], "Algorithm Iteration",
+    plot(np.arange(0, S + 1, step=1), thetas[:, 1], np.array(["Volatility Standardised Mean Reversion"]),
+         "Algorithm Iteration",
          "Volatility Standardised Mean Reversion",
          "Metropolis-within-Gibbs Sampler")
-    plot(np.arange(0, S + 1, step=1), [Thetas[:, 2]], ["Volatility Mean"], "Algorithm Iteration", "Volatility Mean",
+    plot(np.arange(0, S + 1, step=1), thetas[:, 2], np.array(["Volatility Mean"]), "Algorithm Iteration",
+         "Volatility Mean",
          "Metropolis-within-Gibbs Sampler")
-    plot(np.arange(0, S + 1, step=1), [Thetas[:, 3]], ["Volatility Variance Parameter"], "Algorithm Iteration",
+    plot(np.arange(0, S + 1, step=1), thetas[:, 3], np.array(["Volatility Variance Parameter"]), "Algorithm Iteration",
          "Volatility Variance Parameter",
          "Metropolis-within-Gibbs Sampler")
 
 
-def plot_autocorrfns(Thetas):
-    acfObsMean = acf(Thetas[:, 0])
-    acfAlpha = acf(Thetas[:, 1])
-    acfVolMean = acf(Thetas[:, 2])
-    acfVolStd = acf(Thetas[:, 3])
+def plot_autocorrfns(thetas: np.ndarray) -> None:
+    """
+    Helper function for autocorrelations
+    :param thetas: Parameter values
+    :return: None
+    """
+
+    acfObsMean = acf(thetas[:, 0])
+    acfAlpha = acf(thetas[:, 1])
+    acfVolMean = acf(thetas[:, 2])
+    acfVolStd = acf(thetas[:, 3])
     S = acfVolMean.shape[0]
-    plot(np.arange(0, S, step=1), [acfObsMean], ["Observation Mean"], "Lag", "Observation Mean",
+    plot(np.arange(0, S, step=1), acfObsMean, np.array(["Observation Mean"]), "Lag", "Observation Mean",
          "Autocorrelation Function")
-    plot(np.arange(0, S, step=1), [acfAlpha], ["Standardised Volatility Mean Reversion"], "Lag",
+    plot(np.arange(0, S, step=1), acfAlpha, np.array(["Standardised Volatility Mean Reversion"]), "Lag",
          "Standardised Volatility Mean Reversion",
          "Autocorrelation Function")
-    plot(np.arange(0, S, step=1), [acfVolMean], ["Volatility Mean"], "Lag", "Volatility Mean",
+    plot(np.arange(0, S, step=1), acfVolMean, np.array(["Volatility Mean"]), "Lag", "Volatility Mean",
          "Autocorrelation Function")
-    plot(np.arange(0, S, step=1), [acfVolStd], ["Volatility Variance Parameter"], "Lag",
+    plot(np.arange(0, S, step=1), acfVolStd, np.array(["Volatility Variance Parameter"]), "Lag",
          "Volatility Variance Parameter",
          "Autocorrelation Function")
 
 
-def plot_loss_epochs(epochs: np.ndarray, train_loss: np.ndarray, val_loss: Union[NoneType, np.array] = None,
-                     toSave: bool = False, saveName: Union[NoneType, str] = None) -> None:
+def plot_and_save_loss_epochs(epochs: np.ndarray, train_loss: np.ndarray, val_loss: Union[NoneType, np.array] = None,
+                              toSave: bool = False, saveName: Union[NoneType, str] = None) -> None:
+    """
+    Helper function to generate loss curves
+    :param epochs: Epoch timeline
+    :param train_loss: Training loss for each epoch
+    :param val_loss: Validation loss for each epoch
+    :param toSave: Indicates if we save figure
+    :param saveName: Filename for saved figure
+    :return: None
+    """
+    assert ((toSave and saveName is not None) or (not toSave and saveName is None))
     plt.plot(epochs, train_loss, color="b", label="Train MSE")
     if val_loss is not None: plt.plot(epochs, val_loss, label="Validation MSE")
     plt.xlabel("Epochs")
@@ -303,6 +360,13 @@ def plot_loss_epochs(epochs: np.ndarray, train_loss: np.ndarray, val_loss: Union
 
 
 def plot_tSNE(x: np.ndarray, labels: list[str], y: Union[NoneType, np.ndarray] = None) -> None:
+    """
+    Helper function to generate t-SNE plots
+    :param x: Data
+    :param labels: Labels for plot legend
+    :param y: Optional paramter, data to overlay ontop of previous plot
+    :return: None
+    """
     assert (len(labels) == 1 or len(labels) == 2)
     x_embed = TSNE().fit_transform(x)
     plt.scatter(x_embed[:, 0], x_embed[:, 1], label=labels[0])
@@ -318,6 +382,13 @@ def plot_tSNE(x: np.ndarray, labels: list[str], y: Union[NoneType, np.ndarray] =
 
 
 def plot_final_diffusion_marginals(forward_samples: np.ndarray, reverse_samples: np.ndarray, timeDim: int) -> None:
+    """
+    Q-Q plot and KS statistic of multidimensional samples
+        :param forward_samples: Forward diffsion samples
+        :param reverse_samples: Reverse-time diffusion samples
+        :param timeDim: Dimension of each sample
+        :return: None
+    """
     for t in np.arange(start=0, stop=timeDim, step=1):
         forward_t = forward_samples[:, t].flatten()
         reverse_samples_t = reverse_samples[:, t].flatten()
@@ -325,22 +396,46 @@ def plot_final_diffusion_marginals(forward_samples: np.ndarray, reverse_samples:
                y=reverse_samples_t, xlabel="$\\textbf{Original Data Samples {}}$",
                ylabel="$\\textbf{Final Reverse Diffusion Samples}$",
                plottitle="Marginal Q-Q Plot at Time Dim {}".format(t + 1), log=False)
-        print(kstest(forward_t, reverse_samples_t))
+        print("KS-test statistic for marginal at time {} :: {}".format(t, kstest(forward_t, reverse_samples_t)))
         plt.show()
         plt.close()
 
-def plot_heatmap(map:np.ndarray, annot:bool, title:str)->None:
+
+def plot_heatmap(map: np.ndarray, annot: bool, title: str) -> None:
+    """
+    Helper function to create a heatmap
+        :param map: Data to plot
+        :param annot: Indicates whether to annotate error on diagram
+        :param title: Title for diagram
+        :return: None
+    """
     sns.heatmap(map, annot=annot, annot_kws={'size': 15})
     plt.title(title)
     plt.show()
 
+
 def plot_diffCov_heatmap(true_cov: np.ndarray, gen_cov: np.ndarray, annot: bool = True) -> None:
+    """
+    Compute and plot difference between expected and sample covariance matrices
+        :param true_cov: Theoretical covariance matrix
+        :param gen_cov: Covariance matrix from samples of reverse-time diffusion
+        :param annot: Indicates whether to annotate error on diagram
+        :return: None
+    """
     s = 100 * (gen_cov - true_cov) / true_cov
     print("Average absolute percentage error: ", np.mean(np.abs(s)))
     plot_heatmap(map=np.abs(s), title="Difference in Covariance Matrices", annot=annot)
 
 
-def plot_dataset(forward_samples: np.ndarray, reverse_samples: np.ndarray, labels:Optional[Union[list[str], NoneType]]=None) -> None:
+def plot_dataset(forward_samples: np.ndarray, reverse_samples: np.ndarray,
+                 labels: Optional[Union[list[str], NoneType]] = None) -> None:
+    """
+    Scatter plot of 2 dimensional data (in the context of diffusion models)
+        :param forward_samples: Original data
+        :param reverse_samples: Final reverse-time diffusion samples
+        :param labels: Labels for each plot
+        :return: None
+    """
     fig = plt.figure()
     ax = fig.add_subplot(1, 1, 1)
     labels = ["Original Data", "Generated Samples"] if labels is None else labels
@@ -357,13 +452,19 @@ def plot_dataset(forward_samples: np.ndarray, reverse_samples: np.ndarray, label
     plt.show()
 
 
-def plot_eigenvalues(expec_cov: np.ndarray, generated_cov: np.ndarray, labels:list[str]) -> None:
-    assert(expec_cov.shape == generated_cov.shape and len(labels) == 2)
+def plot_eigenvalues(expec_cov: np.ndarray, generated_cov: np.ndarray, labels: list[str]) -> None:
+    """
+    Plot eigenvalues of expected and sample covariance matrix
+    :param expec_cov: Theoretical covariance matrix
+    :param generated_cov: Covariance matrix for reverse-time diffusion samples
+    :param labels: Labels for each plot
+    :return: None
+    """
+    assert (expec_cov.shape == generated_cov.shape and len(labels) == 2)
     eigs1 = np.sort(np.linalg.eigvals(expec_cov))
     eigs2 = np.sort(np.linalg.eigvals(generated_cov))
     Ne = eigs1.shape[0]
     indicators = np.linspace(1, Ne, num=Ne, dtype=int)
-    print(len(indicators), indicators)
     plt.scatter(indicators, eigs1, label=labels[0])
     plt.scatter(indicators, eigs2, label=labels[1])
     plt.legend()
@@ -373,10 +474,19 @@ def plot_eigenvalues(expec_cov: np.ndarray, generated_cov: np.ndarray, labels:li
     plt.show()
 
 
-def compare_against_isotropic_Gaussian(forward_samples:np.ndarray, td:int, diffTime:Union[int, float], rng:np.random.Generator)->None:
-    """ Function generates comparison plots between forward samples at 'diffTime' and standard isotropic Gaussian """
-    assert(forward_samples.shape[1] == td)
+def compare_against_isotropic_Gaussian(forward_samples: np.ndarray, td: int, diffTime: Union[int, float],
+                                       rng: np.random.Generator) -> None:
+    """
+    Generate qualitative comparative plots between forward samples at 'diffTime' and standard isotropic Gaussian
+    :param forward_samples: Samples from forward diffusion
+    :param td: Dimension of samples
+    :param diffTime: Diffusion time index
+    :param rng: Random number generator
+    :return: None
+    """
+    assert (forward_samples.shape[1] == td)
     stdn_samples = rng.normal(size=(forward_samples.shape[0], td))
     labels = ["Forward Samples at time {}".format((diffTime)), "Standard Normal Samples"]
-    if td==2: plot_dataset(forward_samples=forward_samples, reverse_samples=stdn_samples, labels=labels)
-    plot_heatmap(np.cov(forward_samples, rowvar=False), title="Covariance matrix at forward time {}".format(diffTime), annot=False if td > 16 else True)
+    if td == 2: plot_dataset(forward_samples=forward_samples, reverse_samples=stdn_samples, labels=labels)
+    plot_heatmap(np.cov(forward_samples, rowvar=False), title="Covariance matrix at forward time {}".format(diffTime),
+                 annot=False if td > 16 else True)
