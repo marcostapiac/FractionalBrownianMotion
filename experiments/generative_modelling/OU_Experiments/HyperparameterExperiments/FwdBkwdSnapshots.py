@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 from sklearn import datasets
 from tqdm import tqdm
 
-from utils import config
+from utils import project_config
 from utils.plotting_functions import plot_final_diffusion_marginals, plot_dataset, qqplot
 
 plt.style.use('ggplot')

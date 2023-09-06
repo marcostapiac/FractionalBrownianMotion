@@ -3,9 +3,9 @@ import pickle
 import numpy as np
 
 from src.generative_modelling.models.ClassOUDiffusion import OUDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesNoiseMatching import \
-    TimeSeriesNoiseMatching
-from utils import config
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
+    TimeSeriesScoreMatching
+from utils import project_config
 from utils.data_processing import save_and_train_diffusion_model, evaluate_circle_performance
 from utils.math_functions import generate_circles
 
@@ -32,7 +32,7 @@ if __name__ == "__main__":
     residual_layers = 10
     residual_channels = 8
     diff_hidden_size = 32
-    scoreModel = TimeSeriesNoiseMatching(diff_embed_size=temb_dim, diff_hidden_size=diff_hidden_size, max_diff_steps=N,
+    scoreModel = TimeSeriesScoreMatching(diff_embed_size=temb_dim, diff_hidden_size=diff_hidden_size, max_diff_steps=N,
                                          residual_layers=residual_layers,
                                          residual_channels=residual_channels)
 

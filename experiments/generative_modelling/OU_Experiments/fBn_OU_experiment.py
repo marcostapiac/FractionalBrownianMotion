@@ -5,9 +5,9 @@ import torch
 
 from src.generative_modelling.models import ClassOUDiffusion
 from src.generative_modelling.models.ClassOUDiffusion import OUDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesNoiseMatching import \
-    TimeSeriesNoiseMatching
-from utils import config
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
+    TimeSeriesScoreMatching
+from utils import project_config
 from utils.data_processing import save_and_train_diffusion_model, evaluate_fBn_performance
 from utils.math_functions import generate_fBn
 
@@ -46,7 +46,7 @@ if __name__ == "__main__":
                 'rb')
             model = pickle.load(file)
         except FileNotFoundError:
-            scoreModel = TimeSeriesNoiseMatching()  # NaiveMLP(output_shape=td, enc_shapes=[32, 32], temb_dim=32, dec_shapes=[32, 32])
+            scoreModel = TimeSeriesScoreMatching()  # NaiveMLP(output_shape=td, enc_shapes=[32, 32], temb_dim=32, dec_shapes=[32, 32])
             diffusion = OUDiffusion(device="cpu", model=scoreModel, N=N, rng=rng, trainEps=trainEps)
             model = save_and_train_diffusion_model(data,
                                                    model_filename=config.ROOT_DIR + "src/generative_modelling/trained_models/trained_fBn_OU_model_T{}_Ndiff{}_trainEps{:.0e}".format(
@@ -58,7 +58,7 @@ if __name__ == "__main__":
         data = generate_fBn(H=h, T=td, S=numSamples, rng=rng)
         np.save(config.ROOT_DIR + "data/a_million_fBn_samples_H07_T{}.npy".format(td), data)
         data = data[:numSamples // 5, :]
-        scoreModel = TimeSeriesNoiseMatching()
+        scoreModel = TimeSeriesScoreMatching()
         diffusion = OUDiffusion(device="cpu", model=scoreModel, N=N, rng=rng, trainEps=trainEps)
         model = save_and_train_diffusion_model(data,
                                                model_filename=config.ROOT_DIR + "src/generative_modelling/trained_models/trained_fBn_OU_model_T{}_Ndiff{}_trainEps{:.0e}".format(

@@ -5,9 +5,9 @@ import numpy as np
 from src.generative_modelling.models import ClassVPSDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesNoiseMatching import \
-    TimeSeriesNoiseMatching
-from utils import config
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
+    TimeSeriesScoreMatching
+from utils import project_config
 from utils.data_processing import save_and_train_diffusion_model, evaluate_circle_performance
 from utils.math_functions import generate_circles
 
@@ -59,7 +59,7 @@ if __name__ == "__main__":
     modelFileName = mlpFileName if modelChoice == "MLP" else tsmFileName
 
     rng = np.random.default_rng()
-    scoreModel = TimeSeriesNoiseMatching(diff_embed_size=temb_dim, diff_hidden_size=diff_hidden_size, max_diff_steps=N,
+    scoreModel = TimeSeriesScoreMatching(diff_embed_size=temb_dim, diff_hidden_size=diff_hidden_size, max_diff_steps=N,
                                          residual_layers=residual_layers,
                                          residual_channels=residual_channels) \
         if modelChoice == "TSM" else NaiveMLP(temb_dim=temb_dim, max_diff_steps=N, output_shape=td,

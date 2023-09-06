@@ -98,7 +98,7 @@ class ResidualBlock(nn.Module):
         return (x + residual) / math.sqrt(2.0), skip
 
 
-class TimeSeriesNoiseMatching(nn.Module):
+class TimeSeriesScoreMatching(nn.Module):
     def __init__(
             self,
             max_diff_steps: int,

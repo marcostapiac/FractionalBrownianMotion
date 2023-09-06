@@ -1,0 +1,78 @@
+import abc
+
+import numpy as np
+import torch
+
+from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
+
+
+class Corrector(abc.ABC):
+    """ Base class for corrector algorithms """
+
+    def __init__(self, N_lang: int, r: float):
+        self.max_lang_steps = N_lang
+        self.snr = r
+
+    def _step(self, x: torch.Tensor, predicted_score: torch.Tensor, predictor_noise: torch.Tensor,
+              diff_index: int) -> torch.Tensor:
+        """
+        Abstract private method for single step of corrector
+            :param x: Current sample
+            :param predicted_score: Score network output for current time
+            :param predictor_noise: Standard noise used in predictor step
+            :param diff_index: Diffusion index of reverse time sampling
+        :return: Next sample in discretised Langevin SDE
+        """
+        return x
+
+    def sample(self, x: torch.Tensor, predicted_score: torch.Tensor, predictor_noise: torch.Tensor,
+               diff_index: int) -> torch.Tensor:
+        """
+        Parent function to run corrector sampling
+            :param x: Current sample
+            :param predicted_score: Score network output for current time
+            :param predictor_noise: Standard noise used in predictor step
+            :param diff_index: Diffusion index of reverse time sampling
+        :return: Final sample after Langevin steps
+        """
+        for i in range(self.max_lang_steps):
+            x = self._step(x, predicted_score, predictor_noise, diff_index)
+        return x
+
+
+class VESDECorrector(Corrector):
+    """ Corrector class for VE SDE diffusion model """
+
+    def __init__(self, N_lang: int, r: float):
+        super().__init__(N_lang, r)
+
+    def _step(self, x: torch.Tensor, predicted_score: torch.Tensor, predictor_noise: torch.Tensor,
+              diff_index: int) -> torch.Tensor:
+        """ Single corrector step for VE SDE diffusion models
+            :param x: Current sample
+            :param predicted_score: Score network output for current time
+            :param predictor_noise: Standard noise used in predictor step
+            :param diff_index: Diffusion index of reverse time sampling
+        :return: Final sample after Langevin steps"""
+        e = 2. * torch.pow(self.snr * torch.linalg.norm(predictor_noise) / torch.linalg.norm(predicted_score), 2.)
+        return x + e * predicted_score + np.sqrt(2. * e) * torch.randn(size=x.shape)
+
+
+class VPSDECorrector(Corrector):
+    """ Corrector class for VP SDE diffusion model """
+
+    def __init__(self, N_lang: int, r: float, diffusion: VPSDEDiffusion):
+        super().__init__(N_lang, r)
+        self.diffusion = diffusion
+
+    def _step(self, x: torch.Tensor, predicted_score: torch.Tensor, predictor_noise: torch.Tensor,
+              diff_index: int) -> torch.Tensor:
+        """ Single corrector step for VE SDE diffusion models
+            :param x: Current sample
+            :param predicted_score: Score network output for current time
+            :param predictor_noise: Standard noise used in predictor step
+            :param diff_index: Diffusion index of reverse time sampling
+        :return: Final sample after Langevin steps"""
+        e = 2. * self.diffusion.get_alpha(diff_index) * torch.pow(
+            self.snr * torch.linalg.norm(predictor_noise) / torch.linalg.norm(predicted_score), 2.)
+        return x + e * predicted_score + np.sqrt(2. * e) * torch.randn(size=x.shape)

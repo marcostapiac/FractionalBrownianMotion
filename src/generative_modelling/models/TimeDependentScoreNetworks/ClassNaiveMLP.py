@@ -131,15 +131,14 @@ class NaiveMLP(nn.Module):
         self.net = MLP(input_shape=t_enc_dim * 2, hidden_shapes=dec_shapes,
                        output_shape=output_shape)
 
-    def forward(self, x: torch.Tensor, t: torch.Tensor):
-        # t = torch.from_numpy(np.array([t])).to(torch.float32)
-        if len(x.shape) == 3:
-            x = x.squeeze(1)
-        assert (len(x.shape) == 2 and len(t.shape) == 1 and x.shape[0] == t.shape[0])
-        temb = self.diffusion_embedding(t.reshape(-1))  # , self.temb_dim)
-        assert (temb.shape[0] == t.shape[0] and temb.shape[1] == self.temb_dim)
+    def forward(self, inputs: torch.Tensor, times: torch.Tensor):
+        if len(inputs.shape) == 3:
+            x = inputs.squeeze(1)
+        assert (len(x.shape) == 2 and len(times.shape) == 1 and x.shape[0] == times.shape[0])
+        temb = self.diffusion_embedding(times.reshape(-1))  # , self.temb_dim)
+        assert (temb.shape[0] == times.shape[0] and temb.shape[1] == self.temb_dim)
         temb = self.t_encoder.forward(temb, F.leaky_relu, 0.4)
-        assert (temb.shape[0] == t.shape[0] and temb.shape[1] == self.temb_dim * 2)
+        assert (temb.shape[0] == times.shape[0] and temb.shape[1] == self.temb_dim * 2)
         xemb = self.x_encoder(x, F.leaky_relu, 0.4)
         assert (xemb.shape[0] == x.shape[0] and xemb.shape[1] == self.temb_dim * 2)
         temb = torch.broadcast_to(temb, [xemb.shape[0], *temb.shape[1:]])

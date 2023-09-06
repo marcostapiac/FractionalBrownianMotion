@@ -3,11 +3,11 @@ import pickle
 import numpy as np
 import torch
 
-from src.generative_modelling.models import ClassVESDEDiffusion
-from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesNoiseMatching import \
-    TimeSeriesNoiseMatching
-from utils import config
+from src.generative_modelling.models import ClassVESDEDiffusion_22
+from src.generative_modelling.models.ClassVESDEDiffusion_22 import VESDEDiffusion
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
+    TimeSeriesScoreMatching
+from utils import project_config
 from utils.data_processing import save_and_train_diffusion_model, evaluate_fBn_performance
 from utils.math_functions import generate_fBn
 
@@ -48,7 +48,7 @@ if __name__ == "__main__":
                 'rb')
             model = pickle.load(file)
         except FileNotFoundError:
-            scoreModel = TimeSeriesNoiseMatching()  # NaiveMLP(output_shape=td, enc_shapes=[32, 32], temb_dim=32, dec_shapes=[32, 32])
+            scoreModel = TimeSeriesScoreMatching()  # NaiveMLP(output_shape=td, enc_shapes=[32, 32], temb_dim=32, dec_shapes=[32, 32])
             diffusion = VESDEDiffusion(device="cpu", model=scoreModel, numDiffSteps=N, rng=rng, trainEps=trainEps,
                                        noiseFactor=2.)
             model = save_and_train_diffusion_model(data,
@@ -61,7 +61,7 @@ if __name__ == "__main__":
         data = generate_fBn(T=td, S=numSamples, H=h, rng=rng)
         np.save(config.ROOT_DIR + "data/two_hundred_thousand_fBn_samples_H{}_T{}.npy".format(h, td), data)
         data = data[:numSamples // 1, :]
-        scoreModel = TimeSeriesNoiseMatching()
+        scoreModel = TimeSeriesScoreMatching()
         diffusion = VESDEDiffusion(device="cpu", model=scoreModel, numDiffSteps=N, rng=rng, trainEps=trainEps,
                                    noiseFactor=2.)
         model = save_and_train_diffusion_model(data,

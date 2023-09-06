@@ -3,11 +3,11 @@ import pickle
 import numpy as np
 import torch
 
-from src.generative_modelling.models import ClassVESDEDiffusion
-from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesNoiseMatching import \
-    TimeSeriesNoiseMatching
-from utils import config
+from src.generative_modelling.models import ClassVESDEDiffusion_22
+from src.generative_modelling.models.ClassVESDEDiffusion_22 import VESDEDiffusion
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
+    TimeSeriesScoreMatching
+from utils import project_config
 from utils.data_processing import save_and_train_diffusion_model, evaluate_SDE_performance
 from utils.math_functions import generate_CEV
 
@@ -59,7 +59,7 @@ if __name__ == "__main__":
             model = pickle.load(file)
         except FileNotFoundError:
             # scoreModel = NaiveMLP(output_shape=td, enc_shapes=[32, 32], temb_dim=32, dec_shapes=[32, 32])
-            scoreModel = TimeSeriesNoiseMatching()
+            scoreModel = TimeSeriesScoreMatching()
             diffusion = VESDEDiffusion(device="cpu", model=scoreModel, numDiffSteps=N, rng=rng, trainEps=trainEps,
                                        noiseFactor=2.)
             model = save_and_train_diffusion_model(data,
@@ -79,7 +79,7 @@ if __name__ == "__main__":
             data)
         data = data[:numSamples // 1, :]
         # scoreModel = NaiveMLP(output_shape=td, enc_shapes=[32, 32], temb_dim=32, dec_shapes=[32, 32])
-        scoreModel = TimeSeriesNoiseMatching()
+        scoreModel = TimeSeriesScoreMatching()
         diffusion = VESDEDiffusion(device="cpu", model=scoreModel, numDiffSteps=N, rng=rng, trainEps=trainEps,
                                    noiseFactor=2.)
         model = save_and_train_diffusion_model(data,

@@ -25,7 +25,7 @@ matplotlib.rcParams.update({
 def plot_subplots(time_ax: np.ndarray, data: np.ndarray, label_args: np.ndarray[Union[NoneType, str]],
                   xlabels: np.ndarray[Union[NoneType, str]], ylabels: np.ndarray[Union[NoneType, str]],
                   globalTitle: str, fig: Union[NoneType, matplotlib.figure.Figure] = None,
-                  ax: Union[NoneType, np.ndarray[matplotlib.axes.Axis]] = None, saveTransparent: bool = False):
+                  ax: Union[NoneType, np.ndarray[matplotlib.axes.Axes]] = None, saveTransparent: bool = False):
     """
     Plotting function ot plot multiple traces in same figure but DIFFERENT axis
     :param time_ax: MCMC timeline
@@ -67,7 +67,7 @@ def plot_subplots(time_ax: np.ndarray, data: np.ndarray, label_args: np.ndarray[
 
 
 def plot(time_ax, data, label_args: np.ndarray[str], xlabel: str, ylabel: str, title: str,
-         fig: matplotlib.figure.Figure = None, ax: matplotlib.axes.Axis = None, saveTransparent: bool = False):
+         fig: matplotlib.figure.Figure = None, ax: matplotlib.axes.Axes = None, saveTransparent: bool = False):
     """
     Plotting function to plot multiple traces in SAME figure and axis object
     :param time_ax: MCMC timeline
@@ -103,7 +103,7 @@ def plot(time_ax, data, label_args: np.ndarray[str], xlabel: str, ylabel: str, t
 
 def qqplot(x: np.ndarray, y: np.ndarray, xlabel: str = "", ylabel: str = "", plottitle: str = "",
            quantiles: Union[NoneType, int, np.ndarray] = None, interpolation: str = 'nearest',
-           ax: matplotlib.axes.Axis = None, rug: bool = False,
+           ax: matplotlib.axes.Axes = None, rug: bool = False,
            rug_length: float = 0.05, rug_kwargs: Union[NoneType, Mapping] = None, font_size: int = 14,
            title_size: int = 14, log: bool = True, **kwargs) -> None:
     """Draw a quantile-quantile plot for `x` versus `y`.
@@ -196,8 +196,8 @@ def qqplot(x: np.ndarray, y: np.ndarray, xlabel: str = "", ylabel: str = "", plo
 def plot_histogram(rvs: np.ndarray, pdf_vals: Union[NoneType, np.ndarray] = None,
                    xlinspace: Union[NoneType, np.ndarray] = None, num_bins: int = 100, xlabel: str = "",
                    ylabel: str = "", plottitle: str = "", plottlabel: str = "",
-                   fig: matplotlib.figure.Figure = None, ax: Union[NoneType, matplotlib.axes.Axis] = None) -> Tuple[
-    matplotlib.figure.Figure, matplotlib.axes.Axis, np.ndarray]:
+                   fig: Union[NoneType,matplotlib.figure.Figure]= None, ax: Union[NoneType, matplotlib.axes.Axes] = None) -> Tuple[
+    matplotlib.figure.Figure, matplotlib.axes.Axes, np.ndarray]:
     if (fig and ax) is None:
         fig, ax = plt.subplots()
     ax.set_xlabel(xlabel)
@@ -260,7 +260,7 @@ def gibbs_histogram_plot(thetas: np.ndarray, burnOut: int, titlePlot: str, trueV
 
 def plot_and_save_boxplot(data: np.ndarray, xlabel: str = "", ylabel: str = "", title_plot: str = "",
                           dataLabels: str = "", toSave: bool = False, saveName: str = "",
-                          fig: matplotlib.figure.Figure = None, ax: matplotlib.axes.Axis = None) -> None:
+                          fig: Union[NoneType,matplotlib.figure.Figure] = None, ax: Union[NoneType,matplotlib.axes.Axes] = None) -> None:
     """
     Plot boxplot of data
     :param data: Data

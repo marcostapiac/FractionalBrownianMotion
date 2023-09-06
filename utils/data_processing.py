@@ -1,13 +1,24 @@
 import pickle
+from typing import Tuple, Union
 
 import numpy as np
 import pandas as pd
 import torch
+import torchmetrics
 from torch.utils.data import DataLoader
 
+from src.classes.ClassCorrector import VPSDECorrector, VESDECorrector
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.classes.ClassFractionalCEV import FractionalCEV
-from src.generative_modelling.models import ClassOUDiffusion, ClassVPSDEDiffusion, ClassVESDEDiffusion
+from src.classes.ClassPredictor import AncestralSamplingPredictor
+from src.classes.ClassSDESampler import SDESampler
+from src.classes.ClassTrainer import DiffusionModelTrainer
+from src.generative_modelling.models.ClassOUDiffusion import OUDiffusion
+from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
+from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
+    TimeSeriesScoreMatching
 from utils.math_functions import chiSquared_test, reduce_to_fBn, compute_fBm_cov, permutation_test, \
     energy_statistic, MMD_statistic
 from utils.plotting_functions import plot_and_save_loss_epochs, plot_final_diffusion_marginals, plot_dataset, \
@@ -15,7 +26,7 @@ from utils.plotting_functions import plot_and_save_loss_epochs, plot_final_diffu
     plot_tSNE, plot_subplots
 
 
-def prepare_data(data: np.ndarray, batch_size: int) -> [DataLoader, DataLoader, DataLoader]:
+def prepare_data(data: np.ndarray, batch_size: int) -> Tuple[DataLoader, DataLoader, DataLoader]:
     """
     Split data into train, eval, test sets and create DataLoaders for training
         :param data: Training data
@@ -24,15 +35,15 @@ def prepare_data(data: np.ndarray, batch_size: int) -> [DataLoader, DataLoader, 
     """
     dataset = torch.utils.data.TensorDataset(torch.from_numpy(data).float())
     train, val, test = torch.utils.data.random_split(dataset, [0.8, 0.1, 0.1])
-    trainLoader, valLoader, testLoader = DataLoader(train, batch_size=batch_size, shuffle=True), \
-                                         DataLoader(val, batch_size=batch_size, shuffle=True), \
-                                         DataLoader(test, batch_size=batch_size, shuffle=True)  # Returns iterator
+    trainLoader, valLoader, testLoader = DataLoader(train, batch_size=batch_size, pin_memory=True, shuffle=True), \
+                                         DataLoader(val, batch_size=batch_size, pin_memory=True, shuffle=True), \
+                                         DataLoader(test, batch_size=batch_size, pin_memory=True, shuffle=True)  # Returns iterator
     return trainLoader, valLoader, testLoader
 
 
-def train_diffusion_model(diffusion: type[ClassVPSDEDiffusion, ClassVESDEDiffusion, ClassOUDiffusion],
+def train_diffusion_model(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUDiffusion],
                           trainLoader: torch.utils.data.DataLoader,
-                          valLoader: torch.utils.data.DataLoader, opt: torch.optim.Optimizer, nEpochs: int) -> [
+                          valLoader: torch.utils.data.DataLoader, opt: torch.optim.Optimizer, nEpochs: int) -> Tuple[
     np.array, np.array]:
     """
     Abstract function to train model
@@ -59,8 +70,8 @@ def train_diffusion_model(diffusion: type[ClassVPSDEDiffusion, ClassVESDEDiffusi
 
 def save_and_train_diffusion_model(data: np.ndarray, model_filename: str, batch_size: int,
                                    nEpochs: int, lr: float,
-                                   diffusion: type[ClassVPSDEDiffusion, ClassVESDEDiffusion, ClassOUDiffusion]) -> \
-        type[ClassVPSDEDiffusion, ClassVESDEDiffusion, ClassOUDiffusion]:
+                                   diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUDiffusion]) -> Union[
+    VPSDEDiffusion, VESDEDiffusion, OUDiffusion]:
     """
     Abstract function which calls training function, plots losses, and saves trained model
         :param data: Training dataset
@@ -96,10 +107,37 @@ def save_and_train_diffusion_model(data: np.ndarray, model_filename: str, batch_
     return diffusion
 
 
-def check_convergence_at_diffTime(diffusion: type[ClassVPSDEDiffusion, ClassVESDEDiffusion, ClassOUDiffusion],
-                                  t: int, dataSamples: np.ndarray) -> [np.ndarray,
-                                                                       np.ndarray,
-                                                                       list[str]]:
+def revamped_train_and_save_diffusion_model(data: np.ndarray, model_filename: str, batch_size: int,
+                                            nEpochs: int, lr: float, train_eps: float, end_diff_time: float,
+                                            max_diff_steps: int,
+                                            diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUDiffusion],
+                                            scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
+                                            checkpoint_freq: int) -> Union[NaiveMLP, TimeSeriesScoreMatching]:
+    trainLoader, valLoader, testLoader = prepare_data(data, batch_size=batch_size)
+    optimiser = torch.optim.Adam((scoreModel.parameters()), lr=lr)  # No need to move to device
+    trainer = DiffusionModelTrainer(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
+                                    checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
+                                    loss_aggregator=torchmetrics.aggregation.MeanMetric, gpu_id=0, train_eps=train_eps,
+                                    end_diff_time=end_diff_time, max_diff_steps=max_diff_steps)
+    trainer.train(max_epochs=nEpochs, model_filename=model_filename)
+    return scoreModel
+
+
+def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUDiffusion],
+                     scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], end_diff_time: float, max_diff_steps: int,
+                     N_lang: int, snr: float, sampleEps: float, data_shape:Tuple[int,int]) -> torch.Tensor:
+    predictor = AncestralSamplingPredictor(diffusion=diffusion, score_function=scoreModel, end_diff_time=end_diff_time,
+                                           max_diff_steps=max_diff_steps)
+    corrector = VESDECorrector(N_lang=N_lang, r=snr)
+    sampler = SDESampler(diffusion=diffusion, sample_eps=sampleEps, predictor=predictor, corrector=corrector)
+    final_samples = sampler.sample(shape=data_shape)
+    return final_samples  # TODO Check if need to detach
+
+
+def check_convergence_at_diffTime(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUDiffusion],
+                                  t: int, dataSamples: np.ndarray) -> Tuple[np.ndarray,
+                                                                            np.ndarray,
+                                                                            list[str]]:
     """
     Function generates forward process and backward process samples from the same diffusion time index
         :param diffusion: Trained diffusion model
@@ -120,7 +158,7 @@ def check_convergence_at_diffTime(diffusion: type[ClassVPSDEDiffusion, ClassVESD
 
 def evaluate_performance(true_samples: np.ndarray, generated_samples: np.ndarray, h: float, td: int,
                          rng: np.random.Generator, unitInterval: bool, annot: bool, evalMarginals: bool,
-                         isfBm: bool) -> None:
+                         isfBm: bool, permute_test:bool) -> None:
     """
     Computes metrics to quantify how close the generated samples are from the desired distribution
         :param true_samples: Exact samples of fractional Brownian motion (or its increments)
@@ -132,6 +170,7 @@ def evaluate_performance(true_samples: np.ndarray, generated_samples: np.ndarray
         :param annot: Indicates whether to annotate covariance plot
         :param evalMarginals: Indicates whether to plot marginal Q-Q plots and compute associated KS statistic
         :param isfBm: Indicates whether samples are fBm or its increments
+        :param permute_test: Indicates whether to conduct permutation tes
         :return: None
     """
     print("True Data Sample Mean :: ", np.mean(true_samples, axis=0))
@@ -140,7 +179,7 @@ def evaluate_performance(true_samples: np.ndarray, generated_samples: np.ndarray
     print("True Data Covariance :: ", true_cov)
     gen_cov = np.cov(generated_samples, rowvar=False)
     print("Generated Data Covariance :: ", gen_cov)
-    expec_cov = compute_fBm_cov(FractionalBrownianNoise(H=h, rng=rng), td=td, isUnitInterval=unitInterval)
+    expec_cov = compute_fBm_cov(FractionalBrownianNoise(H=h, rng=rng), T=td, isUnitInterval=unitInterval)
     print("Expected Covariance :: ", expec_cov)
 
     plot_diffCov_heatmap(expec_cov, gen_cov, annot=annot)
@@ -159,16 +198,16 @@ def evaluate_performance(true_samples: np.ndarray, generated_samples: np.ndarray
     plot_tSNE(true_samples, y=generated_samples, labels=["True Samples", "Generated Samples"]) \
         if td > 2 else plot_dataset(true_samples, generated_samples)
     if evalMarginals: plot_final_diffusion_marginals(true_samples, generated_samples, timeDim=td)
-
-    # Permutation test for kernel statistic
-    test_L = min(2000, true_samples.shape[0])
-    print("MMD Permutation test: p-value {}".format(
-        permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=MMD_statistic,
-                         num_permutations=1000)))
-    # Permutation test for energy statistic
-    print("Energy Permutation test: p-value {}".format(
-        permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=energy_statistic,
-                         num_permutations=1000)))
+    if permute_test:
+        # Permutation test for kernel statistic
+        test_L = min(2000, true_samples.shape[0])
+        print("MMD Permutation test: p-value {}".format(
+            permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=MMD_statistic,
+                             num_permutations=1000)))
+        # Permutation test for energy statistic
+        print("Energy Permutation test: p-value {}".format(
+            permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=energy_statistic,
+                             num_permutations=1000)))
 
 
 def compute_circle_proportions(true_samples: np.ndarray, generated_samples: np.ndarray) -> None:
@@ -293,7 +332,8 @@ def gen_and_store_statespace_data(Xs=None, Us=None, muU=1., muX=1., gamma=1., X0
         m = FractionalCEV(muU=muU, muX=muX, sigmaX=sigmaX, alpha=alpha, X0=X0, U0=U0)
         Xs, Us = m.euler_simulation(H=H, N=N, deltaT=deltaT)  # Simulated data
     df = pd.DataFrame.from_dict(data={'Log-Price': Us, 'Volatility': Xs})
-    plot_subplots(np.arange(0, T + deltaT, step=deltaT), [Xs, Us], [None, None], ["Time", "Time"],
-                  ["Volatility", "Log Price"],
+    plot_subplots(np.arange(0, T + deltaT, step=deltaT), np.array([Xs, Us]), np.array([None, None]),
+                  np.array(["Time", "Time"]),
+                  np.array(["Volatility", "Log Price"]),
                   "Project Model Simulation")
     df.to_csv('../data/raw_data_simpleObsModel_{}_{}.csv'.format(int(np.log2(N)), int(10 * H)), index=False)

@@ -1,109 +1,87 @@
-import numpy as np
+from typing import Tuple
+
 import torch
 from torch import nn
-from torchmetrics import MeanMetric
-from tqdm import tqdm
+
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
+    TimeSeriesScoreMatching
 
 
 class VESDEDiffusion(nn.Module):
+    """ Diffusion class for VE SDE model """
 
-    def __init__(self, device: torch.cuda.Device, model, rng: np.random.Generator,
-                 numDiffSteps: int, endDiffTime: float, trainEps: float, stdMax: float, stdMin: float, *args,
-                 **kwargs) -> None:
-        super().__init__(*args, **kwargs)
-        self.torchDevice = device
-        self.model = model.to(device)
-        self.rng = rng
-        self.trainEps = trainEps
+    def __init__(self, stdMax: float, stdMin: float) -> None:
+        super().__init__()
         self.stdMax = stdMax
         self.stdMin = stdMin
 
-        self.numDiffSteps = numDiffSteps
-        self.endDiffTime = endDiffTime
-        self.vars = self.get_vars()  # Increasing positive geometric sequence (for fwd process)
-
-    def get_vars(self) -> torch.Tensor:
-        """ This function specifies a variance schedule which fits best to the fBm data """
-        var_max = self.get_var_max()
-        var_min = self.get_var_min()
-        indices = torch.linspace(start=0, end=self.numDiffSteps, steps=self.numDiffSteps)
-        vars = var_min * torch.pow((var_max / var_min),
-                                   indices / (self.numDiffSteps - 1))
-        return vars
-
     def get_var_max(self) -> torch.Tensor:
-        return torch.Tensor([(self.stdMax) ** 2]).to(torch.float32)
+        """ Get maximum variance parameter """
+        return torch.Tensor([self.stdMax ** 2]).to(torch.float32)
 
     def get_var_min(self) -> torch.Tensor:
-        return torch.Tensor([(self.stdMin) ** 2]).to(torch.float32)
+        """ Get minimum variance parameter """
+        return torch.Tensor([self.stdMin ** 2]).to(torch.float32)
 
-    def forward_process(self, dataSamples: torch.Tensor, effTimes: torch.Tensor):
+    @staticmethod
+    def noising_process(dataSamples: torch.Tensor, effTimes: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+        """
+        Forward diffusion in continuous time
+            :param dataSamples: Initial time SDE value
+            :param effTimes: Effective SDE time
+            :return:
+                - Forward diffused samples
+                - Score
+
+        """
         epsts = torch.randn_like(dataSamples)
         return dataSamples + torch.sqrt(effTimes) * epsts, -epsts / torch.sqrt(effTimes)
 
-    def training_loss_fn(self, weighted_predicted: torch.Tensor, weighted_true: torch.Tensor) -> torch.Tensor:
-        return nn.MSELoss()(weighted_predicted, weighted_true)
-
-    def get_loss_weighting(self, effTimes: torch.Tensor) -> torch.Tensor:
+    @staticmethod
+    def get_loss_weighting(effTimes: torch.Tensor) -> torch.Tensor:
+        """
+        Weighting for objective function during training
+        :param effTimes: Effective SDE time
+        :return: Square root of weight
+        """
         return torch.sqrt(effTimes)
 
-    def one_epoch_diffusion_train(self, opt: torch.optim.Optimizer,
-                                  trainLoader: torch.utils.data.DataLoader) -> float:
-        mean_loss = MeanMetric().to(device=self.torchDevice)
-        self.train()
-        # TODO: Parallelize
-        timesteps = torch.linspace(self.trainEps, end=self.endDiffTime, steps=self.numDiffSteps)
+    def get_eff_times(self, diff_times: torch.Tensor) -> torch.Tensor:
+        """
+        Return effective SDE times
+        :param diff_times: Discrete times at which we evaluate SDE
+        :return: Effective time
+        """
+        return self.get_var_min() * (self.get_var_max() / self.get_var_min()) ** diff_times
 
-        for x0s in iter(trainLoader):  # Iterate over batches (training data is already randomly selected)
-            x0s = x0s[0]  # TODO: For some reason the original x0s is a list
-            i_s = torch.randint(low=0, high=self.numDiffSteps, dtype=torch.int32,
-                                size=(x0s.shape[0], 1))  # Randomly sample uniform time integer
-            diffTimes = timesteps[i_s].view(x0s.shape[0], *([1] * len(x0s.shape[1:])))
-            effTimes = (self.get_var_min() * (self.get_var_max() / self.get_var_min()) ** diffTimes)
+    def prior_sampling(self, shape: Tuple[int, int]) -> torch.Tensor:
+        return torch.sqrt(self.get_var_max()) * torch.randn(shape)  # device= TODO
 
-            xts, true_score = self.forward_process(dataSamples=x0s, effTimes=effTimes)
+    def get_ancestral_var(self, max_diff_steps: int, diff_index: torch.Tensor) -> torch.Tensor:
+        """
+        Discretisation of noise schedule for ancestral sampling
+        :return: None
+        """
+        var_max = self.get_var_max()
+        var_min = self.get_var_min()
+        vars = var_min * torch.pow((var_max / var_min), diff_index / (max_diff_steps - 1))
+        return vars
 
-            # A single batch of data should have dimensions [batch_size, channelNum, size_of_each_datapoint]
-            pred = self.model.forward(xts, diffTimes.squeeze(-1))  # self.model.forward(xts, diffTimes)
-
-            loss = self.training_loss_fn(
-                weighted_predicted=self.get_loss_weighting(effTimes) * pred.squeeze(1),
-                weighted_true=self.get_loss_weighting(effTimes) * true_score)
-
-            opt.zero_grad()
-            loss.backward()
-            opt.step()
-            mean_loss.update(loss.detach().item())  # Remove loss from computational graph and return
-
-        return float(mean_loss.compute().item())
-
-    def evaluate_diffusion_model(self, loader: torch.utils.data.DataLoader) -> float:
-        mean_loss = MeanMetric().to(device=self.torchDevice)
-        self.eval()
-        timesteps = torch.linspace(self.trainEps, end=self.endDiffTime, steps=self.numDiffSteps)
+    def get_ancestral_sampling(self, x: torch.Tensor, t: torch.Tensor,
+                               score_network: Tuple[NaiveMLP, TimeSeriesScoreMatching],
+                               diff_index: torch.Tensor, max_diff_steps: int):
+        score_network.eval()
         with torch.no_grad():
-            for x0s in iter(loader):  # Iterate over batches (training data is already randomly selected)
-                x0s = x0s[0]  # TODO: For some reason the original x0s is a list
-                ts = torch.randint(low=0, high=self.numDiffSteps, dtype=torch.int32,
-                                   size=(x0s.shape[0], 1))  # Randomly sample uniform time integer
-                diffTimes = timesteps[ts].view(x0s.shape[0], *([1] * len(x0s.shape[1:])))
-                effTimes = (self.get_var_min() * (self.get_var_max() / self.get_var_min()) ** diffTimes).view(
-                    x0s.shape[0],
-                    *([1] * len(
-                        x0s.shape[
-                        1:])))
-                xts, true_score = self.forward_process(dataSamples=x0s, effTimes=effTimes)
+            predicted_score = score_network.forward(x, t.squeeze(-1)).squeeze(1)
+            curr_var = self.get_ancestral_var(max_diff_steps=max_diff_steps, diff_index=diff_index)
+            next_var = self.get_ancestral_var(max_diff_steps=max_diff_steps, diff_index=diff_index - 1)
+            drift_param = curr_var - (next_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]))
+            diffusion_param = torch.sqrt(drift_param * next_var / curr_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]))
+        return predicted_score, x+drift_param*predicted_score, diffusion_param
 
-                # A single batch of data should have dimensions [batch_size, channelNum, size_of_each_datapoint]
-                pred = self.model.forward(xts, diffTimes.squeeze(-1))
 
-                loss = self.training_loss_fn(
-                    weighted_predicted=self.get_loss_weighting(effTimes) * pred.squeeze(1),
-                    weighted_true=self.get_loss_weighting(effTimes) * true_score)
-
-                mean_loss.update(loss.detach().item())
-        return float(mean_loss.compute().item())
-
+"""
     def reverse_process(self, data: np.ndarray, dataSize: int, timeDim: int, sampleEps: float,
                         sigNoiseRatio: float, numLangevinSteps: int,
                         timeLim: int = 0):
@@ -119,8 +97,7 @@ class VESDEDiffusion(nn.Module):
 
                 i_s = i * torch.ones((dataSize, 1), dtype=torch.long, device=self.torchDevice)
                 ts = reverseTimes[i_s]  # time-index for each data-sample
-                predicted_score = self.model.forward(x, ts.squeeze(-1)).squeeze(
-                    1)  # Score == Noise/STD!-(x - data) / (effTimes)
+                predicted_score = self.score_network.forward(x, ts.squeeze(-1)).squeeze(1)
                 drift_var_param = self.vars[self.numDiffSteps - 1 - i] - (
                     self.vars[self.numDiffSteps - 1 - i - 1] if i < self.numDiffSteps - 1 else torch.Tensor([0]))
                 noise_var_param = drift_var_param * self.vars[self.numDiffSteps - 1 - i - 1] / self.vars[
@@ -128,7 +105,8 @@ class VESDEDiffusion(nn.Module):
                 z = torch.randn_like(x)
                 x = x + drift_var_param * predicted_score + torch.sqrt(noise_var_param) * z
                 for _ in range(numLangevinSteps):
-                    z = torch.randn_like(x)
                     e = 2 * (sigNoiseRatio * np.linalg.norm(z) / np.linalg.norm(predicted_score)) ** 2
+                    z = torch.randn_like(x)
                     x = x + e * predicted_score + np.sqrt(2. * e) * z
             return x.detach().numpy()  # Approximately distributed according to desired distribution
+"""

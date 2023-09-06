@@ -2,7 +2,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
-from utils import config
+from utils import project_config
 
 plt.style.use('ggplot')
 matplotlib.rcParams.update({
