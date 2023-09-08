@@ -196,7 +196,8 @@ def qqplot(x: np.ndarray, y: np.ndarray, xlabel: str = "", ylabel: str = "", plo
 def plot_histogram(rvs: np.ndarray, pdf_vals: Union[NoneType, np.ndarray] = None,
                    xlinspace: Union[NoneType, np.ndarray] = None, num_bins: int = 100, xlabel: str = "",
                    ylabel: str = "", plottitle: str = "", plottlabel: str = "",
-                   fig: Union[NoneType,matplotlib.figure.Figure]= None, ax: Union[NoneType, matplotlib.axes.Axes] = None) -> Tuple[
+                   fig: Union[NoneType, matplotlib.figure.Figure] = None,
+                   ax: Union[NoneType, matplotlib.axes.Axes] = None) -> Tuple[
     matplotlib.figure.Figure, matplotlib.axes.Axes, np.ndarray]:
     if (fig and ax) is None:
         fig, ax = plt.subplots()
@@ -260,7 +261,8 @@ def gibbs_histogram_plot(thetas: np.ndarray, burnOut: int, titlePlot: str, trueV
 
 def plot_and_save_boxplot(data: np.ndarray, xlabel: str = "", ylabel: str = "", title_plot: str = "",
                           dataLabels: str = "", toSave: bool = False, saveName: str = "",
-                          fig: Union[NoneType,matplotlib.figure.Figure] = None, ax: Union[NoneType,matplotlib.axes.Axes] = None) -> None:
+                          fig: Union[NoneType, matplotlib.figure.Figure] = None,
+                          ax: Union[NoneType, matplotlib.axes.Axes] = None) -> None:
     """
     Plot boxplot of data
     :param data: Data

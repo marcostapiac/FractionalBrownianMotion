@@ -4,12 +4,9 @@ import torch
 import torchmetrics
 from torchmetrics import MeanMetric
 
-from src.generative_modelling.models import ClassVESDEDiffusion, ClassOUDiffusion, ClassVPSDEDiffusion
 from src.generative_modelling.models.ClassOUDiffusion import OUDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks import ClassNaiveMLP
-from src.generative_modelling.models.TimeDependentScoreNetworks import ClassTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
@@ -23,9 +20,9 @@ class DiffusionModelTrainer:
                  diffusion: Union[VESDEDiffusion, OUDiffusion, VPSDEDiffusion],
                  score_network: Union[NaiveMLP, TimeSeriesScoreMatching],
                  train_data_loader: torch.utils.data.dataloader.DataLoader,
-                 train_eps:float,
-                 end_diff_time:float,
-                 max_diff_steps:int,
+                 train_eps: float,
+                 end_diff_time: float,
+                 max_diff_steps: int,
                  optimiser: torch.optim.Optimizer,
                  gpu_id: int,
                  checkpoint_freq: int,
@@ -41,7 +38,7 @@ class DiffusionModelTrainer:
         self.gpu_id = gpu_id
         self.save_every = checkpoint_freq  # Specifies how often we choose to save our model during training
         self.loss_fn = loss_fn  # If callable, need to ensure we allow for gradient computation
-        self.loss_aggregator = loss_aggregator()#.to(self.gpu_id)  # TODO: Do I need this to be on the same torch device?
+        self.loss_aggregator = loss_aggregator()  # .to(self.gpu_id)  # TODO: Do I need this to be on the same torch device?
 
     # Trainer should iterate through dataloader, and compute losses
 
@@ -77,7 +74,7 @@ class DiffusionModelTrainer:
         timesteps = torch.linspace(self.train_eps, end=self.end_diff_time,
                                    steps=self.max_diff_steps)
         for x0s in iter(self.train_loader):
-            x0s = x0s[0]#.to(self.gpu_id)  # TODO: why is this a list, where to send it to (why is it an int)?
+            x0s = x0s[0]  # .to(self.gpu_id)  # TODO: why is this a list, where to send it to (why is it an int)?
             diff_times = timesteps[torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,
                                                  size=(x0s.shape[0], 1))].view(x0s.shape[0],
                                                                                *([1] * len(x0s.shape[1:])))

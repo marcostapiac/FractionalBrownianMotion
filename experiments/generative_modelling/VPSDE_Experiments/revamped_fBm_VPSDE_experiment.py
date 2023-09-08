@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from ml_collections import ConfigDict
 
-from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
+from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
@@ -13,12 +13,11 @@ from utils.data_processing import evaluate_performance, \
 from utils.math_functions import generate_fBn, generate_fBm
 
 
-def run_experiment(dataSize: int, diffusion: VESDEDiffusion, scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
+def run_experiment(dataSize: int, diffusion: VPSDEDiffusion, scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
                    rng: np.random.Generator, config:ConfigDict) -> None:
     try:
         assert (config.train_eps <= config.sample_eps)
-        fBm_samples = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel, data_shape=(dataSize, config.timeDim), config=config)
-
+        fBm_samples = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,data_shape=(dataSize, config.timeDim), config=config)
     except AssertionError:
         raise ValueError("Final time during sampling should be at least as large as final time during training")
 
@@ -29,7 +28,7 @@ def run_experiment(dataSize: int, diffusion: VESDEDiffusion, scoreModel: Union[N
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.VESDE.fBm_T2_H07 import get_config
+    from configs.VPSDE.fBm_T2_H07 import get_config
 
     config = get_config()
     h = config.hurst
@@ -42,15 +41,12 @@ if __name__ == "__main__":
     N = config.max_diff_steps
     Tdiff = config.end_diff_time
 
-    # Model parameters
-    std_max = config.std_max
-    std_min = config.std_min
 
     modelFileName = config.mlpFileName if config.model_choice == "MLP" else config.tsmFileName
     rng = np.random.default_rng()
     scoreModel = TimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
-    diffusion = VESDEDiffusion(stdMax=std_max, stdMin=std_min)
+    diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
     training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
 
@@ -82,3 +78,4 @@ if __name__ == "__main__":
     s = 10000
     data = data[:s, :]
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, rng=rng, config=config)
+

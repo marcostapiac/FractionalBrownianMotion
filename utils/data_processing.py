@@ -5,12 +5,13 @@ import numpy as np
 import pandas as pd
 import torch
 import torchmetrics
+from ml_collections import ConfigDict
 from torch.utils.data import DataLoader
 
-from src.classes.ClassCorrector import VPSDECorrector, VESDECorrector
+from src.classes.ClassCorrector import VESDECorrector, VPSDECorrector
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.classes.ClassFractionalCEV import FractionalCEV
-from src.classes.ClassPredictor import AncestralSamplingPredictor
+from src.classes.ClassPredictor import AncestralSamplingPredictor, EulerMaruyamaPredictor
 from src.classes.ClassSDESampler import SDESampler
 from src.classes.ClassTrainer import DiffusionModelTrainer
 from src.generative_modelling.models.ClassOUDiffusion import OUDiffusion
@@ -37,7 +38,8 @@ def prepare_data(data: np.ndarray, batch_size: int) -> Tuple[DataLoader, DataLoa
     train, val, test = torch.utils.data.random_split(dataset, [0.8, 0.1, 0.1])
     trainLoader, valLoader, testLoader = DataLoader(train, batch_size=batch_size, pin_memory=True, shuffle=True), \
                                          DataLoader(val, batch_size=batch_size, pin_memory=True, shuffle=True), \
-                                         DataLoader(test, batch_size=batch_size, pin_memory=True, shuffle=True)  # Returns iterator
+                                         DataLoader(test, batch_size=batch_size, pin_memory=True,
+                                                    shuffle=True)  # Returns iterator
     return trainLoader, valLoader, testLoader
 
 
@@ -124,12 +126,22 @@ def revamped_train_and_save_diffusion_model(data: np.ndarray, model_filename: st
 
 
 def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUDiffusion],
-                     scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], end_diff_time: float, max_diff_steps: int,
-                     N_lang: int, snr: float, sampleEps: float, data_shape:Tuple[int,int]) -> torch.Tensor:
-    predictor = AncestralSamplingPredictor(diffusion=diffusion, score_function=scoreModel, end_diff_time=end_diff_time,
-                                           max_diff_steps=max_diff_steps)
-    corrector = VESDECorrector(N_lang=N_lang, r=snr)
-    sampler = SDESampler(diffusion=diffusion, sample_eps=sampleEps, predictor=predictor, corrector=corrector)
+                     scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], data_shape: Tuple[int, int], config:ConfigDict) -> torch.Tensor:
+    # Define predictor
+    predictor_params = [diffusion, scoreModel, config.end_diff_time, config.max_diff_steps]
+    predictor = AncestralSamplingPredictor(*predictor_params) if config.predictor_model == "ancestral" else EulerMaruyamaPredictor(*predictor_params)
+
+    # Define corrector
+    corrector_params = [config.max_lang_steps, config.snr, diffusion]
+    if config.corrector_model == "VE":
+        corrector = VESDECorrector(*corrector_params)
+    elif config.corrector_model == "VP":
+        corrector = VPSDECorrector(*corrector_params)
+    else:
+        corrector = None
+    sampler = SDESampler(diffusion=diffusion, sample_eps=config.sample_eps, predictor=predictor, corrector=corrector)
+
+    # Sample
     final_samples = sampler.sample(shape=data_shape)
     return final_samples  # TODO Check if need to detach
 
@@ -158,7 +170,7 @@ def check_convergence_at_diffTime(diffusion: Union[VPSDEDiffusion, VESDEDiffusio
 
 def evaluate_performance(true_samples: np.ndarray, generated_samples: np.ndarray, h: float, td: int,
                          rng: np.random.Generator, unitInterval: bool, annot: bool, evalMarginals: bool,
-                         isfBm: bool, permute_test:bool) -> None:
+                         isfBm: bool, permute_test: bool) -> None:
     """
     Computes metrics to quantify how close the generated samples are from the desired distribution
         :param true_samples: Exact samples of fractional Brownian motion (or its increments)

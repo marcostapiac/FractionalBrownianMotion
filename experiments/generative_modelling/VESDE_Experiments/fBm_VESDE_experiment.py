@@ -2,12 +2,10 @@ import pickle
 
 import numpy as np
 
-from src.generative_modelling.models import ClassVESDEDiffusion_22
 from src.generative_modelling.models.ClassVESDEDiffusion_22 import VESDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
-from utils import project_config
 from utils.data_processing import save_and_train_diffusion_model, evaluate_fBm_performance
 from utils.math_functions import generate_fBn, generate_fBm
 

@@ -7,7 +7,6 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from utils import project_config
 from utils.plotting_functions import plot_dataset
 
 plt.style.use('ggplot')

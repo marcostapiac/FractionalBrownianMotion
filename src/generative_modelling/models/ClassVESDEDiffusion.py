@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Union
 
 import torch
 from torch import nn
@@ -56,6 +56,7 @@ class VESDEDiffusion(nn.Module):
         return self.get_var_min() * (self.get_var_max() / self.get_var_min()) ** diff_times
 
     def prior_sampling(self, shape: Tuple[int, int]) -> torch.Tensor:
+        """ Sample from the target in the forward diffusion """
         return torch.sqrt(self.get_var_max()) * torch.randn(shape)  # device= TODO
 
     def get_ancestral_var(self, max_diff_steps: int, diff_index: torch.Tensor) -> torch.Tensor:
@@ -69,16 +70,31 @@ class VESDEDiffusion(nn.Module):
         return vars
 
     def get_ancestral_sampling(self, x: torch.Tensor, t: torch.Tensor,
-                               score_network: Tuple[NaiveMLP, TimeSeriesScoreMatching],
-                               diff_index: torch.Tensor, max_diff_steps: int):
+                               score_network: Union[NaiveMLP, TimeSeriesScoreMatching],
+                               diff_index: torch.Tensor, max_diff_steps: int) -> Tuple[
+        torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
+        Compute parameters for one-step in ancestral sampling of reverse-time diffusion
+            :param x: Current reverse-time diffusion sample
+            :param t: Current reverse-time diffusion time
+            :param score_network: Trained score matching function
+            :param diff_index: REVERSE diffusion index
+            :param max_diff_steps: Maximum number of diffusion steps
+            :return:
+                - Predicted Score
+                - Ancestral Sampling Drift
+                - Ancestral Sampling Diffusion Coefficient
+        """
         score_network.eval()
         with torch.no_grad():
             predicted_score = score_network.forward(x, t.squeeze(-1)).squeeze(1)
-            curr_var = self.get_ancestral_var(max_diff_steps=max_diff_steps, diff_index=diff_index)
-            next_var = self.get_ancestral_var(max_diff_steps=max_diff_steps, diff_index=diff_index - 1)
+            curr_var = self.get_ancestral_var(max_diff_steps=max_diff_steps, diff_index=max_diff_steps - 1 - diff_index)
+            next_var = self.get_ancestral_var(max_diff_steps=max_diff_steps,
+                                              diff_index=max_diff_steps - 1 - diff_index - 1)
             drift_param = curr_var - (next_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]))
-            diffusion_param = torch.sqrt(drift_param * next_var / curr_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]))
-        return predicted_score, x+drift_param*predicted_score, diffusion_param
+            diffusion_param = torch.sqrt(
+                drift_param * next_var / curr_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]))
+        return predicted_score, x + drift_param * predicted_score, diffusion_param
 
 
 """

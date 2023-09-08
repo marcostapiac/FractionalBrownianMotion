@@ -5,13 +5,13 @@ from configs import project_config
 
 
 def get_config():
-    """ Training hyperparameters for VE SDE model on 2-dimensional Fractional Brownian Motion with Hurst parameter 0.7"""
+    """ Training hyperparameters for VE SDE model on 32-dimensional Fractional Brownian Motion with Hurst parameter 0.7"""
 
     config = ml_collections.ConfigDict()
 
     # Data set parameters
     config.hurst = 0.7
-    config.timeDim = 2
+    config.timeDim = 32
     config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(str(0.7).replace(".", ""), 2)
 
     # Training hyperparameters
@@ -20,11 +20,11 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = 200
+    config.max_epochs = 400
     config.batch_size = 256
 
     # Diffusion hyperparameters
-    config.std_max = 15.
+    config.std_max = 30.
     config.std_min = 0.01
 
     # MLP Architecture parameters

@@ -5,7 +5,7 @@ from configs import project_config
 
 
 def get_config():
-    """ Training hyperparameters for VE SDE model on 2-dimensional Fractional Brownian Motion with Hurst parameter 0.7"""
+    """ Training hyperparameters for VP SDE model on 2-dimensional Fractional Brownian Motion with Hurst parameter 0.7"""
 
     config = ml_collections.ConfigDict()
 
@@ -15,7 +15,7 @@ def get_config():
     config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(str(0.7).replace(".", ""), 2)
 
     # Training hyperparameters
-    config.train_eps = 1e-5
+    config.train_eps = 1e-3
     config.max_diff_steps = 1000 * max(int(np.log2(config.timeDim) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 50
@@ -24,8 +24,8 @@ def get_config():
     config.batch_size = 256
 
     # Diffusion hyperparameters
-    config.std_max = 15.
-    config.std_min = 0.01
+    config.beta_max = 20.
+    config.beta_min = 0.1
 
     # MLP Architecture parameters
     config.temb_dim = 32
@@ -39,16 +39,16 @@ def get_config():
     config.dialation_length = 10
 
     # Model filepath
-    config.mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_fBm_VESDE_model_H{}_T{}_Ndiff{}_Tdiff{}_trainEps{:.0e}_StdMax{:.4f}_StdMin{:.4f}_TembDim{}_EncShapes{}".format(
-        config.hurst,
+    config.mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_fBm_VPSDE_model_H{}_T{}_Ndiff{}_Tdiff{}_trainEps{:.0e}_BetaMax{:.4f}_BetaMin{:.4f}_TembDim{}_EncShapes{}".format(
+        str(config.hurst).replace(".",""),
         config.timeDim,
-        config.max_diff_steps, config.end_diff_time, config.train_eps, config.std_max, config.std_min, config.temb_dim,
+        config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min, config.temb_dim,
         config.enc_shapes)
 
-    config.tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_fBm_VESDE_model_H{}_T{}_Ndiff{}_Tdiff{}_trainEps{:.0e}_StdMax{:.4f}_StdMin{:.4f}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}".format(
-        config.hurst,
+    config.tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_fBm_VPSDE_model_H{}_T{}_Ndiff{}_Tdiff{}_trainEps{:.0e}_BetaMax{:.4f}_BetaMin{:.4f}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}".format(
+        str(config.hurst).replace(".",""),
         config.timeDim,
-        config.max_diff_steps, config.end_diff_time, config.train_eps, config.std_max, config.std_min, config.temb_dim,
+        config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min, config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size)
 
     config.model_choice = "TSM"
@@ -58,10 +58,10 @@ def get_config():
                                               config.dec_shapes]
 
     # Sampling hyperparameters
-    config.sample_eps = 1e-5
-    config.max_lang_steps = 1
-    config.snr = 0.01
+    config.sample_eps = 1e-3
+    config.max_lang_steps = 0
+    config.snr = 0.
     config.predictor_model = "ancestral"  # vs "euler-maryuama"
-    config.corrector_model = "VE"  # vs "VE"
+    config.corrector_model = "VP"  # vs "VE"
 
     return config
