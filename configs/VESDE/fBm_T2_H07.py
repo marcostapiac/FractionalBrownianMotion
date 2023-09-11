@@ -12,7 +12,8 @@ def get_config():
     # Data set parameters
     config.hurst = 0.7
     config.timeDim = 2
-    config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(str(0.7).replace(".", ""), 2)
+    config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(
+        str(config.hurst).replace(".", ""), config.timeDim)
 
     # Training hyperparameters
     config.train_eps = 1e-5
@@ -40,13 +41,13 @@ def get_config():
 
     # Model filepath
     config.mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_fBm_VESDE_model_H{}_T{}_Ndiff{}_Tdiff{}_trainEps{:.0e}_StdMax{:.4f}_StdMin{:.4f}_TembDim{}_EncShapes{}".format(
-        config.hurst,
+        str(config.hurst).replace(".", ""),
         config.timeDim,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.std_max, config.std_min, config.temb_dim,
         config.enc_shapes)
 
     config.tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_fBm_VESDE_model_H{}_T{}_Ndiff{}_Tdiff{}_trainEps{:.0e}_StdMax{:.4f}_StdMin{:.4f}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}".format(
-        config.hurst,
+        str(config.hurst).replace(".", ""),
         config.timeDim,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.std_max, config.std_min, config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size)

@@ -1,10 +1,9 @@
 import abc
 from typing import Union, Tuple
 
-import numpy as np
 import torch
 
-from src.generative_modelling.models.ClassOUDiffusion import OUDiffusion
+from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
@@ -15,7 +14,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesS
 class Predictor(abc.ABC):
     """ Base class for all predictor algorithms during reverse-time sampling """
 
-    def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion, OUDiffusion],
+    def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion, OUSDEDiffusion],
                  score_function: Union[NaiveMLP, TimeSeriesScoreMatching], end_diff_time: float, max_diff_steps: int):
         super().__init__()
         self.score_network = score_function
@@ -40,7 +39,7 @@ class Predictor(abc.ABC):
 
 class EulerMaruyamaPredictor(Predictor):
     # TODO: Is this not the same as reverse-time diffusion discretisation?
-    def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion, OUDiffusion],
+    def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion, OUSDEDiffusion],
                  score_function: Union[NaiveMLP, TimeSeriesScoreMatching], end_diff_time: float, max_diff_steps: int):
         super().__init__(diffusion, score_function, end_diff_time, max_diff_steps)
 
@@ -48,17 +47,16 @@ class EulerMaruyamaPredictor(Predictor):
         torch.Tensor, torch.Tensor, torch.Tensor]:
         dt = -self.end_diff_time / self.max_diff_steps
         score, drift, diffusion = self.diffusion.get_reverse_sde(x_prev, score_network=self.score_network, t=t,
-                                                                 diff_index=diff_index,
-                                                                 max_diff_steps=self.max_diff_steps)
+                                                                 dt=dt)
         z = torch.randn(size=x_prev.shape)
-        return x_prev + drift * dt + np.sqrt(-dt) * z, score, z
+        return drift + diffusion * z, score, z
 
 
 class AncestralSamplingPredictor(Predictor):
     def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion],
                  score_function: Union[NaiveMLP, TimeSeriesScoreMatching], end_diff_time: float, max_diff_steps: int):
         try:
-            assert (type(diffusion) != OUDiffusion)
+            assert (type(diffusion) != OUSDEDiffusion)
         except AssertionError:
             raise NotImplementedError("Ancestral sampling is only valid for VE and VP diffusion models")
         super().__init__(diffusion, score_function, end_diff_time, max_diff_steps)

@@ -15,7 +15,7 @@ matplotlib.rcParams.update({
 
 if __name__ == "__main__":
     td = 2
-    N = 1000  # In OU, constant noise schedule implies need for longer diffusion chain (try with 100)
+    N = 1000  # In OUSDE, constant noise schedule implies need for longer diffusion chain (try with 100)
     numSamples = 10000
     rng = np.random.default_rng()
     data = generate_circles(T=td, S=numSamples, noise=0.03)

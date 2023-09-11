@@ -39,19 +39,19 @@ class VESDEDiffusion(nn.Module):
         return dataSamples + torch.sqrt(effTimes) * epsts, -epsts / torch.sqrt(effTimes)
 
     @staticmethod
-    def get_loss_weighting(effTimes: torch.Tensor) -> torch.Tensor:
+    def get_loss_weighting(eff_times: torch.Tensor) -> torch.Tensor:
         """
         Weighting for objective function during training
-        :param effTimes: Effective SDE time
-        :return: Square root of weight
+            :param eff_times: Effective SDE time
+            :return: Square root of weight
         """
-        return torch.sqrt(effTimes)
+        return torch.sqrt(eff_times)
 
     def get_eff_times(self, diff_times: torch.Tensor) -> torch.Tensor:
         """
         Return effective SDE times
-        :param diff_times: Discrete times at which we evaluate SDE
-        :return: Effective time
+            :param diff_times: Discrete times at which we evaluate SDE
+            :return: Effective time
         """
         return self.get_var_min() * (self.get_var_max() / self.get_var_min()) ** diff_times
 

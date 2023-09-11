@@ -12,7 +12,8 @@ def get_config():
     # Data set parameters
     config.hurst = 0.7
     config.timeDim = 32
-    config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(str(0.7).replace(".", ""), 2)
+    config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(
+        str(config.hurst).replace(".", ""), config.timeDim)
 
     # Training hyperparameters
     config.train_eps = 1e-3
@@ -64,6 +65,6 @@ def get_config():
     config.max_lang_steps = 0
     config.snr = 0.
     config.predictor_model = "ancestral"  # vs "euler-maryuama"
-    config.corrector_model = "VP"  # vs "VE" vs "OU"
+    config.corrector_model = "VP"  # vs "VE" vs "OUSDE"
 
     return config

@@ -17,7 +17,7 @@ matplotlib.rcParams.update({
 if __name__ == "__main__":
     h = 0.7
     td = 2
-    N = 1000  # In OU, constant noise schedule implies need for longer diffusion chain (try with 10) (TODO WHY? -> it does not have to do with convergence to prior)
+    N = 1000  # In OUSDE, constant noise schedule implies need for longer diffusion chain (try with 10) (TODO WHY? -> it does not have to do with convergence to prior)
     numSamples = 100000
     rng = np.random.default_rng()
     data = generate_fBn(H=h, T=td, S=numSamples, rng=rng)

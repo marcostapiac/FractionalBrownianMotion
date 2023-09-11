@@ -4,7 +4,7 @@ import torch
 import torchmetrics
 from torchmetrics import MeanMetric
 
-from src.generative_modelling.models.ClassOUDiffusion import OUDiffusion
+from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
@@ -17,7 +17,7 @@ class DiffusionModelTrainer:
 
     # Training of a model is a separate module from the optimiser specification and splitting of the data
     def __init__(self,
-                 diffusion: Union[VESDEDiffusion, OUDiffusion, VPSDEDiffusion],
+                 diffusion: Union[VESDEDiffusion, OUSDEDiffusion, VPSDEDiffusion],
                  score_network: Union[NaiveMLP, TimeSeriesScoreMatching],
                  train_data_loader: torch.utils.data.dataloader.DataLoader,
                  train_eps: float,
@@ -81,7 +81,7 @@ class DiffusionModelTrainer:
             eff_times = self.diffusion.get_eff_times(diff_times)
             xts, targets = self.diffusion.noising_process(x0s, eff_times)
             outputs = self.score_network.forward(inputs=xts, times=diff_times.squeeze(-1)).squeeze(1)
-            weights = self.diffusion.get_loss_weighting(eff_times)
+            weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
             self._batch_loss_compute(outputs=weights * outputs, targets=weights * targets)
 
     def _save_checkpoint(self, epoch: int, filepath: str) -> None:

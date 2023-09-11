@@ -5,14 +5,15 @@ from configs import project_config
 
 
 def get_config():
-    """ Training hyperparameters for OU SDE model on 32-dimensional Fractional Brownian Motion with Hurst parameter 0.7"""
+    """ Training hyperparameters for OUSDE SDE model on 32-dimensional Fractional Brownian Motion with Hurst parameter 0.7"""
 
     config = ml_collections.ConfigDict()
 
     # Data set parameters
     config.hurst = 0.7
     config.timeDim = 32
-    config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(str(0.7).replace(".", ""), 2)
+    config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(
+        str(config.hurst).replace(".", ""), config.timeDim)
 
     # Training hyperparameters
     config.train_eps = 1e-3
@@ -35,16 +36,16 @@ def get_config():
     config.dialation_length = 10
 
     # Model filepath
-    config.mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_fBm_OU_model_H{}_T{}_Ndiff{}_Tdiff{}_trainEps{:.0e}_StdMax{:.4f}_StdMin{:.4f}_TembDim{}_EncShapes{}".format(
-        config.hurst,
+    config.mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_fBm_OUSDE_model_H{}_T{}_Ndiff{}_Tdiff{}_trainEps{:.0e}_TembDim{}_EncShapes{}".format(
+        str(config.hurst).replace(".", ""),
         config.timeDim,
-        config.max_diff_steps, config.end_diff_time, config.train_eps, config.std_max, config.std_min, config.temb_dim,
+        config.max_diff_steps, config.end_diff_time, config.train_eps, config.temb_dim,
         config.enc_shapes)
 
-    config.tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_fBm_OU_model_H{}_T{}_Ndiff{}_Tdiff{}_trainEps{:.0e}_StdMax{:.4f}_StdMin{:.4f}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}".format(
-        config.hurst,
+    config.tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_fBm_OUSDE_model_H{}_T{}_Ndiff{}_Tdiff{}_trainEps{:.0e}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}".format(
+        str(config.hurst).replace(".", ""),
         config.timeDim,
-        config.max_diff_steps, config.end_diff_time, config.train_eps, config.std_max, config.std_min, config.temb_dim,
+        config.max_diff_steps, config.end_diff_time, config.train_eps, config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size)
 
     config.model_choice = "TSM"

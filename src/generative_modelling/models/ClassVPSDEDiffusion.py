@@ -15,24 +15,26 @@ class VPSDEDiffusion(nn.Module):
         self._beta_max = beta_max
         self._beta_min = beta_min
 
-    def get_discretised_beta(self, diff_index: Union[torch.Tensor, int], max_diff_steps:int) -> torch.Tensor:
+    def get_discretised_beta(self, diff_index: Union[torch.Tensor, int], max_diff_steps: int) -> torch.Tensor:
         """
         Return discretised variance value at corresponding forward diffusion indices
             :param diff_index: FORWARD diffusion index
             :return: Beta value
         """
-        beta_min = self.get_beta_min()/max_diff_steps
-        beta_max = self.get_beta_max()/max_diff_steps
-        assert(beta_max < max_diff_steps)
+        beta_min = self.get_beta_min() / max_diff_steps
+        beta_max = self.get_beta_max() / max_diff_steps
+        assert (beta_max < max_diff_steps)
         return beta_min + (beta_max - beta_min) * diff_index / (max_diff_steps - 1)
 
-    def get_discretised_alpha(self, diff_index: int, max_diff_steps:int) -> torch.Tensor:
+    def get_discretised_alpha(self, diff_index: int, max_diff_steps: int) -> torch.Tensor:
         """
         Return DDPM alpha value at corresponding forward diffusion index
             :param diff_index: FORWARD diffusion index
             :return: Alpha value
         """
-        return torch.cumprod(1. - self.get_discretised_beta(torch.linspace(start=0, end=diff_index), max_diff_steps=max_diff_steps), dim=0)
+        return torch.cumprod(
+            1. - self.get_discretised_beta(torch.linspace(start=0, end=diff_index), max_diff_steps=max_diff_steps),
+            dim=0)
 
     def get_beta_min(self) -> torch.Tensor:
         """ Return minimum variance parameter as a torch.Tensor """
@@ -58,9 +60,13 @@ class VPSDEDiffusion(nn.Module):
         return xts, -epsts / torch.sqrt((1. - torch.exp(-effTimes)))
 
     @staticmethod
-    def get_loss_weighting(effTimes: torch.Tensor) -> torch.Tensor:
-        """ Sample from the target in the forward diffusion """
-        return torch.sqrt(1. - torch.exp(-effTimes))
+    def get_loss_weighting(eff_times: torch.Tensor) -> torch.Tensor:
+        """
+        Weighting for objective function during training
+            :param eff_times: Effective SDE time
+            :return: Square root of weight
+        """
+        return torch.sqrt(1. - torch.exp(-eff_times))
 
     def get_eff_times(self, diff_times: torch.Tensor) -> torch.Tensor:
         """
@@ -76,7 +82,8 @@ class VPSDEDiffusion(nn.Module):
 
     def get_ancestral_sampling(self, x: torch.Tensor, t: torch.Tensor,
                                score_network: Union[NaiveMLP, TimeSeriesScoreMatching],
-                               diff_index: torch.Tensor, max_diff_steps: int)-> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
+                               diff_index: torch.Tensor, max_diff_steps: int) -> Tuple[
+        torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Compute parameters for one-step in ancestral sampling of reverse-time diffusion
             :param x: Current reverse-time diffusion sample

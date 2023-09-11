@@ -15,7 +15,7 @@ class Corrector(abc.ABC):
         self.snr = r
 
     def _step(self, x: torch.Tensor, predicted_score: torch.Tensor, predictor_noise: torch.Tensor,
-              diff_index: int,*args) -> torch.Tensor:
+              diff_index: int, *args) -> torch.Tensor:
         """
         Abstract private method for single step of corrector
             :param x: Current sample

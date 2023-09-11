@@ -2,6 +2,8 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 
+from configs import project_config
+
 plt.style.use('ggplot')
 matplotlib.rcParams.update({
     'font.family': 'serif',
@@ -12,7 +14,7 @@ matplotlib.rcParams.update({
 fig, ax = plt.subplots()
 
 td = 2
-data = np.load(config.ROOT_DIR + "data/{}_noisy_circle_samples.npy".format(102890))[0, :].reshape((td, 1))
+data = np.load(project_config.ROOT_DIR + "data/noisy_circle_samples.npy")[0, :].reshape((td, 1))
 eps = 1e-4
 
 Tmax = 1.2

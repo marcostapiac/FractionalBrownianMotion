@@ -14,7 +14,7 @@ from src.classes.ClassFractionalCEV import FractionalCEV
 from src.classes.ClassPredictor import AncestralSamplingPredictor, EulerMaruyamaPredictor
 from src.classes.ClassSDESampler import SDESampler
 from src.classes.ClassTrainer import DiffusionModelTrainer
-from src.generative_modelling.models.ClassOUDiffusion import OUDiffusion
+from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
@@ -43,7 +43,7 @@ def prepare_data(data: np.ndarray, batch_size: int) -> Tuple[DataLoader, DataLoa
     return trainLoader, valLoader, testLoader
 
 
-def train_diffusion_model(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUDiffusion],
+def train_diffusion_model(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
                           trainLoader: torch.utils.data.DataLoader,
                           valLoader: torch.utils.data.DataLoader, opt: torch.optim.Optimizer, nEpochs: int) -> Tuple[
     np.array, np.array]:
@@ -72,8 +72,8 @@ def train_diffusion_model(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUDif
 
 def save_and_train_diffusion_model(data: np.ndarray, model_filename: str, batch_size: int,
                                    nEpochs: int, lr: float,
-                                   diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUDiffusion]) -> Union[
-    VPSDEDiffusion, VESDEDiffusion, OUDiffusion]:
+                                   diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion]) -> Union[
+    VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion]:
     """
     Abstract function which calls training function, plots losses, and saves trained model
         :param data: Training dataset
@@ -112,7 +112,7 @@ def save_and_train_diffusion_model(data: np.ndarray, model_filename: str, batch_
 def revamped_train_and_save_diffusion_model(data: np.ndarray, model_filename: str, batch_size: int,
                                             nEpochs: int, lr: float, train_eps: float, end_diff_time: float,
                                             max_diff_steps: int,
-                                            diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUDiffusion],
+                                            diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
                                             scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
                                             checkpoint_freq: int) -> Union[NaiveMLP, TimeSeriesScoreMatching]:
     trainLoader, valLoader, testLoader = prepare_data(data, batch_size=batch_size)
@@ -125,11 +125,13 @@ def revamped_train_and_save_diffusion_model(data: np.ndarray, model_filename: st
     return scoreModel
 
 
-def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUDiffusion],
-                     scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], data_shape: Tuple[int, int], config:ConfigDict) -> torch.Tensor:
+def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
+                     scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], data_shape: Tuple[int, int],
+                     config: ConfigDict) -> torch.Tensor:
     # Define predictor
     predictor_params = [diffusion, scoreModel, config.end_diff_time, config.max_diff_steps]
-    predictor = AncestralSamplingPredictor(*predictor_params) if config.predictor_model == "ancestral" else EulerMaruyamaPredictor(*predictor_params)
+    predictor = AncestralSamplingPredictor(
+        *predictor_params) if config.predictor_model == "ancestral" else EulerMaruyamaPredictor(*predictor_params)
 
     # Define corrector
     corrector_params = [config.max_lang_steps, config.snr, diffusion]
@@ -146,7 +148,7 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUDiffusio
     return final_samples  # TODO Check if need to detach
 
 
-def check_convergence_at_diffTime(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUDiffusion],
+def check_convergence_at_diffTime(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
                                   t: int, dataSamples: np.ndarray) -> Tuple[np.ndarray,
                                                                             np.ndarray,
                                                                             list[str]]:
