@@ -1,4 +1,5 @@
 import ml_collections
+import torch
 
 from configs import project_config
 
@@ -8,10 +9,16 @@ def get_config():
 
     config = ml_collections.ConfigDict()
 
+    # Experiment environment parameters
+    config.has_cuda = torch.cuda.is_available()
+
     # Data set parameters
     config.timeDim = 2
     config.cnoise = 0.03
     config.data_path = project_config.ROOT_DIR + "data/noisy_circle_samples.npy"
+
+    # Experiment environment parameters
+    config.has_cuda = torch.cuda.is_available()
 
     # Training hyperparameters
     config.train_eps = 1e-3
@@ -34,19 +41,23 @@ def get_config():
     config.dialation_length = 10
 
     # Model filepath
-    config.mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_noisy_circle_OUSDE_conditional_model_Ndiff{}_Tdiff{}_trainEps{:.0e}_TembDim{}_EncShapes{}".format(
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_noisy_circle_OUSDE_conditional_model_Ndiff{}_Tdiff{}_trainEps{:.0e}_TembDim{}_EncShapes{}".format(
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.temb_dim,
         config.enc_shapes)
 
-    config.tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_noisy_circle_OUSDE_conditional_model_Ndiff{}_Tdiff{}_trainEps{:.0e}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}".format(
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_noisy_circle_OUSDE_conditional_model_Ndiff{}_Tdiff{}_trainEps{:.0e}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}".format(
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size)
 
     config.model_choice = "TSM"
+    config.filename = tsmFileName if config.model_choice == "TSM" else mlpFileName
     config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.residual_layers,
                                config.residual_channels, config.dialation_length] \
         if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.timeDim, config.enc_shapes,
                                               config.dec_shapes]
+
+    # Snapshot filepath
+    config.snapshot_path = config.filename.replace("trained_models/", "snapshots/")
 
     # Sampling hyperparameters
     config.sample_eps = 1e-3

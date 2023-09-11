@@ -8,7 +8,8 @@ from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
-from utils.data_processing import revamped_train_and_save_diffusion_model, reverse_sampling, evaluate_circle_performance
+from utils.data_processing import reverse_sampling, evaluate_circle_performance, \
+    initialise_training
 from utils.math_functions import generate_circles
 
 
@@ -39,7 +40,7 @@ if __name__ == "__main__":
     N = config.max_diff_steps
     Tdiff = config.end_diff_time
 
-    modelFileName = config.mlpFileName if config.model_choice == "MLP" else config.tsmFileName
+    modelFileName = config.filename
     rng = np.random.default_rng()
     scoreModel = TimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
@@ -53,22 +54,14 @@ if __name__ == "__main__":
         try:
             scoreModel.load_state_dict(torch.load(modelFileName))
         except FileNotFoundError:
-            scoreModel = revamped_train_and_save_diffusion_model(data, model_filename=modelFileName,
-                                                                 batch_size=config.batch_size,
-                                                                 nEpochs=config.max_epochs, lr=config.lr,
-                                                                 train_eps=trainEps,
-                                                                 diffusion=diffusion, scoreModel=scoreModel,
-                                                                 checkpoint_freq=config.save_freq, max_diff_steps=N,
-                                                                 end_diff_time=Tdiff)
+            initialise_training(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
 
     except (AssertionError, FileNotFoundError) as e:
+        print("Generating synthetic data\n")
         data = generate_circles(S=training_size, noise=config.cnoise)
         np.save(config.data_path, data)  # TODO is this the most efficient way
-        scoreModel = revamped_train_and_save_diffusion_model(data, model_filename=modelFileName,
-                                                             batch_size=config.batch_size, nEpochs=config.max_epochs,
-                                                             lr=config.lr, train_eps=trainEps,
-                                                             diffusion=diffusion, scoreModel=scoreModel,
-                                                             checkpoint_freq=config.save_freq, max_diff_steps=N,
-                                                             end_diff_time=Tdiff)
-    s = 30000
+        initialise_training(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
+
+    s = 3000
+    scoreModel.load_state_dict(torch.load(modelFileName))
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, config=config)

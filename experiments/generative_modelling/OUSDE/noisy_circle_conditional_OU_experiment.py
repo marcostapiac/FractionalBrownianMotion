@@ -8,8 +8,7 @@ from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
-from utils.data_processing import revamped_train_and_save_diffusion_model, \
-    evaluate_circle_performance, reverse_sampling
+from utils.data_processing import evaluate_circle_performance, reverse_sampling, initialise_training
 from utils.math_functions import generate_circles
 
 LR = 1e-3
@@ -62,22 +61,14 @@ if __name__ == "__main__":
         try:
             scoreModel.load_state_dict(torch.load(modelFileName))
         except FileNotFoundError:
-            scoreModel = revamped_train_and_save_diffusion_model(latent, model_filename=modelFileName,
-                                                                 batch_size=config.batch_size,
-                                                                 nEpochs=config.max_epochs, lr=config.lr,
-                                                                 train_eps=trainEps,
-                                                                 diffusion=diffusion, scoreModel=scoreModel,
-                                                                 checkpoint_freq=config.save_freq, max_diff_steps=N,
-                                                                 end_diff_time=Tdiff)
+            initialise_training(data=latent, config=config, diffusion=diffusion, scoreModel=scoreModel)
+
     except (AssertionError, FileNotFoundError) as e:
         latent = generate_circles(S=training_size, noise=config.cnoise)
         np.save(config.data_path, latent)  # TODO is this the most efficient way
         observations = observation_model(latent)
-        scoreModel = revamped_train_and_save_diffusion_model(latent, model_filename=modelFileName,
-                                                             batch_size=config.batch_size, nEpochs=config.max_epochs,
-                                                             lr=config.lr, train_eps=trainEps,
-                                                             diffusion=diffusion, scoreModel=scoreModel,
-                                                             checkpoint_freq=config.save_freq, max_diff_steps=N,
-                                                             end_diff_time=Tdiff)
+        initialise_training(data=latent, config=config, diffusion=diffusion, scoreModel=scoreModel)
+
     s = 30000
+    scoreModel.load_state_dict(torch.load(modelFileName))
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, config=config)

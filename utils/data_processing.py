@@ -1,12 +1,16 @@
-import pickle
+import os
 from typing import Tuple, Union
 
 import numpy as np
 import pandas as pd
 import torch
+import torch.multiprocessing as mp
 import torchmetrics
 from ml_collections import ConfigDict
+from torch.distributed import init_process_group, destroy_process_group
+from torch.nn.parallel import DistributedDataParallel as DDP  # DDP wrapper
 from torch.utils.data import DataLoader
+from torch.utils.data.distributed import DistributedSampler
 
 from src.classes.ClassCorrector import VESDECorrector, VPSDECorrector
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
@@ -22,112 +26,133 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesS
     TimeSeriesScoreMatching
 from utils.math_functions import chiSquared_test, reduce_to_fBn, compute_fBm_cov, permutation_test, \
     energy_statistic, MMD_statistic
-from utils.plotting_functions import plot_and_save_loss_epochs, plot_final_diffusion_marginals, plot_dataset, \
+from utils.plotting_functions import plot_final_diffusion_marginals, plot_dataset, \
     plot_diffCov_heatmap, \
     plot_tSNE, plot_subplots
 
 
-def prepare_data(data: np.ndarray, batch_size: int) -> Tuple[DataLoader, DataLoader, DataLoader]:
+def ddp_setup(backend: str, rank: int, world_size: int) -> None:
+    """
+    DDP setup to allow processes to discover and communicate with each other with TorchRun
+    :param backend: Gloo vs NCCL for CPU vs GPU, respectively
+    :return: None
+    """
+    os.environ["MASTER_ADDR"] = "localhost"
+    os.environ["MASTER_PORT"] = "1000"
+    init_process_group(backend=backend, rank=rank, world_size=world_size)
+
+
+def prepare_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> Tuple[DataLoader, DataLoader, DataLoader]:
     """
     Split data into train, eval, test sets and create DataLoaders for training
         :param data: Training data
         :param batch_size: Batch size
+        :param config: ML Collection dictionary
         :return: Train, Validation, Test dataloaders
     """
     dataset = torch.utils.data.TensorDataset(torch.from_numpy(data).float())
     train, val, test = torch.utils.data.random_split(dataset, [0.8, 0.1, 0.1])
-    trainLoader, valLoader, testLoader = DataLoader(train, batch_size=batch_size, pin_memory=True, shuffle=True), \
-                                         DataLoader(val, batch_size=batch_size, pin_memory=True, shuffle=True), \
-                                         DataLoader(test, batch_size=batch_size, pin_memory=True,
-                                                    shuffle=True)  # Returns iterator
+    # TODO: Do I want a Distributed Sampler for validation and test too?
+    # TODO: Shuffle is turned to False when using a Sampler, since it specifies the shuffling strategy
+    # TODO: sampler=DistributedSampler(train)
+    if config.has_cuda:
+        trainLoader, valLoader, testLoader = DataLoader(train, batch_size=batch_size, pin_memory=True, shuffle=False,
+                                                        sampler=DistributedSampler(train)), \
+                                             DataLoader(val, batch_size=batch_size, pin_memory=True, shuffle=False,
+                                                        sampler=DistributedSampler(val)), \
+                                             DataLoader(test, batch_size=batch_size, pin_memory=True, shuffle=False,
+                                                        sampler=DistributedSampler(test))
+    else:
+        trainLoader, valLoader, testLoader = DataLoader(train, batch_size=batch_size, pin_memory=True, shuffle=True,
+                                                        num_workers=0), \
+                                             DataLoader(val, batch_size=batch_size, pin_memory=True, shuffle=True,
+                                                        num_workers=0), \
+                                             DataLoader(test, batch_size=batch_size, pin_memory=True, shuffle=True,
+                                                        num_workers=0)
+
     return trainLoader, valLoader, testLoader
 
 
-def train_diffusion_model(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
-                          trainLoader: torch.utils.data.DataLoader,
-                          valLoader: torch.utils.data.DataLoader, opt: torch.optim.Optimizer, nEpochs: int) -> Tuple[
-    np.array, np.array]:
+def initialise_training(data: np.ndarray, config: ConfigDict,
+                        diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
+                        scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching]) -> None:
     """
-    Abstract function to train model
-        :param diffusion: Untrained model
-        :param trainLoader: Training data DataLoader
-        :param valLoader: Validation data DataLoader
-        :param opt: Optimiser
-        :param nEpochs: Number of training epochs
-        :return: Train and Validation Losses
+    Helper function to initiate training
+        :param data: Dataset
+        :param config: Configuration dictionary with relevant parameters
+        :param diffusion: SDE model
+        :param scoreModel: Score network architecture
+        :return: None
     """
-    # TODO: Need to move variables to correct device -- but which ones?
-    train_losses = []
-    val_losses = []
-    for i in range(nEpochs):
-        train_loss = diffusion.one_epoch_diffusion_train(trainLoader=trainLoader, opt=opt)
-        val_loss = diffusion.evaluate_diffusion_model(loader=valLoader)
-        train_losses.append(train_loss)
-        val_losses.append(val_loss)
-        print(
-            "Percent Completed {:0.4f} Train :: Val Losses, {:0.4f} :: {:0.4f}".format((i + 1) / nEpochs, train_loss,
-                                                                                       val_loss))
-    return train_losses, val_losses
+    if config.has_cuda:
+        # Spawn one process for every GPU device, automatically assign rank
+        world_size = torch.cuda.device_count()
+        mp.spawn(train_and_save_diffusion_model, args=(world_size, data, config, diffusion, scoreModel),
+                 nprocs=world_size)
+    else:
+        # Only one CPU device, so we have 1 core on 1 device
+        train_and_save_diffusion_model(rank=0, world_size=1, data=data, config=config, diffusion=diffusion,
+                                       scoreModel=scoreModel)
 
 
-def save_and_train_diffusion_model(data: np.ndarray, model_filename: str, batch_size: int,
-                                   nEpochs: int, lr: float,
-                                   diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion]) -> Union[
-    VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion]:
+def train_and_save_diffusion_model(rank: int, world_size: int, data: np.ndarray,
+                                   config: ConfigDict,
+                                   diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
+                                   scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching]) -> None:
     """
-    Abstract function which calls training function, plots losses, and saves trained model
-        :param data: Training dataset
-        :param model_filename: Filename to store trained model
-        :param batch_size: Size of batch during training
-        :param nEpochs: Number of training epochs
-        :param lr: Learning rate for optimiser
-        :param diffusion: Untrained diffusion model
-        :return: Trained diffusion model
+    Helper function to initiate training
+        :param rank: Unique process indentifier
+        :param world_size: Total number of processes
+        :param data: Dataset
+        :param config: Configuration dictionary with relevant parameters
+        :param diffusion: SDE model
+        :param scoreModel: Score network architecture
+        :return: None
     """
-    trainLoader, valLoader, testLoader = prepare_data(data, batch_size=batch_size)
+    if config.has_cuda:
+        ddp_setup(backend="nccl", rank=rank, world_size=world_size)
+        device = rank
+    else:
+        ddp_setup(backend="gloo", rank=rank, world_size=world_size)
+        torch.set_num_threads(int(0.75 * os.cpu_count()))
+        device = torch.device("cpu")
 
-    # Set up optimiser
-    optimiser = torch.optim.Adam((diffusion.parameters()), lr=lr)  # No need to move to device
+    # Preprocess data
+    trainLoader, valLoader, testLoader = prepare_data(data=data, batch_size=config.batch_size, config=config)
 
-    # Compute number of parameters
-    params = 0
-    for item in optimiser.param_groups[0]["params"]:
-        params += np.prod(item.shape)
-    print("Number of model parameters : {}".format(params))
+    scoreModel = DDP(scoreModel, device_ids=None) if type(device) != int else DDP(scoreModel, device_ids=[rank])
 
-    # Call training function
-    train_loss, val_loss = train_diffusion_model(diffusion=diffusion, trainLoader=trainLoader,
-                                                 valLoader=valLoader,
-                                                 opt=optimiser, nEpochs=nEpochs)
-    # Plot loss curves
-    plot_and_save_loss_epochs(epochs=np.arange(1, nEpochs + 1, step=1), val_loss=val_loss,
-                              train_loss=np.array(train_loss))
-    # Save trained model to pickle file
-    file = open(model_filename, "wb")
-    pickle.dump(diffusion, file)
-    file.close()
-    return diffusion
+    # Define optimiser
+    optimiser = torch.optim.Adam((scoreModel.parameters()), lr=config.lr)  # TODO: Do we not need DDP?
 
+    # Define trainer
+    train_eps, end_diff_time, max_diff_steps, checkpoint_freq = config.train_eps, config.end_diff_time, config.max_diff_steps, config.save_freq
 
-def revamped_train_and_save_diffusion_model(data: np.ndarray, model_filename: str, batch_size: int,
-                                            nEpochs: int, lr: float, train_eps: float, end_diff_time: float,
-                                            max_diff_steps: int,
-                                            diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
-                                            scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
-                                            checkpoint_freq: int) -> Union[NaiveMLP, TimeSeriesScoreMatching]:
-    trainLoader, valLoader, testLoader = prepare_data(data, batch_size=batch_size)
-    optimiser = torch.optim.Adam((scoreModel.parameters()), lr=lr)  # No need to move to device
     trainer = DiffusionModelTrainer(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                                     checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
-                                    loss_aggregator=torchmetrics.aggregation.MeanMetric, gpu_id=0, train_eps=train_eps,
+                                    loss_aggregator=torchmetrics.aggregation.MeanMetric,
+                                    snapshot_path=config.snapshot_path, rank=device,
+                                    train_eps=train_eps,
                                     end_diff_time=end_diff_time, max_diff_steps=max_diff_steps)
-    trainer.train(max_epochs=nEpochs, model_filename=model_filename)
-    return scoreModel
+
+    # Start training
+    trainer.train(max_epochs=config.max_epochs, model_filename=config.filename)
+
+    # Cleanly exit the DDP training
+    destroy_process_group()
 
 
 def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
                      scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], data_shape: Tuple[int, int],
                      config: ConfigDict) -> torch.Tensor:
+    """
+    Helper function to initiate sampling
+        :param diffusion: Diffusion model
+        :param scoreModel: Trained score network
+        :param data_shape: Desired shape of generated samples
+        :param config: Configuration dictionary for experiment
+        :return: Final reverse-time samples
+    """
     # Define predictor
     predictor_params = [diffusion, scoreModel, config.end_diff_time, config.max_diff_steps]
     predictor = AncestralSamplingPredictor(

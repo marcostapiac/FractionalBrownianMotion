@@ -9,7 +9,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP im
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
 from utils.data_processing import evaluate_performance, \
-    revamped_train_and_save_diffusion_model, reverse_sampling
+    reverse_sampling, initialise_training
 from utils.math_functions import generate_fBn, generate_fBm
 
 
@@ -58,23 +58,14 @@ if __name__ == "__main__":
         try:
             scoreModel.load_state_dict(torch.load(modelFileName))
         except FileNotFoundError:
-            scoreModel = revamped_train_and_save_diffusion_model(data, model_filename=modelFileName,
-                                                                 batch_size=config.batch_size,
-                                                                 nEpochs=config.max_epochs, lr=config.lr,
-                                                                 train_eps=trainEps,
-                                                                 diffusion=diffusion, scoreModel=scoreModel,
-                                                                 checkpoint_freq=config.save_freq, max_diff_steps=N,
-                                                                 end_diff_time=Tdiff)
+            initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
 
     except (AssertionError, FileNotFoundError) as e:
         data = generate_fBn(T=td, S=training_size, H=h, rng=rng)
         np.save(config.data_path, data)  # TODO is this the most efficient way
         data = data.cumsum(axis=1)
-        scoreModel = revamped_train_and_save_diffusion_model(data, model_filename=modelFileName,
-                                                             batch_size=config.batch_size, nEpochs=config.max_epochs,
-                                                             lr=config.lr, train_eps=trainEps,
-                                                             diffusion=diffusion, scoreModel=scoreModel,
-                                                             checkpoint_freq=config.save_freq, max_diff_steps=N,
-                                                             end_diff_time=Tdiff)
+        initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
+
     s = 30000
+    scoreModel.load_state_dict(torch.load(modelFileName))
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, rng=rng, config=config)

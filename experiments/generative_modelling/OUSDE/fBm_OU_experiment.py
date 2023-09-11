@@ -8,8 +8,7 @@ from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
-from utils.data_processing import evaluate_performance, \
-    revamped_train_and_save_diffusion_model, reverse_sampling
+from utils.data_processing import evaluate_performance, reverse_sampling, initialise_training
 from utils.math_functions import generate_fBn, generate_fBm
 
 
@@ -44,7 +43,6 @@ if __name__ == "__main__":
     N = config.max_diff_steps
     Tdiff = config.end_diff_time
 
-    modelFileName = config.mlpFileName if config.model_choice == "MLP" else config.tsmFileName
     rng = np.random.default_rng()
     scoreModel = TimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
@@ -57,25 +55,17 @@ if __name__ == "__main__":
         assert (data.shape[0] >= training_size)
         data = data[:training_size, :].cumsum(axis=1)
         try:
-            scoreModel.load_state_dict(torch.load(modelFileName))
+            scoreModel.load_state_dict(torch.load(config.filename))
         except FileNotFoundError:
-            scoreModel = revamped_train_and_save_diffusion_model(data, model_filename=modelFileName,
-                                                                 batch_size=config.batch_size,
-                                                                 nEpochs=config.max_epochs, lr=config.lr,
-                                                                 train_eps=trainEps,
-                                                                 diffusion=diffusion, scoreModel=scoreModel,
-                                                                 checkpoint_freq=config.save_freq, max_diff_steps=N,
-                                                                 end_diff_time=Tdiff)
+            scoreModel = initialise_training(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
 
     except (AssertionError, FileNotFoundError) as e:
+        print("Generating synthetic data\n")
         data = generate_fBn(T=td, S=training_size, H=h, rng=rng)
         np.save(config.data_path, data)  # TODO is this the most efficient way?
         data = data.cumsum(axis=1)
-        scoreModel = revamped_train_and_save_diffusion_model(data, model_filename=modelFileName,
-                                                             batch_size=config.batch_size, nEpochs=config.max_epochs,
-                                                             lr=config.lr, train_eps=trainEps,
-                                                             diffusion=diffusion, scoreModel=scoreModel,
-                                                             checkpoint_freq=config.save_freq, max_diff_steps=N,
-                                                             end_diff_time=Tdiff)
+        scoreModel = initialise_training(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
+
     s = 30000
+    scoreModel.load_state_dict(torch.load(config.filename))
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, rng=rng, config=config)
