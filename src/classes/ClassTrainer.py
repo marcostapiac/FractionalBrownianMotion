@@ -21,7 +21,6 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesS
 class DiffusionModelTrainer:
     """ Trainer class for a single GPU on a single machine, reporting aggregate loss over all batches """
 
-    # Training of a model is a separate module from the optimiser specification and splitting of the data
     def __init__(self,
                  diffusion: Union[VESDEDiffusion, OUSDEDiffusion, VPSDEDiffusion],
                  score_network: Union[NaiveMLP, TimeSeriesScoreMatching],
@@ -119,6 +118,11 @@ class DiffusionModelTrainer:
             self._run_batch(xts=xts, target_scores=target_scores, diff_times=diff_times, eff_times=eff_times)
 
     def _load_snapshot(self, snapshot_path: str) -> None:
+        """
+        Load training from most recent snapshot
+            :param snapshot_path: Path to training snapshot
+            :return: None
+        """
         # Snapshot should be python dict
         snapshot = torch.load(snapshot_path)
         self.score_network.load_state_dict(snapshot["MODEL_STATE"])
@@ -153,9 +157,9 @@ class DiffusionModelTrainer:
     def train(self, max_epochs: int, model_filename: str) -> None:
         """
         Run training for model
-        :param max_epochs: Total number of epochs
-        :param model_filename: Filepath to save model
-        :return: None
+            :param max_epochs: Total number of epochs
+            :param model_filename: Filepath to save model
+            :return: None
         """
         for epoch in range(self.epochs_run, max_epochs):
             self._run_epoch(epoch)
