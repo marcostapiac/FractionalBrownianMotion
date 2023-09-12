@@ -30,16 +30,17 @@ from utils.plotting_functions import plot_final_diffusion_marginals, plot_datase
     plot_diffCov_heatmap, \
     plot_tSNE, plot_subplots
 
-
-def ddp_setup(backend: str, rank: int, world_size: int) -> None:
+def ddp_setup(backend: str) -> None:
     """
     DDP setup to allow processes to discover and communicate with each other with TorchRun
     :param backend: Gloo vs NCCL for CPU vs GPU, respectively
     :return: None
     """
-    os.environ["MASTER_ADDR"] = "localhost"
-    os.environ["MASTER_PORT"] = "1000"
-    init_process_group(backend=backend, rank=rank, world_size=world_size)
+    #os.environ["MASTER_ADDR"] = "localhost"
+    #os.environ["MASTER_PORT"] = "1000"
+    #init_process_group(backend=backend)#, rank=rank, world_size=world_size)
+    print("Changes done")
+    pass
 
 
 def prepare_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> Tuple[DataLoader, DataLoader, DataLoader]:
@@ -56,12 +57,18 @@ def prepare_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> Tuple
     # TODO: Shuffle is turned to False when using a Sampler, since it specifies the shuffling strategy
     # TODO: sampler=DistributedSampler(train)
     if config.has_cuda:
-        trainLoader, valLoader, testLoader = DataLoader(train, batch_size=batch_size, pin_memory=True, shuffle=False,
+        """trainLoader, valLoader, testLoader = DataLoader(train, batch_size=batch_size, pin_memory=True, shuffle=False,
                                                         sampler=DistributedSampler(train)), \
                                              DataLoader(val, batch_size=batch_size, pin_memory=True, shuffle=False,
                                                         sampler=DistributedSampler(val)), \
                                              DataLoader(test, batch_size=batch_size, pin_memory=True, shuffle=False,
-                                                        sampler=DistributedSampler(test))
+                                                        sampler=DistributedSampler(test))"""
+        trainLoader, valLoader, testLoader = DataLoader(train, batch_size=batch_size, pin_memory=True, shuffle=True,
+                                                num_workers=0), \
+                                     DataLoader(val, batch_size=batch_size, pin_memory=True, shuffle=True,
+                                                num_workers=0), \
+                                     DataLoader(test, batch_size=batch_size, pin_memory=True, shuffle=True,
+                                                num_workers=0)
     else:
         trainLoader, valLoader, testLoader = DataLoader(train, batch_size=batch_size, pin_memory=True, shuffle=True,
                                                         num_workers=0), \
@@ -86,16 +93,15 @@ def initialise_training(data: np.ndarray, config: ConfigDict,
     """
     if config.has_cuda:
         # Spawn one process for every GPU device, automatically assign rank
-        world_size = torch.cuda.device_count()
-        mp.spawn(train_and_save_diffusion_model, args=(world_size, data, config, diffusion, scoreModel),
-                 nprocs=world_size)
+        #world_size = torch.cuda.device_count()
+        #mp.spawn(train_and_save_diffusion_model, args=(world_size, data, config, diffusion, scoreModel),
+                 #nprocs=world_size)
+        train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
     else:
         # Only one CPU device, so we have 1 core on 1 device
-        train_and_save_diffusion_model(rank=0, world_size=1, data=data, config=config, diffusion=diffusion,
-                                       scoreModel=scoreModel)
+        train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
 
-
-def train_and_save_diffusion_model(rank: int, world_size: int, data: np.ndarray,
+def train_and_save_diffusion_model(data: np.ndarray,
                                    config: ConfigDict,
                                    diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
                                    scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching]) -> None:
@@ -110,28 +116,27 @@ def train_and_save_diffusion_model(rank: int, world_size: int, data: np.ndarray,
         :return: None
     """
     if config.has_cuda:
-        ddp_setup(backend="nccl", rank=rank, world_size=world_size)
-        device = rank
+        ddp_setup(backend="nccl")#, rank=rank, world_size=world_size)
+        device = 0 # TODO: Use device = rank passed by mp.spawn or COMPLETELY by pass with torchrun and int[os.environ["LOCAL_RANK"]] OR is the local path environ the same when we call Trainer (should be!)?
     else:
-        ddp_setup(backend="gloo", rank=rank, world_size=world_size)
-        torch.set_num_threads(int(0.75 * os.cpu_count()))
+        ddp_setup(backend="gloo")#, rank=rank, world_size=world_size)
+        #torch.set_num_threads(int(0.75 * os.cpu_count()))
         device = torch.device("cpu")
 
     # Preprocess data
     trainLoader, valLoader, testLoader = prepare_data(data=data, batch_size=config.batch_size, config=config)
-
-    scoreModel = DDP(scoreModel, device_ids=None) if type(device) != int else DDP(scoreModel, device_ids=[rank])
 
     # Define optimiser
     optimiser = torch.optim.Adam((scoreModel.parameters()), lr=config.lr)  # TODO: Do we not need DDP?
 
     # Define trainer
     train_eps, end_diff_time, max_diff_steps, checkpoint_freq = config.train_eps, config.end_diff_time, config.max_diff_steps, config.save_freq
-
+    
+    # TODO: When using DDP, set device = rank passed by mp.spawn OR by torchrun
     trainer = DiffusionModelTrainer(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                                     checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
                                     loss_aggregator=torchmetrics.aggregation.MeanMetric,
-                                    snapshot_path=config.snapshot_path, rank=device,
+                                    snapshot_path=config.snapshot_path, device=device,
                                     train_eps=train_eps,
                                     end_diff_time=end_diff_time, max_diff_steps=max_diff_steps)
 
@@ -139,8 +144,27 @@ def train_and_save_diffusion_model(rank: int, world_size: int, data: np.ndarray,
     trainer.train(max_epochs=config.max_epochs, model_filename=config.filename)
 
     # Cleanly exit the DDP training
-    destroy_process_group()
+    """destroy_process_group()"""
 
+def initialise_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
+                        scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], data_shape: Tuple[int,int]) -> None:
+    """
+    Helper function to initiate sampling
+        :param diffusion: SDE model
+        :param scoreModel: Score network architecture
+        :param data_shape: Desired shape of generated samples
+        :param config: Configuration dictionary with relevant parameters
+        :return: None
+    """
+    if config.has_cuda:
+        # Spawn one process for every GPU device, automatically assign rank
+        #world_size = torch.cuda.device_count()
+        #mp.spawn(train_and_save_diffusion_model, args=(world_size, data, config, diffusion, scoreModel),
+                 #nprocs=world_size)
+        reverse_sampling(diffusion=diffusion, scoreModel=scoreModel, data_shape=data_shape, config=config)
+    else:
+        # Only one CPU device, so we have 1 core on 1 device
+        reverse_sampling(diffusion=diffusion, scoreModel=scoreModel, data_shape=data_shape, config=config)
 
 def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
                      scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], data_shape: Tuple[int, int],
@@ -153,13 +177,21 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
         :param config: Configuration dictionary for experiment
         :return: Final reverse-time samples
     """
+    if config.has_cuda:
+        ddp_setup(backend="nccl")#, rank=rank, world_size=world_size)
+        device = 0  # TODO: Use device = rank passed by mp.spawn or COMPLETELY by pass with torchrun and int[os.environ["LOCAL_RANK"]] OR is the local path environ the same when we call SDESampler?
+    else:
+        ddp_setup(backend="gloo")#, rank=rank, world_size=world_size)
+        #torch.set_num_threads(int(0.75 * os.cpu_count()))
+        device = torch.device("cpu")
+    
     # Define predictor
-    predictor_params = [diffusion, scoreModel, config.end_diff_time, config.max_diff_steps]
+    predictor_params = [diffusion, scoreModel, config.end_diff_time, config.max_diff_steps, device]
     predictor = AncestralSamplingPredictor(
         *predictor_params) if config.predictor_model == "ancestral" else EulerMaruyamaPredictor(*predictor_params)
 
     # Define corrector
-    corrector_params = [config.max_lang_steps, config.snr, diffusion]
+    corrector_params = [config.max_lang_steps, torch.Tensor([config.snr]), device, diffusion]
     if config.corrector_model == "VE":
         corrector = VESDECorrector(*corrector_params)
     elif config.corrector_model == "VP":
@@ -169,7 +201,7 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
     sampler = SDESampler(diffusion=diffusion, sample_eps=config.sample_eps, predictor=predictor, corrector=corrector)
 
     # Sample
-    final_samples = sampler.sample(shape=data_shape)
+    final_samples = sampler.sample(shape=data_shape, torch_device=device)
     return final_samples  # TODO Check if need to detach
 
 

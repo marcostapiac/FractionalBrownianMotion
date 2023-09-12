@@ -25,7 +25,6 @@ def run_experiment(dataSize: int, diffusion: VESDEDiffusion, scoreModel: Union[N
     true_samples = generate_circles(S=dataSize, noise=config.cnoise)
     evaluate_circle_performance(true_samples, circle_samples.numpy(), td=config.timeDim)
 
-
 if __name__ == "__main__":
     # Data parameters
     from configs.VESDE.circles import get_config

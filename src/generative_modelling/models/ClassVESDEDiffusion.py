@@ -35,7 +35,7 @@ class VESDEDiffusion(nn.Module):
                 - Score
 
         """
-        epsts = torch.randn_like(dataSamples)
+        epsts = torch.randn_like(dataSamples) # Already in same device as dataSamples
         return dataSamples + torch.sqrt(effTimes) * epsts, -epsts / torch.sqrt(effTimes)
 
     @staticmethod
@@ -53,19 +53,22 @@ class VESDEDiffusion(nn.Module):
             :param diff_times: Discrete times at which we evaluate SDE
             :return: Effective time
         """
-        return self.get_var_min() * (self.get_var_max() / self.get_var_min()) ** diff_times
+        var_max = self.get_var_max().to(diff_times.get_device())
+        var_min = self.get_var_min().to(diff_times.get_device())
+        return var_min * (var_max / var_min) ** diff_times
 
     def prior_sampling(self, shape: Tuple[int, int]) -> torch.Tensor:
         """ Sample from the target in the forward diffusion """
         return torch.sqrt(self.get_var_max()) * torch.randn(shape)  # device= TODO
 
-    def get_ancestral_var(self, max_diff_steps: int, diff_index: torch.Tensor) -> torch.Tensor:
+    def get_ancestral_var(self, max_diff_steps: torch.Tensor, diff_index: torch.Tensor) -> torch.Tensor:
         """
         Discretisation of noise schedule for ancestral sampling
         :return: None
         """
-        var_max = self.get_var_max()
-        var_min = self.get_var_min()
+        device = diff_index.get_device()
+        var_max = self.get_var_max().to(device)
+        var_min = self.get_var_min().to(device)
         vars = var_min * torch.pow((var_max / var_min), diff_index / (max_diff_steps - 1))
         return vars
 
@@ -87,13 +90,15 @@ class VESDEDiffusion(nn.Module):
         """
         score_network.eval()
         with torch.no_grad():
+            device = diff_index.get_device()
+            max_diff_steps = torch.Tensor([max_diff_steps]).to(device)
             predicted_score = score_network.forward(x, t.squeeze(-1)).squeeze(1)
             curr_var = self.get_ancestral_var(max_diff_steps=max_diff_steps, diff_index=max_diff_steps - 1 - diff_index)
             next_var = self.get_ancestral_var(max_diff_steps=max_diff_steps,
                                               diff_index=max_diff_steps - 1 - diff_index - 1)
-            drift_param = curr_var - (next_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]))
+            drift_param = curr_var - (next_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]).to(device))
             diffusion_param = torch.sqrt(
-                drift_param * next_var / curr_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]))
+                drift_param * next_var / curr_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]).to(device))
         return predicted_score, x + drift_param * predicted_score, diffusion_param
 
 

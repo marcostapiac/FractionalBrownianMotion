@@ -1,8 +1,7 @@
 import abc
-
-import numpy as np
 import torch
 
+from typing import Union
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 
@@ -10,9 +9,11 @@ from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 class Corrector(abc.ABC):
     """ Base class for corrector algorithms """
 
-    def __init__(self, N_lang: int, r: float):
+    def __init__(self, N_lang: int, r: torch.Tensor, device:Union[int, torch.device]):
         self.max_lang_steps = N_lang
-        self.snr = r
+        self.torch_device = device
+        print(self.torch_device)
+        self.snr = r.to(self.torch_device)
 
     def _step(self, x: torch.Tensor, predicted_score: torch.Tensor, predictor_noise: torch.Tensor,
               diff_index: int, *args) -> torch.Tensor:
@@ -44,8 +45,8 @@ class Corrector(abc.ABC):
 class VESDECorrector(Corrector):
     """ Corrector class for VE SDE diffusion model """
 
-    def __init__(self, N_lang: int, r: float, diffusion: VESDEDiffusion):
-        super().__init__(N_lang, r)
+    def __init__(self, N_lang: int, r: torch.Tensor, device:Union[int, torch.device],diffusion: VESDEDiffusion):
+        super().__init__(N_lang, r, device)
         self.diffusion = diffusion
 
     def _step(self, x: torch.Tensor, predicted_score: torch.Tensor, predictor_noise: torch.Tensor,
@@ -58,14 +59,14 @@ class VESDECorrector(Corrector):
             :return: Final sample after Langevin steps
         """
         e = 2. * torch.pow(self.snr * torch.linalg.norm(predictor_noise) / torch.linalg.norm(predicted_score), 2.)
-        return x + e * predicted_score + np.sqrt(2. * e) * torch.randn(size=x.shape)
+        return x + e * predicted_score + torch.sqrt(2. * e) * torch.randn_like(x)
 
 
 class VPSDECorrector(Corrector):
     """ Corrector class for VP SDE diffusion model """
 
-    def __init__(self, N_lang: int, r: float, diffusion: VPSDEDiffusion):
-        super().__init__(N_lang, r)
+    def __init__(self, N_lang: int, r: torch.Tensor, device:Union[int, torch.device], diffusion: VPSDEDiffusion):
+        super().__init__(N_lang, r, device)
         self.diffusion = diffusion
 
     def _step(self, x: torch.Tensor, predicted_score: torch.Tensor, predictor_noise: torch.Tensor,
@@ -83,4 +84,4 @@ class VPSDECorrector(Corrector):
         max_diff_steps = args[0]
         e = 2. * self.diffusion.get_discretised_alpha(diff_index, max_diff_steps=max_diff_steps) * torch.pow(
             self.snr * torch.linalg.norm(predictor_noise) / torch.linalg.norm(predicted_score), 2.)
-        return x + e * predicted_score + np.sqrt(2. * e) * torch.randn(size=x.shape)
+        return x + e * predicted_score + torch.sqrt(2. * e) * torch.randn_like(x)

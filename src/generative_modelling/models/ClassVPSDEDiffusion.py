@@ -1,6 +1,5 @@
 from typing import Union, Tuple
 
-import numpy as np
 import torch
 from torch import nn
 
@@ -15,14 +14,16 @@ class VPSDEDiffusion(nn.Module):
         self._beta_max = beta_max
         self._beta_min = beta_min
 
-    def get_discretised_beta(self, diff_index: Union[torch.Tensor, int], max_diff_steps: int) -> torch.Tensor:
+    def get_discretised_beta(self, diff_index: torch.Tensor, max_diff_steps: int) -> torch.Tensor:
         """
         Return discretised variance value at corresponding forward diffusion indices
             :param diff_index: FORWARD diffusion index
             :return: Beta value
         """
-        beta_min = self.get_beta_min() / max_diff_steps
-        beta_max = self.get_beta_max() / max_diff_steps
+        device = diff_index.get_device()
+        max_diff_steps = torch.Tensor([max_diff_steps]).to(device)
+        beta_min = (self.get_beta_min() / max_diff_steps).to(device)
+        beta_max = (self.get_beta_max() / max_diff_steps).to(device)
         assert (beta_max < max_diff_steps)
         return beta_min + (beta_max - beta_min) * diff_index / (max_diff_steps - 1)
 
@@ -55,7 +56,7 @@ class VPSDEDiffusion(nn.Module):
                 - Score
 
         """
-        epsts = torch.randn_like(dataSamples)
+        epsts = torch.randn_like(dataSamples).to(effTimes.get_device())
         xts = torch.exp(-0.5 * effTimes) * dataSamples + torch.sqrt(1. - torch.exp(-effTimes)) * epsts
         return xts, -epsts / torch.sqrt((1. - torch.exp(-effTimes)))
 
@@ -74,11 +75,13 @@ class VPSDEDiffusion(nn.Module):
             :param diff_times: Discrete times at which we evaluate SDE
             :return: Effective time
         """
-        return (0.5 * diff_times ** 2 * (self.get_beta_max() - self.get_beta_min()) + diff_times * self.get_beta_min())
+        beta_max = self.get_beta_max().to(diff_index.get_device())
+        beta_min = self.get_beta_min().to(diff_times.get_device())
+        return (0.5 * diff_times ** 2 * (beta_max - beta_min) + diff_times * beta_min)
 
     def prior_sampling(self, shape: Tuple[int, int]) -> torch.Tensor:
         """ Sample from the target in the forward diffusion """
-        return torch.randn(shape)  # device= TODO
+        return torch.randn(shape)
 
     def get_ancestral_sampling(self, x: torch.Tensor, t: torch.Tensor,
                                score_network: Union[NaiveMLP, TimeSeriesScoreMatching],
@@ -100,7 +103,7 @@ class VPSDEDiffusion(nn.Module):
         with torch.no_grad():
             predicted_score = score_network.forward(x, t.squeeze(-1)).squeeze(1)
             beta_t = self.get_discretised_beta(max_diff_steps - 1 - diff_index, max_diff_steps)
-        return predicted_score, x * (2. - torch.sqrt(1. - beta_t)) + beta_t * predicted_score, np.sqrt(beta_t)
+        return predicted_score, x * (2. - torch.sqrt(1. - beta_t)) + beta_t * predicted_score, torch.sqrt(beta_t)
 
 
 """

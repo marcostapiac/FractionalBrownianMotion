@@ -10,7 +10,7 @@ def get_config():
     config = ml_collections.ConfigDict()
 
     # Experiment environment parameters
-    config.has_cuda = False # torch.cuda.is_available()
+    config.has_cuda = torch.cuda.is_available()
 
     # Data set parameters
     config.timeDim = 2
@@ -21,9 +21,9 @@ def get_config():
     config.train_eps = 1e-5
     config.max_diff_steps = 1000
     config.end_diff_time = 1.
-    config.save_freq = 5
+    config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = 20
+    config.max_epochs = 400
     config.batch_size = 256
 
     # Diffusion hyperparameters

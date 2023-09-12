@@ -30,12 +30,12 @@ class DiffusionModelTrainer:
                  max_diff_steps: int,
                  optimiser: torch.optim.Optimizer,
                  snapshot_path: str,
-                 rank: int,
+                 device: int,
                  checkpoint_freq: int,
                  loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
 
-        self.gpu_id = rank  # int(os.environ["LOCAL_RANK"])  # TODO: Device or rank?
+        self.gpu_id = device #int(os.environ["LOCAL_RANK"])  # device
         self.score_network = score_network
         self.epochs_run = 0
 
@@ -55,6 +55,10 @@ class DiffusionModelTrainer:
         if os.path.exists(self.snapshot_path):
             print("Loading snapshot")
             self._load_snapshot(self.snapshot_path)
+        
+        # Move score network to appropriate device even after snapshot loading
+        self.score_network.to(self.gpu_id)
+        #self.score_network = DDP(self.score_network, device_ids = self.gpu_id)
 
     def _batch_update(self, loss) -> None:
         """
@@ -137,7 +141,7 @@ class DiffusionModelTrainer:
         """
         snapshot = {}
         # self.score_network now points to DDP wrapped object, so we need to access parameters via ".module"
-        snapshot["MODEL_STATE"] = self.score_network.module.state_dict()
+        snapshot["MODEL_STATE"] = self.score_network.state_dict()
         snapshot["EPOCHS_RUN"] = epoch
         torch.save(snapshot, self.snapshot_path)
         print(f"Epoch {epoch + 1} | Training snapshot saved at {self.snapshot_path}")
@@ -149,10 +153,10 @@ class DiffusionModelTrainer:
             :return: None
         """
         # self.score_network now points to DDP wrapped object so we need to access parameters via ".module"
-        ckp = self.score_network.module.state_dict()
+        ckp = self.score_network.to(torch.device("cpu")).state_dict() # Save model on CPU
         torch.save(ckp, filepath)
         print(f"Trained model saved at {filepath}")
-        os.remove(self.snapshot_path)
+        os.remove(self.snapshot_path) # Remove snapshot path since training is done
 
     def train(self, max_epochs: int, model_filename: str) -> None:
         """
