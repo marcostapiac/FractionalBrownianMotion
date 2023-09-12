@@ -1,1 +1,2 @@
-ROOT_DIR = "/Users/marcos/GitHubRepos/FractionalBrownianMotion/"
+from pathlib import Path
+ROOT_DIR = str(Path(__file__).parent.parent) + "/"
