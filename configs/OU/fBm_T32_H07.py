@@ -40,17 +40,17 @@ def get_config():
     config.dialation_length = 10
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_fBm_OUSDE_model_H{}_T{}_Ndiff{}_Tdiff{}_trainEps{:.0e}_TembDim{}_EncShapes{}".format(
-        str(config.hurst).replace(".", ""),
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_fBm_OUSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_TembDim{}_EncShapes{}".format(
+        config.hurst,
         config.timeDim,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.temb_dim,
-        config.enc_shapes)
+        config.enc_shapes).replace(".", "")
 
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_fBm_OUSDE_model_H{}_T{}_Ndiff{}_Tdiff{}_trainEps{:.0e}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}".format(
-        str(config.hurst).replace(".", ""),
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_fBm_OUSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}".format(
+        config.hurst,
         config.timeDim,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.temb_dim,
-        config.residual_layers, config.residual_channels, config.diff_hidden_size)
+        config.residual_layers, config.residual_channels, config.diff_hidden_size).replace(".", "")
 
     config.model_choice = "TSM"
     config.filename = tsmFileName if config.model_choice == "TSM" else mlpFileName
@@ -68,5 +68,14 @@ def get_config():
     config.snr = 0.
     config.predictor_model = "euler-maruyama"  # vs "euler-maryuama"
     config.corrector_model = "OU"
+
+    # Experiment evaluation parameters
+    config.unitInterval = True
+    config.annot = False
+    config.eval_marginals = True
+    config.isfBm = True
+    config.permute_test = False
+    config.image_path = config.filename.replace("src/generative_modelling/trained_models/trained_", "pngs/")
+
 
     return config

@@ -1,6 +1,7 @@
 import os
 from typing import Tuple, Union
 
+import config
 import numpy as np
 import pandas as pd
 import torch
@@ -39,7 +40,6 @@ def ddp_setup(backend: str) -> None:
     #os.environ["MASTER_ADDR"] = "localhost"
     #os.environ["MASTER_PORT"] = "1000"
     #init_process_group(backend=backend)#, rank=rank, world_size=world_size)
-    print("Changes done")
     pass
 
 
@@ -146,25 +146,6 @@ def train_and_save_diffusion_model(data: np.ndarray,
     # Cleanly exit the DDP training
     """destroy_process_group()"""
 
-def initialise_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
-                        scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], data_shape: Tuple[int,int]) -> None:
-    """
-    Helper function to initiate sampling
-        :param diffusion: SDE model
-        :param scoreModel: Score network architecture
-        :param data_shape: Desired shape of generated samples
-        :param config: Configuration dictionary with relevant parameters
-        :return: None
-    """
-    if config.has_cuda:
-        # Spawn one process for every GPU device, automatically assign rank
-        #world_size = torch.cuda.device_count()
-        #mp.spawn(train_and_save_diffusion_model, args=(world_size, data, config, diffusion, scoreModel),
-                 #nprocs=world_size)
-        reverse_sampling(diffusion=diffusion, scoreModel=scoreModel, data_shape=data_shape, config=config)
-    else:
-        # Only one CPU device, so we have 1 core on 1 device
-        reverse_sampling(diffusion=diffusion, scoreModel=scoreModel, data_shape=data_shape, config=config)
 
 def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
                      scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], data_shape: Tuple[int, int],
@@ -177,12 +158,12 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
         :param config: Configuration dictionary for experiment
         :return: Final reverse-time samples
     """
+    # TODO: DDP cannot be used here since sampling is sequential, so only single-machine, single-GPU?
+
     if config.has_cuda:
-        ddp_setup(backend="nccl")#, rank=rank, world_size=world_size)
-        device = 0  # TODO: Use device = rank passed by mp.spawn or COMPLETELY by pass with torchrun and int[os.environ["LOCAL_RANK"]] OR is the local path environ the same when we call SDESampler?
+        device = 0
     else:
-        ddp_setup(backend="gloo")#, rank=rank, world_size=world_size)
-        #torch.set_num_threads(int(0.75 * os.cpu_count()))
+        torch.set_num_threads(int(os.cpu_count()))
         device = torch.device("cpu")
     
     # Define predictor
@@ -227,21 +208,14 @@ def check_convergence_at_diffTime(diffusion: Union[VPSDEDiffusion, VESDEDiffusio
     return forward_samples_at_t.numpy(), backward_samples_at_t, labels
 
 
-def evaluate_performance(true_samples: np.ndarray, generated_samples: np.ndarray, h: float, td: int,
-                         rng: np.random.Generator, unitInterval: bool, annot: bool, evalMarginals: bool,
-                         isfBm: bool, permute_test: bool) -> None:
+def evaluate_performance(true_samples: np.ndarray, generated_samples: np.ndarray, rng: np.random.Generator, config:ConfigDict) -> None:
     """
     Computes metrics to quantify how close the generated samples are from the desired distribution
         :param true_samples: Exact samples of fractional Brownian motion (or its increments)
         :param generated_samples: Final reverse-time diffusion samples
         :param h: Hurst index
-        :param td: Length of timeseries / dimensionality of each datapoint
         :param rng: Default random number generator
-        :param unitInterval: Indicates whether fBm was simulated on [0,1] or [0, td]
-        :param annot: Indicates whether to annotate covariance plot
-        :param evalMarginals: Indicates whether to plot marginal Q-Q plots and compute associated KS statistic
-        :param isfBm: Indicates whether samples are fBm or its increments
-        :param permute_test: Indicates whether to conduct permutation tes
+        :param config: Configuration dictionary for experiment
         :return: None
     """
     print("True Data Sample Mean :: ", np.mean(true_samples, axis=0))
@@ -250,26 +224,26 @@ def evaluate_performance(true_samples: np.ndarray, generated_samples: np.ndarray
     print("True Data Covariance :: ", true_cov)
     gen_cov = np.cov(generated_samples, rowvar=False)
     print("Generated Data Covariance :: ", gen_cov)
-    expec_cov = compute_fBm_cov(FractionalBrownianNoise(H=h, rng=rng), T=td, isUnitInterval=unitInterval)
+    expec_cov = compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim, isUnitInterval=config.unitInterval)
     print("Expected Covariance :: ", expec_cov)
 
-    plot_diffCov_heatmap(expec_cov, gen_cov, annot=annot)
+    plot_diffCov_heatmap(expec_cov, gen_cov, annot=config.annot, image_path=config.image_path+"_diffCov")
     S = min(true_samples.shape[0], generated_samples.shape[0])
     true_samples, generated_samples = true_samples[:S], generated_samples[:S]
 
     # Chi-2 test for joint distribution of the fractional Brownian noise
-    c2 = chiSquared_test(T=td, H=h, samples=reduce_to_fBn(true_samples, reduce=isfBm), isUnitInterval=unitInterval)
+    c2 = chiSquared_test(T=config.timeDim, H=config.hurst, samples=reduce_to_fBn(true_samples, reduce=config.isfBm), isUnitInterval=config.unitInterval)
     print("Chi-Squared test for true: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], c2[1],
                                                                                                      c2[2]))
     # Chi-2 test for joint distribution of the fractional Brownian noise
-    c2 = chiSquared_test(T=td, H=h, samples=reduce_to_fBn(generated_samples, reduce=isfBm), isUnitInterval=unitInterval)
+    c2 = chiSquared_test(T=config.timeDim, H=config.hurst, samples=reduce_to_fBn(generated_samples, reduce=config.isfBm), isUnitInterval=config.unitInterval)
     print("Chi-Squared test for target: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], c2[1],
                                                                                                        c2[2]))
 
-    plot_tSNE(true_samples, y=generated_samples, labels=["True Samples", "Generated Samples"]) \
-        if td > 2 else plot_dataset(true_samples, generated_samples)
-    if evalMarginals: plot_final_diffusion_marginals(true_samples, generated_samples, timeDim=td)
-    if permute_test:
+    plot_tSNE(x=true_samples, y=generated_samples, labels=["True Samples", "Generated Samples"],  image_path=config.image_path+"_tSNE") \
+        if config.timeDim > 2 else plot_dataset(true_samples, generated_samples,  image_path=config.image_path+"_scatter")
+    if config.eval_marginals: plot_final_diffusion_marginals(true_samples, generated_samples, timeDim=config.timeDim,  image_path=config.image_path)
+    if config.permute_test:
         # Permutation test for kernel statistic
         test_L = min(2000, true_samples.shape[0])
         print("MMD Permutation test: p-value {}".format(
@@ -311,12 +285,12 @@ def compute_circle_proportions(true_samples: np.ndarray, generated_samples: np.n
     print("True: Inner {} vs Outer {}".format(innerf / S, outerf / S))
 
 
-def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.ndarray, td: int) -> None:
+def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.ndarray, config:ConfigDict) -> None:
     """
     Compute various quantitative and qualitative metrics on final reverse-time diffusion samples for circle dataset
         :param true_samples: Exact samples from circle dataset
         :param generated_samples: Final reverse-time diffusion samples
-        :param td: Dimension of each sample
+        :param config: Configuration dictionary for experiment
         :return: None
     """
 
@@ -327,10 +301,10 @@ def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.
     gen_cov = np.cov(generated_samples, rowvar=False)
     print("Generated Data :: ", gen_cov)
 
-    plot_dataset(true_samples, generated_samples)
+    plot_dataset(true_samples, generated_samples, image_path=config.image_path + "_scatter")
 
-    plot_diffCov_heatmap(true_cov=true_cov, gen_cov=gen_cov)
-    plot_final_diffusion_marginals(true_samples, generated_samples, timeDim=td)
+    plot_diffCov_heatmap(true_cov=true_cov, gen_cov=gen_cov, image_path=config.image_path + "_scatter")
+    plot_final_diffusion_marginals(true_samples, generated_samples, timeDim=2, image_path=config.image_path)
 
     compute_circle_proportions(true_samples, generated_samples)
 

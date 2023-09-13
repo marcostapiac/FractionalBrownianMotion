@@ -17,15 +17,13 @@ def run_experiment(dataSize: int, diffusion: VPSDEDiffusion, scoreModel: Union[N
                    rng: np.random.Generator, config: ConfigDict) -> None:
     try:
         assert (config.train_eps <= config.sample_eps)
-        fBm_samples = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
-                                       data_shape=(dataSize, config.timeDim), config=config)
+        fBm_samples = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel, data_shape=(s, config.timeDim), config=config)
+
     except AssertionError:
         raise ValueError("Final time during sampling should be at least as large as final time during training")
 
     true_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=dataSize, rng=rng)
-    evaluate_performance(true_samples, fBm_samples.numpy(), h=config.hurst, td=config.timeDim, rng=rng,
-                         unitInterval=True, annot=True,
-                         evalMarginals=True, isfBm=True, permute_test=False)
+    evaluate_performance(true_samples, fBm_samples.numpy(),rng=rng, config=config)
 
 
 if __name__ == "__main__":
@@ -43,7 +41,6 @@ if __name__ == "__main__":
     N = config.max_diff_steps
     Tdiff = config.end_diff_time
 
-    modelFileName = config.mlpFileName if config.model_choice == "MLP" else config.tsmFileName
     rng = np.random.default_rng()
     scoreModel = TimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
@@ -56,7 +53,7 @@ if __name__ == "__main__":
         assert (data.shape[0] >= training_size)
         data = data[:training_size, :].cumsum(axis=1)
         try:
-            scoreModel.load_state_dict(torch.load(modelFileName))
+            scoreModel.load_state_dict(torch.load(config.filename))
         except FileNotFoundError:
             initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
 
@@ -67,5 +64,5 @@ if __name__ == "__main__":
         initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
 
     s = 30000
-    scoreModel.load_state_dict(torch.load(modelFileName))
+    scoreModel.load_state_dict(torch.load(config.filename))
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, rng=rng, config=config)

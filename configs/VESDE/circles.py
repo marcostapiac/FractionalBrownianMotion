@@ -42,13 +42,13 @@ def get_config():
     config.dialation_length = 10
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_noisy_circle_VESDE_model_Ndiff{}_Tdiff{}_trainEps{:.0e}_StdMax{:.4f}_StdMin{:.4f}_TembDim{}_EncShapes{}".format(
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_noisy_circle_VESDE_model_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_StdMax{:.4e}_StdMin{:.4e}_TembDim{}_EncShapes{}".format(
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.std_max, config.std_min, config.temb_dim,
-        config.enc_shapes)
+        config.enc_shapes).replace(".","")
 
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_noisy_circle_VESDE_model_Ndiff{}_Tdiff{}_trainEps{:.0e}_StdMax{:.4f}_StdMin{:.4f}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}".format(
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_noisy_circle_VESDE_model_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_StdMax{:.4e}_StdMin{:.4e}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}".format(
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.std_max, config.std_min, config.temb_dim,
-        config.residual_layers, config.residual_channels, config.diff_hidden_size)
+        config.residual_layers, config.residual_channels, config.diff_hidden_size).replace(".","")
 
     config.model_choice = "TSM"
     config.filename = tsmFileName if config.model_choice == "TSM" else mlpFileName
@@ -66,5 +66,8 @@ def get_config():
     config.snr = 0.01
     config.predictor_model = "ancestral"  # vs "euler-maryuama"
     config.corrector_model = "VE"  # vs "VE"
+
+    # Experiment evaluation parameters
+    config.image_path = config.filename.replace("src/generative_modelling/trained_models/trained_", "pngs/")
 
     return config

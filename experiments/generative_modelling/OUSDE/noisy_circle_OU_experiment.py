@@ -24,7 +24,7 @@ def run_experiment(dataSize: int, diffusion: OUSDEDiffusion, scoreModel: Union[N
         raise ValueError("Final time during sampling should be at least as large as final time during training")
 
     true_samples = generate_circles(S=training_size, noise=config.cnoise)
-    evaluate_circle_performance(true_samples, circle_samples.numpy(), td=config.timeDim)
+    evaluate_circle_performance(true_samples, circle_samples.numpy(), config=config)
 
 
 if __name__ == "__main__":

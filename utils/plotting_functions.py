@@ -361,11 +361,12 @@ def plot_and_save_loss_epochs(epochs: np.ndarray, train_loss: np.ndarray, val_lo
     plt.show()
 
 
-def plot_tSNE(x: np.ndarray, labels: list[str], y: Union[NoneType, np.ndarray] = None) -> None:
+def plot_tSNE(x: np.ndarray, labels: list[str], image_path:str, y: Union[NoneType, np.ndarray] = None) -> None:
     """
     Helper function to generate t-SNE plots
     :param x: Data
     :param labels: Labels for plot legend
+    :param image_path: Path to save image
     :param y: Optional paramter, data to overlay ontop of previous plot
     :return: None
     """
@@ -380,15 +381,17 @@ def plot_tSNE(x: np.ndarray, labels: list[str], y: Union[NoneType, np.ndarray] =
     plt.ylabel("$\\textbf{Embedding Dim 2}$")
     plt.tight_layout()
     plt.legend()
+    plt.savefig(image_path)
     plt.show()
 
 
-def plot_final_diffusion_marginals(forward_samples: np.ndarray, reverse_samples: np.ndarray, timeDim: int) -> None:
+def plot_final_diffusion_marginals(forward_samples: np.ndarray, reverse_samples: np.ndarray, timeDim: int, image_path:str) -> None:
     """
     Q-Q plot and KS statistic of multidimensional samples
         :param forward_samples: Forward diffsion samples
         :param reverse_samples: Reverse-time diffusion samples
         :param timeDim: Dimension of each sample
+        :param image_path: Path to save image
         :return: None
     """
     for t in np.arange(start=0, stop=timeDim, step=1):
@@ -399,42 +402,47 @@ def plot_final_diffusion_marginals(forward_samples: np.ndarray, reverse_samples:
                ylabel="$\\textbf{Final Reverse Diffusion Samples}$",
                plottitle="Marginal Q-Q Plot at Time Dim {}".format(t + 1), log=False)
         print("KS-test statistic for marginal at time {} :: {}".format(t, kstest(forward_t, reverse_samples_t)))
+        plt.savefig(image_path +f"_QQ_timeDim{int(t)}")
         plt.show()
         plt.close()
 
 
-def plot_heatmap(map: np.ndarray, annot: bool, title: str) -> None:
+def plot_heatmap(map: np.ndarray, annot: bool, title: str, filename:str) -> None:
     """
     Helper function to create a heatmap
         :param map: Data to plot
         :param annot: Indicates whether to annotate error on diagram
         :param title: Title for diagram
+        :param filename: Path to save image
         :return: None
     """
     sns.heatmap(map, annot=annot, annot_kws={'size': 15})
     plt.title(title)
+    plt.savefig(filename)
     plt.show()
 
 
-def plot_diffCov_heatmap(true_cov: np.ndarray, gen_cov: np.ndarray, annot: bool = True) -> None:
+def plot_diffCov_heatmap(true_cov: np.ndarray, gen_cov: np.ndarray,  image_path:str, annot: bool = True) -> None:
     """
     Compute and plot difference between expected and sample covariance matrices
         :param true_cov: Theoretical covariance matrix
         :param gen_cov: Covariance matrix from samples of reverse-time diffusion
+        :param image_path: Path to save image
         :param annot: Indicates whether to annotate error on diagram
         :return: None
     """
     s = 100 * (gen_cov - true_cov) / true_cov
     print("Average absolute percentage error: ", np.mean(np.abs(s)))
-    plot_heatmap(map=np.abs(s), title="Difference in Covariance Matrices", annot=annot)
+    plot_heatmap(map=np.abs(s), title="Difference in Covariance Matrices", annot=annot, filename = image_path)
 
 
-def plot_dataset(forward_samples: np.ndarray, reverse_samples: np.ndarray,
+def plot_dataset(forward_samples: np.ndarray, reverse_samples: np.ndarray, image_path:str,
                  labels: Optional[Union[list[str], NoneType]] = None) -> None:
     """
     Scatter plot of 2 dimensional data (in the context of diffusion models)
         :param forward_samples: Original data
         :param reverse_samples: Final reverse-time diffusion samples
+        :param image_path: Path to save image
         :param labels: Labels for each plot
         :return: None
     """
@@ -451,6 +459,7 @@ def plot_dataset(forward_samples: np.ndarray, reverse_samples: np.ndarray,
     ax.set_xlabel("$\\textbf{Time Dim 1}$")
     ax.set_ylabel("$\\textbf{Time Dim 2}$")
     plt.legend()
+    plt.savefig(image_path)
     plt.show()
 
 

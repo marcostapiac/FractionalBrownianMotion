@@ -8,8 +8,7 @@ from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
-from utils.data_processing import evaluate_performance, \
-    reverse_sampling, initialise_training
+from utils.data_processing import evaluate_performance, initialise_training, reverse_sampling
 from utils.math_functions import generate_fBn, generate_fBm
 
 
@@ -17,21 +16,18 @@ def run_experiment(dataSize: int, diffusion: VESDEDiffusion, scoreModel: Union[N
                    rng: np.random.Generator, config: ConfigDict) -> None:
     try:
         assert (config.train_eps <= config.sample_eps)
-        fBm_samples = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
-                                       data_shape=(dataSize, config.timeDim), config=config)
+        fBm_samples = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel, data_shape=(s, config.timeDim), config=config)
 
     except AssertionError:
         raise ValueError("Final time during sampling should be at least as large as final time during training")
 
     true_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=dataSize, rng=rng)
-    evaluate_performance(true_samples, fBm_samples.numpy(), h=config.hurst, td=config.timeDim, rng=rng,
-                         unitInterval=True, annot=True,
-                         evalMarginals=True, isfBm=True, permute_test=False)
+    evaluate_performance(true_samples, fBm_samples.cpu().numpy(), rng=rng, config=config)
 
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.VESDE.fBm_T32_H07 import get_config
+    from configs.VESDE.fBm_T2_H07 import get_config
 
     config = get_config()
     h = config.hurst
@@ -50,7 +46,7 @@ if __name__ == "__main__":
     diffusion = VESDEDiffusion(stdMax=config.std_max, stdMin=config.std_min)
 
     training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
-
+    print(config.filename)
     try:
         data = np.load(config.data_path)
         assert (data.shape[0] >= training_size)
@@ -67,6 +63,6 @@ if __name__ == "__main__":
         data = data.cumsum(axis=1)
         initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
 
-    s = 30000
+    s = 100
     scoreModel.load_state_dict(torch.load(config.filename))
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, rng=rng, config=config)

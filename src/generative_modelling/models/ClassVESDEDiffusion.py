@@ -53,8 +53,9 @@ class VESDEDiffusion(nn.Module):
             :param diff_times: Discrete times at which we evaluate SDE
             :return: Effective time
         """
-        var_max = self.get_var_max().to(diff_times.get_device())
-        var_min = self.get_var_min().to(diff_times.get_device())
+        device = diff_times.device
+        var_max = self.get_var_max().to(device)
+        var_min = self.get_var_min().to(device)
         return var_min * (var_max / var_min) ** diff_times
 
     def prior_sampling(self, shape: Tuple[int, int]) -> torch.Tensor:
@@ -66,7 +67,7 @@ class VESDEDiffusion(nn.Module):
         Discretisation of noise schedule for ancestral sampling
         :return: None
         """
-        device = diff_index.get_device()
+        device = diff_index.device
         var_max = self.get_var_max().to(device)
         var_min = self.get_var_min().to(device)
         vars = var_min * torch.pow((var_max / var_min), diff_index / (max_diff_steps - 1))
@@ -90,7 +91,7 @@ class VESDEDiffusion(nn.Module):
         """
         score_network.eval()
         with torch.no_grad():
-            device = diff_index.get_device()
+            device = diff_index.device
             max_diff_steps = torch.Tensor([max_diff_steps]).to(device)
             predicted_score = score_network.forward(x, t.squeeze(-1)).squeeze(1)
             curr_var = self.get_ancestral_var(max_diff_steps=max_diff_steps, diff_index=max_diff_steps - 1 - diff_index)

@@ -23,7 +23,7 @@ def run_experiment(dataSize: int, diffusion: VPSDEDiffusion, scoreModel: Union[N
         raise ValueError("Final time during sampling should be at least as large as final time during training")
 
     true_samples = generate_circles(S=dataSize, noise=config.cnoise)
-    evaluate_circle_performance(true_samples, circle_samples.numpy(), td=config.timeDim)
+    evaluate_circle_performance(true_samples, circle_samples.cpu().numpy(), config=config)
 
 
 if __name__ == "__main__":
@@ -39,7 +39,6 @@ if __name__ == "__main__":
     N = config.max_diff_steps
     Tdiff = config.end_diff_time
 
-    modelFileName = config.mlpFileName if config.model_choice == "MLP" else config.tsmFileName
     rng = np.random.default_rng()
     scoreModel = TimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
@@ -52,7 +51,7 @@ if __name__ == "__main__":
         assert (data.shape[0] >= training_size)
         data = data[:training_size, :]
         try:
-            scoreModel.load_state_dict(torch.load(modelFileName))
+            scoreModel.load_state_dict(torch.load(config.filename))
         except FileNotFoundError:
             initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
 
@@ -62,5 +61,5 @@ if __name__ == "__main__":
         initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
 
     s = 30000
-    scoreModel.load_state_dict(torch.load(modelFileName))
+    scoreModel.load_state_dict(torch.load(config.filename))
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, config=config)

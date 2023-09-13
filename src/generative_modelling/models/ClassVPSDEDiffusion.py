@@ -20,7 +20,7 @@ class VPSDEDiffusion(nn.Module):
             :param diff_index: FORWARD diffusion index
             :return: Beta value
         """
-        device = diff_index.get_device()
+        device = diff_index.device
         max_diff_steps = torch.Tensor([max_diff_steps]).to(device)
         beta_min = (self.get_beta_min() / max_diff_steps).to(device)
         beta_max = (self.get_beta_max() / max_diff_steps).to(device)
@@ -56,7 +56,7 @@ class VPSDEDiffusion(nn.Module):
                 - Score
 
         """
-        epsts = torch.randn_like(dataSamples).to(effTimes.get_device())
+        epsts = torch.randn_like(dataSamples)
         xts = torch.exp(-0.5 * effTimes) * dataSamples + torch.sqrt(1. - torch.exp(-effTimes)) * epsts
         return xts, -epsts / torch.sqrt((1. - torch.exp(-effTimes)))
 
@@ -75,8 +75,9 @@ class VPSDEDiffusion(nn.Module):
             :param diff_times: Discrete times at which we evaluate SDE
             :return: Effective time
         """
-        beta_max = self.get_beta_max().to(diff_index.get_device())
-        beta_min = self.get_beta_min().to(diff_times.get_device())
+        device = diff_times.device
+        beta_max = self.get_beta_max().to(device)
+        beta_min = self.get_beta_min().to(device)
         return (0.5 * diff_times ** 2 * (beta_max - beta_min) + diff_times * beta_min)
 
     def prior_sampling(self, shape: Tuple[int, int]) -> torch.Tensor:
