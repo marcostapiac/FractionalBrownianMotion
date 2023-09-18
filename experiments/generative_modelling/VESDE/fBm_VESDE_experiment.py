@@ -4,6 +4,7 @@ import numpy as np
 import torch
 from ml_collections import ConfigDict
 
+from experiments.mcmc import *
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
@@ -27,7 +28,7 @@ def run_experiment(dataSize: int, diffusion: VESDEDiffusion, scoreModel: Union[N
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.VESDE.fBm_T2_H07 import get_config
+    from configs.VESDE.fBm_T32_H07 import get_config
 
     config = get_config()
     h = config.hurst
@@ -46,15 +47,15 @@ if __name__ == "__main__":
     diffusion = VESDEDiffusion(stdMax=config.std_max, stdMin=config.std_min)
 
     training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
-    print(config.filename)
     try:
         data = np.load(config.data_path)
         assert (data.shape[0] >= training_size)
         data = data[:training_size, :].cumsum(axis=1)
         try:
-            scoreModel.load_state_dict(torch.load(config.filename))
+            file = torch.load(config.filename)
         except FileNotFoundError:
             initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
+            file = torch.load(config.filename)
 
     except (AssertionError, FileNotFoundError) as e:
         print("Generating synthetic data\n")
@@ -62,7 +63,8 @@ if __name__ == "__main__":
         np.save(config.data_path, data)  # TODO is this the most efficient way
         data = data.cumsum(axis=1)
         initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
+        file = torch.load(config.filename)
 
-    s = 100
-    scoreModel.load_state_dict(torch.load(config.filename))
+    s = 10
+    scoreModel.load_state_dict(file)
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, rng=rng, config=config)

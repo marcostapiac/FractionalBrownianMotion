@@ -23,9 +23,9 @@ def get_config():
     config.train_eps = 1e-5
     config.max_diff_steps = 1000 * max(int(np.log2(config.timeDim) - 1), 1)
     config.end_diff_time = 1.
-    config.save_freq = 5
+    config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = 20
+    config.max_epochs = 1000
     config.batch_size = 256
 
     # Diffusion hyperparameters

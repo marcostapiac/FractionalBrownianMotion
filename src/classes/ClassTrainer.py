@@ -11,7 +11,7 @@ from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
-
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
 # Link for ddp_setup backend: https://pytorch.org/docs/stable/distributed.html
@@ -35,15 +35,16 @@ class DiffusionModelTrainer:
                  loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
 
-        self.gpu_id = device #int(os.environ["LOCAL_RANK"])  # device
-        self.score_network = score_network
+        self.device_id = device #int(os.environ["LOCAL_RANK"])  # device
+        assert (self.device_id == int(os.environ["LOCAL_RANK"]))
+        self.score_network = score_network.to(self.device_id)
         self.epochs_run = 0
 
         self.opt = optimiser
         self.save_every = checkpoint_freq  # Specifies how often we choose to save our model during training
         self.train_loader = train_data_loader
         self.loss_fn = loss_fn  # If callable, need to ensure we allow for gradient computation
-        self.loss_aggregator = loss_aggregator()  # No need to move to device since they
+        self.loss_aggregator = loss_aggregator().to(self.device_id)  # No need to move to device since they
 
         self.diffusion = diffusion
         self.train_eps = train_eps
@@ -57,8 +58,10 @@ class DiffusionModelTrainer:
             self._load_snapshot(self.snapshot_path)
         
         # Move score network to appropriate device even after snapshot loading
-        self.score_network.to(self.gpu_id)
-        #self.score_network = DDP(self.score_network, device_ids = self.gpu_id)
+        if type(self.device_id) == int:
+            self.score_network = DDP(self.score_network, device_ids =[self.device_id])
+        else:
+            self.score_network = self.score_network.to(self.device_id)
 
     def _batch_update(self, loss) -> None:
         """
@@ -107,16 +110,16 @@ class DiffusionModelTrainer:
         # TODO: How to deal with validation losses?
         b_sz = len(next(iter(self.train_loader))[0])
         print(
-            f"[Device {self.gpu_id}] Epoch {epoch + 1} | Batchsize: {b_sz} | Total Num of Batches: {len(self.train_loader)} \n")
+            f"[Device {self.device_id}] Epoch {epoch + 1} | Batchsize: {b_sz} | Total Num of Batches: {len(self.train_loader)} \n")
         self.score_network.train()
         timesteps = torch.linspace(self.train_eps, end=self.end_diff_time,
                                    steps=self.max_diff_steps)
         for x0s in iter(self.train_loader):
-            x0s = x0s[0].to(self.gpu_id)
+            x0s = x0s[0].to(self.device_id)
             diff_times = timesteps[torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,
                                                  size=(x0s.shape[0], 1))].view(x0s.shape[0],
                                                                                *([1] * len(x0s.shape[1:]))).to(
-                self.gpu_id)
+                self.device_id)
             eff_times = self.diffusion.get_eff_times(diff_times)
             xts, target_scores = self.diffusion.noising_process(x0s, eff_times)
             self._run_batch(xts=xts, target_scores=target_scores, diff_times=diff_times, eff_times=eff_times)
@@ -128,9 +131,10 @@ class DiffusionModelTrainer:
             :return: None
         """
         # Snapshot should be python dict
-        snapshot = torch.load(snapshot_path)
+        snapshot = torch.load(snapshot_path, map_location=self.device_id)
         self.score_network.load_state_dict(snapshot["MODEL_STATE"])
         self.epochs_run = snapshot["EPOCHS_RUN"]
+        self.opt = snapshot["OPTIMISER_STATE"]
         print("Resuming training from snapshot at epoch {}".format(self.epochs_run + 1))
 
     def _save_snapshot(self, epoch: int) -> None:
@@ -141,10 +145,12 @@ class DiffusionModelTrainer:
         """
         snapshot = {}
         # self.score_network now points to DDP wrapped object, so we need to access parameters via ".module"
-        snapshot["MODEL_STATE"] = self.score_network.state_dict()
+        snapshot["MODEL_STATE"] = self.score_network.module.state_dict()
         snapshot["EPOCHS_RUN"] = epoch
+        snapshot["OPTIMISER_STATE"] = self.opt.state_dict()
         torch.save(snapshot, self.snapshot_path)
         print(f"Epoch {epoch + 1} | Training snapshot saved at {self.snapshot_path}")
+        torch.distributed.barrier()
 
     def _save_model(self, filepath: str) -> None:
         """
@@ -153,10 +159,13 @@ class DiffusionModelTrainer:
             :return: None
         """
         # self.score_network now points to DDP wrapped object so we need to access parameters via ".module"
-        ckp = self.score_network.to(torch.device("cpu")).state_dict() # Save model on CPU
+        ckp = self.score_network.to(torch.device("cpu")).module.state_dict() # Save model on CPU
         torch.save(ckp, filepath)
         print(f"Trained model saved at {filepath}")
-        os.remove(self.snapshot_path) # Remove snapshot path since training is done
+        try:
+            os.remove(self.snapshot_path) # Remove snapshot path since training is done
+        except FileNotFoundError:
+            print("Snapshot file does not exist")
 
     def train(self, max_epochs: int, model_filename: str) -> None:
         """
@@ -169,7 +178,7 @@ class DiffusionModelTrainer:
             self._run_epoch(epoch)
             print("Percent Completed {:0.4f} :: Train {:0.4f} ".format((epoch + 1) / max_epochs,
                                                                        float(self.loss_aggregator.compute().item())))
-            if (self.gpu_id == 0 or type(self.gpu_id) == torch.device) and epoch + 1 == max_epochs:
+            if (self.device_id == 0 or type(self.device_id) == torch.device) and epoch + 1 == max_epochs:
                 self._save_model(filepath=model_filename)
-            elif (self.gpu_id == 0 or type(self.gpu_id) == torch.device) and ((epoch + 1) % self.save_every == 0):
+            elif (self.device_id == 0 or type(self.device_id) == torch.device) and ((epoch + 1) % self.save_every == 0):
                 self._save_snapshot(epoch=epoch)

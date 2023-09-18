@@ -1,7 +1,6 @@
 import os
 from typing import Tuple, Union
 
-import config
 import numpy as np
 import pandas as pd
 import torch
@@ -30,6 +29,7 @@ from utils.math_functions import chiSquared_test, reduce_to_fBn, compute_fBm_cov
 from utils.plotting_functions import plot_final_diffusion_marginals, plot_dataset, \
     plot_diffCov_heatmap, \
     plot_tSNE, plot_subplots
+from torch.distributed.elastic.multiprocessing.errors import record
 
 def ddp_setup(backend: str) -> None:
     """
@@ -39,8 +39,7 @@ def ddp_setup(backend: str) -> None:
     """
     #os.environ["MASTER_ADDR"] = "localhost"
     #os.environ["MASTER_PORT"] = "1000"
-    #init_process_group(backend=backend)#, rank=rank, world_size=world_size)
-    pass
+    init_process_group(backend=backend)#, rank=rank, world_size=world_size)
 
 
 def prepare_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> Tuple[DataLoader, DataLoader, DataLoader]:
@@ -57,18 +56,12 @@ def prepare_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> Tuple
     # TODO: Shuffle is turned to False when using a Sampler, since it specifies the shuffling strategy
     # TODO: sampler=DistributedSampler(train)
     if config.has_cuda:
-        """trainLoader, valLoader, testLoader = DataLoader(train, batch_size=batch_size, pin_memory=True, shuffle=False,
+        trainLoader, valLoader, testLoader = DataLoader(train, batch_size=batch_size, pin_memory=True, shuffle=False,
                                                         sampler=DistributedSampler(train)), \
                                              DataLoader(val, batch_size=batch_size, pin_memory=True, shuffle=False,
                                                         sampler=DistributedSampler(val)), \
                                              DataLoader(test, batch_size=batch_size, pin_memory=True, shuffle=False,
-                                                        sampler=DistributedSampler(test))"""
-        trainLoader, valLoader, testLoader = DataLoader(train, batch_size=batch_size, pin_memory=True, shuffle=True,
-                                                num_workers=0), \
-                                     DataLoader(val, batch_size=batch_size, pin_memory=True, shuffle=True,
-                                                num_workers=0), \
-                                     DataLoader(test, batch_size=batch_size, pin_memory=True, shuffle=True,
-                                                num_workers=0)
+                                                        sampler=DistributedSampler(test))
     else:
         trainLoader, valLoader, testLoader = DataLoader(train, batch_size=batch_size, pin_memory=True, shuffle=True,
                                                         num_workers=0), \
@@ -79,7 +72,7 @@ def prepare_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> Tuple
 
     return trainLoader, valLoader, testLoader
 
-
+@record
 def initialise_training(data: np.ndarray, config: ConfigDict,
                         diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
                         scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching]) -> None:
@@ -117,7 +110,7 @@ def train_and_save_diffusion_model(data: np.ndarray,
     """
     if config.has_cuda:
         ddp_setup(backend="nccl")#, rank=rank, world_size=world_size)
-        device = 0 # TODO: Use device = rank passed by mp.spawn or COMPLETELY by pass with torchrun and int[os.environ["LOCAL_RANK"]] OR is the local path environ the same when we call Trainer (should be!)?
+        device = int(os.environ["LOCAL_RANK"]) # TODO: Use device = rank passed by mp.spawn or COMPLETELY by pass with torchrun and int[os.environ["LOCAL_RANK"]] OR is the local path environ the same when we call Trainer (should be!)?
     else:
         ddp_setup(backend="gloo")#, rank=rank, world_size=world_size)
         #torch.set_num_threads(int(0.75 * os.cpu_count()))

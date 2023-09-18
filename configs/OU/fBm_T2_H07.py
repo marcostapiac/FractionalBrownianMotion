@@ -10,7 +10,7 @@ def get_config():
     config = ml_collections.ConfigDict()
 
     # Environment parameters
-    config.has_cuda = False
+    config.has_cuda = torch.cuda.is_available()
 
     # Data set parameters
     config.hurst = 0.7
@@ -22,9 +22,9 @@ def get_config():
     config.train_eps = 1e-3
     config.max_diff_steps = 1000 * max(int(np.log2(config.timeDim) - 1), 1)
     config.end_diff_time = 1.
-    config.save_freq = 10
+    config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = 20
+    config.max_epochs = 1000
     config.batch_size = 256
 
     # MLP Architecture parameters
