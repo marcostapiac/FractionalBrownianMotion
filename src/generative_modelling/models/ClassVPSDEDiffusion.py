@@ -22,8 +22,8 @@ class VPSDEDiffusion(nn.Module):
         """
         device = diff_index.device
         max_diff_steps = torch.Tensor([max_diff_steps]).to(device)
-        beta_min = (self.get_beta_min() / max_diff_steps).to(device)
-        beta_max = (self.get_beta_max() / max_diff_steps).to(device)
+        beta_min = (self.get_beta_min()).to(device)/max_diff_steps
+        beta_max = (self.get_beta_max()).to(device)/ max_diff_steps
         assert (beta_max < max_diff_steps)
         return beta_min + (beta_max - beta_min) * diff_index / (max_diff_steps - 1)
 

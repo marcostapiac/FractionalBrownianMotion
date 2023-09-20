@@ -51,17 +51,17 @@ class DiffusionModelTrainer:
         self.max_diff_steps = max_diff_steps
         self.end_diff_time = end_diff_time
 
+        # Move score network to appropriate device
+        if type(self.device_id) == int:
+            self.score_network = DDP(self.score_network, device_ids =[self.device_id])
+        else:
+            self.score_network = self.score_network.to(self.device_id)
+
         self.snapshot_path = snapshot_path
         # Load snapshot if available
         if os.path.exists(self.snapshot_path):
             print("Loading snapshot")
             self._load_snapshot(self.snapshot_path)
-        
-        # Move score network to appropriate device even after snapshot loading
-        if type(self.device_id) == int:
-            self.score_network = DDP(self.score_network, device_ids =[self.device_id])
-        else:
-            self.score_network = self.score_network.to(self.device_id)
 
     def _batch_update(self, loss) -> None:
         """
@@ -131,10 +131,11 @@ class DiffusionModelTrainer:
             :return: None
         """
         # Snapshot should be python dict
-        snapshot = torch.load(snapshot_path, map_location=self.device_id)
-        self.score_network.load_state_dict(snapshot["MODEL_STATE"])
+        loc = 'cuda:{}'.format(self.device_id) if type(self.device_id) == int else self.device_id
+        snapshot = torch.load(snapshot_path, map_location=loc)
+        self.score_network.module.load_state_dict(snapshot["MODEL_STATE"])
         self.epochs_run = snapshot["EPOCHS_RUN"]
-        self.opt = snapshot["OPTIMISER_STATE"]
+        self.opt.load_state_dict(snapshot["OPTIMISER_STATE"])
         print("Resuming training from snapshot at epoch {}".format(self.epochs_run + 1))
 
     def _save_snapshot(self, epoch: int) -> None:
