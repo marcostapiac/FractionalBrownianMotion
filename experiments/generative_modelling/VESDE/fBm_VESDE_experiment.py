@@ -1,3 +1,4 @@
+import os
 from typing import Union
 
 import numpy as np
@@ -65,6 +66,6 @@ if __name__ == "__main__":
         initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
         file = torch.load(config.filename)
 
-    s = 10
+    s = 30000
     scoreModel.load_state_dict(file)
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, rng=rng, config=config)

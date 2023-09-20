@@ -139,7 +139,7 @@ def train_and_save_diffusion_model(data: np.ndarray,
     # Cleanly exit the DDP training
     """destroy_process_group()"""
 
-
+@record
 def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
                      scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], data_shape: Tuple[int, int],
                      config: ConfigDict) -> torch.Tensor:
@@ -151,7 +151,7 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
         :param config: Configuration dictionary for experiment
         :return: Final reverse-time samples
     """
-    # TODO: DDP cannot be used here since sampling is sequential, so only single-machine, single-GPU?
+    # TODO: DDP cannot be used here since sampling is sequential, so only single-machine, single-GPU/CPU?
 
     if config.has_cuda:
         device = 0

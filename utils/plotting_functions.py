@@ -371,6 +371,10 @@ def plot_tSNE(x: np.ndarray, labels: list[str], image_path:str, y: Union[NoneTyp
     :return: None
     """
     assert (len(labels) == 1 or len(labels) == 2)
+    try:
+        assert(x.shape[0] > 30)
+    except AssertionError:
+        print("Number of samples must be greater than perplexity value {} in TSNE embedder".format(int(30)))
     x_embed = TSNE().fit_transform(x)
     plt.scatter(x_embed[:, 0], x_embed[:, 1], label=labels[0])
     if y is not None:

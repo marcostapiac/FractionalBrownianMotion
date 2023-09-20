@@ -17,13 +17,14 @@ def run_experiment(dataSize: int, diffusion: VPSDEDiffusion, scoreModel: Union[N
                    rng: np.random.Generator, config: ConfigDict) -> None:
     try:
         assert (config.train_eps <= config.sample_eps)
-        fBm_samples = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel, data_shape=(s, config.timeDim), config=config)
+        fBm_samples = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel, data_shape=(s, config.timeDim),
+                                       config=config)
 
     except AssertionError:
         raise ValueError("Final time during sampling should be at least as large as final time during training")
 
     true_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=dataSize, rng=rng)
-    evaluate_performance(true_samples, fBm_samples.numpy(),rng=rng, config=config)
+    evaluate_performance(true_samples, fBm_samples.cpu().numpy(), rng=rng, config=config)
 
 
 if __name__ == "__main__":
@@ -63,6 +64,6 @@ if __name__ == "__main__":
         data = data.cumsum(axis=1)
         initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
 
-    s = 30000
+    s = 10
     scoreModel.load_state_dict(torch.load(config.filename))
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, rng=rng, config=config)
