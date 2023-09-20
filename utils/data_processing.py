@@ -109,11 +109,10 @@ def train_and_save_diffusion_model(data: np.ndarray,
         :return: None
     """
     if config.has_cuda:
-        ddp_setup(backend="nccl")#, rank=rank, world_size=world_size)
-        device = int(os.environ["LOCAL_RANK"]) # TODO: Use device = rank passed by mp.spawn or COMPLETELY by pass with torchrun and int[os.environ["LOCAL_RANK"]] OR is the local path environ the same when we call Trainer (should be!)?
+        ddp_setup(backend="nccl")
+        device = int(os.environ["LOCAL_RANK"])
     else:
-        ddp_setup(backend="gloo")#, rank=rank, world_size=world_size)
-        #torch.set_num_threads(int(0.75 * os.cpu_count()))
+        ddp_setup(backend="gloo")
         device = torch.device("cpu")
 
     # Preprocess data
@@ -156,7 +155,6 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
     if config.has_cuda:
         device = 0
     else:
-        torch.set_num_threads(int(os.cpu_count()))
         device = torch.device("cpu")
     
     # Define predictor
