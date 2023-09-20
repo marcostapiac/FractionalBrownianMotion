@@ -64,6 +64,6 @@ if __name__ == "__main__":
         data = data.cumsum(axis=1)
         initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
 
-    s = 10
+    s = 31
     scoreModel.load_state_dict(torch.load(config.filename))
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, rng=rng, config=config)
