@@ -29,7 +29,7 @@ def get_config():
     config.batch_size = 256
 
     # Diffusion hyperparameters
-    config.beta_max = 40.
+    config.beta_max = 30.
     config.beta_min = 0.1
 
     # MLP Architecture parameters
