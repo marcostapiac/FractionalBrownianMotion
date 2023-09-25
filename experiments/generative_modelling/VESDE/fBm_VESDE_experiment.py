@@ -29,7 +29,7 @@ def run_experiment(dataSize: int, diffusion: VESDEDiffusion, scoreModel: Union[N
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.VESDE.fBm_T32_H07 import get_config
+    from configs.VESDE.fBm_T2_H07 import get_config
 
     config = get_config()
     h = config.hurst
@@ -49,11 +49,11 @@ if __name__ == "__main__":
 
     training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
     try:
-        data = np.load(config.data_path)
+        data = np.load(config.data_path, allow_pickle=True)
         assert (data.shape[0] >= training_size)
         data = data[:training_size, :].cumsum(axis=1)
         try:
-            file = torch.load(config.filename)
+            file = torch.load(config.filename + "kjj")
         except FileNotFoundError:
             initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
             file = torch.load(config.filename)

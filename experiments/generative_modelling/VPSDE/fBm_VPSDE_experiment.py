@@ -50,7 +50,7 @@ if __name__ == "__main__":
     training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
 
     try:
-        data = np.load(config.data_path)
+        data = np.load(config.data_path+"jj", allow_pickle=True)
         assert (data.shape[0] >= training_size)
         data = data[:training_size, :].cumsum(axis=1)
         try:
@@ -59,6 +59,7 @@ if __name__ == "__main__":
             initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
 
     except (AssertionError, FileNotFoundError) as e:
+        print("Generating synthetic data\n")
         data = generate_fBn(T=td, S=training_size, H=h, rng=rng)
         np.save(config.data_path, data)
         data = data.cumsum(axis=1)
