@@ -37,10 +37,7 @@ def ddp_setup(backend: str) -> None:
     :param backend: Gloo vs NCCL for CPU vs GPU, respectively
     :return: None
     """
-    #os.environ["MASTER_ADDR"] = "localhost"
-    #os.environ["MASTER_PORT"] = "1000"
-    init_process_group(backend=backend)#, rank=rank, world_size=world_size)
-
+    init_process_group(backend=backend)
 
 def prepare_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> Tuple[DataLoader, DataLoader, DataLoader]:
     """
@@ -84,15 +81,7 @@ def initialise_training(data: np.ndarray, config: ConfigDict,
         :param scoreModel: Score network architecture
         :return: None
     """
-    if config.has_cuda:
-        # Spawn one process for every GPU device, automatically assign rank
-        #world_size = torch.cuda.device_count()
-        #mp.spawn(train_and_save_diffusion_model, args=(world_size, data, config, diffusion, scoreModel),
-                 #nprocs=world_size)
-        train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
-    else:
-        # Only one CPU device, so we have 1 core on 1 device
-        train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
+    train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
 
 def train_and_save_diffusion_model(data: np.ndarray,
                                    config: ConfigDict,
@@ -218,6 +207,7 @@ def evaluate_performance(true_samples: np.ndarray, generated_samples: np.ndarray
     expec_cov = compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim, isUnitInterval=config.unitInterval)
     print("Expected Covariance :: ", expec_cov)
 
+    print(config.image_path)
     plot_diffCov_heatmap(expec_cov, gen_cov, annot=config.annot, image_path=config.image_path+"_diffCov")
     S = min(true_samples.shape[0], generated_samples.shape[0])
     true_samples, generated_samples = true_samples[:S], generated_samples[:S]

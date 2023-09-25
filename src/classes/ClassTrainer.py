@@ -30,14 +30,14 @@ class DiffusionModelTrainer:
                  max_diff_steps: int,
                  optimiser: torch.optim.Optimizer,
                  snapshot_path: str,
-                 device: int,
+                 device: Union[torch.device,int],
                  checkpoint_freq: int,
                  loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
 
-        self.device_id = device #int(os.environ["LOCAL_RANK"])  # device
-        assert (self.device_id == int(os.environ["LOCAL_RANK"]))
-        self.score_network = score_network.to(self.device_id)
+        self.device_id = device
+        assert (self.device_id == int(os.environ["LOCAL_RANK"]) or self.device_id == torch.device("cpu"))
+        self.score_network = score_network
         self.epochs_run = 0
 
         self.opt = optimiser
@@ -133,9 +133,12 @@ class DiffusionModelTrainer:
         # Snapshot should be python dict
         loc = 'cuda:{}'.format(self.device_id) if type(self.device_id) == int else self.device_id
         snapshot = torch.load(snapshot_path, map_location=loc)
-        self.score_network.module.load_state_dict(snapshot["MODEL_STATE"])
         self.epochs_run = snapshot["EPOCHS_RUN"]
         self.opt.load_state_dict(snapshot["OPTIMISER_STATE"])
+        if type(self.device_id) == int:
+            self.score_network.module.load_state_dict(snapshot["MODEL_STATE"])
+        else:
+            self.score_network.load_state_dict(snapshot["MODEL_STATE"])
         print("Resuming training from snapshot at epoch {}".format(self.epochs_run + 1))
 
     def _save_snapshot(self, epoch: int) -> None:
@@ -146,9 +149,12 @@ class DiffusionModelTrainer:
         """
         snapshot = {}
         # self.score_network now points to DDP wrapped object, so we need to access parameters via ".module"
-        snapshot["MODEL_STATE"] = self.score_network.module.state_dict()
         snapshot["EPOCHS_RUN"] = epoch
         snapshot["OPTIMISER_STATE"] = self.opt.state_dict()
+        if type(self.device_id) == int:
+            snapshot["MODEL_STATE"] = self.score_network.module.state_dict()
+        else:
+            snapshot["MODEL_STATE"] = self.score_network.state_dict()
         torch.save(snapshot, self.snapshot_path)
         print(f"Epoch {epoch + 1} | Training snapshot saved at {self.snapshot_path}")
         torch.distributed.barrier()
@@ -160,11 +166,14 @@ class DiffusionModelTrainer:
             :return: None
         """
         # self.score_network now points to DDP wrapped object so we need to access parameters via ".module"
-        ckp = self.score_network.to(torch.device("cpu")).module.state_dict() # Save model on CPU
+        if type(self.device_id) == int:
+            ckp = self.score_network.to(torch.device("cpu")).module.state_dict()  # Save model on CPU
+        else:
+            ckp = self.score_network.to(torch.device("cpu")).state_dict()  # Save model on CPU
         torch.save(ckp, filepath)
         print(f"Trained model saved at {filepath}")
         try:
-            os.remove(self.snapshot_path) # Remove snapshot path since training is done
+            os.remove(self.snapshot_path)  # Remove snapshot path since training is done
         except FileNotFoundError:
             print("Snapshot file does not exist")
 
@@ -175,6 +184,7 @@ class DiffusionModelTrainer:
             :param model_filename: Filepath to save model
             :return: None
         """
+        self.score_network.train()
         for epoch in range(self.epochs_run, max_epochs):
             self._run_epoch(epoch)
             print("Percent Completed {:0.4f} :: Train {:0.4f} ".format((epoch + 1) / max_epochs,
