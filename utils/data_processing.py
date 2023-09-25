@@ -109,9 +109,11 @@ def train_and_save_diffusion_model(data: np.ndarray,
         :return: None
     """
     if config.has_cuda:
+        print("My config has cuda")
         ddp_setup(backend="nccl")
         device = int(os.environ["LOCAL_RANK"])
     else:
+        print("My config does not have cuda (but why?)")
         ddp_setup(backend="gloo")
         device = torch.device("cpu")
 
@@ -153,8 +155,10 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
     # TODO: DDP cannot be used here since sampling is sequential, so only single-machine, single-GPU/CPU?
 
     if config.has_cuda:
+        print("My config has cuda")
         device = 0
     else:
+        print("My config does not have cuda (but why?)")
         device = torch.device("cpu")
     
     # Define predictor
