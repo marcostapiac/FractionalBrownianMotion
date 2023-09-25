@@ -37,7 +37,7 @@ class DiffusionModelTrainer:
 
         self.device_id = device
         assert (self.device_id == int(os.environ["LOCAL_RANK"]) or self.device_id == torch.device("cpu"))
-        self.score_network = score_network
+        self.score_network = score_network.to(self.device_id)
         self.epochs_run = 0
 
         self.opt = optimiser
