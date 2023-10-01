@@ -29,7 +29,7 @@ def run_experiment(dataSize: int, diffusion: VPSDEDiffusion, scoreModel: Union[N
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.VPSDE.fBm_T32_H07 import get_config
+    from configs.VPSDE.fBm_T2_H07 import get_config
 
     config = get_config()
     h = config.hurst
@@ -65,6 +65,6 @@ if __name__ == "__main__":
         data = data.cumsum(axis=1)
         initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
 
-    s = 31
+    s = 100000
     scoreModel.load_state_dict(torch.load(config.filename))
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, rng=rng, config=config)
