@@ -86,5 +86,4 @@ def get_config():
     config.permute_test = True
     config.image_path = config.filename.replace("src/generative_modelling/trained_models/trained_", "pngs/")
 
-
     return config

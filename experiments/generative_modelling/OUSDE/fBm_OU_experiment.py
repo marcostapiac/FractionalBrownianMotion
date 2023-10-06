@@ -8,7 +8,7 @@ from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
-from utils.data_processing import evaluate_performance, reverse_sampling, initialise_training, initialise_sampling
+from utils.data_processing import evaluate_performance, reverse_sampling, initialise_training
 from utils.math_functions import generate_fBn, generate_fBm
 
 
@@ -16,7 +16,8 @@ def run_experiment(dataSize: int, diffusion: OUSDEDiffusion, scoreModel: Union[N
                    rng: np.random.Generator, config: ConfigDict) -> None:
     try:
         assert (config.train_eps <= config.sample_eps)
-        fBm_samples = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel, data_shape=(s, config.timeDim), config=config)
+        fBm_samples = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel, data_shape=(s, config.timeDim),
+                                       config=config)
     except AssertionError:
         raise ValueError("Final time during sampling should be at least as large as final time during training")
 
@@ -47,21 +48,19 @@ if __name__ == "__main__":
     training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
 
     try:
-        data = np.load(config.data_path)
-        assert (data.shape[0] >= training_size)
-        data = data[:training_size, :].cumsum(axis=1)
+        scoreModel.load_state_dict(torch.load(config.filename))
+    except (FileNotFoundError) as e:
+        print("No valid trained model found; proceeding to training\n")
         try:
+            data = np.load(config.data_path, allow_pickle=True)
+        except (FileNotFoundError) as e:
+            print("Generating synthetic data\n")
+            data = generate_fBn(T=td, S=training_size, H=h, rng=rng)
+            np.save(config.data_path, data)  # TODO is this the most efficient way
+        finally:
+            data = data.cumsum(axis=1)
+            initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
             scoreModel.load_state_dict(torch.load(config.filename))
-        except FileNotFoundError:
-            scoreModel = initialise_training(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
 
-    except (AssertionError, FileNotFoundError) as e:
-        print("Generating synthetic data\n")
-        data = generate_fBn(T=td, S=training_size, H=h, rng=rng)
-        np.save(config.data_path, data)  # TODO is this the most efficient way?
-        data = data.cumsum(axis=1)
-        scoreModel = initialise_training(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
-
-    s = 30000
-    scoreModel.load_state_dict(torch.load(config.filename))
+    s = 100000
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, rng=rng, config=config)

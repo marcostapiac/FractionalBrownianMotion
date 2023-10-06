@@ -4,11 +4,10 @@ from typing import Tuple, Union
 import numpy as np
 import pandas as pd
 import torch
-import torch.multiprocessing as mp
 import torchmetrics
 from ml_collections import ConfigDict
 from torch.distributed import init_process_group, destroy_process_group
-from torch.nn.parallel import DistributedDataParallel as DDP  # DDP wrapper
+from torch.distributed.elastic.multiprocessing.errors import record
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 
@@ -29,7 +28,7 @@ from utils.math_functions import chiSquared_test, reduce_to_fBn, compute_fBm_cov
 from utils.plotting_functions import plot_final_diffusion_marginals, plot_dataset, \
     plot_diffCov_heatmap, \
     plot_tSNE, plot_subplots
-from torch.distributed.elastic.multiprocessing.errors import record
+
 
 def ddp_setup(backend: str) -> None:
     """
@@ -38,6 +37,7 @@ def ddp_setup(backend: str) -> None:
     :return: None
     """
     init_process_group(backend=backend)
+
 
 def prepare_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> Tuple[DataLoader, DataLoader, DataLoader]:
     """
@@ -69,6 +69,7 @@ def prepare_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> Tuple
 
     return trainLoader, valLoader, testLoader
 
+
 @record
 def initialise_training(data: np.ndarray, config: ConfigDict,
                         diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
@@ -82,6 +83,7 @@ def initialise_training(data: np.ndarray, config: ConfigDict,
         :return: None
     """
     train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
+
 
 def train_and_save_diffusion_model(data: np.ndarray,
                                    config: ConfigDict,
@@ -112,7 +114,7 @@ def train_and_save_diffusion_model(data: np.ndarray,
 
     # Define trainer
     train_eps, end_diff_time, max_diff_steps, checkpoint_freq = config.train_eps, config.end_diff_time, config.max_diff_steps, config.save_freq
-    
+
     # TODO: When using DDP, set device = rank passed by mp.spawn OR by torchrun
     trainer = DiffusionModelTrainer(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                                     checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
@@ -126,6 +128,7 @@ def train_and_save_diffusion_model(data: np.ndarray,
 
     # Cleanly exit the DDP training
     destroy_process_group()
+
 
 @record
 def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
@@ -145,7 +148,7 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
         device = 0
     else:
         device = torch.device("cpu")
-    
+
     # Define predictor
     predictor_params = [diffusion, scoreModel, config.end_diff_time, config.max_diff_steps, device]
     predictor = AncestralSamplingPredictor(
@@ -162,7 +165,7 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
     sampler = SDESampler(diffusion=diffusion, sample_eps=config.sample_eps, predictor=predictor, corrector=corrector)
 
     # Sample
-    final_samples = sampler.sample(shape=data_shape, torch_device=device)
+    final_samples = sampler.sample(shape=data_shape, torch_device=device, config=config)
     return final_samples  # TODO Check if need to detach
 
 
@@ -188,7 +191,8 @@ def check_convergence_at_diffTime(diffusion: Union[VPSDEDiffusion, VESDEDiffusio
     return forward_samples_at_t.numpy(), backward_samples_at_t, labels
 
 
-def evaluate_performance(true_samples: np.ndarray, generated_samples: np.ndarray, rng: np.random.Generator, config:ConfigDict) -> None:
+def evaluate_performance(true_samples: np.ndarray, generated_samples: np.ndarray, rng: np.random.Generator,
+                         config: ConfigDict) -> None:
     """
     Computes metrics to quantify how close the generated samples are from the desired distribution
         :param true_samples: Exact samples of fractional Brownian motion (or its increments)
@@ -204,26 +208,33 @@ def evaluate_performance(true_samples: np.ndarray, generated_samples: np.ndarray
     print("True Data Covariance :: ", true_cov)
     gen_cov = np.cov(generated_samples, rowvar=False)
     print("Generated Data Covariance :: ", gen_cov)
-    expec_cov = compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim, isUnitInterval=config.unitInterval)
+    expec_cov = compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim,
+                                isUnitInterval=config.unitInterval)
     print("Expected Covariance :: ", expec_cov)
 
     print(config.image_path)
-    plot_diffCov_heatmap(expec_cov, gen_cov, annot=config.annot, image_path=config.image_path+"_diffCov")
+    plot_diffCov_heatmap(expec_cov, gen_cov, annot=config.annot, image_path=config.image_path + "_diffCov")
     S = min(true_samples.shape[0], generated_samples.shape[0])
     true_samples, generated_samples = true_samples[:S], generated_samples[:S]
 
     # Chi-2 test for joint distribution of the fractional Brownian noise
-    c2 = chiSquared_test(T=config.timeDim, H=config.hurst, samples=reduce_to_fBn(true_samples, reduce=config.isfBm), isUnitInterval=config.unitInterval)
+    c2 = chiSquared_test(T=config.timeDim, H=config.hurst, samples=reduce_to_fBn(true_samples, reduce=config.isfBm),
+                         isUnitInterval=config.unitInterval)
     print("Chi-Squared test for true: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], c2[1],
                                                                                                      c2[2]))
     # Chi-2 test for joint distribution of the fractional Brownian noise
-    c2 = chiSquared_test(T=config.timeDim, H=config.hurst, samples=reduce_to_fBn(generated_samples, reduce=config.isfBm), isUnitInterval=config.unitInterval)
+    c2 = chiSquared_test(T=config.timeDim, H=config.hurst,
+                         samples=reduce_to_fBn(generated_samples, reduce=config.isfBm),
+                         isUnitInterval=config.unitInterval)
     print("Chi-Squared test for target: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], c2[1],
                                                                                                        c2[2]))
 
-    plot_tSNE(x=true_samples, y=generated_samples, labels=["True Samples", "Generated Samples"],  image_path=config.image_path+"_tSNE") \
-        if config.timeDim > 2 else plot_dataset(true_samples, generated_samples,  image_path=config.image_path+"_scatter")
-    if config.eval_marginals: plot_final_diffusion_marginals(true_samples, generated_samples, timeDim=config.timeDim,  image_path=config.image_path)
+    plot_tSNE(x=true_samples, y=generated_samples, labels=["True Samples", "Generated Samples"],
+              image_path=config.image_path + "_tSNE") \
+        if config.timeDim > 2 else plot_dataset(true_samples, generated_samples,
+                                                image_path=config.image_path + "_scatter")
+    if config.eval_marginals: plot_final_diffusion_marginals(true_samples, generated_samples, timeDim=config.timeDim,
+                                                             image_path=config.image_path)
     if config.permute_test:
         # Permutation test for kernel statistic
         test_L = min(2000, true_samples.shape[0])
@@ -266,7 +277,7 @@ def compute_circle_proportions(true_samples: np.ndarray, generated_samples: np.n
     print("True: Inner {} vs Outer {}".format(innerf / S, outerf / S))
 
 
-def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.ndarray, config:ConfigDict) -> None:
+def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.ndarray, config: ConfigDict) -> None:
     """
     Compute various quantitative and qualitative metrics on final reverse-time diffusion samples for circle dataset
         :param true_samples: Exact samples from circle dataset
@@ -331,7 +342,8 @@ def compare_fBm_to_normal(generated_samples: np.ndarray, td: int, rng: np.random
     normal_rvs = np.empty((S, td))
     for _ in range(S):
         normal_rvs[_, :] = rng.standard_normal(td)
-    plot_tSNE(generated_samples, y=normal_rvs, labels=["Reverse Diffusion Samples", "Standard Normal RVS"])
+    plot_tSNE(generated_samples, y=normal_rvs, labels=["Reverse Diffusion Samples", "Standard Normal RVS"],
+              image_path=None)
 
 
 def gen_and_store_statespace_data(Xs=None, Us=None, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 11,

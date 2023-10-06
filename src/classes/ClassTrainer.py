@@ -3,6 +3,7 @@ from typing import Union
 
 import torch
 import torchmetrics
+from torch.nn.parallel import DistributedDataParallel as DDP
 from torchmetrics import MeanMetric
 
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
@@ -11,7 +12,7 @@ from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
-from torch.nn.parallel import DistributedDataParallel as DDP
+
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
 # Link for ddp_setup backend: https://pytorch.org/docs/stable/distributed.html
@@ -30,7 +31,7 @@ class DiffusionModelTrainer:
                  max_diff_steps: int,
                  optimiser: torch.optim.Optimizer,
                  snapshot_path: str,
-                 device: Union[torch.device,int],
+                 device: Union[torch.device, int],
                  checkpoint_freq: int,
                  loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
@@ -53,7 +54,7 @@ class DiffusionModelTrainer:
 
         # Move score network to appropriate device
         if type(self.device_id) == int:
-            self.score_network = DDP(self.score_network, device_ids =[self.device_id])
+            self.score_network = DDP(self.score_network, device_ids=[self.device_id])
         else:
             self.score_network = self.score_network.to(self.device_id)
 

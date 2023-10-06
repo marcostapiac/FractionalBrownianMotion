@@ -44,13 +44,13 @@ def get_config():
         config.hurst,
         config.timeDim,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.temb_dim,
-        config.enc_shapes).replace(".","")
+        config.enc_shapes).replace(".", "")
 
     tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_fBm_OUSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}".format(
         config.hurst,
         config.timeDim,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.temb_dim,
-        config.residual_layers, config.residual_channels, config.diff_hidden_size).replace(".","")
+        config.residual_layers, config.residual_channels, config.diff_hidden_size).replace(".", "")
 
     config.model_choice = "TSM"
     config.filename = tsmFileName if config.model_choice == "TSM" else mlpFileName

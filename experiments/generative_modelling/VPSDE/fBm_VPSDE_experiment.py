@@ -29,7 +29,7 @@ def run_experiment(dataSize: int, diffusion: VPSDEDiffusion, scoreModel: Union[N
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.VPSDE.fBm_T2_H07 import get_config
+    from configs.VPSDE.fBm_T32_H07 import get_config
 
     config = get_config()
     h = config.hurst
@@ -48,23 +48,20 @@ if __name__ == "__main__":
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
     training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
-
     try:
-        data = np.load(config.data_path+"jj", allow_pickle=True)
-        assert (data.shape[0] >= training_size)
-        data = data[:training_size, :].cumsum(axis=1)
+        scoreModel.load_state_dict(torch.load(config.filename))
+    except (FileNotFoundError) as e:
+        print("No valid trained model found; proceeding to training\n")
         try:
-            scoreModel.load_state_dict(torch.load(config.filename))
-        except FileNotFoundError:
+            data = np.load(config.data_path, allow_pickle=True)
+        except (FileNotFoundError) as e:
+            print("Generating synthetic data\n")
+            data = generate_fBn(T=td, S=training_size, H=h, rng=rng)
+            np.save(config.data_path, data)  # TODO is this the most efficient way
+        finally:
+            data = data.cumsum(axis=1)
             initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
-
-    except (AssertionError, FileNotFoundError) as e:
-        print("Generating synthetic data\n")
-        data = generate_fBn(T=td, S=training_size, H=h, rng=rng)
-        np.save(config.data_path, data)
-        data = data.cumsum(axis=1)
-        initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
+            scoreModel.load_state_dict(torch.load(config.filename))
 
     s = 100000
-    scoreModel.load_state_dict(torch.load(config.filename))
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, rng=rng, config=config)

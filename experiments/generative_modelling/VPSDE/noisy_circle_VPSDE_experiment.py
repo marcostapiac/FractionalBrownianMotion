@@ -17,12 +17,12 @@ def run_experiment(dataSize: int, diffusion: VPSDEDiffusion, scoreModel: Union[N
                    config: ConfigDict) -> None:
     try:
         assert (config.train_eps <= config.sample_eps)
+        true_samples = generate_circles(S=dataSize, noise=config.cnoise)
         circle_samples = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                           data_shape=(dataSize, config.timeDim), config=config)
     except AssertionError:
         raise ValueError("Final time during sampling should be at least as large as final time during training")
 
-    true_samples = generate_circles(S=dataSize, noise=config.cnoise)
     evaluate_circle_performance(true_samples, circle_samples.cpu().numpy(), config=config)
 
 
@@ -47,19 +47,18 @@ if __name__ == "__main__":
     training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
 
     try:
-        data = np.load(config.data_path)
-        assert (data.shape[0] >= training_size)
-        data = data[:training_size, :]
+        scoreModel.load_state_dict(torch.load(config.filename))
+    except (FileNotFoundError) as e:
+        print("No valid trained model found; proceeding to training\n")
         try:
-            scoreModel.load_state_dict(torch.load(config.filename))
-        except FileNotFoundError:
+            data = np.load(config.data_path, allow_pickle=True)
+        except (FileNotFoundError) as e:
+            print("Generating synthetic data\n")
+            data = generate_circles(S=training_size, noise=config.cnoise)
+            np.save(config.data_path, data)  # TODO is this the most efficient way
+        finally:
             initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
+            scoreModel.load_state_dict(torch.load(config.filename))
 
-    except (AssertionError, FileNotFoundError) as e:
-        data = generate_circles(S=training_size, noise=config.cnoise)
-        np.save(config.data_path, data)  # TODO is this the most efficient way
-        initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
-
-    s = 30000
-    scoreModel.load_state_dict(torch.load(config.filename))
+    s = 100000
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, config=config)

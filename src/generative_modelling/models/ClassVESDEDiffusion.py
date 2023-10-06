@@ -35,7 +35,7 @@ class VESDEDiffusion(nn.Module):
                 - Score
 
         """
-        epsts = torch.randn_like(dataSamples) # Already in same device as dataSamples
+        epsts = torch.randn_like(dataSamples)  # Already in same device as dataSamples
         return dataSamples + torch.sqrt(effTimes) * epsts, -epsts / torch.sqrt(effTimes)
 
     @staticmethod

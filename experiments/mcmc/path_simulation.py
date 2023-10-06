@@ -5,9 +5,14 @@ from utils.plotting_functions import plt, plot
 
 
 def plotting_paths(save=True):
-    N_paths = 5
+    """
+    Function to plot sample paths of fBm
+    :param save:
+    :return:
+    """
+    N_paths = 3
     N = 2 ** 10
-    Hs = np.linspace(0.3, 0.9, N_paths + 1, endpoint=False)[1:]
+    Hs = np.linspace(0.4, 0.7, N_paths + 1, endpoint=False)[1:]
     paths = []
     deltaT = 1e-3  # for Circulant
     T = deltaT * N  # for Circulant
@@ -21,7 +26,7 @@ def plotting_paths(save=True):
     plot(time_ax, paths, label_args=np.array(["$H = " + str(round(h, 3)) + "$" for h in Hs]),
          title="Fractional Brownian Motion Sample Paths", xlabel="Time", ylabel="Position")
     if save:
-        plt.savefig("../pngs/SamplefBmPathsCirculant.png", bbox_inches="tight", transparent=False)
+        plt.savefig("../../pngs/SamplefBmPathsCirculant.png", bbox_inches="tight", transparent=False)
         plt.show()
         plt.close()
     else:

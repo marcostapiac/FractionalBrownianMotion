@@ -26,7 +26,7 @@ class SDESampler:
     def sample(self, shape: Tuple[int, int], torch_device: Union[int, torch.device]) -> torch.Tensor:
         timesteps = torch.linspace(start=self.predictor.end_diff_time, end=self.sample_eps,
                                    steps=self.predictor.max_diff_steps)
-        x = self.diffusion.prior_sampling(shape=shape).to(torch_device) # Move to correct device
+        x = self.diffusion.prior_sampling(shape=shape).to(torch_device)  # Move to correct device
         for i in tqdm(iterable=(range(0, self.predictor.max_diff_steps)), dynamic_ncols=False, desc="Sampling :: ",
                       position=0):
             diff_index = torch.Tensor([i]).to(torch_device)

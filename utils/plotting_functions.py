@@ -70,22 +70,22 @@ def plot(time_ax, data, label_args: np.ndarray[str], xlabel: str, ylabel: str, t
          fig: matplotlib.figure.Figure = None, ax: matplotlib.axes.Axes = None, saveTransparent: bool = False):
     """
     Plotting function to plot multiple traces in SAME figure and axis object
-    :param time_ax: MCMC timeline
-    :param data: Data containing MCMC trace values
-    :param label_args: Labels for each plot
-    :param xlabels: X-axis label
-    :param ylabels: Y-axis label
-    :param title: Plot title
-    :param fig: Figure object
-    :param ax: Axis object
-    :param saveTransparent: Indicates whether to remove background from figure
-    :return: None
+        :param time_ax: MCMC timeline
+        :param data: Data containing MCMC trace values
+        :param label_args: Labels for each plot
+        :param xlabels: X-axis label
+        :param ylabels: Y-axis label
+        :param title: Plot title
+        :param fig: Figure object
+        :param ax: Axis object
+        :param saveTransparent: Indicates whether to remove background from figure
+        :return: None
 
     """
     if (fig and ax) is None:
         fig, ax = plt.subplots()
     for i in range(len(data)):
-        ax.step(time_ax, data[i], label=label_args[i], lw=1.2, marker='.')
+        ax.step(time_ax, data[i], label=label_args[i], lw=0.01, marker='.')
     if saveTransparent:
         fig.patch.set_alpha(0.0)
         ax.xaxis.label.set_color('white')  # setting up X-axis label color to yellow
@@ -361,7 +361,7 @@ def plot_and_save_loss_epochs(epochs: np.ndarray, train_loss: np.ndarray, val_lo
     plt.show()
 
 
-def plot_tSNE(x: np.ndarray, labels: list[str], image_path:str, y: Union[NoneType, np.ndarray] = None) -> None:
+def plot_tSNE(x: np.ndarray, labels: list[str], image_path: str, y: Union[NoneType, np.ndarray] = None) -> None:
     """
     Helper function to generate t-SNE plots
     :param x: Data
@@ -372,7 +372,7 @@ def plot_tSNE(x: np.ndarray, labels: list[str], image_path:str, y: Union[NoneTyp
     """
     assert (len(labels) == 1 or len(labels) == 2)
     try:
-        assert(x.shape[0] > 30)
+        assert (x.shape[0] > 30)
     except AssertionError:
         print("Number of samples must be greater than perplexity value {} in TSNE embedder".format(int(30)))
     x_embed = TSNE().fit_transform(x)
@@ -389,7 +389,8 @@ def plot_tSNE(x: np.ndarray, labels: list[str], image_path:str, y: Union[NoneTyp
     plt.show()
 
 
-def plot_final_diffusion_marginals(forward_samples: np.ndarray, reverse_samples: np.ndarray, timeDim: int, image_path:str) -> None:
+def plot_final_diffusion_marginals(forward_samples: np.ndarray, reverse_samples: np.ndarray, timeDim: int,
+                                   image_path: str) -> None:
     """
     Q-Q plot and KS statistic of multidimensional samples
         :param forward_samples: Forward diffsion samples
@@ -406,12 +407,12 @@ def plot_final_diffusion_marginals(forward_samples: np.ndarray, reverse_samples:
                ylabel="$\\textbf{Final Reverse Diffusion Samples}$",
                plottitle="Marginal Q-Q Plot at Time Dim {}".format(t + 1), log=False)
         print("KS-test statistic for marginal at time {} :: {}".format(t, kstest(forward_t, reverse_samples_t)))
-        plt.savefig(image_path +f"_QQ_timeDim{int(t)}")
+        plt.savefig(image_path + f"_QQ_timeDim{int(t)}")
         plt.show()
         plt.close()
 
 
-def plot_heatmap(map: np.ndarray, annot: bool, title: str, filename:str) -> None:
+def plot_heatmap(map: np.ndarray, annot: bool, title: str, filename: str) -> None:
     """
     Helper function to create a heatmap
         :param map: Data to plot
@@ -426,7 +427,7 @@ def plot_heatmap(map: np.ndarray, annot: bool, title: str, filename:str) -> None
     plt.show()
 
 
-def plot_diffCov_heatmap(true_cov: np.ndarray, gen_cov: np.ndarray,  image_path:str, annot: bool = True) -> None:
+def plot_diffCov_heatmap(true_cov: np.ndarray, gen_cov: np.ndarray, image_path: str, annot: bool = True) -> None:
     """
     Compute and plot difference between expected and sample covariance matrices
         :param true_cov: Theoretical covariance matrix
@@ -437,10 +438,10 @@ def plot_diffCov_heatmap(true_cov: np.ndarray, gen_cov: np.ndarray,  image_path:
     """
     s = 100 * (gen_cov - true_cov) / true_cov
     print("Average absolute percentage error: ", np.mean(np.abs(s)))
-    plot_heatmap(map=np.abs(s), title="Difference in Covariance Matrices", annot=annot, filename = image_path)
+    plot_heatmap(map=np.abs(s), title="Difference in Covariance Matrices", annot=annot, filename=image_path)
 
 
-def plot_dataset(forward_samples: np.ndarray, reverse_samples: np.ndarray, image_path:str,
+def plot_dataset(forward_samples: np.ndarray, reverse_samples: np.ndarray, image_path: str,
                  labels: Optional[Union[list[str], NoneType]] = None) -> None:
     """
     Scatter plot of 2 dimensional data (in the context of diffusion models)

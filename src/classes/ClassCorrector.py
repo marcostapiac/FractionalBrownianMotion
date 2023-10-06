@@ -1,7 +1,8 @@
 import abc
+from typing import Union
+
 import torch
 
-from typing import Union
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 
@@ -9,7 +10,7 @@ from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 class Corrector(abc.ABC):
     """ Base class for corrector algorithms """
 
-    def __init__(self, N_lang: int, r: torch.Tensor, device:Union[int, torch.device]):
+    def __init__(self, N_lang: int, r: torch.Tensor, device: Union[int, torch.device]):
         self.max_lang_steps = N_lang
         self.torch_device = device
         print(self.torch_device)
@@ -45,7 +46,7 @@ class Corrector(abc.ABC):
 class VESDECorrector(Corrector):
     """ Corrector class for VE SDE diffusion model """
 
-    def __init__(self, N_lang: int, r: torch.Tensor, device:Union[int, torch.device],diffusion: VESDEDiffusion):
+    def __init__(self, N_lang: int, r: torch.Tensor, device: Union[int, torch.device], diffusion: VESDEDiffusion):
         super().__init__(N_lang, r, device)
         self.diffusion = diffusion
 
@@ -65,7 +66,7 @@ class VESDECorrector(Corrector):
 class VPSDECorrector(Corrector):
     """ Corrector class for VP SDE diffusion model """
 
-    def __init__(self, N_lang: int, r: torch.Tensor, device:Union[int, torch.device], diffusion: VPSDEDiffusion):
+    def __init__(self, N_lang: int, r: torch.Tensor, device: Union[int, torch.device], diffusion: VPSDEDiffusion):
         super().__init__(N_lang, r, device)
         self.diffusion = diffusion
 

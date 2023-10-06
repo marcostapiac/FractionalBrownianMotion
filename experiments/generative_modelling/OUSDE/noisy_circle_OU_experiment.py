@@ -49,19 +49,18 @@ if __name__ == "__main__":
     training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
 
     try:
-        data = np.load(config.data_path)
-        assert (data.shape[0] >= training_size)
+        scoreModel.load_state_dict(torch.load(config.filename))
+    except (FileNotFoundError) as e:
+        print("No valid trained model found; proceeding to training\n")
         try:
-            scoreModel.load_state_dict(torch.load(modelFileName))
-        except FileNotFoundError:
-            initialise_training(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
+            data = np.load(config.data_path, allow_pickle=True)
+        except (FileNotFoundError) as e:
+            print("Generating synthetic data\n")
+            data = generate_circles(S=training_size, noise=config.cnoise)
+            np.save(config.data_path, data)  # TODO is this the most efficient way
+        finally:
+            initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
+            scoreModel.load_state_dict(torch.load(config.filename))
 
-    except (AssertionError, FileNotFoundError) as e:
-        print("Generating synthetic data\n")
-        data = generate_circles(S=training_size, noise=config.cnoise)
-        np.save(config.data_path, data)  # TODO is this the most efficient way
-        initialise_training(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
-
-    s = 3000
-    scoreModel.load_state_dict(torch.load(modelFileName))
+    s = 100000
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, config=config)

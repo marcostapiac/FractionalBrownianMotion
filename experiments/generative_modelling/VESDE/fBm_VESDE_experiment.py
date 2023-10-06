@@ -1,11 +1,9 @@
-import os
 from typing import Union
 
 import numpy as np
 import torch
 from ml_collections import ConfigDict
 
-from experiments.mcmc import *
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
@@ -18,7 +16,8 @@ def run_experiment(dataSize: int, diffusion: VESDEDiffusion, scoreModel: Union[N
                    rng: np.random.Generator, config: ConfigDict) -> None:
     try:
         assert (config.train_eps <= config.sample_eps)
-        fBm_samples = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel, data_shape=(s, config.timeDim), config=config)
+        fBm_samples = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel, data_shape=(s, config.timeDim),
+                                       config=config)
 
     except AssertionError:
         raise ValueError("Final time during sampling should be at least as large as final time during training")
@@ -49,23 +48,19 @@ if __name__ == "__main__":
 
     training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
     try:
-        data = np.load(config.data_path, allow_pickle=True)
-        assert (data.shape[0] >= training_size)
-        data = data[:training_size, :].cumsum(axis=1)
+        scoreModel.load_state_dict(torch.load(config.filename))
+    except (FileNotFoundError) as e:
+        print("No valid trained model found; proceeding to training\n")
         try:
-            file = torch.load(config.filename + "kjj")
-        except FileNotFoundError:
+            data = np.load(config.data_path, allow_pickle=True)
+        except (FileNotFoundError) as e:
+            print("Generating synthetic data\n")
+            data = generate_fBn(T=td, S=training_size, H=h, rng=rng)
+            np.save(config.data_path, data)  # TODO is this the most efficient way
+        finally:
+            data = data.cumsum(axis=1)
             initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
-            file = torch.load(config.filename)
+            scoreModel.load_state_dict(torch.load(config.filename))
 
-    except (AssertionError, FileNotFoundError) as e:
-        print("Generating synthetic data\n")
-        data = generate_fBn(T=td, S=training_size, H=h, rng=rng)
-        np.save(config.data_path, data)  # TODO is this the most efficient way
-        data = data.cumsum(axis=1)
-        initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
-        file = torch.load(config.filename)
-
-    s = 31
-    scoreModel.load_state_dict(file)
+    s = 100000
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, rng=rng, config=config)
