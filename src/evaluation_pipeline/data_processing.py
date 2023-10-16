@@ -100,14 +100,14 @@ def train_and_save_discLSTM(org_data: np.ndarray, synth_data: np.ndarray, config
 
 
 def test_discLSTM(original_data: np.ndarray, synthetic_data: np.ndarray, config: ConfigDict,
-                  model: DiscriminativeLSTM) -> None:
+                  model: DiscriminativeLSTM) -> Tuple[float, float]:
     """
     Test trained predictive LSTM on both true samples and synthetic samples
         :param org_data: Exact samples from desired distribution
         :param synth_data: Synthetic samples from reverse-diffusion
         :param config: ML condfiguration file
         :param model: Empty discriminative model
-        :return: None
+        :return: Original and synthetic dataset losses
     """
     try:
         model.load_state_dict(torch.load(config.disc_lstm_trained_path))
@@ -140,7 +140,7 @@ def test_discLSTM(original_data: np.ndarray, synthetic_data: np.ndarray, config:
 
         print("Average Missclassification Rate :: Original vs Synthetic :: {} vs {}".format(round(org_loss, 3),
                                                                                             round(synth_loss, 3)))
-        destroy_process_group()
+        return round(org_loss, 3), round(synth_loss, 3)
 
 
 @record
@@ -180,14 +180,14 @@ def train_and_save_predLSTM(data: np.ndarray, config: ConfigDict, model: Predict
 
 
 def test_predLSTM(original_data: np.ndarray, synthetic_data: np.ndarray, config: ConfigDict,
-                  model: PredictiveLSTM) -> None:
+                  model: PredictiveLSTM) -> Tuple[float, float]:
     """
     Test trained predictive LSTM on both true samples and synthetic samples
         :param original_data: Exact samples from desired distribution
         :param synthetic_data: Synthetic samples from reverse-diffusion
         :param config: ML condfiguration file
         :param model: Empty model
-        :return: None
+        :return: MAE losses for original and synthetic datasets
     """
     try:
         model.load_state_dict(torch.load(config.pred_lstm_trained_path))
@@ -216,4 +216,4 @@ def test_predLSTM(original_data: np.ndarray, synthetic_data: np.ndarray, config:
         synth_loss = inference.run(synth_loader)
 
         print("Average MAE :: Original vs Synthetic :: {} vs {}".format(round(org_loss, 3), round(synth_loss, 3)))
-        destroy_process_group()
+        return round(org_loss, 3), round(synth_loss, 3)

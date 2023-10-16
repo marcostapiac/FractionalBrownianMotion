@@ -16,7 +16,7 @@ from utils.plotting_functions import plot_final_diff_marginals, plot_dataset, \
 
 
 def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.ndarray, rng: np.random.Generator,
-                             config: ConfigDict) -> None:
+                             config: ConfigDict, exp_dict:dict) -> dict:
     """
     Computes metrics to quantify how close the generated samples are from the desired distribution
         :param true_samples: Exact samples of fractional Brownian motion (or its increments)
@@ -24,10 +24,15 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
         :param h: Hurst index
         :param rng: Default random number generator
         :param config: Configuration dictionary for experiment
+        :param exp_dict: Dictionary storing current experiment results
         :return: None
     """
-    print("True Data Sample Mean :: ", np.mean(true_samples, axis=0))
-    print("Generated Data Sample Mean :: ", np.mean(generated_samples, axis=0))
+    true_mean = np.mean(true_samples, axis=0)
+    print("True Data Sample Mean :: ", true_mean)
+    gen_mean = np.mean(generated_samples, axis=0)
+    print("Generated Data Sample Mean :: ", gen_mean)
+    exp_dict[config.exp_keys[0]] = np.mean(np.abs(gen_mean - true_mean) / true_mean)
+
     true_cov = np.cov(true_samples, rowvar=False)
     print("True Data Covariance :: ", true_cov)
     gen_cov = np.cov(generated_samples, rowvar=False)
@@ -35,15 +40,19 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
     expec_cov = compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim,
                                 isUnitInterval=config.unitInterval)
     print("Expected Covariance :: ", expec_cov)
+    exp_dict[config.exp_keys[1]] = np.mean(np.abs(gen_cov-expec_cov)/expec_cov)
 
-    print(config.image_path)
-    plot_diffCov_heatmap(expec_cov, gen_cov, annot=config.annot, image_path=config.image_path + "_diffCov")
+
+    plot_diffCov_heatmap(expec_cov, gen_cov, annot=config.annot, image_path=config.image_path + "_diffCov.png")
     S = min(true_samples.shape[0], generated_samples.shape[0])
     true_samples, generated_samples = true_samples[:S], generated_samples[:S]
 
     # Chi-2 test for joint distribution of the fractional Brownian noise
     c2 = chiSquared_test(T=config.timeDim, H=config.hurst, samples=reduce_to_fBn(true_samples, reduce=config.isfBm),
                          isUnitInterval=config.unitInterval)
+    exp_dict[config.exp_keys[2]] = c2[0]
+    exp_dict[config.exp_keys[3]] = c2[2]
+    exp_dict[config.exp_keys[4]] = c2[1]
     print("Chi-Squared test for true: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], c2[1],
                                                                                                      c2[2]))
     # Chi-2 test for joint distribution of the fractional Brownian noise
@@ -52,22 +61,29 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
                          isUnitInterval=config.unitInterval)
     print("Chi-Squared test for target: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], c2[1],
                                                                                                        c2[2]))
+    exp_dict[config.exp_keys[5]] = c2[1]
 
     plot_tSNE(x=true_samples, y=generated_samples, labels=["True Samples", "Generated Samples"],
               image_path=config.image_path + "_tSNE") \
         if config.timeDim > 2 else plot_dataset(true_samples, generated_samples,
-                                                image_path=config.image_path + "_scatter")
-    if config.eval_marginals:
-        plot_final_diff_marginals(true_samples, generated_samples, timeDim=config.timeDim, image_path=config.image_path)
+                                                image_path=config.image_path + "_scatter.png")
+
+    # Evaluate marginal distributions
+    ps = plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.print_marginals, timeDim=config.timeDim, image_path=config.image_path)
+    exp_dict[config.exp_keys[6]] = ps
 
     if config.test_lstm:
         # Predictive LSTM test
-        test_predLSTM(original_data=true_samples, synthetic_data=generated_samples, model=PredictiveLSTM(ts_dim=1),
+        org, synth = test_predLSTM(original_data=true_samples, synthetic_data=generated_samples, model=PredictiveLSTM(ts_dim=1),
                       config=config)
+        exp_dict[config.exp_keys[7]] = org
+        exp_dict[config.exp_keys[8]] = synth
 
         # Discriminative LSTM test
-        test_discLSTM(original_data=true_samples, synthetic_data=generated_samples, model=DiscriminativeLSTM(ts_dim=1),
+        org, synth = test_discLSTM(original_data=true_samples, synthetic_data=generated_samples, model=DiscriminativeLSTM(ts_dim=1),
                       config=config)
+        exp_dict[config.exp_keys[9]] = org
+        exp_dict[config.exp_keys[10]] = synth
 
     if config.permute_test:
         # Permutation test for kernel statistic
@@ -79,14 +95,15 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
         print("Energy Permutation test: p-value {}".format(
             permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=energy_statistic,
                              num_permutations=1000)))
+    return exp_dict
 
 
-def compute_circle_proportions(true_samples: np.ndarray, generated_samples: np.ndarray) -> None:
+def compute_circle_proportions(true_samples: np.ndarray, generated_samples: np.ndarray) -> float:
     """
     Function computes approximate ratio of samples in inner vs outer circle of circle dataset
         :param true_samples: data samples exactly using sklearn's "make_circle" function
         :param generated_samples: final reverse-time diffusion samples
-        :return: None
+        :return: Ratio of circle proportions
     """
     innerb = 0
     outerb = 0
@@ -109,30 +126,38 @@ def compute_circle_proportions(true_samples: np.ndarray, generated_samples: np.n
 
     print("Generated: Inner {} vs Outer {}".format(innerb / S, outerb / S))
     print("True: Inner {} vs Outer {}".format(innerf / S, outerf / S))
+    return innerf/innerb
 
 
-def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.ndarray, config: ConfigDict) -> None:
+def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.ndarray, config: ConfigDict, exp_dict:dict) -> dict:
     """
     Compute various quantitative and qualitative metrics on final reverse-time diffusion samples for circle dataset
         :param true_samples: Exact samples from circle dataset
         :param generated_samples: Final reverse-time diffusion samples
         :param config: Configuration dictionary for experiment
-        :return: None
+        :param exp_dict: Dictionary storing current experiment results
+        :return: Dictionary with experiment results
     """
+    true_mean = np.mean(true_samples, axis=0)
+    print("True Data Sample Mean :: ", true_mean)
+    gen_mean = np.mean(generated_samples, axis=0)
+    print("Generated Data Sample Mean :: ", gen_mean)
+    exp_dict[config.exp_keys[0]] = np.mean(np.abs(gen_mean-true_mean)/true_mean)
 
-    print("True Data Sample Mean :: ", np.mean(true_samples, axis=0))
-    print("Generated Data Sample Mean :: ", np.mean(generated_samples, axis=0))
     true_cov = np.cov(true_samples, rowvar=False)
     print("True Data :: ", true_cov)
     gen_cov = np.cov(generated_samples, rowvar=False)
     print("Generated Data :: ", gen_cov)
+    exp_dict[config.exp_keys[1]] = np.mean(np.abs(gen_cov-true_cov)/true_cov)
 
-    plot_dataset(true_samples, generated_samples, image_path=config.image_path + "_scatter")
+    plot_dataset(true_samples, generated_samples, image_path=config.image_path + "_scatter.png")
+    plot_diffCov_heatmap(true_cov=true_cov, gen_cov=gen_cov, image_path=config.image_path + "_scatter.png")
+    ps = plot_final_diff_marginals(true_samples, generated_samples, timeDim=2, print_marginals=config.print_marginals, image_path=config.image_path)
+    exp_dict[config.exp_keys[2]] = ps
 
-    plot_diffCov_heatmap(true_cov=true_cov, gen_cov=gen_cov, image_path=config.image_path + "_scatter")
-    plot_final_diff_marginals(true_samples, generated_samples, timeDim=2, image_path=config.image_path)
-
-    compute_circle_proportions(true_samples, generated_samples)
+    true_prop, gen_prop = compute_circle_proportions(true_samples, generated_samples)
+    exp_dict[config.exp.keys[3]] = true_prop
+    exp_dict[config.exp.keys[4]] = gen_prop
 
     # Permutation test for kernel statistic
     test_L = min(2000, true_samples.shape[0])
@@ -143,6 +168,7 @@ def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.
     print("Energy Permutation test: p-value {}".format(
         permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=energy_statistic,
                          num_permutations=1000)))
+    return exp_dict
 
 
 def compare_fBm_to_approximate_fBm(generated_samples: np.ndarray, h: float, td: int, rng: np.random.Generator) -> None:
@@ -212,3 +238,5 @@ def gen_and_store_statespace_data(Xs=None, Us=None, muU=1., muX=1., gamma=1., X0
                   np.array(["Volatility", "Log Price"]),
                   "Project Model Simulation")
     df.to_csv('../data/raw_data_simpleObsModel_{}_{}.csv'.format(int(np.log2(N)), int(10 * H)), index=False)
+
+

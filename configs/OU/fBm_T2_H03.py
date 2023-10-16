@@ -70,12 +70,15 @@ def get_config():
     config.corrector_model = "OU"
 
     # Experiment evaluation parameters
+    config.num_runs = 10
     config.unitInterval = True
     config.annot = True
-    config.eval_marginals = True
+    config.print_marginals = True
     config.isfBm = True
     config.permute_test = False
     config.image_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",
                                                              "pngs/")
+    config.exp_keys = ["Mean Abs Percent Diff", "Cov Abs Percent Diff", "Chi2 Lower", "Chi2 Upper", "Chi2 True Stat", "Chi2 Synthetic Stat", "Marginal p-vals", "Original MAE", "Synthetic MAE", "Synthetic BCE", "Original BCE"]
+    config.experiment_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_", "experiments/results/")
 
     return config

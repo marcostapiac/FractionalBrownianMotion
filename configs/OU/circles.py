@@ -64,7 +64,10 @@ def get_config():
     config.corrector_model = "OU"
 
     # Experiment evaluation parameters
+    config.num_runs = 10
     config.image_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",
                                                              "pngs/")
+    config.exp_keys = ["Mean Abs Percent Diff", "Cov Abs Percent Diff", "Marginal p-vals"]
+    config.experiment_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_", "experiments/results/")
 
     return config

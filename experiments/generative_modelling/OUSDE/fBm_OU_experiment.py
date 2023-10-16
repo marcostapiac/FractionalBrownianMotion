@@ -1,6 +1,7 @@
 from typing import Union
 
 import numpy as np
+import pandas as pd
 import torch
 from ml_collections import ConfigDict
 
@@ -14,7 +15,7 @@ from utils.math_functions import generate_fBn, generate_fBm
 
 
 def run_experiment(dataSize: int, diffusion: OUSDEDiffusion, scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
-                   rng: np.random.Generator, config: ConfigDict) -> None:
+                   rng: np.random.Generator, config: ConfigDict, experiment_res: dict) -> dict:
     try:
         assert (config.train_eps <= config.sample_eps)
         fBm_samples = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel, data_shape=(s, config.timeDim),
@@ -23,7 +24,8 @@ def run_experiment(dataSize: int, diffusion: OUSDEDiffusion, scoreModel: Union[N
         raise ValueError("Final time during sampling should be at least as large as final time during training")
 
     true_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=dataSize, rng=rng)
-    evaluate_fBm_performance(true_samples, fBm_samples.cpu().numpy(), rng=rng, config=config)
+    return evaluate_fBm_performance(true_samples, fBm_samples.cpu().numpy(), rng=rng, config=config,
+                                    exp_dict=experiment_res)
 
 
 if __name__ == "__main__":
@@ -64,4 +66,12 @@ if __name__ == "__main__":
             scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
 
     s = 100000
-    run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, rng=rng, config=config)
+    agg_dict = {i + 1: None for i in range(config.num_runs)}
+    for j in range(1, config.num_runs + 1):
+        exp_dict = {key: None for key in config.exp_keys}
+        exp_dict = run_experiment(diffusion=diffusion, rng=rng, scoreModel=scoreModel, dataSize=s, config=config,
+                                  experiment_res=exp_dict)
+        agg_dict[j] = exp_dict
+    df = pd.DataFrame.from_dict(data=agg_dict)
+    df.index = config.exp_keys
+    df.to_csv(config.experiment_path, index=True)  # For reading, pd.read_csv(config.experiment_path, index_col=[0])

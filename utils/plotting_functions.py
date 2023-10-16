@@ -389,16 +389,18 @@ def plot_tSNE(x: np.ndarray, labels: list[str], image_path: str, y: Union[NoneTy
     plt.show()
 
 
-def plot_final_diff_marginals(forward_samples: np.ndarray, reverse_samples: np.ndarray, timeDim: int,
-                              image_path: str) -> None:
+def plot_final_diff_marginals(forward_samples: np.ndarray, reverse_samples: np.ndarray, print_marginals:bool, timeDim: int,
+                              image_path: str) -> list[float]:
     """
     Q-Q plot and KS statistic of multidimensional samples
         :param forward_samples: Forward diffsion samples
         :param reverse_samples: Reverse-time diffusion samples
+        :param print_marginals: Flag indicating whether to plot and save QQ plots
         :param timeDim: Dimension of each sample
         :param image_path: Path to save image
-        :return: None
+        :return: p values for each dimension
     """
+    ps = []
     for t in np.arange(start=0, stop=timeDim, step=1):
         forward_t = forward_samples[:, t].flatten()
         reverse_samples_t = reverse_samples[:, t].flatten()
@@ -406,10 +408,14 @@ def plot_final_diff_marginals(forward_samples: np.ndarray, reverse_samples: np.n
                y=reverse_samples_t, xlabel="$\\textbf{Original Data Samples {}}$",
                ylabel="$\\textbf{Final Reverse Diffusion Samples}$",
                plottitle="Marginal Q-Q Plot at Time Dim {}".format(t + 1), log=False)
-        print("KS-test statistic for marginal at time {} :: {}".format(t, kstest(forward_t, reverse_samples_t)))
-        plt.savefig(image_path + f"_QQ_timeDim{int(t)}")
-        plt.show()
+        ks_res = kstest(forward_t, reverse_samples_t)
+        ps.append(ks_res[1])
+        print("KS-test statistic for marginal at time {} :: {}".format(t, ks_res))
+        if print_marginals:
+            plt.savefig(image_path + f"_QQ_timeDim{int(t)}")
+            plt.show()
         plt.close()
+    return ps
 
 
 def plot_heatmap(map: np.ndarray, annot: bool, title: str, filename: str) -> None:
