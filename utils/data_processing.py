@@ -8,15 +8,24 @@ import torchmetrics
 from ml_collections import ConfigDict
 from torch.distributed import init_process_group, destroy_process_group
 from torch.distributed.elastic.multiprocessing.errors import record
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.distributed import DistributedSampler
 
 from src.classes.ClassCorrector import VESDECorrector, VPSDECorrector
+from src.classes.ClassDiffTrainer import DiffusionModelTrainer
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.classes.ClassFractionalCEV import FractionalCEV
 from src.classes.ClassPredictor import AncestralSamplingPredictor, EulerMaruyamaPredictor
 from src.classes.ClassSDESampler import SDESampler
-from src.classes.ClassTrainer import DiffusionModelTrainer
+from src.evaluation_pipeline.classes.DiscriminativeLSTM.ClassDiscriminativeLSTM import DiscriminativeLSTM
+from src.evaluation_pipeline.classes.DiscriminativeLSTM.ClassDiscriminativeLSTMDataset import DiscriminativeLSTMDataset
+from src.evaluation_pipeline.classes.DiscriminativeLSTM.ClassDiscriminativeLSTMInference import \
+    DiscriminativeLSTMInference
+from src.evaluation_pipeline.classes.DiscriminativeLSTM.ClassDiscriminativeLSTMTrainer import DiscriminativeLSTMTrainer
+from src.evaluation_pipeline.classes.PredictiveLSTM.ClassPredictiveLSTM import PredictiveLSTM
+from src.evaluation_pipeline.classes.PredictiveLSTM.ClassPredictiveLSTMDataset import PredictiveLSTMDataset
+from src.evaluation_pipeline.classes.PredictiveLSTM.ClassPredictiveLSTMInference import PredictiveLSTMInference
+from src.evaluation_pipeline.classes.PredictiveLSTM.ClassPredictiveLSTMTrainer import PredictiveLSTMTrainer
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
@@ -83,6 +92,192 @@ def initialise_training(data: np.ndarray, config: ConfigDict,
         :return: None
     """
     train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
+
+
+def prepare_predLSTM_data(data: np.ndarray, config: ConfigDict) -> Tuple[Dataset, DataLoader]:
+    """
+    Prepare data loaders to feed into predictive LSTM
+        :param data: Synthetic time-series
+        :return:
+            1. New dataset
+            2. Corresponding dataloader
+    """
+    dataset = PredictiveLSTMDataset(data=data, lookback=config.lookback)
+    if config.has_cuda:
+        loader = DataLoader(dataset, batch_size=config.batch_size, pin_memory=True, shuffle=False,
+                            sampler=DistributedSampler(dataset))
+    else:
+        loader = DataLoader(dataset, batch_size=config.batch_size, pin_memory=True, shuffle=True,
+                            num_workers=0)
+
+    return dataset, loader
+
+
+def prepare_discLSTM_data(original: np.ndarray, synthetic: np.ndarray,labels:list,config: ConfigDict) -> Tuple[
+    Dataset, DataLoader]:
+    """
+    Prepare data loaders to feed into discriminative LSTM
+        :param originals: Original / exact time-series
+        :param synthetic: Synthetic time-series
+        :return:
+            1. New dataset
+            2. Corresponding dataloader
+    """
+    dataset = DiscriminativeLSTMDataset(org_data=original, synth_data=synthetic, labels=labels)
+    if config.has_cuda:
+        loader = DataLoader(dataset, batch_size=config.batch_size, pin_memory=True, shuffle=False,
+                            sampler=DistributedSampler(dataset))
+    else:
+        loader = DataLoader(dataset, batch_size=config.batch_size, pin_memory=True, shuffle=True,
+                            num_workers=0)
+
+    return dataset, loader
+
+
+@record
+def train_and_save_discLSTM(org_data: np.ndarray, synth_data: np.ndarray, config: ConfigDict,
+                            model: DiscriminativeLSTM) -> None:
+    if config.has_cuda:
+        ddp_setup(backend="nccl")
+        device = int(os.environ["LOCAL_RANK"])
+    else:
+        ddp_setup(backend="gloo")
+        device = torch.device("cpu")
+
+    _, trainLoader = prepare_discLSTM_data(original=org_data, synthetic=synth_data, config=config, labels=[0,1])
+
+    # Define optimiser
+    optimiser = torch.optim.Adam((model.parameters()), lr=config.lr)  # TODO: Do we not need DDP?
+
+    # Define trainer
+    # TODO: When using DDP, set device = rank passed by mp.spawn OR by torchrun
+    trainer = DiscriminativeLSTMTrainer(model=model, train_data_loader=trainLoader,
+                                        checkpoint_freq=config.save_freq, optimiser=optimiser, loss_fn=torch.nn.BCELoss,
+                                        loss_aggregator=torchmetrics.aggregation.MeanMetric,
+                                        snapshot_path=config.lstm_snapshot_path, device=device)
+
+    # Start training
+    trainer.train(max_epochs=config.max_epochs, model_filename=config.lstm_trained_path)
+
+    # Cleanly exit the DDP training
+    destroy_process_group()
+
+
+def test_discLSTM(org_data: np.ndarray, synth_data: np.ndarray, config: ConfigDict,
+                  model: DiscriminativeLSTM) -> None:
+    """
+    Test trained predictive LSTM on both true samples and synthetic samples
+        :param org_data: Exact samples from desired distribution
+        :param synth_data: Synthetic samples from reverse-diffusion
+        :param config: ML condfiguration file
+        :param model: Empty discriminative model
+        :return: None
+    """
+    try:
+        model.load_state_dict(torch.load(config.lstm_trained_path))
+    except FileNotFoundError as e:
+        print("Please train discriminative LSTM before testing\n")
+    finally:
+        if config.has_cuda:
+            ddp_setup(backend="nccl")
+            device = int(os.environ["LOCAL_RANK"])
+        else:
+            ddp_setup(backend="gloo")
+            device = torch.device("cpu")
+
+        # Instantiate sampler
+        inference = DiscriminativeLSTMInference(model=model, device=device, loss_fn=torch.nn.BCELoss,
+                                                loss_aggregator=torchmetrics.MeanMetric)
+
+        # Prepare data
+        L = org_data.shape[0]
+        org_dataset, org_loader = prepare_discLSTM_data(org_data[:L//2], org_data[L//2:], config=config, labels=[0,0])
+        synth_dataset, synth_loader = prepare_discLSTM_data(synth_data[:L//2], synth_data[L//2:], config=config, labels=[0,0])
+
+        # Run forward model
+        print("Running with original samples\n")
+        org_loss = inference.run(org_loader)
+        print("Running with synthetic samples\n")
+        synth_loss = inference.run(synth_loader)
+
+        print("Average Missclassification Rate :: Original vs Synthetic :: {} vs {}".format(round(org_loss, 3), round(synth_loss, 3)))
+        destroy_process_group()
+
+
+@record
+def train_and_save_predLSTM(data: np.ndarray, config: ConfigDict, model: PredictiveLSTM) -> None:
+    """
+    Save an LSTM model trained to predict 1-step ahead values
+        :param data: N x T time-series matrix
+        :param config: ML experiment configuration file
+        :param model: Untrained model
+        :return: None
+    """
+    if config.has_cuda:
+        ddp_setup(backend="nccl")
+        device = int(os.environ["LOCAL_RANK"])
+    else:
+        ddp_setup(backend="gloo")
+        device = torch.device("cpu")
+    _, trainLoader = prepare_predLSTM_data(data=data, config=config)
+
+    assert (list(next(iter(trainLoader))[0].shape[1:]) == [config.lookback, 1])
+
+    # Define optimiser
+    optimiser = torch.optim.Adam((model.parameters()), lr=config.lr)  # TODO: Do we not need DDP?
+
+    # Define trainer
+    # TODO: When using DDP, set device = rank passed by mp.spawn OR by torchrun
+    trainer = PredictiveLSTMTrainer(model=model, train_data_loader=trainLoader,
+                                    checkpoint_freq=config.save_freq, optimiser=optimiser, loss_fn=torch.nn.L1Loss,
+                                    loss_aggregator=torchmetrics.aggregation.MeanMetric,
+                                    snapshot_path=config.lstm_snapshot_path, device=device)
+
+    # Start training
+    trainer.train(max_epochs=config.max_epochs, model_filename=config.lstm_trained_path)
+
+    # Cleanly exit the DDP training
+    destroy_process_group()
+
+
+def test_predLSTM(original_data: np.ndarray, synthetic_data: np.ndarray, config: ConfigDict,
+                  model: PredictiveLSTM) -> None:
+    """
+    Test trained predictive LSTM on both true samples and synthetic samples
+        :param original_data: Exact samples from desired distribution
+        :param synthetic_data: Synthetic samples from reverse-diffusion
+        :param config: ML condfiguration file
+        :param model: Empty model
+        :return: None
+    """
+    try:
+        model.load_state_dict(torch.load(config.lstm_trained_path))
+    except FileNotFoundError as e:
+        print("Please train predictive LSTM before testing\n")
+    finally:
+        if config.has_cuda:
+            ddp_setup(backend="nccl")
+            device = int(os.environ["LOCAL_RANK"])
+        else:
+            ddp_setup(backend="gloo")
+            device = torch.device("cpu")
+
+        # Instantiate sampler
+        inference = PredictiveLSTMInference(model=model, device=device, loss_fn=torch.nn.L1Loss,
+                                            loss_aggregator=torchmetrics.MeanMetric)
+
+        # Prepare data
+        org_dataset, org_loader = prepare_predLSTM_data(original_data, config)
+        synth_dataset, synth_loader = prepare_predLSTM_data(synthetic_data, config)
+
+        # Run forward model
+        print("Running with original samples\n")
+        org_loss = inference.run(org_loader)
+        print("Running with synthetic samples\n")
+        synth_loss = inference.run(synth_loader)
+
+        print("Average MAE :: Original vs Synthetic :: {} vs {}".format(round(org_loss, 3), round(synth_loss, 3)))
+        destroy_process_group()
 
 
 def train_and_save_diffusion_model(data: np.ndarray,
@@ -165,7 +360,7 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
     sampler = SDESampler(diffusion=diffusion, sample_eps=config.sample_eps, predictor=predictor, corrector=corrector)
 
     # Sample
-    final_samples = sampler.sample(shape=data_shape, torch_device=device, config=config)
+    final_samples = sampler.sample(shape=data_shape, torch_device=device)
     return final_samples  # TODO Check if need to detach
 
 

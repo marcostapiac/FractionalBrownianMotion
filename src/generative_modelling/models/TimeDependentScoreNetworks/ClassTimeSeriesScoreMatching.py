@@ -138,7 +138,7 @@ class TimeSeriesScoreMatching(nn.Module):
         x = self.input_projection(inputs)
         x = F.leaky_relu(x, 0.01)
 
-        diffusion_step = self.diffusion_embedding(times)  # , embedding_dim=self.time_emb_dim)
+        diffusion_step = self.diffusion_embedding(times)
         skip = []
         for layer in self.residual_layers:
             x, skip_connection = layer(x, diffusion_step)
