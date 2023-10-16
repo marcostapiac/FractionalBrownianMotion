@@ -4,12 +4,12 @@ import numpy as np
 import torch
 from ml_collections import ConfigDict
 
+from src.generative_modelling.data_processing import reverse_sampling, train_and_save_diffusion_model
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
-from utils.data_processing import reverse_sampling, evaluate_circle_performance, \
-    initialise_training
+from utils.data_processing import evaluate_circle_performance
 from utils.math_functions import generate_circles
 
 
@@ -47,18 +47,18 @@ if __name__ == "__main__":
     training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
 
     try:
-        scoreModel.load_state_dict(torch.load(config.filename))
-    except (FileNotFoundError) as e:
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
+    except FileNotFoundError as e:
         print("No valid trained model found; proceeding to training\n")
         try:
             data = np.load(config.data_path, allow_pickle=True)
-        except (FileNotFoundError) as e:
+        except FileNotFoundError as e:
             print("Generating synthetic data\n")
             data = generate_circles(S=training_size, noise=config.cnoise)
             np.save(config.data_path, data)  # TODO is this the most efficient way
         finally:
-            initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
-            scoreModel.load_state_dict(torch.load(config.filename))
+            train_and_save_diffusion_model(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
+            scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
 
     s = 100000
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, config=config)

@@ -389,8 +389,8 @@ def plot_tSNE(x: np.ndarray, labels: list[str], image_path: str, y: Union[NoneTy
     plt.show()
 
 
-def plot_final_diffusion_marginals(forward_samples: np.ndarray, reverse_samples: np.ndarray, timeDim: int,
-                                   image_path: str) -> None:
+def plot_final_diff_marginals(forward_samples: np.ndarray, reverse_samples: np.ndarray, timeDim: int,
+                              image_path: str) -> None:
     """
     Q-Q plot and KS statistic of multidimensional samples
         :param forward_samples: Forward diffsion samples

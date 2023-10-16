@@ -14,7 +14,8 @@ class DiscriminativeLSTM(torch.nn.Module):
     def forward(self, input: torch.Tensor) -> torch.Tensor:
         assert (input.shape[-1] == self.ts_dim)
         x, _ = self.lstm(input)
-        x = x[:, -1, :]  # For every batch and every "feature"/"dimension", retrieve the last time step (1 step prediction) of the LSTM output
+        x = x[:, -1,
+            :]  # For every batch and every "feature"/"dimension", retrieve the last time step (1 step prediction) of the LSTM output
         x = self.linear(x)
         x = self.act(x)
         return x

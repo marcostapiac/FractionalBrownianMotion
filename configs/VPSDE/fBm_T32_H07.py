@@ -29,7 +29,7 @@ def get_config():
     config.batch_size = 256
 
     # Diffusion hyperparameters
-    config.beta_max = 40.
+    config.beta_max = 30.
     config.beta_min = 0.1
 
     # MLP Architecture parameters
@@ -59,14 +59,14 @@ def get_config():
         config.residual_layers, config.residual_channels, config.diff_hidden_size).replace(".", "")
 
     config.model_choice = "TSM"
-    config.filename = tsmFileName if config.model_choice == "TSM" else mlpFileName
+    config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
     config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.residual_layers,
                                config.residual_channels, config.dialation_length] \
         if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.timeDim, config.enc_shapes,
                                               config.dec_shapes]
 
     # Snapshot filepath
-    config.snapshot_path = config.filename.replace("trained_models/", "snapshots/")
+    config.scoreNet_snapshot_path = config.scoreNet_trained_path.replace("trained_models/", "snapshots/")
 
     # Sampling hyperparameters
     config.sample_eps = 1e-3
@@ -81,6 +81,18 @@ def get_config():
     config.eval_marginals = True
     config.isfBm = True
     config.permute_test = False
-    config.image_path = config.filename.replace("src/generative_modelling/trained_models/trained_", "pngs/")
+    config.image_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",
+                                                             "pngs/")
+
+    # LSTM parameters
+    config.test_lstm = True
+    config.lookback = 10
+    config.lstm_max_epochs = 100
+    config.lstm_batch_size = 64
+    config.disc_lstm_trained_path = config.scoreNet_trained_path.replace(
+        "src/generative_modelling/trained_models/trained_", "src/evaluation_pipeline/trained_models/trained_discLSTM_")
+    config.disc_lstm_snapshot_path = config.disc_lstm_trained_path.replace("trained_models/", "snapshots/")
+    config.pred_lstm_trained_path = config.disc_lstm_trained_path.replace("disc", "pred")
+    config.pred_lstm_snapshot_path = config.disc_lstm_snapshot_path.replace("disc", "pred")
 
     return config

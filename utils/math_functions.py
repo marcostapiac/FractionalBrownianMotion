@@ -16,12 +16,12 @@ from src.classes.ClassFractionalCEV import FractionalCEV
 def logsumexp(w: np.ndarray, x: np.ndarray, h: callable, axis: int = 0, isLog: bool = False):
     """
     Function to efficiently compute weighted mean of transformed data
-    :param w: Logarithmic weights
-    :param x: Data to compute weighted mean
-    :param h: Function to transform data
-    :param axis: Indicates along which axis to compute summation
-    :param isLog: Indicates whether to return log (True) or exact probabilities
-    :return: Weighted mean of data
+        :param w: Logarithmic weights
+        :param x: Data to compute weighted mean
+        :param h: Function to transform data
+        :param axis: Indicates along which axis to compute summation
+        :param isLog: Indicates whether to return log (True) or exact probabilities
+        :return: Weighted mean of data
     """
     c = np.max(w)
     broad_l = broadcast_to((w - c).flatten(), x.T.shape).T  # Broadcast "w-c" into shape of data
@@ -33,9 +33,9 @@ def logsumexp(w: np.ndarray, x: np.ndarray, h: callable, axis: int = 0, isLog: b
 def acf(data: np.ndarray, size: Union[NoneType, int] = None):
     """
     Function to compute auto-correlation function
-    :param data: Dataset
-    :param size: Number of FFT points
-    :return:  Auto-correlation function evaluated on N discrete points
+        :param data: Dataset
+        :param size: Number of FFT points
+        :return:  Auto-correlation function evaluated on N discrete points
     """
     # Nearest size with power of 2
     N = data.shape[0]
@@ -51,10 +51,10 @@ def acf(data: np.ndarray, size: Union[NoneType, int] = None):
 def MMD_statistic(data: np.ndarray, n1: int, permute: bool = True) -> float:
     """
     Function to cmpute Maximum Mean Discrepancy
-    :param data: Data on which to compute statistic
-    :param n1: Number of datapoints to consider
-    :param permute: Indicates whether to permute data (True) or not
-    :return: MMD statistic
+        :param data: Data on which to compute statistic
+        :param n1: Number of datapoints to consider
+        :param permute: Indicates whether to permute data (True) or not
+        :return: MMD statistic
     """
     if permute: np.random.shuffle(data)
     x, y = data[:n1, :], data[n1:, :]
@@ -80,10 +80,10 @@ def MMD_statistic(data: np.ndarray, n1: int, permute: bool = True) -> float:
 def energy_statistic(data: np.ndarray, n1: int, permute: bool = True) -> float:
     """
     Function to compute energy statistic
-    :param data: Data on which to compute statistic
-    :param n1: Number of datapoints to consider
-    :param permute: Indicates whether to permute data (True) or not
-    :return: Energy statistic
+        :param data: Data on which to compute statistic
+        :param n1: Number of datapoints to consider
+        :param permute: Indicates whether to permute data (True) or not
+        :return: Energy statistic
     """
     if permute: np.random.shuffle(data)
     x, y = data[:n1, :], data[n1:, :]
@@ -101,11 +101,10 @@ def energy_statistic(data: np.ndarray, n1: int, permute: bool = True) -> float:
 def permutation_test(data1: np.ndarray, data2: np.ndarray, num_permutations: int, compute_statistic: callable) -> float:
     """
     Perform a permutation test for samples from multivariate distributions.
-        :param data1: (numpy.ndarray): Data array for group 1 with shape (n1, T).
-        :param data2: (numpy.ndarray): Data array for group 2 with shape (n2, T).
-        :param num_permutations: (int): Number of permutations to perform.
+        :param data1: (numpy.ndarray): Data array for group 1 with shape (n1, T)
+        :param data2: (numpy.ndarray): Data array for group 2 with shape (n2, T)
+        :param num_permutations: (int): Number of permutations to perform
         :param compute_statistic: function to compute statistic
-
         :return: The p-value of the permutation test.
     """
     combined_data = np.concatenate((data1, data2), axis=0)
@@ -259,9 +258,9 @@ def chiSquared_test(T: int, H: float, isUnitInterval: bool, samples: Union[np.nd
 def generate_circles(S: int, noise: float) -> np.array:
     """
     Generate circle dataset
-    :param S: Number of samples
-    :param noise: Noise standard deviation on each sample
-    :return: Circle samples
+        :param S: Number of samples
+        :param noise: Noise standard deviation on each sample
+        :return: Circle samples
     """
     X, y = datasets.make_circles(
         n_samples=S, noise=noise, random_state=None, factor=.5)

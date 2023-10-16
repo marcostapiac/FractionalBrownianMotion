@@ -47,14 +47,14 @@ def get_config():
         config.residual_layers, config.residual_channels, config.diff_hidden_size).replace(".", "")
 
     config.model_choice = "TSM"
-    config.filename = tsmFileName if config.model_choice == "TSM" else mlpFileName
+    config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
     config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.residual_layers,
                                config.residual_channels, config.dialation_length] \
         if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.timeDim, config.enc_shapes,
                                               config.dec_shapes]
 
     # Snapshot filepath
-    config.snapshot_path = config.filename.replace("trained_models/", "snapshots/")
+    config.scoreNet_snapshot_path = config.scoreNet_trained_path.replace("trained_models/", "snapshots/")
 
     # Sampling hyperparameters
     config.sample_eps = 1e-3
@@ -64,6 +64,7 @@ def get_config():
     config.corrector_model = "OU"
 
     # Experiment evaluation parameters
-    config.image_path = config.filename.replace("src/generative_modelling/trained_models/trained_", "pngs/")
+    config.image_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",
+                                                             "pngs/")
 
     return config

@@ -4,11 +4,12 @@ import numpy as np
 import torch
 from ml_collections import ConfigDict
 
+from src.generative_modelling.data_processing import reverse_sampling, train_and_save_diffusion_model
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
-from utils.data_processing import evaluate_performance, initialise_training, reverse_sampling
+from utils.data_processing import evaluate_fBm_performance
 from utils.math_functions import generate_fBn, generate_fBm
 
 
@@ -23,12 +24,12 @@ def run_experiment(dataSize: int, diffusion: VESDEDiffusion, scoreModel: Union[N
         raise ValueError("Final time during sampling should be at least as large as final time during training")
 
     true_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=dataSize, rng=rng)
-    evaluate_performance(true_samples, fBm_samples.cpu().numpy(), rng=rng, config=config)
+    evaluate_fBm_performance(true_samples, fBm_samples.cpu().numpy(), rng=rng, config=config)
 
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.VESDE.fBm_T2_H07 import get_config
+    from configs.VESDE.fBm_T32_H07 import get_config
 
     config = get_config()
     h = config.hurst
@@ -48,7 +49,7 @@ if __name__ == "__main__":
 
     training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
     try:
-        scoreModel.load_state_dict(torch.load(config.filename))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
     except (FileNotFoundError) as e:
         print("No valid trained model found; proceeding to training\n")
         try:
@@ -59,8 +60,8 @@ if __name__ == "__main__":
             np.save(config.data_path, data)  # TODO is this the most efficient way
         finally:
             data = data.cumsum(axis=1)
-            initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
-            scoreModel.load_state_dict(torch.load(config.filename))
+            train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
+            scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
 
     s = 100000
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, rng=rng, config=config)

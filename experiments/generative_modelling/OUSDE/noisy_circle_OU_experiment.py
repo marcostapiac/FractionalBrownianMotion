@@ -4,12 +4,12 @@ import numpy as np
 import torch
 from ml_collections import ConfigDict
 
+from src.generative_modelling.data_processing import reverse_sampling, train_and_save_diffusion_model
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
-from utils.data_processing import reverse_sampling, evaluate_circle_performance, \
-    initialise_training
+from utils.data_processing import evaluate_circle_performance
 from utils.math_functions import generate_circles
 
 
@@ -40,7 +40,7 @@ if __name__ == "__main__":
     N = config.max_diff_steps
     Tdiff = config.end_diff_time
 
-    modelFileName = config.filename
+    modelFileName = config.scoreNet_trained_path
     rng = np.random.default_rng()
     scoreModel = TimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
@@ -49,7 +49,7 @@ if __name__ == "__main__":
     training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
 
     try:
-        scoreModel.load_state_dict(torch.load(config.filename))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
     except (FileNotFoundError) as e:
         print("No valid trained model found; proceeding to training\n")
         try:
@@ -59,8 +59,8 @@ if __name__ == "__main__":
             data = generate_circles(S=training_size, noise=config.cnoise)
             np.save(config.data_path, data)  # TODO is this the most efficient way
         finally:
-            initialise_training(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
-            scoreModel.load_state_dict(torch.load(config.filename))
+            train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
+            scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
 
     s = 100000
     run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, config=config)

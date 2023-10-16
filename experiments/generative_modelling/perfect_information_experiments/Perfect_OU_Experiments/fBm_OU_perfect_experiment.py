@@ -5,7 +5,7 @@ from tqdm import tqdm
 
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from utils.math_functions import generate_fBm, chiSquared_test, reduce_to_fBn, compute_fBm_cov
-from utils.plotting_functions import plot_final_diffusion_marginals, plot_dataset
+from utils.plotting_functions import plot_final_diff_marginals, plot_dataset
 
 plt.style.use('ggplot')
 matplotlib.rcParams.update({
@@ -84,4 +84,4 @@ if __name__ == "__main__":
 
     plot_dataset(true_samples, generated_samples)
 
-    plot_final_diffusion_marginals(true_samples, generated_samples, timeDim=td)
+    plot_final_diff_marginals(true_samples, generated_samples, timeDim=td)

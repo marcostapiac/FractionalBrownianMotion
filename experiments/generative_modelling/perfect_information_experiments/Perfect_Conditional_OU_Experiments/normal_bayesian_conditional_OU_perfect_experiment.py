@@ -4,7 +4,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from utils.plotting_functions import plot_final_diffusion_marginals
+from utils.plotting_functions import plot_final_diff_marginals
 
 plt.style.use('ggplot')
 matplotlib.rcParams.update({
@@ -116,5 +116,5 @@ if __name__ == "__main__":
     plt.legend()
     plt.show()
 
-    plot_final_diffusion_marginals(posteriors.numpy(), generated_samples, timeDim=2)
-    plot_final_diffusion_marginals(latents.numpy(), generated_samples, timeDim=2)
+    plot_final_diff_marginals(posteriors.numpy(), generated_samples, timeDim=2)
+    plot_final_diff_marginals(latents.numpy(), generated_samples, timeDim=2)

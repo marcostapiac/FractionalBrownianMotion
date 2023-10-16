@@ -77,7 +77,6 @@ class DiscriminativeLSTMTrainer:
         """
         self.opt.zero_grad()
         outputs = self.model.forward(input=input_batch)
-        print(targets.shape, outputs.shape)
         self._batch_loss_compute(outputs=outputs, targets=targets)
 
     def _run_epoch(self, epoch: int) -> None:
@@ -94,7 +93,6 @@ class DiscriminativeLSTMTrainer:
         for X_batch, y_batch in iter(self.train_loader):
             X_batch = X_batch.to(self.device_id).to(torch.float32)
             y_batch = y_batch.to(self.device_id).to(torch.float32)
-            print(X_batch.shape, y_batch.shape)
             self._run_batch(input_batch=X_batch, targets=y_batch)
 
     def _load_snapshot(self, snapshot_path: str) -> None:

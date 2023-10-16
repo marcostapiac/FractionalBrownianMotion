@@ -4,7 +4,7 @@ from tqdm import tqdm
 
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from utils.math_functions import generate_fBn, chiSquared_test, compute_fBn_cov
-from utils.plotting_functions import plot_final_diffusion_marginals, plot_dataset
+from utils.plotting_functions import plot_final_diff_marginals, plot_dataset
 
 if __name__ == "__main__":
     h, td = 0.7, 2
@@ -71,6 +71,6 @@ if __name__ == "__main__":
     c2 = chiSquared_test(T=td, H=h, samples=generated_samples, isUnitInterval=True)
     print("Chi-Squared test for target: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], c2[1],
                                                                                                        c2[2]))
-    plot_final_diffusion_marginals(true_samples, generated_samples, timeDim=td)
+    plot_final_diff_marginals(true_samples, generated_samples, timeDim=td)
 
     plot_dataset(true_samples, generated_samples)
