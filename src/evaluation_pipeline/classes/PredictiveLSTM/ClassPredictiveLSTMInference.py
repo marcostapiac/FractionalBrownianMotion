@@ -26,7 +26,7 @@ class PredictiveLSTMInference:
         assert (self.device_id == int(os.environ["LOCAL_RANK"]) or self.device_id == torch.device("cpu"))
         self.model = model.to(self.device_id)
 
-        self.loss_fn = loss_fn.to(self.device_id)  # If callable, need to ensure we allow for gradient computation
+        self.loss_fn = loss_fn().to(self.device_id)  # If callable, need to ensure we allow for gradient computation
         self.loss_aggregator = loss_aggregator().to(self.device_id)  # No need to move to device since they
 
         # Move model to appropriate device
@@ -46,7 +46,7 @@ class PredictiveLSTMInference:
             :param targets: Target values to compare against outputs
             :return: None
         """
-        loss = self.loss_fn()(outputs, targets)
+        loss = self.loss_fn(outputs, targets)
         self.loss_aggregator.update(loss.detach().item())
 
     def run(self, test_loader: DataLoader) -> float:
