@@ -92,7 +92,8 @@ def get_config():
                                                                   "experiments/results/")
 
     # LSTM parameters
-    config.test_lstm = True
+    config.test_pred_lstm = True
+    config.test_disc_lstm = True
     config.lookback = 10
     config.pred_lstm_max_epochs = 2000
     config.disc_lstm_max_epochs = 5000

@@ -56,7 +56,7 @@ def prepare_fBm_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESD
             train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
             scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
 
-    if config.test_lstm:
+    if config.test_pred_lstm:
         try:
             torch.load(config.pred_lstm_trained_path)
         except FileNotFoundError as e:
@@ -66,6 +66,7 @@ def prepare_fBm_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESD
                                          data_shape=(dataSize, config.timeDim),
                                          config=config)
             train_and_save_predLSTM(data=synthetic.cpu().numpy(), config=config, model=pred)
+    if config.test_disc_lstm:
         try:
             torch.load(config.disc_lstm_trained_path)
         except FileNotFoundError as e:
@@ -169,7 +170,7 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
                                    timeDim=config.timeDim, image_path=config.image_path)
     exp_dict[config.exp_keys[6]] = ps
 
-    if config.test_lstm:
+    if config.test_pred_lstm:
         # Predictive LSTM test
         org, synth = test_predLSTM(original_data=true_samples, synthetic_data=generated_samples,
                                    model=PredictiveLSTM(ts_dim=1),
@@ -177,6 +178,7 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
         exp_dict[config.exp_keys[7]] = org
         exp_dict[config.exp_keys[8]] = synth
 
+    if config.test_disc_lstm:
         # Discriminative LSTM test
         org, synth = test_discLSTM(original_data=true_samples, synthetic_data=generated_samples,
                                    model=DiscriminativeLSTM(ts_dim=1),
