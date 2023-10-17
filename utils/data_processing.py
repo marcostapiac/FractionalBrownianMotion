@@ -17,7 +17,7 @@ from utils.plotting_functions import plot_final_diff_marginals, plot_dataset, \
 
 
 def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.ndarray, rng: np.random.Generator,
-                             config: ConfigDict, exp_dict:dict) -> dict:
+                             config: ConfigDict, exp_dict: dict) -> dict:
     """
     Computes metrics to quantify how close the generated samples are from the desired distribution
         :param true_samples: Exact samples of fractional Brownian motion (or its increments)
@@ -41,10 +41,9 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
     expec_cov = compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim,
                                 isUnitInterval=config.unitInterval)
     print("Expected Covariance :: ", expec_cov)
-    exp_dict[config.exp_keys[1]] = np.mean(np.abs(gen_cov-expec_cov)/expec_cov)
+    exp_dict[config.exp_keys[1]] = np.mean(np.abs(gen_cov - expec_cov) / expec_cov)
 
-
-    #plot_diffCov_heatmap(expec_cov, gen_cov, annot=config.annot, image_path=config.image_path + "_diffCov.png")
+    # plot_diffCov_heatmap(expec_cov, gen_cov, annot=config.annot, image_path=config.image_path + "_diffCov.png")
     S = min(true_samples.shape[0], generated_samples.shape[0])
     true_samples, generated_samples = true_samples[:S], generated_samples[:S]
 
@@ -70,13 +69,15 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
                                                 image_path=config.image_path + "_scatter.png")"""
 
     # Evaluate marginal distributions
-    ps = plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.print_marginals, timeDim=config.timeDim, image_path=config.image_path)
+    ps = plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.print_marginals,
+                                   timeDim=config.timeDim, image_path=config.image_path)
     exp_dict[config.exp_keys[6]] = ps
 
     if config.test_lstm:
         # Predictive LSTM test
-        org, synth = test_predLSTM(original_data=true_samples, synthetic_data=generated_samples, model=PredictiveLSTM(ts_dim=1),
-                      config=config)
+        org, synth = test_predLSTM(original_data=true_samples, synthetic_data=generated_samples,
+                                   model=PredictiveLSTM(ts_dim=1),
+                                   config=config)
         exp_dict[config.exp_keys[7]] = org
         exp_dict[config.exp_keys[8]] = synth
         destroy_process_group()
@@ -130,10 +131,11 @@ def compute_circle_proportions(true_samples: np.ndarray, generated_samples: np.n
 
     print("Generated: Inner {} vs Outer {}".format(innerb / S, outerb / S))
     print("True: Inner {} vs Outer {}".format(innerf / S, outerf / S))
-    return innerf/innerb
+    return innerf / innerb
 
 
-def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.ndarray, config: ConfigDict, exp_dict:dict) -> dict:
+def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.ndarray, config: ConfigDict,
+                                exp_dict: dict) -> dict:
     """
     Compute various quantitative and qualitative metrics on final reverse-time diffusion samples for circle dataset
         :param true_samples: Exact samples from circle dataset
@@ -146,17 +148,18 @@ def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.
     print("True Data Sample Mean :: ", true_mean)
     gen_mean = np.mean(generated_samples, axis=0)
     print("Generated Data Sample Mean :: ", gen_mean)
-    exp_dict[config.exp_keys[0]] = np.mean(np.abs(gen_mean-true_mean)/true_mean)
+    exp_dict[config.exp_keys[0]] = np.mean(np.abs(gen_mean - true_mean) / true_mean)
 
     true_cov = np.cov(true_samples, rowvar=False)
     print("True Data :: ", true_cov)
     gen_cov = np.cov(generated_samples, rowvar=False)
     print("Generated Data :: ", gen_cov)
-    exp_dict[config.exp_keys[1]] = np.mean(np.abs(gen_cov-true_cov)/true_cov)
+    exp_dict[config.exp_keys[1]] = np.mean(np.abs(gen_cov - true_cov) / true_cov)
 
     plot_dataset(true_samples, generated_samples, image_path=config.image_path + "_scatter.png")
     plot_diffCov_heatmap(true_cov=true_cov, gen_cov=gen_cov, image_path=config.image_path + "_scatter.png")
-    ps = plot_final_diff_marginals(true_samples, generated_samples, timeDim=2, print_marginals=config.print_marginals, image_path=config.image_path)
+    ps = plot_final_diff_marginals(true_samples, generated_samples, timeDim=2, print_marginals=config.print_marginals,
+                                   image_path=config.image_path)
     exp_dict[config.exp_keys[2]] = ps
 
     true_prop, gen_prop = compute_circle_proportions(true_samples, generated_samples)
@@ -176,7 +179,7 @@ def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.
 
 
 def gen_and_store_statespace_data(Xs=None, Us=None, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 11,
-                                  T=1e-3 * 2 ** 11)->None:
+                                  T=1e-3 * 2 ** 11) -> None:
     """
     Generate observation and latent signal from CEV model and store it as pickle file
         :param Xs: Optional parameter, array containing latent signal process
@@ -205,6 +208,7 @@ def gen_and_store_statespace_data(Xs=None, Us=None, muU=1., muX=1., gamma=1., X0
                   "Project Model Simulation")
     df.to_csv('../data/raw_data_simpleObsModel_{}_{}.csv'.format(int(np.log2(N)), int(10 * H)), index=False)
 
+
 def energy_csv_to_df() -> pd.DataFrame:
     """
     Turn energy data from https://github.com/jsyoon0823/TimeGAN/blob/master/data/stock_data.csv to Pandas Df
@@ -213,7 +217,8 @@ def energy_csv_to_df() -> pd.DataFrame:
     df = pd.read_csv(project_config.ROOT_DIR + "data/energy_data.csv")
     print(df.columns)
 
-def stock_csv_to_df()->pd.DataFrame:
+
+def stock_csv_to_df() -> pd.DataFrame:
     """
     Turn stock data from https://github.com/jsyoon0823/TimeGAN/blob/master/data/stock_data.csv to Pandas Df
         :return: Dataframe
@@ -221,6 +226,3 @@ def stock_csv_to_df()->pd.DataFrame:
     df = pd.read_csv(project_config.ROOT_DIR + "data/stock_data.csv")
     df.index.name = "GOOGLE"
     print(df)
-
-energy_csv_to_df()
-stock_csv_to_df()
