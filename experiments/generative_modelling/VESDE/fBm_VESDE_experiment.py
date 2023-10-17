@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 from ml_collections import ConfigDict
+from torch.distributed import destroy_process_group
 
 from src.generative_modelling.data_processing import reverse_sampling, train_and_save_diffusion_model
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
@@ -20,7 +21,6 @@ def run_experiment(dataSize: int, diffusion: VESDEDiffusion, scoreModel: Union[N
         assert (config.train_eps <= config.sample_eps)
         fBm_samples = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel, data_shape=(s, config.timeDim),
                                        config=config)
-
     except AssertionError:
         raise ValueError("Final time during sampling should be at least as large as final time during training")
 
@@ -65,7 +65,7 @@ if __name__ == "__main__":
             train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
             scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
 
-    s = 100000
+    s = 100
     agg_dict = {i + 1: None for i in range(config.num_runs)}
     for j in range(1, config.num_runs + 1):
         exp_dict = {key: None for key in config.exp_keys}
@@ -75,3 +75,4 @@ if __name__ == "__main__":
     df = pd.DataFrame.from_dict(data=agg_dict)
     df.index = config.exp_keys
     df.to_csv(config.experiment_path, index=True)  # For reading, pd.read_csv(config.experiment_path, index_col=[0])
+    print(pd.read_csv(config.experiment_path, index_col=[0]))

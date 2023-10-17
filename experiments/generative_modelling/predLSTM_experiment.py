@@ -29,7 +29,6 @@ if __name__ == "__main__":
     model = PredictiveLSTM(ts_dim=1)
     dataSize = min(10 * sum(p.numel() for p in model.parameters() if p.requires_grad), 2000000) // (
             config.timeDim - config.lookback) // 10
-    print(config.pred_lstm_trained_path)
     try:
         model.load_state_dict(torch.load(config.pred_lstm_trained_path))
     except FileNotFoundError as e:
@@ -38,7 +37,7 @@ if __name__ == "__main__":
                                      config=config)
         train_and_save_predLSTM(data=synthetic.cpu().numpy(), config=config, model=model)
 
-    # Now test on real (but also synthetic to compare MAEs)
+    # Now test on real (but also synthetic to compare SMAPEs)
     rng = np.random.default_rng()
     original = generate_fBm(H=config.hurst, T=config.timeDim, S=dataSize, rng=rng)
     synthetic_test = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel, data_shape=(dataSize, config.timeDim),

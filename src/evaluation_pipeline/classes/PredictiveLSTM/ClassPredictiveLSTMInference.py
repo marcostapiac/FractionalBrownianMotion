@@ -35,9 +35,13 @@ class PredictiveLSTMInference:
         else:
             self.model = self.model.to(self.device_id)
 
+    @staticmethod
+    def _compute_scale_normaliser(targets: torch.Tensor) -> torch.Tensor:
+        return torch.mean(torch.abs(targets[:, 1, :] - targets[:, 0, :]))
+
     def _compute_loss(self, outputs: torch.Tensor, targets: torch.Tensor) -> None:
         """
-        Computes loss and calls helper function to compute backward pass
+        Computes loss
             :param outputs: Model forward pass output
             :param targets: Target values to compare against outputs
             :return: None

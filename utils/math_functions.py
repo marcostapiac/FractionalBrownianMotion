@@ -122,7 +122,7 @@ def permutation_test(data1: np.ndarray, data2: np.ndarray, num_permutations: int
     return p_value
 
 
-def generate_fBn(H: float, T: int, S: int, rng: np.random.Generator) -> np.array:
+def generate_fBn(H: float, T: int, S: int, rng: np.random.Generator) -> np.ndarray:
     """
     Function generates samples of fractional Brownian noise
         :param H: (float) Hurst parameter
@@ -138,7 +138,7 @@ def generate_fBn(H: float, T: int, S: int, rng: np.random.Generator) -> np.array
     return np.array(data).reshape((S, T))
 
 
-def generate_fBm(H: float, T: int, S: int, rng: np.random.Generator) -> np.array:
+def generate_fBm(H: float, T: int, S: int, rng: np.random.Generator) -> np.ndarray:
     """
     Function generates samples of fractional Brownian motion
         :param H: Hurst parameter
@@ -174,7 +174,7 @@ def generate_CEV(H: float, T: int, S: int, alpha: float, sigmaX: float, muU: flo
     return data
 
 
-def reduce_to_fBn(timeseries: np.ndarray, reduce: bool) -> np.array:
+def reduce_to_fBn(timeseries: np.ndarray, reduce: bool) -> np.ndarray:
     """
     Tranform samples of
         :param timeseries: fBm/fBn samples
@@ -255,7 +255,7 @@ def chiSquared_test(T: int, H: float, isUnitInterval: bool, samples: Union[np.nd
     return critLow, np.sum(ts), critUpp
 
 
-def generate_circles(S: int, noise: float) -> np.array:
+def generate_circles(S: int, noise: float) -> np.ndarray:
     """
     Generate circle dataset
         :param S: Number of samples
@@ -266,3 +266,17 @@ def generate_circles(S: int, noise: float) -> np.array:
         n_samples=S, noise=noise, random_state=None, factor=.5)
     sample = X * 4
     return sample
+
+def generate_sines(S:int, T:int)->np.ndarray:
+    """
+    Generate uni-dimensional sine waves
+        :param S: Number of time-series
+        :param T: Length of time-series
+        :return: Data
+    """
+    eta = np.random.uniform(low=0., high=1., size=S)
+    theta = np.random.uniform(low=-np.pi, high=np.pi, size=S)
+    kappa = np.random.normal(loc=10.,size=S)
+    time_space = np.linspace(0., 10., num=T)
+    data = np.array([kappa[i]*time_space + np.sin(2.*np.pi*eta[i]*time_space + theta[i]) for i in range(S)]).reshape((S, T))
+    return data

@@ -1,6 +1,7 @@
 import os
 from typing import Union
 
+import sklearn.metrics
 import torch
 import torchmetrics
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -19,7 +20,7 @@ class DiscriminativeLSTMInference:
     def __init__(self,
                  model: DiscriminativeLSTM,
                  device: Union[torch.device, int],
-                 loss_fn: callable,
+                 loss_fn: callable = sklearn.metrics.accuracy_score,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
 
         self.device_id = device
@@ -35,21 +36,21 @@ class DiscriminativeLSTMInference:
         else:
             self.model = self.model.to(self.device_id)
 
-    def _compute_loss(self, outputs: torch.Tensor, targets: torch.Tensor) -> None:
+    def _compute_metric(self, outputs: torch.Tensor, targets: torch.Tensor) -> None:
         """
-        Computes loss and calls helper function to compute backward pass
+        Computes accuracy (or loss iff input batch contains synthetic samples)
             :param outputs: Model forward pass output
             :param targets: Target values to compare against outputs
             :return: None
         """
-        loss = self.loss_fn()(outputs, targets)
-        self.loss_aggregator.update(loss.detach().item())
+        metric = self.loss_fn(normalize=False)(targets, outputs > 0.5)
+        self.loss_aggregator.update(metric.detach().item())
 
     def run(self, test_loader: DataLoader) -> float:
         """
-        Run inference for model and compute loss
+        Run inference for model and compute mean metric
             :param test_loader: DataLoader
-            :return: losses with respect to targets
+            :return: mean metric with respect to targets
         """
         self.model.eval()
         with torch.no_grad():
@@ -58,5 +59,5 @@ class DiscriminativeLSTMInference:
                 y_batch = y_batch.to(self.device_id).to(torch.float32)
                 outputs = self.model.forward(X_batch)
                 assert (outputs.shape == y_batch.shape)
-                self._compute_loss(outputs, y_batch)
+                self._compute_metric(outputs, y_batch)
         return float(self.loss_aggregator.compute().item())

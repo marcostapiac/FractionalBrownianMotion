@@ -27,7 +27,7 @@ if __name__ == "__main__":
 
     # Now generate synthetic samples
     model = DiscriminativeLSTM(ts_dim=1)
-    dataSize = min(10 * sum(p.numel() for p in model.parameters() if p.requires_grad), 2000000) // 100
+    dataSize = min(10 * sum(p.numel() for p in model.parameters() if p.requires_grad), 2000000) // 10
     try:
         model.load_state_dict(torch.load(config.disc_lstm_trained_path))
     except FileNotFoundError as e:

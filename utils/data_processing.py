@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from ml_collections import ConfigDict
+from torch.distributed import destroy_process_group
 
 from configs import project_config
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
@@ -12,7 +13,7 @@ from utils.math_functions import chiSquared_test, reduce_to_fBn, compute_fBm_cov
     energy_statistic, MMD_statistic
 from utils.plotting_functions import plot_final_diff_marginals, plot_dataset, \
     plot_diffCov_heatmap, \
-    plot_tSNE, plot_subplots
+    plot_subplots
 
 
 def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.ndarray, rng: np.random.Generator,
@@ -43,7 +44,7 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
     exp_dict[config.exp_keys[1]] = np.mean(np.abs(gen_cov-expec_cov)/expec_cov)
 
 
-    plot_diffCov_heatmap(expec_cov, gen_cov, annot=config.annot, image_path=config.image_path + "_diffCov.png")
+    #plot_diffCov_heatmap(expec_cov, gen_cov, annot=config.annot, image_path=config.image_path + "_diffCov.png")
     S = min(true_samples.shape[0], generated_samples.shape[0])
     true_samples, generated_samples = true_samples[:S], generated_samples[:S]
 
@@ -63,10 +64,10 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
                                                                                                        c2[2]))
     exp_dict[config.exp_keys[5]] = c2[1]
 
-    plot_tSNE(x=true_samples, y=generated_samples, labels=["True Samples", "Generated Samples"],
+    """plot_tSNE(x=true_samples, y=generated_samples, labels=["True Samples", "Generated Samples"],
               image_path=config.image_path + "_tSNE") \
         if config.timeDim > 2 else plot_dataset(true_samples, generated_samples,
-                                                image_path=config.image_path + "_scatter.png")
+                                                image_path=config.image_path + "_scatter.png")"""
 
     # Evaluate marginal distributions
     ps = plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.print_marginals, timeDim=config.timeDim, image_path=config.image_path)
@@ -78,12 +79,15 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
                       config=config)
         exp_dict[config.exp_keys[7]] = org
         exp_dict[config.exp_keys[8]] = synth
+        destroy_process_group()
 
         # Discriminative LSTM test
-        org, synth = test_discLSTM(original_data=true_samples, synthetic_data=generated_samples, model=DiscriminativeLSTM(ts_dim=1),
-                      config=config)
+        org, synth = test_discLSTM(original_data=true_samples, synthetic_data=generated_samples,
+                                   model=DiscriminativeLSTM(ts_dim=1),
+                                   config=config)
         exp_dict[config.exp_keys[9]] = org
         exp_dict[config.exp_keys[10]] = synth
+        destroy_process_group()
 
     if config.permute_test:
         # Permutation test for kernel statistic
@@ -101,7 +105,7 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
 def compute_circle_proportions(true_samples: np.ndarray, generated_samples: np.ndarray) -> float:
     """
     Function computes approximate ratio of samples in inner vs outer circle of circle dataset
-        :param true_samples: data samples exactly using sklearn's "make_circle" function
+        :param true_samples: data samples exactly using sklearn "make_circle" function
         :param generated_samples: final reverse-time diffusion samples
         :return: Ratio of circle proportions
     """
@@ -171,46 +175,8 @@ def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.
     return exp_dict
 
 
-def compare_fBm_to_approximate_fBm(generated_samples: np.ndarray, h: float, td: int, rng: np.random.Generator) -> None:
-    """
-    Plot tSNE comparing final reverse-time diffusion fBm samples to fBm samples generated from approximate simulation
-    methods.
-        :param generated_samples: Exact fBm samples
-        :param h: Hurst index
-        :param td: Dimension of each sample
-        :param rng: Random number generator
-        :return: None
-    """
-    generator = FractionalBrownianNoise(H=h, rng=rng)
-    S = min(20000, generated_samples.shape[0])
-    approx_samples = np.empty((S, td))
-    for _ in range(S):
-        approx_samples[_, :] = generator.paxon_simulation(
-            N_samples=td).cumsum()  # TODO: Are we including initial sample?
-    plot_tSNE(generated_samples, y=approx_samples,
-              labels=["Reverse Diffusion Samples", "Approximate Samples: Paxon Method"],
-              image_path=project_config.ROOT_DIR + "pngs/tSNE_approxfBm_vs_generatedfBm_H{:.3e}_T{}".format(h, td))
-
-
-def compare_fBm_to_normal(h: float, generated_samples: np.ndarray, td: int, rng: np.random.Generator) -> None:
-    """
-    Plot tSNE comparing reverse-time diffusion samples to standard normal samples
-        :param h: Hurst index.
-        :param generated_samples: Exact fBm samples
-        :param td: Dimension of each sample
-        :param rng: Random number generator
-        :return: None
-    """
-    S = min(20000, generated_samples.shape[0])
-    normal_rvs = np.empty((S, td))
-    for _ in range(S):
-        normal_rvs[_, :] = rng.standard_normal(td)
-    plot_tSNE(generated_samples, y=normal_rvs, labels=["Reverse Diffusion Samples", "Standard Normal RVS"],
-              image_path=project_config.ROOT_DIR + "pngs/tSNE_normal_vs_generatedfBm_H{:.3e}_T{}".format(h, td))
-
-
 def gen_and_store_statespace_data(Xs=None, Us=None, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 11,
-                                  T=1e-3 * 2 ** 11):
+                                  T=1e-3 * 2 ** 11)->None:
     """
     Generate observation and latent signal from CEV model and store it as pickle file
         :param Xs: Optional parameter, array containing latent signal process
@@ -239,4 +205,22 @@ def gen_and_store_statespace_data(Xs=None, Us=None, muU=1., muX=1., gamma=1., X0
                   "Project Model Simulation")
     df.to_csv('../data/raw_data_simpleObsModel_{}_{}.csv'.format(int(np.log2(N)), int(10 * H)), index=False)
 
+def energy_csv_to_df() -> pd.DataFrame:
+    """
+    Turn energy data from https://github.com/jsyoon0823/TimeGAN/blob/master/data/stock_data.csv to Pandas Df
+        :return: Dataframe
+    """
+    df = pd.read_csv(project_config.ROOT_DIR + "data/energy_data.csv")
+    print(df.columns)
 
+def stock_csv_to_df()->pd.DataFrame:
+    """
+    Turn stock data from https://github.com/jsyoon0823/TimeGAN/blob/master/data/stock_data.csv to Pandas Df
+        :return: Dataframe
+    """
+    df = pd.read_csv(project_config.ROOT_DIR + "data/stock_data.csv")
+    df.index.name = "GOOGLE"
+    print(df)
+
+energy_csv_to_df()
+stock_csv_to_df()

@@ -11,6 +11,9 @@ from scipy.stats import norm as snorm
 from scipy.stats import truncnorm
 from sklearn.manifold import TSNE
 
+from configs import project_config
+from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
+
 from utils.math_functions import acf
 
 plt.style.use('ggplot')
@@ -385,7 +388,7 @@ def plot_tSNE(x: np.ndarray, labels: list[str], image_path: str, y: Union[NoneTy
     plt.ylabel("$\\textbf{Embedding Dim 2}$")
     plt.tight_layout()
     plt.legend()
-    plt.savefig(image_path)
+    #plt.savefig(image_path)
     plt.show()
 
 
@@ -404,32 +407,32 @@ def plot_final_diff_marginals(forward_samples: np.ndarray, reverse_samples: np.n
     for t in np.arange(start=0, stop=timeDim, step=1):
         forward_t = forward_samples[:, t].flatten()
         reverse_samples_t = reverse_samples[:, t].flatten()
-        qqplot(x=forward_t,
+        """qqplot(x=forward_t,
                y=reverse_samples_t, xlabel="$\\textbf{Original Data Samples {}}$",
                ylabel="$\\textbf{Final Reverse Diffusion Samples}$",
-               plottitle="Marginal Q-Q Plot at Time Dim {}".format(t + 1), log=False)
+               plottitle="Marginal Q-Q Plot at Time Dim {}".format(t + 1), log=False)"""
         ks_res = kstest(forward_t, reverse_samples_t)
         ps.append(ks_res[1])
         print("KS-test statistic for marginal at time {} :: {}".format(t, ks_res))
         if print_marginals:
             plt.savefig(image_path + f"_QQ_timeDim{int(t)}")
             plt.show()
-        plt.close()
+            plt.close()
     return ps
 
 
-def plot_heatmap(map: np.ndarray, annot: bool, title: str, filename: str) -> None:
+def plot_heatmap(map: np.ndarray, annot: bool, title: str, filepath: str) -> None:
     """
     Helper function to create a heatmap
         :param map: Data to plot
         :param annot: Indicates whether to annotate error on diagram
         :param title: Title for diagram
-        :param filename: Path to save image
+        :param filepath: Path to save image
         :return: None
     """
     sns.heatmap(map, annot=annot, annot_kws={'size': 15})
     plt.title(title)
-    plt.savefig(filename)
+    plt.savefig(filepath)
     plt.show()
 
 
@@ -444,7 +447,7 @@ def plot_diffCov_heatmap(true_cov: np.ndarray, gen_cov: np.ndarray, image_path: 
     """
     s = 100 * (gen_cov - true_cov) / true_cov
     print("Average absolute percentage error: ", np.mean(np.abs(s)))
-    plot_heatmap(map=np.abs(s), title="Difference in Covariance Matrices", annot=annot, filename=image_path)
+    plot_heatmap(map=np.abs(s), annot=annot, title="Difference in Covariance Matrices", filepath=image_path)
 
 
 def plot_dataset(forward_samples: np.ndarray, reverse_samples: np.ndarray, image_path: str,
@@ -497,18 +500,57 @@ def plot_eigenvalues(expec_cov: np.ndarray, generated_cov: np.ndarray, labels: l
 
 
 def compare_against_isotropic_Gaussian(forward_samples: np.ndarray, td: int, diffTime: Union[int, float],
-                                       rng: np.random.Generator) -> None:
+                                       rng: np.random.Generator, filepath:str) -> None:
     """
     Generate qualitative comparative plots between forward samples at 'diffTime' and standard isotropic Gaussian
     :param forward_samples: Samples from forward diffusion
     :param td: Dimension of samples
     :param diffTime: Diffusion time index
     :param rng: Random number generator
+    :param filepath: Path to save images
     :return: None
     """
     assert (forward_samples.shape[1] == td)
     stdn_samples = rng.normal(size=(forward_samples.shape[0], td))
     labels = ["Forward Samples at time {}".format((diffTime)), "Standard Normal Samples"]
-    if td == 2: plot_dataset(forward_samples=forward_samples, reverse_samples=stdn_samples, labels=labels)
-    plot_heatmap(np.cov(forward_samples, rowvar=False), title="Covariance matrix at forward time {}".format(diffTime),
-                 annot=False if td > 16 else True)
+    if td == 2: plot_dataset(forward_samples=forward_samples, reverse_samples=stdn_samples, labels=labels, image_path = filepath)
+    plot_heatmap(np.cov(forward_samples, rowvar=False), annot=False if td > 16 else True,
+                 title="Covariance matrix at forward time {}".format(diffTime), filepath=filepath)
+
+
+def compare_fBm_to_approximate_fBm(generated_samples: np.ndarray, h: float, td: int, rng: np.random.Generator) -> None:
+    """
+    Plot tSNE comparing final reverse-time diffusion fBm samples to fBm samples generated from approximate simulation
+    methods.
+        :param generated_samples: Exact fBm samples
+        :param h: Hurst index
+        :param td: Dimension of each sample
+        :param rng: Random number generator
+        :return: None
+    """
+    generator = FractionalBrownianNoise(H=h, rng=rng)
+    S = min(20000, generated_samples.shape[0])
+    approx_samples = np.empty((S, td))
+    for _ in range(S):
+        approx_samples[_, :] = generator.paxon_simulation(
+            N_samples=td).cumsum()  # TODO: Are we including initial sample?
+    plot_tSNE(generated_samples, y=approx_samples,
+              labels=["Reverse Diffusion Samples", "Approximate Samples: Paxon Method"],
+              image_path=project_config.ROOT_DIR + "pngs/tSNE_approxfBm_vs_generatedfBm_H{:.3e}_T{}".format(h, td))
+
+
+def compare_fBm_to_normal(h: float, generated_samples: np.ndarray, td: int, rng: np.random.Generator) -> None:
+    """
+    Plot tSNE comparing reverse-time diffusion samples to standard normal samples
+        :param h: Hurst index.
+        :param generated_samples: Exact fBm samples
+        :param td: Dimension of each sample
+        :param rng: Random number generator
+        :return: None
+    """
+    S = min(20000, generated_samples.shape[0])
+    normal_rvs = np.empty((S, td))
+    for _ in range(S):
+        normal_rvs[_, :] = rng.standard_normal(td)
+    plot_tSNE(generated_samples, y=normal_rvs, labels=["Reverse Diffusion Samples", "Standard Normal RVS"],
+              image_path=project_config.ROOT_DIR + "pngs/tSNE_normal_vs_generatedfBm_H{:.3e}_T{}".format(h, td))

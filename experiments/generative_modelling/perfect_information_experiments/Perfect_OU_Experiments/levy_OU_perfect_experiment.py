@@ -14,7 +14,7 @@ matplotlib.rcParams.update({
 })
 
 
-def simulate_NG_samples(T: int, S: int, rng: np.random.Generator) -> np.array:
+def simulate_NG_samples(T: int, S: int, rng: np.random.Generator) -> np.ndarray:
     mu_W = 1.0
     var_W = 2.0
     beta = .5

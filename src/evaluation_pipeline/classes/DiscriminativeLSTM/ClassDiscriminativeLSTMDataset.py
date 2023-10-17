@@ -16,7 +16,8 @@ class DiscriminativeLSTMDataset(torch.utils.data.Dataset):
             y.append(labels[1])  # Fake
         X = np.array(X)
         y = np.array(y)
-        X, y = torch.tensor(X.reshape((X.shape[0], X.shape[1], 1))), torch.tensor(y.reshape((y.shape[0], 1)))
+        d = 1 if len(org_data.shape) == 2 else org_data.shape[2]
+        X, y = torch.tensor(X.reshape((X.shape[0], X.shape[1], d))), torch.tensor(y.reshape((y.shape[0], d)))
         self.X = X
         self.y = y
 
