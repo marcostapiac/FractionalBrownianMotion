@@ -1,7 +1,6 @@
 import os
 from typing import Union
 
-import sklearn.metrics
 import torch
 import torchmetrics
 from torch.nn.parallel import DistributedDataParallel as DDP
@@ -41,7 +40,7 @@ class DiscriminativeLSTMInference:
             :param targets: Target values to compare against outputs
             :return: None
         """
-        metric = torch.abs(targets-1.*(outputs<0.5))
+        metric = torch.abs(targets - 1. * (outputs < 0.5))
         self.loss_aggregator.update(metric.detach())
 
     def run(self, test_loader: DataLoader) -> float:

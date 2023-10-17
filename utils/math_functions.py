@@ -5,7 +5,6 @@ from typing import Union
 import numpy as np
 from numpy import broadcast_to, log, exp
 from scipy.stats import chi2
-from sklearn import datasets
 from tqdm import tqdm
 
 from src.classes import ClassFractionalBrownianNoise
@@ -255,28 +254,32 @@ def chiSquared_test(T: int, H: float, isUnitInterval: bool, samples: Union[np.nd
     return critLow, np.sum(ts), critUpp
 
 
-def generate_circles(S: int, noise: float) -> np.ndarray:
+def compute_circle_proportions(true_samples: np.ndarray, generated_samples: np.ndarray) -> float:
     """
-    Generate circle dataset
-        :param S: Number of samples
-        :param noise: Noise standard deviation on each sample
-        :return: Circle samples
+    Function computes approximate ratio of samples in inner vs outer circle of circle dataset
+        :param true_samples: data samples exactly using sklearn "make_circle" function
+        :param generated_samples: final reverse-time diffusion samples
+        :return: Ratio of circle proportions
     """
-    X, y = datasets.make_circles(
-        n_samples=S, noise=noise, random_state=None, factor=.5)
-    sample = X * 4
-    return sample
+    innerb = 0
+    outerb = 0
+    innerf = 0
+    outerf = 0
+    S = true_samples.shape[0]
+    for i in range(S):
+        bkwd = generated_samples[i]
+        fwd = true_samples[i]
+        rb = np.sqrt(bkwd[0] ** 2 + bkwd[1] ** 2)
+        rf = np.sqrt(fwd[0] ** 2 + fwd[1] ** 2)
+        if rb <= 2.1:
+            innerb += 1
+        elif 3.9 <= rb:
+            outerb += 1
+        if rf <= 2.1:
+            innerf += 1
+        elif 3.9 <= rf:
+            outerf += 1
 
-def generate_sines(S:int, T:int)->np.ndarray:
-    """
-    Generate uni-dimensional sine waves
-        :param S: Number of time-series
-        :param T: Length of time-series
-        :return: Data
-    """
-    eta = np.random.uniform(low=0., high=1., size=S)
-    theta = np.random.uniform(low=-np.pi, high=np.pi, size=S)
-    kappa = np.random.normal(loc=10.,size=S)
-    time_space = np.linspace(0., 10., num=T)
-    data = np.array([kappa[i]*time_space + np.sin(2.*np.pi*eta[i]*time_space + theta[i]) for i in range(S)]).reshape((S, T))
-    return data
+    print("Generated: Inner {} vs Outer {}".format(innerb / S, outerb / S))
+    print("True: Inner {} vs Outer {}".format(innerf / S, outerf / S))
+    return innerf / innerb

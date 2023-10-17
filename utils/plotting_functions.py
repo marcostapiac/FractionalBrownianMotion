@@ -13,7 +13,6 @@ from sklearn.manifold import TSNE
 
 from configs import project_config
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
-
 from utils.math_functions import acf
 
 plt.style.use('ggplot')
@@ -388,11 +387,12 @@ def plot_tSNE(x: np.ndarray, labels: list[str], image_path: str, y: Union[NoneTy
     plt.ylabel("$\\textbf{Embedding Dim 2}$")
     plt.tight_layout()
     plt.legend()
-    #plt.savefig(image_path)
+    # plt.savefig(image_path)
     plt.show()
 
 
-def plot_final_diff_marginals(forward_samples: np.ndarray, reverse_samples: np.ndarray, print_marginals:bool, timeDim: int,
+def plot_final_diff_marginals(forward_samples: np.ndarray, reverse_samples: np.ndarray, print_marginals: bool,
+                              timeDim: int,
                               image_path: str) -> list[float]:
     """
     Q-Q plot and KS statistic of multidimensional samples
@@ -500,7 +500,7 @@ def plot_eigenvalues(expec_cov: np.ndarray, generated_cov: np.ndarray, labels: l
 
 
 def compare_against_isotropic_Gaussian(forward_samples: np.ndarray, td: int, diffTime: Union[int, float],
-                                       rng: np.random.Generator, filepath:str) -> None:
+                                       rng: np.random.Generator, filepath: str) -> None:
     """
     Generate qualitative comparative plots between forward samples at 'diffTime' and standard isotropic Gaussian
     :param forward_samples: Samples from forward diffusion
@@ -513,7 +513,8 @@ def compare_against_isotropic_Gaussian(forward_samples: np.ndarray, td: int, dif
     assert (forward_samples.shape[1] == td)
     stdn_samples = rng.normal(size=(forward_samples.shape[0], td))
     labels = ["Forward Samples at time {}".format((diffTime)), "Standard Normal Samples"]
-    if td == 2: plot_dataset(forward_samples=forward_samples, reverse_samples=stdn_samples, labels=labels, image_path = filepath)
+    if td == 2: plot_dataset(forward_samples=forward_samples, reverse_samples=stdn_samples, labels=labels,
+                             image_path=filepath)
     plot_heatmap(np.cov(forward_samples, rowvar=False), annot=False if td > 16 else True,
                  title="Covariance matrix at forward time {}".format(diffTime), filepath=filepath)
 

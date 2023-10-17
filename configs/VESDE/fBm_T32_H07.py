@@ -74,6 +74,7 @@ def get_config():
     config.corrector_model = "VE"  # vs "VE"
 
     # Experiment evaluation parameters
+    config.dataSize = 100000
     config.num_runs = 3
     config.unitInterval = True
     config.annot = False
@@ -82,8 +83,11 @@ def get_config():
     config.permute_test = False
     config.image_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",
                                                              "pngs/")
-    config.exp_keys = ["Mean Abs Percent Diff", "Cov Abs Percent Diff", "Chi2 Lower", "Chi2 Upper", "Chi2 True Stat", "Chi2 Synthetic Stat", "Marginal p-vals", "Original Pred Score", "Synthetic Pred Score", "Original Disc Score", "Synthetic Disc Score"]
-    config.experiment_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_", "experiments/results/")
+    config.exp_keys = ["Mean Abs Percent Diff", "Cov Abs Percent Diff", "Chi2 Lower", "Chi2 Upper", "Chi2 True Stat",
+                       "Chi2 Synthetic Stat", "Marginal p-vals", "Original Pred Score", "Synthetic Pred Score",
+                       "Original Disc Score", "Synthetic Disc Score"]
+    config.experiment_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",
+                                                                  "experiments/results/")
 
     # LSTM parameters
     config.test_lstm = True

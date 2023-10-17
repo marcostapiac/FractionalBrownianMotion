@@ -2,11 +2,9 @@ import os
 from typing import Tuple
 
 import numpy as np
-import sklearn.metrics
 import torch
 import torchmetrics
 from ml_collections import ConfigDict
-from torch.distributed import destroy_process_group
 from torch.distributed.elastic.multiprocessing.errors import record
 from torch.utils.data import DataLoader, Dataset
 from torch.utils.data.distributed import DistributedSampler
@@ -20,7 +18,6 @@ from src.evaluation_pipeline.classes.PredictiveLSTM.ClassPredictiveLSTM import P
 from src.evaluation_pipeline.classes.PredictiveLSTM.ClassPredictiveLSTMDataset import PredictiveLSTMDataset
 from src.evaluation_pipeline.classes.PredictiveLSTM.ClassPredictiveLSTMInference import PredictiveLSTMInference
 from src.evaluation_pipeline.classes.PredictiveLSTM.ClassPredictiveLSTMTrainer import PredictiveLSTMTrainer
-from src.generative_modelling.data_processing import ddp_setup
 
 
 def prepare_predLSTM_data(data: np.ndarray, config: ConfigDict) -> Tuple[Dataset, DataLoader]:
@@ -52,10 +49,8 @@ def train_and_save_predLSTM(data: np.ndarray, config: ConfigDict, model: Predict
         :return: None
     """
     if config.has_cuda:
-        ddp_setup(backend="nccl")
         device = int(os.environ["LOCAL_RANK"])
     else:
-        ddp_setup(backend="gloo")
         device = torch.device("cpu")
     _, trainLoader = prepare_predLSTM_data(data=data, config=config)
 
@@ -74,9 +69,6 @@ def train_and_save_predLSTM(data: np.ndarray, config: ConfigDict, model: Predict
     # Start training
     trainer.train(max_epochs=config.pred_lstm_max_epochs, model_filename=config.pred_lstm_trained_path)
 
-    # Cleanly exit the DDP training
-    destroy_process_group()
-
 
 def test_predLSTM(original_data: np.ndarray, synthetic_data: np.ndarray, config: ConfigDict,
                   model: PredictiveLSTM) -> Tuple[float, float]:
@@ -94,10 +86,8 @@ def test_predLSTM(original_data: np.ndarray, synthetic_data: np.ndarray, config:
         print("Please train predictive LSTM before testing\n")
     finally:
         if config.has_cuda:
-            ddp_setup(backend="nccl")
             device = int(os.environ["LOCAL_RANK"])
         else:
-            ddp_setup(backend="gloo")
             device = torch.device("cpu")
 
         # Instantiate sampler
@@ -152,10 +142,8 @@ def train_and_save_discLSTM(org_data: np.ndarray, synth_data: np.ndarray, config
         :return: None
     """
     if config.has_cuda:
-        ddp_setup(backend="nccl")
         device = int(os.environ["LOCAL_RANK"])
     else:
-        ddp_setup(backend="gloo")
         device = torch.device("cpu")
 
     _, trainLoader = prepare_discLSTM_data(original=org_data, synthetic=synth_data, config=config, labels=[1, 0])
@@ -174,9 +162,6 @@ def train_and_save_discLSTM(org_data: np.ndarray, synth_data: np.ndarray, config
     # Start training
     trainer.train(max_epochs=config.disc_lstm_max_epochs, model_filename=config.disc_lstm_trained_path)
 
-    # Cleanly exit the DDP training
-    destroy_process_group()
-
 
 def test_discLSTM(original_data: np.ndarray, synthetic_data: np.ndarray, config: ConfigDict,
                   model: DiscriminativeLSTM) -> Tuple[float, float]:
@@ -194,10 +179,8 @@ def test_discLSTM(original_data: np.ndarray, synthetic_data: np.ndarray, config:
         print("Please train discriminative LSTM before testing\n")
     finally:
         if config.has_cuda:
-            ddp_setup(backend="nccl")
             device = int(os.environ["LOCAL_RANK"])
         else:
-            ddp_setup(backend="gloo")
             device = torch.device("cpu")
 
         # Instantiate sampler
@@ -216,6 +199,6 @@ def test_discLSTM(original_data: np.ndarray, synthetic_data: np.ndarray, config:
         print("Running with synthetic samples\n")
         synth_loss = inference.run(synth_loader)  # Loss because we provide labels of 0 but test if they are actually 1
 
-        print("Average Success vs Error Rate :: Original vs Synthetic :: {} vs {}".format(round(org_acc, 5),
-                                                                                          round(synth_loss, 5)))
+        print("Average Success vs Error Rate :: Original vs Synthetic :: {} vs {}\n".format(round(org_acc, 5),
+                                                                                            round(synth_loss, 5)))
         return round(org_acc, 5), round(synth_loss, 5)

@@ -1,21 +1,19 @@
 from typing import Union
 
-import numpy as np
-import pandas as pd
-import torch
 from ml_collections import ConfigDict
 
-from src.generative_modelling.data_processing import reverse_sampling, train_and_save_diffusion_model
+from src.generative_modelling.data_processing import reverse_sampling
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
 from utils.data_processing import evaluate_circle_performance
+from utils.experiment_evaluations import prepare_circle_experiment, run_circle_experiment
 from utils.math_functions import generate_circles
 
 
 def run_experiment(dataSize: int, diffusion: VPSDEDiffusion, scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
-                   config: ConfigDict, experiment_res:dict) -> dict:
+                   config: ConfigDict, experiment_res: dict) -> dict:
     try:
         assert (config.train_eps <= config.sample_eps)
         true_samples = generate_circles(S=dataSize, noise=config.cnoise)
@@ -24,7 +22,8 @@ def run_experiment(dataSize: int, diffusion: VPSDEDiffusion, scoreModel: Union[N
     except AssertionError:
         raise ValueError("Final time during sampling should be at least as large as final time during training")
 
-    return evaluate_circle_performance(true_samples, circle_samples.cpu().numpy(), config=config, exp_dict=experiment_res)
+    return evaluate_circle_performance(true_samples, circle_samples.cpu().numpy(), config=config,
+                                       exp_dict=experiment_res)
 
 
 if __name__ == "__main__":
@@ -32,41 +31,11 @@ if __name__ == "__main__":
     from configs.VPSDE.circles import get_config
 
     config = get_config()
-    td = config.timeDim
 
-    # Training data
-    trainEps = config.train_eps
-    sampleEps = config.sample_eps
-    N = config.max_diff_steps
-    Tdiff = config.end_diff_time
-
-    rng = np.random.default_rng()
     scoreModel = TimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
+    scoreModel = prepare_circle_experiment(diffusion=diffusion, scoreModel=scoreModel, config=config)
 
-    try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
-    except FileNotFoundError as e:
-        print("No valid trained model found; proceeding to training\n")
-        try:
-            data = np.load(config.data_path, allow_pickle=True)
-        except FileNotFoundError as e:
-            print("Generating synthetic data\n")
-            data = generate_circles(S=training_size, noise=config.cnoise)
-            np.save(config.data_path, data)  # TODO is this the most efficient way
-        finally:
-            train_and_save_diffusion_model(data=data, scoreModel=scoreModel, diffusion=diffusion, config=config)
-            scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
-
-    s = 100000
-    agg_dict = {i+1:None for i in range(config.num_runs)}
-    for j in range(1,config.num_runs+1):
-        exp_dict = {key:None for key in config.exp_keys}
-        exp_dict = run_experiment(diffusion=diffusion, scoreModel=scoreModel, dataSize=s, config=config, experiment_res=exp_dict)
-        agg_dict[j] = exp_dict
-    df = pd.DataFrame.from_dict(data=agg_dict)
-    df.index = config.exp_keys
-    df.to_csv(config.experiment_path, index=True)  # For reading, pd.read_csv(config.experiment_path, index_col=[0])
+    run_circle_experiment(dataSize=config.dataSize, diffusion=diffusion, scoreModel=scoreModel, config=config)

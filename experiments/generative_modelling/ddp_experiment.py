@@ -3,6 +3,7 @@ import os
 import torch
 from torch.distributed import init_process_group, destroy_process_group
 from torch.distributed.elastic.multiprocessing.errors import record
+from torch.nn.parallel import DistributedDataParallel as DDP
 
 
 @record
@@ -11,6 +12,7 @@ def main():
     backend = "nccl" if torch.cuda.is_available() else "gloo"
     init_process_group(backend)
     return backend
+
 
 def main2(backend, model):
     # At this point, as many processes as specified by the input arguments should have started
@@ -24,6 +26,5 @@ def main2(backend, model):
 
 
 if __name__ == "__main__":
-    main()
-    main2(backend, model=torch.nn.Conv2d)
+    main2(backend="nccl", model=torch.nn.Conv2d)
     destroy_process_group()

@@ -5,7 +5,6 @@ import numpy as np
 import torch
 import torchmetrics
 from ml_collections import ConfigDict
-from torch.distributed import init_process_group, destroy_process_group
 from torch.distributed.elastic.multiprocessing.errors import record
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
@@ -22,16 +21,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesS
     TimeSeriesScoreMatching
 
 
-def ddp_setup(backend: str) -> None:
-    """
-    DDP setup to allow processes to discover and communicate with each other with TorchRun
-    :param backend: Gloo vs NCCL for CPU vs GPU, respectively
-    :return: None
-    """
-    init_process_group(backend=backend)
-
-
-def prepare_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> DataLoader:
+def prepare_scoreModel_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> DataLoader:
     """
     Split data into train, eval, test sets and create DataLoaders for training
         :param data: Training data
@@ -67,14 +57,12 @@ def train_and_save_diffusion_model(data: np.ndarray,
         :return: None
     """
     if config.has_cuda:
-        ddp_setup(backend="nccl")
         device = int(os.environ["LOCAL_RANK"])
     else:
-        ddp_setup(backend="gloo")
         device = torch.device("cpu")
 
     # Preprocess data
-    trainLoader = prepare_data(data=data, batch_size=config.batch_size, config=config)
+    trainLoader = prepare_scoreModel_data(data=data, batch_size=config.batch_size, config=config)
 
     # Define optimiser
     optimiser = torch.optim.Adam((scoreModel.parameters()), lr=config.lr)  # TODO: Do we not need DDP?
@@ -92,9 +80,6 @@ def train_and_save_diffusion_model(data: np.ndarray,
 
     # Start training
     trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
-
-    # Cleanly exit the DDP training
-    destroy_process_group()
 
 
 @record
