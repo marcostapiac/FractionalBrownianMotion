@@ -284,7 +284,7 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
     print("Expected Covariance :: ", expec_cov)
     exp_dict[config.exp_keys[1]] = np.mean(np.abs(gen_cov - expec_cov) / expec_cov)
 
-    # plot_diffCov_heatmap(expec_cov, gen_cov, annot=config.annot, image_path=config.image_path + "_diffCov.png")
+    plot_diffCov_heatmap(expec_cov, gen_cov, annot=config.annot, image_path=config.image_path + "_diffCov.png")
     S = min(true_samples.shape[0], generated_samples.shape[0])
     true_samples, generated_samples = true_samples[:S], generated_samples[:S]
 
@@ -304,10 +304,10 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
                                                                                                        c2[2]))
     exp_dict[config.exp_keys[5]] = c2[1]
 
-    """plot_tSNE(x=true_samples, y=generated_samples, labels=["True Samples", "Generated Samples"],
+    plot_tSNE(x=true_samples, y=generated_samples, labels=["True Samples", "Generated Samples"],
               image_path=config.image_path + "_tSNE") \
         if config.timeDim > 2 else plot_dataset(true_samples, generated_samples,
-                                                image_path=config.image_path + "_scatter.png")"""
+                                                image_path=config.image_path + "_scatter.png")
 
     # Evaluate marginal distributions
     ps = plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.print_marginals,
