@@ -93,13 +93,13 @@ def generate_sine_dataset(S: int, T: int) -> np.ndarray:
 def ddp_setup(backend: str) -> None:
     """
     DDP setup to allow processes to discover and communicate with each other with TorchRun
-    :param backend: Gloo vs NCCL for CPU vs GPU, respectively
-    :return: None
+        :param backend: Gloo vs NCCL for CPU vs GPU, respectively
+        :return: None
     """
     init_process_group(backend=backend)
 
 
-def init_experiments(config: ConfigDict) -> None:
+def init_experiment(config: ConfigDict) -> None:
     """
     Initiate DDP group process only once per experiment
         :param config: ML experiment configuration
@@ -111,7 +111,7 @@ def init_experiments(config: ConfigDict) -> None:
         ddp_setup(backend="gloo")
 
 
-def cleanup_experiments() -> None:
+def cleanup_experiment() -> None:
     try:
         destroy_process_group()
     except AssertionError as e:

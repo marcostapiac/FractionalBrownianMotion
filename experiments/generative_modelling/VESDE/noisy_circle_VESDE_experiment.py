@@ -7,7 +7,7 @@ from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
-from utils.data_processing import evaluate_circle_performance
+from utils.data_processing import evaluate_circle_performance, init_experiment, cleanup_experiment
 from utils.experiment_evaluations import prepare_circle_experiment, run_circle_experiment
 from utils.math_functions import generate_circles
 
@@ -36,6 +36,10 @@ if __name__ == "__main__":
         *config.model_parameters)
     diffusion = VESDEDiffusion(stdMax=config.std_max, stdMin=config.std_min)
 
+    init_experiment(config=config)
+
     scoreModel = prepare_circle_experiment(diffusion=diffusion, scoreModel=scoreModel, config=config)
 
     run_circle_experiment(dataSize=config.dataSize, diffusion=diffusion, scoreModel=scoreModel, config=config)
+
+    cleanup_experiment()

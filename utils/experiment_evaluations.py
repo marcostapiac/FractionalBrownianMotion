@@ -205,11 +205,6 @@ def prepare_circle_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, V
             :param config: ML experiment configuration file
             :return: Trained score network
         """
-    # ONLY DO THE BELOW ONCE PER EXPERIMENT
-    if config.has_cuda:
-        ddp_setup(backend="nccl")
-    else:
-        ddp_setup(backend="gloo")
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
     except FileNotFoundError as e:

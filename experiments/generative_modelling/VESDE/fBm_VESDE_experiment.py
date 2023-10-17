@@ -4,6 +4,7 @@ from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
+from utils.data_processing import init_experiment, cleanup_experiment
 from utils.experiment_evaluations import run_fBm_experiment, prepare_fBm_experiment
 
 if __name__ == "__main__":
