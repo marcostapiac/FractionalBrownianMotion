@@ -74,8 +74,8 @@ def get_config():
     config.corrector_model = "VE"  # vs "VE"
 
     # Experiment evaluation parameters
-    config.dataSize = 100000
-    config.num_runs = 3
+    config.dataSize = 10
+    config.num_runs = 10
     config.unitInterval = True
     config.annot = False
     config.print_marginals = False

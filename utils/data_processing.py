@@ -1,7 +1,8 @@
 import numpy as np
 import pandas as pd
+from ml_collections import ConfigDict
 from sklearn import datasets
-from torch.distributed import init_process_group
+from torch.distributed import init_process_group, destroy_process_group
 
 from configs import project_config
 from src.classes.ClassFractionalCEV import FractionalCEV
@@ -96,3 +97,22 @@ def ddp_setup(backend: str) -> None:
     :return: None
     """
     init_process_group(backend=backend)
+
+
+def init_experiments(config: ConfigDict) -> None:
+    """
+    Initiate DDP group process only once per experiment
+        :param config: ML experiment configuration
+        :return: None
+    """
+    if config.has_cuda:
+        ddp_setup(backend="nccl")
+    else:
+        ddp_setup(backend="gloo")
+
+
+def cleanup_experiments() -> None:
+    try:
+        destroy_process_group()
+    except AssertionError as e:
+        print("No process group to destroy\n")
