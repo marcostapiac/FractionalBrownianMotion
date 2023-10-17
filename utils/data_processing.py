@@ -74,16 +74,17 @@ def generate_circles(S: int, noise: float) -> np.ndarray:
     return sample
 
 
-def generate_sine_dataset(S: int, T: int) -> np.ndarray:
+def generate_sine_dataset(S: int, T: int, rng:np.random.Generator) -> np.ndarray:
     """
     Generate uni-dimensional sine waves
         :param S: Number of time-series
         :param T: Length of time-series
+        :param rng: Default random number generator
         :return: Data
     """
-    eta = np.random.uniform(low=0., high=1., size=S)
-    theta = np.random.uniform(low=-np.pi, high=np.pi, size=S)
-    kappa = np.random.normal(loc=10., size=S)
+    eta = rng.uniform(low=0., high=1., size=S)
+    theta = rng.uniform(low=-np.pi, high=np.pi, size=S)
+    kappa = rng.normal(loc=10., size=S)
     time_space = np.linspace(0., 10., num=T)
     data = np.array(
         [kappa[i] * time_space + np.sin(2. * np.pi * eta[i] * time_space + theta[i]) for i in range(S)]).reshape((S, T))
