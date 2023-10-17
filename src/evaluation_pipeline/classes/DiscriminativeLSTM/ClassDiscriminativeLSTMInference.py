@@ -20,14 +20,12 @@ class DiscriminativeLSTMInference:
     def __init__(self,
                  model: DiscriminativeLSTM,
                  device: Union[torch.device, int],
-                 loss_fn: callable = sklearn.metrics.accuracy_score,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
 
         self.device_id = device
         assert (self.device_id == int(os.environ["LOCAL_RANK"]) or self.device_id == torch.device("cpu"))
         self.model = model.to(self.device_id)
 
-        self.loss_fn = loss_fn  # If callable, need to ensure we allow for gradient computation
         self.loss_aggregator = loss_aggregator().to(self.device_id)  # No need to move to device since they
 
         # Move model to appropriate device
@@ -43,8 +41,8 @@ class DiscriminativeLSTMInference:
             :param targets: Target values to compare against outputs
             :return: None
         """
-        metric = self.loss_fn(normalize=False)(targets, outputs > 0.5)
-        self.loss_aggregator.update(metric.detach().item())
+        metric = torch.abs(targets-1.*(outputs<0.5))
+        self.loss_aggregator.update(metric.detach())
 
     def run(self, test_loader: DataLoader) -> float:
         """

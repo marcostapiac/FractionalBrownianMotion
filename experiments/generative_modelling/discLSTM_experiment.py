@@ -38,7 +38,6 @@ if __name__ == "__main__":
         original = generate_fBm(H=config.hurst, T=config.timeDim, S=dataSize, rng=rng)
         train_and_save_discLSTM(org_data=original, synth_data=synthetic.cpu().numpy(), config=config, model=model)
 
-    # Now test on real (but also synthetic to compare MAEs)
     rng = np.random.default_rng()
     synthetic = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel, data_shape=(dataSize, config.timeDim),
                                  config=config)

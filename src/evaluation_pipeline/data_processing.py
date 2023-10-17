@@ -72,7 +72,7 @@ def train_and_save_predLSTM(data: np.ndarray, config: ConfigDict, model: Predict
                                     snapshot_path=config.pred_lstm_snapshot_path, device=device)
 
     # Start training
-    trainer.train(max_epochs=config.lstm_max_epochs, model_filename=config.pred_lstm_trained_path)
+    trainer.train(max_epochs=config.pred_lstm_max_epochs, model_filename=config.pred_lstm_trained_path)
 
     # Cleanly exit the DDP training
     destroy_process_group()
@@ -172,7 +172,7 @@ def train_and_save_discLSTM(org_data: np.ndarray, synth_data: np.ndarray, config
                                         snapshot_path=config.disc_lstm_snapshot_path, device=device)
 
     # Start training
-    trainer.train(max_epochs=config.lstm_max_epochs, model_filename=config.disc_lstm_trained_path)
+    trainer.train(max_epochs=config.disc_lstm_max_epochs, model_filename=config.disc_lstm_trained_path)
 
     # Cleanly exit the DDP training
     destroy_process_group()
@@ -201,8 +201,7 @@ def test_discLSTM(original_data: np.ndarray, synthetic_data: np.ndarray, config:
             device = torch.device("cpu")
 
         # Instantiate sampler
-        inference = DiscriminativeLSTMInference(model=model, device=device, loss_fn=sklearn.metrics.accuracy_score,
-                                                loss_aggregator=torchmetrics.MeanMetric)
+        inference = DiscriminativeLSTMInference(model=model, device=device, loss_aggregator=torchmetrics.MeanMetric)
 
         # Prepare data
         L = original_data.shape[0]

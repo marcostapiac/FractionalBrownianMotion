@@ -16,8 +16,7 @@ from utils.plotting_functions import plot_final_diff_marginals, plot_dataset, \
     plot_subplots
 
 
-def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.ndarray, rng: np.random.Generator,
-                             config: ConfigDict, exp_dict: dict) -> dict:
+def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.ndarray, rng: np.random.Generator,config: ConfigDict, exp_dict: dict) -> dict:
     """
     Computes metrics to quantify how close the generated samples are from the desired distribution
         :param true_samples: Exact samples of fractional Brownian motion (or its increments)

@@ -65,7 +65,7 @@ if __name__ == "__main__":
             train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
             scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
 
-    s = 100
+    s = 100000
     agg_dict = {i + 1: None for i in range(config.num_runs)}
     for j in range(1, config.num_runs + 1):
         exp_dict = {key: None for key in config.exp_keys}

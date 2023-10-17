@@ -84,13 +84,14 @@ def get_config():
     config.permute_test = False
     config.image_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",
                                                              "pngs/")
-    config.exp_keys = ["Mean Abs Percent Diff", "Cov Abs Percent Diff", "Chi2 Lower", "Chi2 Upper", "Chi2 True Stat", "Chi2 Synthetic Stat", "Marginal p-vals", "Original MAE", "Synthetic MAE", "Original Disc Score", "Synthetic Disc Score"]
+    config.exp_keys = ["Mean Abs Percent Diff", "Cov Abs Percent Diff", "Chi2 Lower", "Chi2 Upper", "Chi2 True Stat", "Chi2 Synthetic Stat", "Marginal p-vals", "Original Pred Score", "Synthetic Pred Score", "Original Disc Score", "Synthetic Disc Score"]
     config.experiment_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_", "experiments/results/")
 
     # LSTM parameters
     config.test_lstm = True
     config.lookback = 10
-    config.lstm_max_epochs = 2000
+    config.pred_lstm_max_epochs = 2000
+    config.disc_lstm_max_epochs = 5000
     config.lstm_batch_size = 128
     config.disc_lstm_trained_path = config.scoreNet_trained_path.replace(
         "src/generative_modelling/trained_models/trained_", "src/evaluation_pipeline/trained_models/trained_discLSTM_")
