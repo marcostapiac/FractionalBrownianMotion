@@ -407,14 +407,14 @@ def plot_final_diff_marginals(forward_samples: np.ndarray, reverse_samples: np.n
     for t in np.arange(start=0, stop=timeDim, step=1):
         forward_t = forward_samples[:, t].flatten()
         reverse_samples_t = reverse_samples[:, t].flatten()
-        """qqplot(x=forward_t,
-               y=reverse_samples_t, xlabel="$\\textbf{Original Data Samples {}}$",
-               ylabel="$\\textbf{Final Reverse Diffusion Samples}$",
-               plottitle="Marginal Q-Q Plot at Time Dim {}".format(t + 1), log=False)"""
         ks_res = kstest(forward_t, reverse_samples_t)
         ps.append(ks_res[1])
         print("KS-test statistic for marginal at time {} :: {}".format(t, ks_res))
         if print_marginals:
+            qqplot(x=forward_t,
+               y=reverse_samples_t, xlabel="$\\textbf{Original Data Samples {}}$",
+               ylabel="$\\textbf{Final Reverse Diffusion Samples}$",
+               plottitle="Marginal Q-Q Plot at Time Dim {}".format(t + 1), log=False)
             plt.savefig(image_path + f"_QQ_timeDim{int(t)}")
             plt.show()
             plt.close()

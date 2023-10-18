@@ -247,10 +247,8 @@ def run_fBm_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDEDiff
                                            config=config)
         except AssertionError:
             raise ValueError("Final time during sampling should be at least as large as final time during training")
-
         true_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=dataSize, rng=rng)
-        exp_dict = evaluate_fBm_performance(true_samples, fBm_samples.cpu().numpy(), rng=rng, config=config,
-                                            exp_dict=exp_dict)
+        exp_dict = evaluate_fBm_performance(true_samples, fBm_samples.cpu().numpy(), rng=rng, config=config, exp_dict=exp_dict)
         agg_dict[j] = exp_dict
     df = pd.DataFrame.from_dict(data=agg_dict)
     df.index = config.exp_keys
@@ -258,8 +256,7 @@ def run_fBm_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDEDiff
     print(pd.read_csv(config.experiment_path, index_col=[0]))
 
 
-def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.ndarray, rng: np.random.Generator,
-                             config: ConfigDict, exp_dict: dict) -> dict:
+def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.ndarray, rng: np.random.Generator,config: ConfigDict, exp_dict: dict) -> dict:
     """
     Computes metrics to quantify how close the generated samples are from the desired distribution
         :param true_samples: Exact samples of fractional Brownian motion (or its increments)
@@ -273,8 +270,8 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
     print("True Data Sample Mean :: ", true_mean)
     gen_mean = np.mean(generated_samples, axis=0)
     print("Generated Data Sample Mean :: ", gen_mean)
-    exp_dict[config.exp_keys[0]] = np.mean(np.abs(gen_mean - true_mean) / true_mean)
-
+    exp_dict.update({config.exp_keys[0] : np.mean(np.abs(gen_mean - true_mean) / true_mean)})
+    
     true_cov = np.cov(true_samples, rowvar=False)
     print("True Data Covariance :: ", true_cov)
     gen_cov = np.cov(generated_samples, rowvar=False)
@@ -283,8 +280,7 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
                                 isUnitInterval=config.unitInterval)
     print("Expected Covariance :: ", expec_cov)
     exp_dict[config.exp_keys[1]] = np.mean(np.abs(gen_cov - expec_cov) / expec_cov)
-
-    plot_diffCov_heatmap(expec_cov, gen_cov, annot=config.annot, image_path=config.image_path + "_diffCov.png")
+    #plot_diffCov_heatmap(expec_cov, gen_cov, annot=config.annot, image_path=config.image_path + "_diffCov.png")
     S = min(true_samples.shape[0], generated_samples.shape[0])
     true_samples, generated_samples = true_samples[:S], generated_samples[:S]
 
@@ -304,10 +300,10 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
                                                                                                        c2[2]))
     exp_dict[config.exp_keys[5]] = c2[1]
 
-    plot_tSNE(x=true_samples, y=generated_samples, labels=["True Samples", "Generated Samples"],
+    """plot_tSNE(x=true_samples, y=generated_samples, labels=["True Samples", "Generated Samples"],
               image_path=config.image_path + "_tSNE") \
         if config.timeDim > 2 else plot_dataset(true_samples, generated_samples,
-                                                image_path=config.image_path + "_scatter.png")
+                                                image_path=config.image_path + "_scatter.png")"""
 
     # Evaluate marginal distributions
     ps = plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.print_marginals,

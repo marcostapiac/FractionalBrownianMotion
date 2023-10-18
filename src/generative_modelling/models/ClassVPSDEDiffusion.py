@@ -105,36 +105,3 @@ class VPSDEDiffusion(nn.Module):
             predicted_score = score_network.forward(x, t.squeeze(-1)).squeeze(1)
             beta_t = self.get_discretised_beta(max_diff_steps - 1 - diff_index, max_diff_steps)
         return predicted_score, x * (2. - torch.sqrt(1. - beta_t)) + beta_t * predicted_score, torch.sqrt(beta_t)
-
-
-"""
-    def reverse_process(self, data: np.ndarray, dataSize: int, timeDim: int, sampleEps: float,
-                        sigNoiseRatio: float, numLangevinSteps: int,
-                        timeLim: int = 0) -> np.ndarray:
-        # Ensure we don't sample from times we haven't seen during training
-        assert (sampleEps >= self.trainEps)
-
-        # Initialise
-        x = torch.randn((dataSize, timeDim), device=self.torchDevice)
-        self.model.eval()
-        reverseTimes = torch.linspace(start=self.endDiffTime, end=sampleEps, steps=self.numDiffSteps)
-        with torch.no_grad():
-            for i in tqdm(iterable=(range(timeLim, self.numDiffSteps)), dynamic_ncols=False,
-                          desc="Sampling :: ", position=0):
-                i_s = i * torch.ones((dataSize, 1), dtype=torch.long,
-                                     device=self.torchDevice)
-                ts = reverseTimes[i_s]  # time-index for each data-sample
-
-                beta_t = self.betas[self.numDiffSteps - 1 - i]  # dt absorbed already
-
-                predicted_score = self.model.forward(x, ts.squeeze(-1)).squeeze(1)  # Score == Noise/STD!
-                z = torch.randn_like(x)
-                x = x * (2. - torch.sqrt(1. - beta_t)) + beta_t * predicted_score + np.sqrt(beta_t) * z
-
-                for _ in range(numLangevinSteps):
-                    e = 2. * self.alphas[self.numDiffSteps - 1 - i] * (
-                            sigNoiseRatio * np.linalg.norm(z) / np.linalg.norm(predicted_score)) ** 2
-                    z = torch.randn_like(x)
-                    x = x + e * predicted_score + np.sqrt(2. * e) * z
-            return x.detach().numpy()  # Approximately distributed according to desired distribution
-"""

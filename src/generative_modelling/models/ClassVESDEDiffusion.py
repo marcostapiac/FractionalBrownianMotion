@@ -101,34 +101,3 @@ class VESDEDiffusion(nn.Module):
             diffusion_param = torch.sqrt(
                 drift_param * next_var / curr_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]).to(device))
         return predicted_score, x + drift_param * predicted_score, diffusion_param
-
-
-"""
-    def reverse_process(self, data: np.ndarray, dataSize: int, timeDim: int, sampleEps: float,
-                        sigNoiseRatio: float, numLangevinSteps: int,
-                        timeLim: int = 0):
-        assert (sampleEps >= self.trainEps)
-
-        # Initialise
-        x = torch.sqrt(self.get_var_max()) * torch.randn((dataSize, timeDim), device=self.torchDevice)
-        self.model.eval()
-        reverseTimes = torch.linspace(start=self.endDiffTime, end=sampleEps, steps=self.numDiffSteps)
-        with torch.no_grad():
-            for i in tqdm(iterable=(range(0, self.numDiffSteps - timeLim)), dynamic_ncols=False,
-                          desc="Sampling :: ", position=0):
-
-                i_s = i * torch.ones((dataSize, 1), dtype=torch.long, device=self.torchDevice)
-                ts = reverseTimes[i_s]  # time-index for each data-sample
-                predicted_score = self.score_network.forward(x, ts.squeeze(-1)).squeeze(1)
-                drift_var_param = self.vars[self.numDiffSteps - 1 - i] - (
-                    self.vars[self.numDiffSteps - 1 - i - 1] if i < self.numDiffSteps - 1 else torch.Tensor([0]))
-                noise_var_param = drift_var_param * self.vars[self.numDiffSteps - 1 - i - 1] / self.vars[
-                    self.numDiffSteps - 1 - i] if i < self.numDiffSteps - 1 else torch.Tensor([0])
-                z = torch.randn_like(x)
-                x = x + drift_var_param * predicted_score + torch.sqrt(noise_var_param) * z
-                for _ in range(numLangevinSteps):
-                    e = 2 * (sigNoiseRatio * np.linalg.norm(z) / np.linalg.norm(predicted_score)) ** 2
-                    z = torch.randn_like(x)
-                    x = x + e * predicted_score + np.sqrt(2. * e) * z
-            return x.detach().numpy()  # Approximately distributed according to desired distribution
-"""
