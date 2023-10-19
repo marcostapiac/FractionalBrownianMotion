@@ -261,8 +261,8 @@ def gibbs_histogram_plot(thetas: np.ndarray, burnOut: int, titlePlot: str, trueV
     plt.legend()
 
 
-def plot_and_save_boxplot(data: np.ndarray, xlabel: str = "", ylabel: str = "", title_plot: str = "",
-                          dataLabels: str = "", toSave: bool = False, saveName: str = "",
+def plot_and_save_boxplot(data: np.ndarray, dataLabels: list, xlabel: str = "", ylabel: str = "", title_plot: str = "",
+                        toSave: bool = False, saveName: str = "",
                           fig: Union[NoneType, matplotlib.figure.Figure] = None,
                           ax: Union[NoneType, matplotlib.axes.Axes] = None) -> None:
     """
@@ -271,20 +271,21 @@ def plot_and_save_boxplot(data: np.ndarray, xlabel: str = "", ylabel: str = "", 
     :param xlabel: X-axis label
     :param ylabel: Y-axis label
     :param plottitle: Title for plot
-    :param dataLabels: Legend for boxplots
+    :param dataLabels: Legends for EACH boxplot
     :param fig: Figure object
     :param ax: Axis object
     :param toSave: Indicates whether to save figure or not
     :param saveName: Filename for saved figure
     :return: None
     """
+    assert(dataLabels == None or (len(data.shape) == 1 and len(dataLabels) == 1) or  data.shape[1] == len(dataLabels))
     if (fig and ax) is None:
         fig, ax = plt.subplots()
-    ax.boxplot(data, labels=dataLabels)
+    fg = ax.boxplot(data)
+    if None not in dataLabels: ax.legend([fg["boxes"][i] for i in range(len(fg["boxes"]))], dataLabels, loc="upper right")
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_title(title_plot)
-    plt.legend()
     plt.show()
     if toSave: plt.savefig(saveName, bbox_inches="tight")
     plt.show()

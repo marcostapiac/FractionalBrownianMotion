@@ -3,8 +3,9 @@ from typing import Union
 import numpy as np
 import pandas as pd
 import torch
+from matplotlib import pyplot as plt
 from ml_collections import ConfigDict
-
+import ast
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.evaluation_pipeline.classes.DiscriminativeLSTM.ClassDiscriminativeLSTM import DiscriminativeLSTM
 from src.evaluation_pipeline.classes.PredictiveLSTM.ClassPredictiveLSTM import PredictiveLSTM
@@ -21,7 +22,7 @@ from utils.data_processing import generate_circles, generate_sine_dataset
 from utils.math_functions import chiSquared_test, reduce_to_fBn, compute_fBm_cov, permutation_test, \
     energy_statistic, MMD_statistic, generate_fBm, compute_circle_proportions, generate_fBn
 from utils.plotting_functions import plot_final_diff_marginals, plot_dataset, \
-    plot_diffCov_heatmap, plot_tSNE
+    plot_diffCov_heatmap, plot_tSNE, plot_and_save_boxplot
 
 
 def prepare_sines_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion],
@@ -442,3 +443,44 @@ def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.
         permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=energy_statistic,
                          num_permutations=1000)))
     return exp_dict
+
+def plot_experiment_results(config:ConfigDict)->None:
+    df = pd.read_csv(config.experiment_path, index_col=[0])
+    # Mean Abs Difference
+    plot_and_save_boxplot(data = df.loc[config.exp_keys[0]].astype(float).to_numpy(),  xlabel = "1", ylabel = config.exp_keys[0], title_plot = "Absolute Percentage Difference in Means",  dataLabels = [None], toSave= False, saveName="")
+
+    # Covariance Abs Difference
+    plot_and_save_boxplot(data = df.loc[config.exp_keys[1]].astype(float).to_numpy(),  xlabel = "1", ylabel = config.exp_keys[1], title_plot = "Absolute Percentage Difference in Covariances",  dataLabels = [None], toSave= False, saveName="")
+
+    # Chi2 tests for true
+    fig, ax = plt.subplots()
+    ax.hlines(y=df.loc[config.exp_keys[2]].astype(float).to_numpy()[0], xmin=0, xmax=2)
+    ax.hlines(y=df.loc[config.exp_keys[3]].astype(float).to_numpy()[0], xmin=0, xmax=2)
+    org_chi2 =df.loc[config.exp_keys[4]].astype(float).to_numpy().reshape((20, ))
+    plot_and_save_boxplot(data = org_chi2,  xlabel = "1", ylabel = config.exp_keys[4], title_plot = "True Samples $\chi^{2}$ test",  dataLabels = [None], fig=fig, ax=ax, toSave= False, saveName=config.image_path + "trueChi2.png")
+
+    # Chi2 test for generated
+    synth_chi2 =df.loc[config.exp_keys[5]].astype(float).to_numpy().reshape((20, ))
+    plot_and_save_boxplot(data = synth_chi2,  xlabel = "1", ylabel = config.exp_keys[5], title_plot = "Generated Samples $\chi^{2}$ test",  dataLabels = [None], toSave= False, saveName="")
+
+    # Predictive Scores
+    org_pred = df.loc[config.exp_keys[7]].astype(float).to_numpy().reshape((20, ))
+    synth_pred = df.loc[config.exp_keys[8]].astype(float).to_numpy().reshape((20, ))
+    plot_and_save_boxplot(data = np.array([org_pred, synth_pred]).reshape((20,2)),  xlabel = "1", ylabel = config.exp_keys[5], title_plot = "Predictive Scores",  dataLabels = ["True", "Generated"], toSave= False, saveName="")
+
+    # Discriminative Scores
+    org_disc = df.loc[config.exp_keys[9]].astype(float).to_numpy().reshape((20,))
+    synth_disc = df.loc[config.exp_keys[10]].astype(float).to_numpy().reshape((20,))
+    plot_and_save_boxplot(data=np.array([org_disc, synth_disc]).reshape((20, 2)), xlabel="1", ylabel=config.exp_keys[5],
+                          title_plot="Discriminative Scores", dataLabels=["True", "Generated"], toSave=False, saveName="")
+
+    pvals = df.loc[config.exp_keys[6]].to_list()
+    for i in range(config.timeDim):
+        pval = []
+        for j in range(config.num_runs):
+            pval_j = ast.literal_eval(pvals[j])
+            pval.append(pval_j[i])
+        plot_and_save_boxplot(data=np.array(pval), xlabel="1",
+                              ylabel="KS Test p-value",
+                              title_plot="KS p-val for dimension {}".format(i+1), dataLabels=[None], toSave=False,
+                              saveName="")
