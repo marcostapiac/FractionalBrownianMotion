@@ -105,8 +105,8 @@ def run_sines_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDEDi
         agg_dict[j] = exp_dict
     df = pd.DataFrame.from_dict(data=agg_dict)
     df.index = config.exp_keys
-    df.to_csv(config.experiment_path, index=True)  # For reading, pd.read_csv(config.experiment_path, index_col=[0])
-    print(pd.read_csv(config.experiment_path, index_col=[0]))
+    df.to_csv(config.experiment_path, compression = "gzip", index=True)  # For reading, pd.read_csv(config.experiment_path, index_col=[0])
+    print(pd.read_csv(config.experiment_path, compression="gzip", index_col=[0]))
 
 
 def evaluate_sines_performance(true_samples: np.ndarray, generated_samples: np.ndarray, rng: np.random.Generator,
@@ -253,8 +253,8 @@ def run_fBm_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDEDiff
         agg_dict[j] = exp_dict
     df = pd.DataFrame.from_dict(data=agg_dict)
     df.index = config.exp_keys
-    df.to_csv(config.experiment_path, index=True)  # For reading, pd.read_csv(config.experiment_path, index_col=[0])
-    print(pd.read_csv(config.experiment_path, index_col=[0]))
+    df.to_csv(config.experiment_path, compression = "gzip", index=True)  # For reading, pd.read_csv(config.experiment_path, index_col=[0])
+    print(pd.read_csv(config.experiment_path, compression="gzip", index_col=[0]))
 
 
 def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.ndarray, rng: np.random.Generator,config: ConfigDict, exp_dict: dict) -> dict:
@@ -397,8 +397,8 @@ def run_circle_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDED
         agg_dict[j] = exp_dict
     df = pd.DataFrame.from_dict(data=agg_dict)
     df.index = config.exp_keys
-    df.to_csv(config.experiment_path, index=True)
-    print(pd.read_csv(config.experiment_path, index_col=[0]))
+    df.to_csv(config.experiment_path, compression = "gzip", index=True)  # For reading, pd.read_csv(config.experiment_path, index_col=[0])
+    print(pd.read_csv(config.experiment_path, compression="gzip", index_col=[0]))
 
 
 def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.ndarray, config: ConfigDict,

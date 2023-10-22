@@ -12,6 +12,7 @@ if __name__ == "__main__":
     from configs.VESDE.fBm_T32_H07 import get_config
 
     config = get_config()
+    print(config.has_cuda)
     assert (0. < config.hurst < 1.)
 
     rng = np.random.default_rng()

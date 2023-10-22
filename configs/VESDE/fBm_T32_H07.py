@@ -20,7 +20,7 @@ def get_config():
 
     # Training hyperparameters
     config.train_eps = 1e-5
-    config.max_diff_steps = 1000 * max(int(np.log2(config.timeDim) - 1), 1)
+    config.max_diff_steps = 1000* max(int(np.log2(config.timeDim) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
@@ -28,7 +28,7 @@ def get_config():
     config.batch_size = 256
 
     # Diffusion hyperparameters
-    config.std_max = 32.
+    config.std_max = 36.
     config.std_min = 0.01
 
     # MLP Architecture parameters
@@ -86,11 +86,11 @@ def get_config():
                        "Chi2 Synthetic Stat", "Marginal p-vals", "Original Pred Score", "Synthetic Pred Score",
                        "Original Disc Score", "Synthetic Disc Score"]
     config.experiment_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",
-                                                                  "experiments/results/")
+                                                                  "experiments/results/")+ ".csv.gzip"
 
     # LSTM parameters
-    config.test_pred_lstm = True
-    config.test_disc_lstm = True
+    config.test_pred_lstm = False
+    config.test_disc_lstm = False
     config.lookback = 10
     config.pred_lstm_max_epochs = 2000
     config.disc_lstm_max_epochs = 5000
