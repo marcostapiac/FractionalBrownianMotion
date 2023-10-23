@@ -13,7 +13,7 @@ def get_config():
 
     # Data set parameters
     config.hurst = 0.7
-    config.timeDim = 32
+    config.timeDim = 256
     config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(
         str(config.hurst).replace(".", ""), config.timeDim)
 
@@ -27,7 +27,7 @@ def get_config():
     config.batch_size = 256
 
     # Diffusion hyperparameters
-    config.std_max = 2.
+    config.std_max = 60.
     config.std_min = 0.01
 
     # MLP Architecture parameters
@@ -72,7 +72,7 @@ def get_config():
     config.corrector_model = "VE"  # vs "VE"
 
     # Experiment evaluation parameters
-    config.dataSize = 32
+    config.dataSize = 10000
     config.num_runs = 10
     config.unitInterval = True
     config.plot = True

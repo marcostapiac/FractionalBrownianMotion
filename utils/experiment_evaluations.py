@@ -479,48 +479,57 @@ def plot_fBm_results_from_csv(config: ConfigDict) -> None:
     fig, ax = plt.subplots()
     ax.hlines(y=df.loc[config.exp_keys[2]].astype(float).to_numpy()[0], xmin=0, xmax=2)
     ax.hlines(y=df.loc[config.exp_keys[3]].astype(float).to_numpy()[0], xmin=0, xmax=2)
-    org_chi2 = df.loc[config.exp_keys[4]].astype(float).to_numpy().reshape((20,))
+    org_chi2 = df.loc[config.exp_keys[4]].astype(float).to_numpy().reshape((config.num_runs,))
     plot_and_save_boxplot(data=org_chi2, xlabel="1", ylabel=config.exp_keys[4],
                           title_plot="True Samples $\chi^{2}$ test", dataLabels=[None], fig=fig, ax=ax, toSave=False,
                           saveName=config.image_path + "trueChi2.png")
 
     # Chi2 test for generated
-    synth_chi2 = df.loc[config.exp_keys[5]].astype(float).to_numpy().reshape((20,))
+    synth_chi2 = df.loc[config.exp_keys[5]].astype(float).to_numpy().reshape((config.num_runs,))
     plot_and_save_boxplot(data=synth_chi2, xlabel="1", ylabel=config.exp_keys[5],
                           title_plot="Generated Samples $\chi^{2}$ test", dataLabels=[None], toSave=False, saveName="")
 
-    if df.loc[config.exp_keys[7]].astype(float).to_numpy()[0] != np.nan:
+    if str(df.loc[config.exp_keys[7]][0]) != "nan":
         # Predictive Scores
-        org_pred = df.loc[config.exp_keys[7]].astype(float).to_numpy().reshape((20,))
-        synth_pred = df.loc[config.exp_keys[8]].astype(float).to_numpy().reshape((20,))
-        plot_and_save_boxplot(data=np.array([org_pred, synth_pred]).reshape((20, 2)), xlabel="1",
+        org_pred = df.loc[config.exp_keys[7]].astype(float).to_numpy().reshape((config.num_runs,))
+        synth_pred = df.loc[config.exp_keys[8]].astype(float).to_numpy().reshape((config.num_runs,))
+        plot_and_save_boxplot(data=np.array([org_pred, synth_pred]).reshape((config.num_runs, 2)), xlabel="1",
                               ylabel=config.exp_keys[5],
                               title_plot="Predictive Scores", dataLabels=["True", "Generated"], toSave=False,
                               saveName="")
-    if df.loc[config.exp_keys[9]].astype(float).to_numpy()[0] != np.nan:
+    if str(df.loc[config.exp_keys[9]][0]) != "nan":
         # Discriminative Scores
-        org_disc = df.loc[config.exp_keys[9]].astype(float).to_numpy().reshape((20,))
-        synth_disc = df.loc[config.exp_keys[10]].astype(float).to_numpy().reshape((20,))
-        plot_and_save_boxplot(data=np.array([org_disc, synth_disc]).reshape((20, 2)), xlabel="1",
+        org_disc = df.loc[config.exp_keys[9]].astype(float).to_numpy().reshape((config.num_runs,))
+        synth_disc = df.loc[config.exp_keys[10]].astype(float).to_numpy().reshape((config.num_runs,))
+        plot_and_save_boxplot(data=np.array([org_disc, synth_disc]).reshape((config.num_runs, 2)), xlabel="1",
                               ylabel=config.exp_keys[5],
                               title_plot="Discriminative Scores", dataLabels=["True", "Generated"], toSave=False,
                               saveName="")
 
     # Histogram of exact samples Hurst parameter
     fig, ax = plt.subplots()
-    ax.axvline(x=0.7, color="blue")
-    plot_histogram(np.array(df.loc[config.exp_keys[11]]), num_bins=200, xlabel="H", ylabel="density",
+    ax.axvline(x=config.hurst, color="blue", label="True Hurst")
+
+    literal_trues = df.loc[config.exp_keys[11]].to_list()
+    true_Hs = []
+    for j in range(config.num_runs):
+        true_Hs += (ast.literal_eval(literal_trues[j]))
+    plot_histogram(np.array(true_Hs), num_bins=200, xlabel="H", ylabel="density",
                    plottitle="Histogram of exact samples' estimated Hurst parameter", fig=fig, ax=ax)
     plt.show()
 
     # Histogram of exact samples Hurst parameter
     fig, ax = plt.subplots()
-    ax.axvline(x=0.7, color="blue")
-    plot_histogram(np.array(df.loc[config.exp_keys[12]]), num_bins=200, xlabel="H", ylabel="density",
+    ax.axvline(x=config.hurst, color="blue", label="True Hurst")
+    literal_synths = df.loc[config.exp_keys[11]].to_list()
+    synth_Hs = []
+    for j in range(config.num_runs):
+        synth_Hs += (ast.literal_eval(literal_synths[j]))
+    plot_histogram(np.array(synth_Hs), num_bins=200, xlabel="H", ylabel="density",
                    plottitle="Histogram of synthetic samples' estimated Hurst parameter", fig=fig, ax=ax)
     plt.show()
 
-    pvals = df.loc[config.exp_keys[6]].to_list()
+    """pvals = df.loc[config.exp_keys[6]].to_list()
     for i in range(config.timeDim):
         pval = []
         for j in range(config.num_runs):
@@ -529,4 +538,7 @@ def plot_fBm_results_from_csv(config: ConfigDict) -> None:
         plot_and_save_boxplot(data=np.array(pval), xlabel="1",
                               ylabel="KS Test p-value",
                               title_plot="KS p-val for dimension {}".format(i + 1), dataLabels=[None], toSave=False,
-                              saveName="")
+                              saveName="")"""
+
+from configs.VESDE.fBm_T32_H07 import get_config
+plot_fBm_results_from_csv(get_config())
