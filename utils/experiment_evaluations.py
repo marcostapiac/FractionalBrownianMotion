@@ -343,7 +343,7 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
             permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=energy_statistic,
                              num_permutations=1000)))
 
-    exp_dict = estimate_hurst(true=true_samples, synthetic=generated_samples, exp_dict=exp_dict)
+    exp_dict = estimate_hurst(true=true_samples, synthetic=generated_samples, exp_dict=exp_dict, S=S, config=config)
     return exp_dict
 
 
