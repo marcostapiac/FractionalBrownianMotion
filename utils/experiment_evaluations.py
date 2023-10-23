@@ -169,8 +169,8 @@ def evaluate_sines_performance(true_samples: np.ndarray, generated_samples: np.n
         plot_diffCov_heatmap(true_cov, gen_cov, annot=config.annot_heatmap,
                              image_path=config.image_path + "_diffCov.png")
         plot_dataset(true_samples, generated_samples, image_path=config.image_path + "_scatter.png")
-        plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.plot,
-                                  timeDim=config.timeDim, image_path=config.image_path)
+        #plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.plot,
+        #                          timeDim=config.timeDim, image_path=config.image_path)
     return exp_dict
 
 
@@ -342,8 +342,8 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
                   image_path=config.image_path + "_tSNE.png") \
             if config.timeDim > 2 else plot_dataset(true_samples, generated_samples,
                                                     image_path=config.image_path + "_scatter.png")
-        plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.plot,
-                                  timeDim=config.timeDim, image_path=config.image_path)
+        #plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.plot,
+        #                          timeDim=config.timeDim, image_path=config.image_path)
     return exp_dict
 
 
@@ -452,8 +452,8 @@ def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.
         plot_diffCov_heatmap(true_cov, gen_cov, annot=config.annot_heatmap,
                              image_path=config.image_path + "_diffCov.png")
         plot_dataset(true_samples, generated_samples, image_path=config.image_path + "_scatter.png")
-        plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.plot,
-                                  timeDim=config.timeDim, image_path=config.image_path)
+        #plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.plot,
+        #                          timeDim=config.timeDim, image_path=config.image_path)
     return exp_dict
 
 
