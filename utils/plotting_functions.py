@@ -389,7 +389,7 @@ def plot_tSNE(x: np.ndarray, labels: list[str], image_path: str, y: Union[NoneTy
     plt.ylabel("$\\textbf{Embedding Dim 2}$")
     plt.tight_layout()
     plt.legend()
-    # plt.savefig(image_path)
+    plt.savefig(image_path)
     plt.show()
 
 
