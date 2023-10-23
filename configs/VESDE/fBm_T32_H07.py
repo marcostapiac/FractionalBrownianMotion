@@ -14,7 +14,7 @@ def get_config():
 
     # Data set parameters
     config.hurst = 0.7
-    config.timeDim = 32
+    config.timeDim = 256
     config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(
         str(config.hurst).replace(".", ""), config.timeDim)
 
@@ -28,7 +28,7 @@ def get_config():
     config.batch_size = 256
 
     # Diffusion hyperparameters
-    config.std_max = 36.
+    config.std_max = 60.
     config.std_min = 0.01
 
     # MLP Architecture parameters
@@ -84,7 +84,8 @@ def get_config():
                                                              "pngs/")
     config.exp_keys = ["Mean Abs Percent Diff", "Cov Abs Percent Diff", "Chi2 Lower", "Chi2 Upper", "Chi2 True Stat",
                        "Chi2 Synthetic Stat", "Marginal p-vals", "Original Pred Score", "Synthetic Pred Score",
-                       "Original Disc Score", "Synthetic Disc Score"]
+                       "Original Disc Score", "Synthetic Disc Score", "True Mean Hurst Estimate","True Std Hurst Estimate" ,  "Synthetic Mean Hurst Estimate", "Synthetic Std Hurst Estimate"]
+
     config.experiment_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",
                                                                   "experiments/results/")+ ".csv.gzip"
 

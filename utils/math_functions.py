@@ -3,13 +3,18 @@ from types import NoneType
 from typing import Union
 
 import numpy as np
+from ml_collections import ConfigDict
 from numpy import broadcast_to, log, exp
 from scipy.stats import chi2
 from tqdm import tqdm
+from scipy.special import gamma as gammafnc
 
 from src.classes import ClassFractionalBrownianNoise
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.classes.ClassFractionalCEV import FractionalCEV
+
+import scipy.optimize as so
+from math import gamma
 
 
 def logsumexp(w: np.ndarray, x: np.ndarray, h: callable, axis: int = 0, isLog: bool = False):
@@ -283,3 +288,80 @@ def compute_circle_proportions(true_samples: np.ndarray, generated_samples: np.n
     print("Generated: Inner {} vs Outer {}".format(innerb / S, outerb / S))
     print("True: Inner {} vs Outer {}".format(innerf / S, outerf / S))
     return innerf / innerb
+
+
+def fBn_spectral_density(hurst: float, N: int) -> np.ndarray:
+    """
+    Spectral density of fBn
+        :param hurst: Hurst parameter
+        :param N: Number of observations of sample path
+        :return: Spectral density
+    """
+    hhest = - ((2 * hurst) + 1)
+    const = np.sin(np.pi * hurst) * gamma(-hhest) / np.pi
+    halfN = int((N - 1) / 2)
+    dpl = 2 * np.pi * np.arange(1, halfN + 1) / N
+    fspec = np.ones(halfN)
+    for i in np.arange(0, halfN):
+        dpfi = np.arange(0, 200)
+        dpfi = 2 * np.pi * dpfi
+        fgi = (np.abs(dpl[i] + dpfi)) ** hhest
+        fhi = (np.abs(dpl[i] - dpfi)) ** hhest
+        dpfi = fgi + fhi
+        dpfi[0] = dpfi[0] / 2
+        dpfi = (1 - np.cos(dpl[i])) * const * dpfi
+        fspec[i] = np.sum(dpfi)
+    fspec = fspec / np.exp(2 * np.sum(np.log(fspec)) / N)
+    return fspec
+
+
+def whittle_ll(hurst: float, gammah: np.ndarray, nbpoints: int) -> float:
+    """
+    Function computes the Whittle likelihood
+        :param hurst: Hurst index
+        :param gammah: Function of the data
+        :param nbpoints: Number of observation of path
+        :return: Whittle likelihood
+    """
+    return 2. * (2. * np.pi / nbpoints) * np.sum((gammah / fBn_spectral_density(hurst, nbpoints)))
+
+
+def optimise_whittle(data: np.ndarray, idx: int) -> float:
+    """
+    Function to calculate Whittle estimate for Hurst parameter
+    Code taken from https://github.com/JFBazille/ICode/blob/master/ICode/estimators/whittle.py
+        :param data: 2D array containing samples of Fractional Brownian Noise as rows
+        :param idx: Sample index to estimate hurst from
+        :return: Estimate of Hurst parameter
+    """
+    datap = data[idx, :]
+    N = datap.shape[0]
+    halfN = int((N - 1) / 2)
+    tmp = np.abs(np.fft.fft(datap))
+    gamma_hat = np.exp(2 * np.log(tmp[1:halfN + 1])) / (2 * np.pi * N)
+    func = lambda Hurst: whittle_ll(Hurst, gamma_hat, N)
+    return so.fminbound(func, 0., 1.)
+
+
+def estimate_hurst(true: np.ndarray, synthetic: np.ndarray, exp_dict: dict, S: int, config: ConfigDict) -> dict:
+    """
+    Function to estimate Hurst index from dataset
+        :param true: Exact samples
+        :param synthetic: Synthetic Samples
+        :param exp_dict: Experiment dictionary
+        :param S: Number of samples
+        :param config: ML experiment configuration file
+        :return: Updated experiment dictionary
+    """
+    gen_data = reduce_to_fBn(synthetic, reduce=True)
+    true_data = reduce_to_fBn(true, reduce=True)
+    true_Hs = []
+    synth_Hs = []
+    for j in tqdm(range(S), dynamic_ncols=False, desc="Estimating Hurst Parameter ::", position=0):
+        true_Hs.append(optimise_whittle(data=true_data, idx=j))
+        synth_Hs.append(optimise_whittle(data=gen_data, idx=j))
+    exp_dict[config.exp_keys[9]] = np.mean(true_Hs)
+    exp_dict[config.exp_keys[10]] = np.std(true_Hs)
+    exp_dict[config.exp_keys[11]] = np.mean(synth_Hs)
+    exp_dict[config.exp_keys[12]] = np.std(synth_Hs)
+    return exp_dict

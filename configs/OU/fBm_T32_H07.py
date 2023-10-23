@@ -81,7 +81,9 @@ def get_config():
                                                              "pngs/")
     config.exp_keys = ["Mean Abs Percent Diff", "Cov Abs Percent Diff", "Chi2 Lower", "Chi2 Upper", "Chi2 True Stat",
                        "Chi2 Synthetic Stat", "Marginal p-vals", "Original Pred Score", "Synthetic Pred Score",
-                       "Original Disc Score", "Synthetic Disc Score"]
+                       "Original Disc Score", "Synthetic Disc Score", "True Mean Hurst Estimate",
+                       "True Std Hurst Estimate", "Synthetic Mean Hurst Estimate", "Synthetic Std Hurst Estimate"]
+
     config.experiment_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",
                                                                   "experiments/results/")
 
