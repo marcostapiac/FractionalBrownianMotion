@@ -539,6 +539,3 @@ def plot_fBm_results_from_csv(config: ConfigDict) -> None:
                               ylabel="KS Test p-value",
                               title_plot="KS p-val for dimension {}".format(i + 1), dataLabels=[None], toSave=False,
                               saveName="")"""
-
-from configs.VESDE.fBm_T32_H07 import get_config
-plot_fBm_results_from_csv(get_config())

@@ -73,7 +73,7 @@ def get_config():
 
     # Experiment evaluation parameters
     config.dataSize = 10000
-    config.num_runs = 10
+    config.num_runs = 3
     config.unitInterval = True
     config.plot = True
     config.annot_heatmap = False
