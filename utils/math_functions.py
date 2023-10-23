@@ -358,8 +358,8 @@ def estimate_hurst(true: np.ndarray, synthetic: np.ndarray, exp_dict: dict, S: i
     for j in tqdm(range(S), dynamic_ncols=False, desc="Estimating Hurst Parameter ::", position=0):
         true_Hs.append(optimise_whittle(data=true_data, idx=j))
         synth_Hs.append(optimise_whittle(data=gen_data, idx=j))
-    exp_dict[config.exp_keys[9]] = true_Hs
-    exp_dict[config.exp_keys[10]] = synth_Hs
+    exp_dict[config.exp_keys[11]] = true_Hs
+    exp_dict[config.exp_keys[12]] = synth_Hs
     return exp_dict
 
 
