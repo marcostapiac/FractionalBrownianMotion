@@ -6,7 +6,6 @@ from configs import project_config
 
 
 def get_config():
-
     config = ml_collections.ConfigDict()
 
     # Experiment environment parameters
@@ -14,13 +13,13 @@ def get_config():
 
     # Data set parameters
     config.hurst = 0.7
-    config.timeDim = 256
+    config.timeDim = 32
     config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(
         str(config.hurst).replace(".", ""), config.timeDim)
 
     # Training hyperparameters
     config.train_eps = 1e-5
-    config.max_diff_steps = 1000* max(int(np.log2(config.timeDim) - 1), 1)
+    config.max_diff_steps = 1000 * max(int(np.log2(config.timeDim) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
@@ -28,7 +27,7 @@ def get_config():
     config.batch_size = 256
 
     # Diffusion hyperparameters
-    config.std_max = 60.
+    config.std_max = 2.
     config.std_min = 0.01
 
     # MLP Architecture parameters
@@ -73,21 +72,22 @@ def get_config():
     config.corrector_model = "VE"  # vs "VE"
 
     # Experiment evaluation parameters
-    config.dataSize = 100000
+    config.dataSize = 32
     config.num_runs = 10
     config.unitInterval = True
-    config.annot = False
-    config.print_marginals = False
+    config.plot = True
+    config.annot_heatmap = False
     config.isfBm = True
     config.permute_test = False
     config.image_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",
                                                              "pngs/")
     config.exp_keys = ["Mean Abs Percent Diff", "Cov Abs Percent Diff", "Chi2 Lower", "Chi2 Upper", "Chi2 True Stat",
                        "Chi2 Synthetic Stat", "Marginal p-vals", "Original Pred Score", "Synthetic Pred Score",
-                       "Original Disc Score", "Synthetic Disc Score", "True Hurst Estimates",  "Synthetic Hurst Estimates"]
+                       "Original Disc Score", "Synthetic Disc Score", "True Hurst Estimates",
+                       "Synthetic Hurst Estimates"]
 
     config.experiment_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",
-                                                                  "experiments/results/")+ ".csv.gzip"
+                                                                  "experiments/results/") + ".csv.gzip"
 
     # LSTM parameters
     config.test_pred_lstm = False

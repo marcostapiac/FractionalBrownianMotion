@@ -6,7 +6,6 @@ from configs import project_config
 
 
 def get_config():
-
     config = ml_collections.ConfigDict()
 
     # Experiment environment parameters
@@ -72,12 +71,13 @@ def get_config():
     config.dataSize = 100000
     config.num_runs = 10
     config.unitInterval = True
-    config.annot = False
-    config.print_marginals = False
+    config.annot_heatmap = False
+    config.plot = False
     config.permute_test = False
     config.image_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",
                                                              "pngs/")
-    config.exp_keys = ["Mean Abs Percent Diff", "Cov Abs Percent Diff", "Marginal p-vals", "Original Pred Score", "Synthetic Pred Score",
+    config.exp_keys = ["Mean Abs Percent Diff", "Cov Abs Percent Diff", "Marginal p-vals", "Original Pred Score",
+                       "Synthetic Pred Score",
                        "Original Disc Score", "Synthetic Disc Score"]
     config.experiment_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",
                                                                   "experiments/results/")

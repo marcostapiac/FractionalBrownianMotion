@@ -74,7 +74,7 @@ def generate_circles(S: int, noise: float) -> np.ndarray:
     return sample
 
 
-def generate_sine_dataset(S: int, T: int, rng:np.random.Generator) -> np.ndarray:
+def generate_sine_dataset(S: int, T: int, rng: np.random.Generator) -> np.ndarray:
     """
     Generate uni-dimensional sine waves
         :param S: Number of time-series

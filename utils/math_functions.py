@@ -1,20 +1,18 @@
 import multiprocessing as mp
+from math import gamma
 from types import NoneType
 from typing import Union
 
 import numpy as np
+import scipy.optimize as so
 from ml_collections import ConfigDict
 from numpy import broadcast_to, log, exp
-from scipy.stats import chi2
+from scipy.stats import chi2, kstest
 from tqdm import tqdm
-from scipy.special import gamma as gammafnc
 
 from src.classes import ClassFractionalBrownianNoise
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.classes.ClassFractionalCEV import FractionalCEV
-
-import scipy.optimize as so
-from math import gamma
 
 
 def logsumexp(w: np.ndarray, x: np.ndarray, h: callable, axis: int = 0, isLog: bool = False):
@@ -363,3 +361,22 @@ def estimate_hurst(true: np.ndarray, synthetic: np.ndarray, exp_dict: dict, S: i
     exp_dict[config.exp_keys[9]] = true_Hs
     exp_dict[config.exp_keys[10]] = synth_Hs
     return exp_dict
+
+
+def compute_pvals(forward_samples: np.ndarray, reverse_samples: np.ndarray) -> list:
+    """
+    Function to compute KS test p values between marginals
+        :param forward_samples: Exact samples
+        :param reverse_samples: Final time reverse-diffusion samples
+        :return: List of p-values
+    """
+    assert (forward_samples.shape == reverse_samples.shape)
+    ps = []
+    timeDim = forward_samples.shape[1]
+    for t in np.arange(start=0, stop=timeDim, step=1):
+        forward_t = forward_samples[:, t].flatten()
+        reverse_samples_t = reverse_samples[:, t].flatten()
+        ks_res = kstest(forward_t, reverse_samples_t)
+        ps.append(ks_res[1])
+        print("KS-test statistic for marginal at time {} :: {}".format(t, ks_res))
+    return ps

@@ -1,3 +1,4 @@
+import ast
 from typing import Union
 
 import numpy as np
@@ -5,7 +6,7 @@ import pandas as pd
 import torch
 from matplotlib import pyplot as plt
 from ml_collections import ConfigDict
-import ast
+
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.evaluation_pipeline.classes.DiscriminativeLSTM.ClassDiscriminativeLSTM import DiscriminativeLSTM
 from src.evaluation_pipeline.classes.PredictiveLSTM.ClassPredictiveLSTM import PredictiveLSTM
@@ -20,11 +21,11 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesS
     TimeSeriesScoreMatching
 from utils.data_processing import generate_circles, generate_sine_dataset
 from utils.math_functions import chiSquared_test, reduce_to_fBn, compute_fBm_cov, permutation_test, \
-    energy_statistic, MMD_statistic, generate_fBm, compute_circle_proportions, generate_fBn, estimate_hurst
+    energy_statistic, MMD_statistic, generate_fBm, compute_circle_proportions, generate_fBn, estimate_hurst, \
+    compute_pvals
 from utils.plotting_functions import plot_final_diff_marginals, plot_dataset, \
-    plot_diffCov_heatmap, plot_tSNE, plot_and_save_boxplot
-import scipy.optimize as so
-from math import gamma
+    plot_diffCov_heatmap, plot_tSNE, plot_and_save_boxplot, plot_histogram
+
 
 def prepare_sines_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion],
                              scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
@@ -106,8 +107,7 @@ def run_sines_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDEDi
         agg_dict[j] = exp_dict
     df = pd.DataFrame.from_dict(data=agg_dict)
     df.index = config.exp_keys
-    df.to_csv(config.experiment_path, compression="gzip",
-              index=True)  # For reading, pd.read_csv(config.experiment_path, index_col=[0])
+    df.to_csv(config.experiment_path, compression="gzip", index=True)
     print(pd.read_csv(config.experiment_path, compression="gzip", index_col=[0]))
 
 
@@ -126,26 +126,17 @@ def evaluate_sines_performance(true_samples: np.ndarray, generated_samples: np.n
     print("True Data Sample Mean :: ", true_mean)
     gen_mean = np.mean(generated_samples, axis=0)
     print("Generated Data Sample Mean :: ", gen_mean)
-    exp_dict[config.exp_keys[0]] = 100*np.mean(np.abs(gen_mean - true_mean) / true_mean)
+    exp_dict[config.exp_keys[0]] = 100 * np.mean(np.abs((gen_mean - true_mean) / true_mean))
 
     true_cov = np.cov(true_samples, rowvar=False)
     print("True Data Covariance :: ", true_cov)
     gen_cov = np.cov(generated_samples, rowvar=False)
     print("Generated Data Covariance :: ", gen_cov)
 
-    exp_dict[config.exp_keys[1]] = 100*np.mean(np.abs(gen_cov - true_cov) / true_cov)
+    exp_dict[config.exp_keys[1]] = 100 * np.mean(np.abs((gen_cov - true_cov) / true_cov))
 
-    plot_diffCov_heatmap(true_cov, gen_cov, annot=config.annot, image_path=config.image_path + "_diffCov.png")
-    S = min(true_samples.shape[0], generated_samples.shape[0])
-    true_samples, generated_samples = true_samples[:S], generated_samples[:S]
-
-    plot_tSNE(x=true_samples, y=generated_samples, labels=["True Samples", "Generated Samples"],
-              image_path=config.image_path + "_tSNE") \
-        if config.timeDim > 2 else plot_dataset(true_samples, generated_samples,
-                                                image_path=config.image_path + "_scatter.png")
     # Evaluate marginal distributions
-    ps = plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.print_marginals,
-                                   timeDim=config.timeDim, image_path=config.image_path)
+    ps = compute_pvals(true_samples, generated_samples)
     exp_dict[config.exp_keys[2]] = ps
 
     if config.test_pred_lstm:
@@ -174,6 +165,12 @@ def evaluate_sines_performance(true_samples: np.ndarray, generated_samples: np.n
         print("Energy Permutation test: p-value {}".format(
             permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=energy_statistic,
                              num_permutations=1000)))
+    if config.plot:
+        plot_diffCov_heatmap(true_cov, gen_cov, annot=config.annot_heatmap,
+                             image_path=config.image_path + "_diffCov.png")
+        plot_dataset(true_samples, generated_samples, image_path=config.image_path + "_scatter.png")
+        plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.plot,
+                                  timeDim=config.timeDim, image_path=config.image_path)
     return exp_dict
 
 
@@ -257,7 +254,7 @@ def run_fBm_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDEDiff
     df = pd.DataFrame.from_dict(data=agg_dict)
     df.index = config.exp_keys
     df.to_csv(config.experiment_path, compression="gzip",
-              index=True)  # For reading, pd.read_csv(config.experiment_path, index_col=[0])
+              index=True)
     print(pd.read_csv(config.experiment_path, compression="gzip", index_col=[0]))
 
 
@@ -276,7 +273,7 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
     print("True Data Sample Mean :: ", true_mean)
     gen_mean = np.mean(generated_samples, axis=0)
     print("Generated Data Sample Mean :: ", gen_mean)
-    exp_dict.update({config.exp_keys[0]: 100*np.mean(np.abs(gen_mean - true_mean) / true_mean)})
+    exp_dict.update({config.exp_keys[0]: 100 * np.mean(np.abs((gen_mean - true_mean) / true_mean))})
 
     true_cov = np.cov(true_samples, rowvar=False)
     print("True Data Covariance :: ", true_cov)
@@ -285,11 +282,10 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
     expec_cov = compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim,
                                 isUnitInterval=config.unitInterval)
     print("Expected Covariance :: ", expec_cov)
-    exp_dict[config.exp_keys[1]] = 100*np.mean(np.abs(gen_cov - expec_cov) / expec_cov)
-    # plot_diffCov_heatmap(expec_cov, gen_cov, annot=config.annot, image_path=config.image_path + "_diffCov.png")
+    exp_dict[config.exp_keys[1]] = 100 * np.mean(np.abs((gen_cov - expec_cov) / expec_cov))
+
     S = min(true_samples.shape[0], generated_samples.shape[0])
     true_samples, generated_samples = true_samples[:S], generated_samples[:S]
-
     # Chi-2 test for joint distribution of the fractional Brownian noise
     c2 = chiSquared_test(T=config.timeDim, H=config.hurst, samples=reduce_to_fBn(true_samples, reduce=config.isfBm),
                          isUnitInterval=config.unitInterval)
@@ -306,14 +302,8 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
                                                                                                        c2[2]))
     exp_dict[config.exp_keys[5]] = c2[1]
 
-    """plot_tSNE(x=true_samples, y=generated_samples, labels=["True Samples", "Generated Samples"],
-              image_path=config.image_path + "_tSNE") \
-        if config.timeDim > 2 else plot_dataset(true_samples, generated_samples,
-                                                image_path=config.image_path + "_scatter.png")"""
-
     # Evaluate marginal distributions
-    ps = plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.print_marginals,
-                                   timeDim=config.timeDim, image_path=config.image_path)
+    ps = compute_pvals(true_samples, generated_samples)
     exp_dict[config.exp_keys[6]] = ps
 
     if config.test_pred_lstm:
@@ -344,6 +334,16 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
                              num_permutations=1000)))
 
     exp_dict = estimate_hurst(true=true_samples, synthetic=generated_samples, exp_dict=exp_dict, S=S, config=config)
+
+    if config.plot:
+        plot_diffCov_heatmap(expec_cov, gen_cov, annot=config.annot_heatmap,
+                             image_path=config.image_path + "_diffCov.png")
+        plot_tSNE(x=true_samples, y=generated_samples, labels=["True Samples", "Generated Samples"],
+                  image_path=config.image_path + "_tSNE.png") \
+            if config.timeDim > 2 else plot_dataset(true_samples, generated_samples,
+                                                    image_path=config.image_path + "_scatter.png")
+        plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.plot,
+                                  timeDim=config.timeDim, image_path=config.image_path)
     return exp_dict
 
 
@@ -404,8 +404,7 @@ def run_circle_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDED
         agg_dict[j] = exp_dict
     df = pd.DataFrame.from_dict(data=agg_dict)
     df.index = config.exp_keys
-    df.to_csv(config.experiment_path, compression="gzip",
-              index=True)  # For reading, pd.read_csv(config.experiment_path, index_col=[0])
+    df.to_csv(config.experiment_path, compression="gzip", index=True)
     print(pd.read_csv(config.experiment_path, compression="gzip", index_col=[0]))
 
 
@@ -423,46 +422,57 @@ def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.
     print("True Data Sample Mean :: ", true_mean)
     gen_mean = np.mean(generated_samples, axis=0)
     print("Generated Data Sample Mean :: ", gen_mean)
-    exp_dict[config.exp_keys[0]] = 100*np.mean(np.abs((gen_mean - true_mean) / true_mean))
+    exp_dict[config.exp_keys[0]] = 100 * np.mean(np.abs((gen_mean - true_mean) / true_mean))
 
     true_cov = np.cov(true_samples, rowvar=False)
     print("True Data :: ", true_cov)
     gen_cov = np.cov(generated_samples, rowvar=False)
     print("Generated Data :: ", gen_cov)
-    exp_dict[config.exp_keys[1]] = 100*np.mean(np.abs(gen_cov - true_cov) / true_cov)
+    exp_dict[config.exp_keys[1]] = 100 * np.mean(np.abs((gen_cov - true_cov) / true_cov))
 
-    plot_dataset(true_samples, generated_samples, image_path=config.image_path + "_scatter.png")
-    plot_diffCov_heatmap(true_cov=true_cov, gen_cov=gen_cov, image_path=config.image_path + "_scatter.png")
-    ps = plot_final_diff_marginals(true_samples, generated_samples, timeDim=2, print_marginals=config.print_marginals,
-                                   image_path=config.image_path)
+    ps = compute_pvals(true_samples, generated_samples)
     exp_dict[config.exp_keys[2]] = ps
 
     true_prop, gen_prop = compute_circle_proportions(true_samples, generated_samples)
     exp_dict[config.exp.keys[3]] = true_prop
     exp_dict[config.exp.keys[4]] = gen_prop
 
-    # Permutation test for kernel statistic
-    test_L = min(2000, true_samples.shape[0])
-    print("MMD Permutation test: p-value {}".format(
-        permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=MMD_statistic,
-                         num_permutations=1000)))
-    # Permutation test for energy statistic
-    print("Energy Permutation test: p-value {}".format(
-        permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=energy_statistic,
-                         num_permutations=1000)))
+    if config.permute_test:
+        # Permutation test for kernel statistic
+        test_L = min(2000, true_samples.shape[0])
+        print("MMD Permutation test: p-value {}".format(
+            permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=MMD_statistic,
+                             num_permutations=1000)))
+        # Permutation test for energy statistic
+        print("Energy Permutation test: p-value {}".format(
+            permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=energy_statistic,
+                             num_permutations=1000)))
+
+    if config.plot:
+        plot_diffCov_heatmap(true_cov, gen_cov, annot=config.annot_heatmap,
+                             image_path=config.image_path + "_diffCov.png")
+        plot_dataset(true_samples, generated_samples, image_path=config.image_path + "_scatter.png")
+        plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.plot,
+                                  timeDim=config.timeDim, image_path=config.image_path)
     return exp_dict
 
 
-def plot_experiment_results(config: ConfigDict) -> None:
-    df = pd.read_csv(config.experiment_path, index_col=[0])
+def plot_fBm_results_from_csv(config: ConfigDict) -> None:
+    """
+    Function to plot quantitative metrics
+        :param config: ML experiment metrics
+        :return: None
+    """
+    df = pd.read_csv(config.experiment_path, compression="gzip", index_col=[0])
+
     # Mean Abs Difference
     plot_and_save_boxplot(data=df.loc[config.exp_keys[0]].astype(float).to_numpy(), xlabel="1",
-                          ylabel=config.exp_keys[0], title_plot="Absolute Percentage Difference in Means",
+                          ylabel=config.exp_keys[0], title_plot="Mean Absolute Percentage Difference in Mean Vector",
                           dataLabels=[None], toSave=False, saveName="")
 
     # Covariance Abs Difference
     plot_and_save_boxplot(data=df.loc[config.exp_keys[1]].astype(float).to_numpy(), xlabel="1",
-                          ylabel=config.exp_keys[1], title_plot="Absolute Percentage Difference in Covariances",
+                          ylabel=config.exp_keys[1], title_plot="Absolute Percentage Difference in Covariance Matrix",
                           dataLabels=[None], toSave=False, saveName="")
 
     # Chi2 tests for true
@@ -479,18 +489,36 @@ def plot_experiment_results(config: ConfigDict) -> None:
     plot_and_save_boxplot(data=synth_chi2, xlabel="1", ylabel=config.exp_keys[5],
                           title_plot="Generated Samples $\chi^{2}$ test", dataLabels=[None], toSave=False, saveName="")
 
-    # Predictive Scores
-    org_pred = df.loc[config.exp_keys[7]].astype(float).to_numpy().reshape((20,))
-    synth_pred = df.loc[config.exp_keys[8]].astype(float).to_numpy().reshape((20,))
-    plot_and_save_boxplot(data=np.array([org_pred, synth_pred]).reshape((20, 2)), xlabel="1", ylabel=config.exp_keys[5],
-                          title_plot="Predictive Scores", dataLabels=["True", "Generated"], toSave=False, saveName="")
+    if df.loc[config.exp_keys[7]].astype(float).to_numpy()[0] != np.nan:
+        # Predictive Scores
+        org_pred = df.loc[config.exp_keys[7]].astype(float).to_numpy().reshape((20,))
+        synth_pred = df.loc[config.exp_keys[8]].astype(float).to_numpy().reshape((20,))
+        plot_and_save_boxplot(data=np.array([org_pred, synth_pred]).reshape((20, 2)), xlabel="1",
+                              ylabel=config.exp_keys[5],
+                              title_plot="Predictive Scores", dataLabels=["True", "Generated"], toSave=False,
+                              saveName="")
+    if df.loc[config.exp_keys[9]].astype(float).to_numpy()[0] != np.nan:
+        # Discriminative Scores
+        org_disc = df.loc[config.exp_keys[9]].astype(float).to_numpy().reshape((20,))
+        synth_disc = df.loc[config.exp_keys[10]].astype(float).to_numpy().reshape((20,))
+        plot_and_save_boxplot(data=np.array([org_disc, synth_disc]).reshape((20, 2)), xlabel="1",
+                              ylabel=config.exp_keys[5],
+                              title_plot="Discriminative Scores", dataLabels=["True", "Generated"], toSave=False,
+                              saveName="")
 
-    # Discriminative Scores
-    org_disc = df.loc[config.exp_keys[9]].astype(float).to_numpy().reshape((20,))
-    synth_disc = df.loc[config.exp_keys[10]].astype(float).to_numpy().reshape((20,))
-    plot_and_save_boxplot(data=np.array([org_disc, synth_disc]).reshape((20, 2)), xlabel="1", ylabel=config.exp_keys[5],
-                          title_plot="Discriminative Scores", dataLabels=["True", "Generated"], toSave=False,
-                          saveName="")
+    # Histogram of exact samples Hurst parameter
+    fig, ax = plt.subplots()
+    ax.axvline(x=0.7, color="blue")
+    plot_histogram(np.array(df.loc[config.exp_keys[11]]), num_bins=200, xlabel="H", ylabel="density",
+                   plottitle="Histogram of exact samples' estimated Hurst parameter", fig=fig, ax=ax)
+    plt.show()
+
+    # Histogram of exact samples Hurst parameter
+    fig, ax = plt.subplots()
+    ax.axvline(x=0.7, color="blue")
+    plot_histogram(np.array(df.loc[config.exp_keys[12]]), num_bins=200, xlabel="H", ylabel="density",
+                   plottitle="Histogram of synthetic samples' estimated Hurst parameter", fig=fig, ax=ax)
+    plt.show()
 
     pvals = df.loc[config.exp_keys[6]].to_list()
     for i in range(config.timeDim):

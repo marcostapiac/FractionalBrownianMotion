@@ -82,8 +82,8 @@ def get_config():
     config.dataSize = 100000
     config.num_runs = 10
     config.unitInterval = True
-    config.annot = True
-    config.print_marginals = True
+    config.annot_heatmap = True
+    config.plot = True
     config.isfBm = True
     config.permute_test = True
     config.image_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",

@@ -6,7 +6,7 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
-from scipy.stats import invgamma as sinvgamma, kstest
+from scipy.stats import invgamma as sinvgamma
 from scipy.stats import norm as snorm
 from scipy.stats import truncnorm
 from sklearn.manifold import TSNE
@@ -262,7 +262,7 @@ def gibbs_histogram_plot(thetas: np.ndarray, burnOut: int, titlePlot: str, trueV
 
 
 def plot_and_save_boxplot(data: np.ndarray, dataLabels: list, xlabel: str = "", ylabel: str = "", title_plot: str = "",
-                        toSave: bool = False, saveName: str = "",
+                          toSave: bool = False, saveName: str = "",
                           fig: Union[NoneType, matplotlib.figure.Figure] = None,
                           ax: Union[NoneType, matplotlib.axes.Axes] = None) -> None:
     """
@@ -278,11 +278,12 @@ def plot_and_save_boxplot(data: np.ndarray, dataLabels: list, xlabel: str = "", 
     :param saveName: Filename for saved figure
     :return: None
     """
-    assert(dataLabels == None or (len(data.shape) == 1 and len(dataLabels) == 1) or  data.shape[1] == len(dataLabels))
+    assert (dataLabels == None or (len(data.shape) == 1 and len(dataLabels) == 1) or data.shape[1] == len(dataLabels))
     if (fig and ax) is None:
         fig, ax = plt.subplots()
     fg = ax.boxplot(data)
-    if None not in dataLabels: ax.legend([fg["boxes"][i] for i in range(len(fg["boxes"]))], dataLabels, loc="upper right")
+    if None not in dataLabels: ax.legend([fg["boxes"][i] for i in range(len(fg["boxes"]))], dataLabels,
+                                         loc="upper right")
     ax.set_xlabel(xlabel)
     ax.set_ylabel(ylabel)
     ax.set_title(title_plot)
@@ -394,32 +395,27 @@ def plot_tSNE(x: np.ndarray, labels: list[str], image_path: str, y: Union[NoneTy
 
 def plot_final_diff_marginals(forward_samples: np.ndarray, reverse_samples: np.ndarray, print_marginals: bool,
                               timeDim: int,
-                              image_path: str) -> list[float]:
+                              image_path: str) -> None:
     """
-    Q-Q plot and KS statistic of multidimensional samples
+    Q-Q plot of multidimensional samples
         :param forward_samples: Forward diffsion samples
         :param reverse_samples: Reverse-time diffusion samples
         :param print_marginals: Flag indicating whether to plot and save QQ plots
         :param timeDim: Dimension of each sample
         :param image_path: Path to save image
-        :return: p values for each dimension
+        :return: None
     """
-    ps = []
     for t in np.arange(start=0, stop=timeDim, step=1):
         forward_t = forward_samples[:, t].flatten()
         reverse_samples_t = reverse_samples[:, t].flatten()
-        ks_res = kstest(forward_t, reverse_samples_t)
-        ps.append(ks_res[1])
-        print("KS-test statistic for marginal at time {} :: {}".format(t, ks_res))
         if print_marginals:
             qqplot(x=forward_t,
-               y=reverse_samples_t, xlabel="$\\textbf{Original Data Samples {}}$",
-               ylabel="$\\textbf{Final Reverse Diffusion Samples}$",
-               plottitle="Marginal Q-Q Plot at Time Dim {}".format(t + 1), log=False)
+                   y=reverse_samples_t, xlabel="$\\textbf{Original Data Samples {}}$",
+                   ylabel="$\\textbf{Final Reverse Diffusion Samples}$",
+                   plottitle="Marginal Q-Q Plot at Time Dim {}".format(t + 1), log=False)
             plt.savefig(image_path + f"_QQ_timeDim{int(t)}")
             plt.show()
             plt.close()
-    return ps
 
 
 def plot_heatmap(map: np.ndarray, annot: bool, title: str, filepath: str) -> None:
