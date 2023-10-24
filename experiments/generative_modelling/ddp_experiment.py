@@ -11,8 +11,8 @@ def main():
     # If we run with torchrun, environment variables should be set by
     backend = "nccl" if torch.cuda.is_available() else "gloo"
     init_process_group(backend)
+    torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
     return backend
-
 
 def main2(backend, model):
     # At this point, as many processes as specified by the input arguments should have started
@@ -21,10 +21,12 @@ def main2(backend, model):
     print("Number of threads for worker with rank {} is :: {}\n".format(int(os.environ["LOCAL_RANK"]),
                                                                         int(os.environ["OMP_NUM_THREADS"])))
     print("World size for rank {} is {}\n".format(int(os.environ["LOCAL_RANK"]), int(os.environ["WORLD_SIZE"])))
-    model = model.to(int(os.environ["LOCAL_RANK"]))
-    model = DDP(model, device_ids=[int(os.environ["LOCAL_RANK"])])
+    print("Total number of available GPUs is {}\n".format(torch.cuda.device_count()))
+    print("Current process device ID is {}\n".format(torch.cuda.get_device_name()))
+    model = DDP(model.to(torch.device("cpu"))) #, device_ids=[int(os.environ["LOCAL_RANK"])])
 
 
 if __name__ == "__main__":
-    main2(backend="nccl", model=torch.nn.Conv2d)
+    backend = main()
+    main2(backend=backend,model=torch.nn.Conv2d(16, 33, 3))
     destroy_process_group()

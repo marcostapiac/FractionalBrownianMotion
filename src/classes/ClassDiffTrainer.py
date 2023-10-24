@@ -38,7 +38,7 @@ class DiffusionModelTrainer:
 
         self.device_id = device
         assert (self.device_id == int(os.environ["LOCAL_RANK"]) or self.device_id == torch.device("cpu"))
-        self.score_network = score_network.to(self.device_id)
+        self.score_network = score_network
         self.epochs_run = 0
 
         self.opt = optimiser
@@ -54,7 +54,7 @@ class DiffusionModelTrainer:
 
         # Move score network to appropriate device
         if type(self.device_id) == int:
-            self.score_network = DDP(self.score_network, device_ids=[self.device_id])
+            self.score_network = DDP(self.score_network.to(self.device_id)) # Avoid bug when using device_ids arg
         else:
             self.score_network = self.score_network.to(self.device_id)
 

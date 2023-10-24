@@ -72,10 +72,10 @@ def get_config():
     config.corrector_model = "VE"  # vs "VE"
 
     # Experiment evaluation parameters
-    config.dataSize = 10000
-    config.num_runs = 3
+    config.dataSize = 70000
+    config.num_runs = 10
     config.unitInterval = True
-    config.plot = True
+    config.plot = False
     config.annot_heatmap = False
     config.isfBm = True
     config.permute_test = False
