@@ -1,6 +1,7 @@
 import ast
 from typing import Union
 
+import pickle
 import numpy as np
 import pandas as pd
 import torch
@@ -41,11 +42,11 @@ def prepare_sines_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VE
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
     except FileNotFoundError as e:
-        print("No valid trained model found; proceeding to training\n")
+        print("Error {}; no valid trained model found; proceeding to training\n".format(e))
         try:
             data = np.load(config.data_path, allow_pickle=True)
-        except FileNotFoundError as e:
-            print("Generating synthetic data\n")
+        except (FileNotFoundError, pickle.UnpicklingError) as e:
+            print("Error {}; generating synthetic data\n".format(e))
             training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
             data = generate_sine_dataset(T=config.timeDim, S=training_size, rng=rng)
             np.save(config.data_path, data)
@@ -58,6 +59,7 @@ def prepare_sines_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VE
         try:
             torch.load(config.pred_lstm_trained_path)
         except FileNotFoundError as e:
+            print("Error {}; training predictive LSTM\n".format(e))
             pred = PredictiveLSTM(ts_dim=1)
             dataSize = min(10 * sum(p.numel() for p in pred.parameters() if p.requires_grad), 2000000) // 10
             synthetic = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
@@ -68,6 +70,7 @@ def prepare_sines_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VE
         try:
             torch.load(config.disc_lstm_trained_path)
         except FileNotFoundError as e:
+            print("Error {}; training discriminative LSTM\n".format(e))
             disc = DiscriminativeLSTM(ts_dim=1)
             dataSize = min(10 * sum(p.numel() for p in disc.parameters() if p.requires_grad), 2000000) // 10
             synthetic = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
@@ -188,11 +191,11 @@ def prepare_fBm_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESD
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
     except FileNotFoundError as e:
-        print("No valid trained model found; proceeding to training\n")
+        print("Error {}; no valid trained model found; proceeding to training\n".format(e))
         try:
             data = np.load(config.data_path, allow_pickle=True)
-        except FileNotFoundError as e:
-            print("Generating synthetic data\n")
+        except (FileNotFoundError, pickle.UnpicklingError) as e:
+            print("Error {}; generating synthetic data\n".format(e))
             training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
             data = generate_fBn(T=config.timeDim, S=training_size, H=config.hurst, rng=rng)
             np.save(config.data_path, data)
@@ -205,6 +208,7 @@ def prepare_fBm_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESD
         try:
             torch.load(config.pred_lstm_trained_path)
         except FileNotFoundError as e:
+            print("Error {}; training predictive LSTM\n".format(e))
             pred = PredictiveLSTM(ts_dim=1)
             dataSize = min(10 * sum(p.numel() for p in pred.parameters() if p.requires_grad), 2000000) // 10
             synthetic = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
@@ -215,6 +219,7 @@ def prepare_fBm_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESD
         try:
             torch.load(config.disc_lstm_trained_path)
         except FileNotFoundError as e:
+            print("Error {}; training discriminative LSTM\n".format(e))
             disc = DiscriminativeLSTM(ts_dim=1)
             dataSize = min(10 * sum(p.numel() for p in disc.parameters() if p.requires_grad), 2000000) // 10
             synthetic = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
@@ -361,11 +366,11 @@ def prepare_circle_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, V
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
     except FileNotFoundError as e:
-        print("No valid trained model found; proceeding to training\n")
+        print("Error {}; no valid trained model found; proceeding to training\n".format(e))
         try:
             data = np.load(config.data_path, allow_pickle=True)
-        except FileNotFoundError as e:
-            print("Generating synthetic data\n")
+        except (FileNotFoundError, pickle.UnpicklingError) as e:
+            print("Error {}; generating synthetic data\n".format(e))
             training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
             data = generate_circles(S=training_size, noise=config.cnoise)
             np.save(config.data_path, data)  # TODO is this the most efficient way
@@ -521,7 +526,7 @@ def plot_fBm_results_from_csv(config: ConfigDict) -> None:
     # Histogram of exact samples Hurst parameter
     fig, ax = plt.subplots()
     ax.axvline(x=config.hurst, color="blue", label="True Hurst")
-    literal_synths = df.loc[config.exp_keys[11]].to_list()
+    literal_synths = df.loc[config.exp_keys[12]].to_list()
     synth_Hs = []
     for j in range(config.num_runs):
         synth_Hs += (ast.literal_eval(literal_synths[j]))
