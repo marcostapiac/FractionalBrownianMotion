@@ -19,15 +19,15 @@ def get_config():
 
     # Training hyperparameters
     config.train_eps = 1e-5
-    config.max_diff_steps = 1000 * max(int(np.log2(config.timeDim) - 1), 1)
+    config.max_diff_steps = 2*1000 * max(int(np.log2(config.timeDim) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = 400
+    config.max_epochs = 300
     config.batch_size = 256
 
     # Diffusion hyperparameters
-    config.std_max = 60.
+    config.std_max = 80.
     config.std_min = 0.01
 
     # MLP Architecture parameters
@@ -73,7 +73,7 @@ def get_config():
 
     # Experiment evaluation parameters
     config.dataSize = 70000
-    config.num_runs = 10
+    config.num_runs = 5
     config.unitInterval = True
     config.plot = False
     config.annot_heatmap = False

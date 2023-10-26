@@ -37,7 +37,7 @@ class DiffusionModelTrainer:
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
 
         self.device_id = device
-        assert (self.device_id == int(os.environ["LOCAL_RANK"]) or self.device_id == torch.device("cpu"))
+        assert (self.device_id == torch.device("cpu") or self.device_id == int(os.environ["LOCAL_RANK"]))
         self.score_network = score_network
         self.epochs_run = 0
 

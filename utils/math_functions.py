@@ -360,6 +360,8 @@ def estimate_hurst(true: np.ndarray, synthetic: np.ndarray, exp_dict: dict, S: i
         synth_Hs.append(optimise_whittle(data=gen_data, idx=j))
     exp_dict[config.exp_keys[11]] = true_Hs
     exp_dict[config.exp_keys[12]] = synth_Hs
+    print("Exact samples :: Mean {}, Std {}".format(np.mean(true_Hs), np.std(true_Hs)))
+    print("Exact samples :: Mean {}, Std {}".format(np.mean(synth_Hs), np.std(synth_Hs)))
     return exp_dict
 
 
