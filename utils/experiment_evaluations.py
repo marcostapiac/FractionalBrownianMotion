@@ -4,6 +4,7 @@ from typing import Union
 import pickle
 import numpy as np
 import pandas as pd
+import scipy
 import torch
 from matplotlib import pyplot as plt
 from ml_collections import ConfigDict
@@ -297,13 +298,13 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
     exp_dict[config.exp_keys[2]] = c2[0]
     exp_dict[config.exp_keys[3]] = c2[2]
     exp_dict[config.exp_keys[4]] = c2[1]
-    print("Chi-Squared test for true: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], c2[1],
+    print("Chi-Squared test for true: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], np.sum(c2[1]),
                                                                                                      c2[2]))
     # Chi-2 test for joint distribution of the fractional Brownian noise
     c2 = chiSquared_test(T=config.timeDim, H=config.hurst,
                          samples=reduce_to_fBn(generated_samples, reduce=config.isfBm),
                          isUnitInterval=config.unitInterval)
-    print("Chi-Squared test for target: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], c2[1],
+    print("Chi-Squared test for target: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], np.sum(c2[1]),
                                                                                                        c2[2]))
     exp_dict[config.exp_keys[5]] = c2[1]
 
@@ -480,19 +481,30 @@ def plot_fBm_results_from_csv(config: ConfigDict) -> None:
                           ylabel=config.exp_keys[1], title_plot="Absolute Percentage Difference in Covariance Matrix",
                           dataLabels=[None], toSave=False, saveName="")
 
-    # Chi2 tests for true
+    # Exact Sample Chi2 Test Statistic Histogram
     fig, ax = plt.subplots()
-    ax.hlines(y=df.loc[config.exp_keys[2]].astype(float).to_numpy()[0], xmin=0, xmax=2)
-    ax.hlines(y=df.loc[config.exp_keys[3]].astype(float).to_numpy()[0], xmin=0, xmax=2)
-    org_chi2 = df.loc[config.exp_keys[4]].astype(float).to_numpy().reshape((config.num_runs,))
-    plot_and_save_boxplot(data=org_chi2, xlabel="1", ylabel=config.exp_keys[4],
-                          title_plot="True Samples $\chi^{2}$ test", dataLabels=[None], fig=fig, ax=ax, toSave=False,
-                          saveName=config.image_path + "trueChi2.png")
+    org_chi2 = df.loc[config.exp_keys[4]].to_list()
+    true_chi2 = []
+    for j in range(config.num_runs):
+        true_chi2 += (ast.literal_eval(org_chi2[j]))
+    xlinspace = np.linspace(scipy.stats.chi2.ppf(0.01, config.timeDim),scipy.stats.chi2.ppf(0.99, config.timeDim), 100)
+    pdfvals = scipy.stats.chi2.pdf(xlinspace, df=config.timeDim)
+    plot_histogram(np.array(true_chi2), xlinspace=xlinspace, pdf_vals=pdfvals, num_bins=200, xlabel="H", ylabel="density",
+                   plottitle="Histogram of exact samples' Chi2 Test Statistic", fig=fig, ax=ax)
+    plt.show()
 
-    # Chi2 test for generated
-    synth_chi2 = df.loc[config.exp_keys[5]].astype(float).to_numpy().reshape((config.num_runs,))
-    plot_and_save_boxplot(data=synth_chi2, xlabel="1", ylabel=config.exp_keys[5],
-                          title_plot="Generated Samples $\chi^{2}$ test", dataLabels=[None], toSave=False, saveName="")
+    # Synthetic Sample Chi2 Test Statistic Histogram
+    fig, ax = plt.subplots()
+    f_chi2 = df.loc[config.exp_keys[5]].to_list()
+    synth_chi2 = []
+    for j in range(config.num_runs):
+        synth_chi2 += (ast.literal_eval(f_chi2[j]))
+    xlinspace = np.linspace(scipy.stats.chi2.ppf(0.01, config.timeDim), scipy.stats.chi2.ppf(0.99, config.timeDim), 100)
+    pdfvals = scipy.stats.chi2.pdf(xlinspace, df=config.timeDim)
+    plot_histogram(np.array(synth_chi2), xlinspace=xlinspace, pdf_vals=pdfvals, num_bins=200, xlabel="H",
+                   ylabel="density",
+                   plottitle="Histogram of synthetic samples' Chi2 Test Statistic", fig=fig, ax=ax)
+    plt.show()
 
     if str(df.loc[config.exp_keys[7]][0]) != "nan":
         # Predictive Scores

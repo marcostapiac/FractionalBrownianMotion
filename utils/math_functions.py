@@ -124,32 +124,34 @@ def permutation_test(data1: np.ndarray, data2: np.ndarray, num_permutations: int
     return p_value
 
 
-def generate_fBn(H: float, T: int, S: int, rng: np.random.Generator) -> np.ndarray:
+def generate_fBn(H: float, T: int, S: int, rng: np.random.Generator, rvs:Union[NoneType, np.ndarray]=None) -> np.ndarray:
     """
     Function generates samples of fractional Brownian noise
         :param H: (float) Hurst parameter
         :param T: (int) Length of each samples
         :param S: (int) Number of samples
         :param rng: (random.Generator) Default random number generator
+        :param rvs: Pre-computed Gaussian random variables
         :return: (np.ndarray) fBn samples
     """
     generator = FractionalBrownianNoise(H=H, rng=rng)
     data = np.zeros((S, T))
     for i in tqdm(range(S)):
-        data[i, :] = generator.circulant_simulation(T, None)
+        data[i, :] = generator.circulant_simulation(T, gaussRvs=rvs)
     return np.array(data).reshape((S, T))
 
 
-def generate_fBm(H: float, T: int, S: int, rng: np.random.Generator) -> np.ndarray:
+def generate_fBm(H: float, T: int, S: int, rng: np.random.Generator, rvs:Union[NoneType, np.ndarray]=None) -> np.ndarray:
     """
     Function generates samples of fractional Brownian motion
         :param H: Hurst parameter
         :param T: Length of each sample
         :param S: Number of samples
         :param rng: Random number generator
+        :param rvs: Pre-computed Gaussian random variables
         :return: fBm samples
     """
-    data = generate_fBn(H=H, T=T, S=S, rng=rng)
+    data = generate_fBn(H=H, T=T, S=S, rng=rng, rvs=rvs)
     return np.cumsum(data, axis=1)
 
 
@@ -254,7 +256,7 @@ def chiSquared_test(T: int, H: float, isUnitInterval: bool, samples: Union[np.nd
     for i in tqdm(range(S)):
         tss = chiSquared(samples[i, :], invL) if samples is not None else chiSquared(fBn.circulant_simulation(T), invL)
         ts.append(tss)
-    return critLow, np.sum(ts), critUpp
+    return critLow, ts, critUpp
 
 
 def compute_circle_proportions(true_samples: np.ndarray, generated_samples: np.ndarray) -> float:
@@ -361,7 +363,7 @@ def estimate_hurst(true: np.ndarray, synthetic: np.ndarray, exp_dict: dict, S: i
     exp_dict[config.exp_keys[11]] = true_Hs
     exp_dict[config.exp_keys[12]] = synth_Hs
     print("Exact samples :: Mean {}, Std {}".format(np.mean(true_Hs), np.std(true_Hs)))
-    print("Exact samples :: Mean {}, Std {}".format(np.mean(synth_Hs), np.std(synth_Hs)))
+    print("Synthetic samples :: Mean {}, Std {}".format(np.mean(synth_Hs), np.std(synth_Hs)))
     return exp_dict
 
 

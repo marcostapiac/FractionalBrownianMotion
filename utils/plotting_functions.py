@@ -208,6 +208,7 @@ def plot_histogram(rvs: np.ndarray, pdf_vals: Union[NoneType, np.ndarray] = None
     ax.set_title(plottitle)
     binvals, _, _ = plt.hist(rvs, num_bins, density=True, label="Histogram")
     if pdf_vals is not None:
+        assert(xlinspace is not None)
         ax.plot(xlinspace, pdf_vals, label=plottlabel, color="red")
     plt.legend()
     return fig, ax, binvals
