@@ -292,7 +292,8 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
 
     S = min(true_samples.shape[0], generated_samples.shape[0])
     true_samples, generated_samples = true_samples[:S], generated_samples[:S]
-    # Chi-2 test for joint distribution of the fractional Brownian noise
+
+    # Chi-2 test for joint distribution of exact fractional Brownian noise
     c2 = chiSquared_test(T=config.timeDim, H=config.hurst, samples=reduce_to_fBn(true_samples, reduce=config.isfBm),
                          isUnitInterval=config.unitInterval)
     exp_dict[config.exp_keys[2]] = c2[0]
@@ -300,7 +301,7 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
     exp_dict[config.exp_keys[4]] = c2[1]
     print("Chi-Squared test for true: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], np.sum(c2[1]),
                                                                                                      c2[2]))
-    # Chi-2 test for joint distribution of the fractional Brownian noise
+    # Chi-2 test for joint distribution of synthetic fractional Brownian noise
     c2 = chiSquared_test(T=config.timeDim, H=config.hurst,
                          samples=reduce_to_fBn(generated_samples, reduce=config.isfBm),
                          isUnitInterval=config.unitInterval)

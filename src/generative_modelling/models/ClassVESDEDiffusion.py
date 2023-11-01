@@ -90,7 +90,6 @@ class VESDEDiffusion(nn.Module):
                 - Ancestral Sampling Diffusion Coefficient
         """
         score_network.eval()
-        torch.manual_seed(seed=1)
         with torch.no_grad():
             device = diff_index.device
             max_diff_steps = torch.Tensor([max_diff_steps]).to(device)
