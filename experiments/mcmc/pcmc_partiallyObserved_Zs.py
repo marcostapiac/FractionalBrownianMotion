@@ -48,8 +48,7 @@ def test_no_H(S=1000000, muU=1., muX=1., gamma=1., X0=1., U0=0., H=0.8, N=2 ** 7
         Thetas = np.vstack([Thetas, theta])
         if i > 0 and i % 10000 == 1:
             print(sigmaXAcc / i)
-            fig, ax, binVals = plot_histogram(Thetas[int(i / 8):, 3], xlabel="Volatility Variance",
-                                              ylabel="PDF",
+            fig, ax, binVals = plot_histogram(Thetas[int(i / 8):, 3], xlabel="Volatility Variance", ylabel="PDF",
                                               plottitle="plottitle")
             ax.axvline(sigmaX, label="True Parameter Value $ " + str(round(sigmaX, 3)) + " $", color="blue")
             plt.show()

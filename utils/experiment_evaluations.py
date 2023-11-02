@@ -488,9 +488,10 @@ def plot_fBm_results_from_csv(config: ConfigDict) -> None:
     true_chi2 = []
     for j in range(config.num_runs):
         true_chi2 += (ast.literal_eval(org_chi2[j]))
-    xlinspace = np.linspace(scipy.stats.chi2.ppf(0.01, config.timeDim),scipy.stats.chi2.ppf(0.99, config.timeDim), 100)
+    xlinspace = np.linspace(scipy.stats.chi2.ppf(0.0001, config.timeDim), scipy.stats.chi2.ppf(0.9999, config.timeDim), 1000)
     pdfvals = scipy.stats.chi2.pdf(xlinspace, df=config.timeDim)
-    plot_histogram(np.array(true_chi2), xlinspace=xlinspace, pdf_vals=pdfvals, num_bins=200, xlabel="H", ylabel="density",
+    plot_histogram(np.array(true_chi2), pdf_vals=pdfvals, xlinspace=xlinspace, num_bins=200, xlabel="Chi2 Statistic",
+                   ylabel="density", plotlabel="Chi2 with {} DoF".format(config.timeDim),
                    plottitle="Histogram of exact samples' Chi2 Test Statistic", fig=fig, ax=ax)
     plt.show()
 
@@ -500,11 +501,8 @@ def plot_fBm_results_from_csv(config: ConfigDict) -> None:
     synth_chi2 = []
     for j in range(config.num_runs):
         synth_chi2 += (ast.literal_eval(f_chi2[j]))
-    xlinspace = np.linspace(scipy.stats.chi2.ppf(0.01, config.timeDim), scipy.stats.chi2.ppf(0.99, config.timeDim), 100)
-    pdfvals = scipy.stats.chi2.pdf(xlinspace, df=config.timeDim)
-    plot_histogram(np.array(synth_chi2), xlinspace=xlinspace, pdf_vals=pdfvals, num_bins=200, xlabel="H",
-                   ylabel="density",
-                   plottitle="Histogram of synthetic samples' Chi2 Test Statistic", fig=fig, ax=ax)
+    plot_histogram(np.array(synth_chi2), pdf_vals=pdfvals, xlinspace=xlinspace, num_bins=200, xlabel="Chi2 Statistic",
+                   ylabel="density", plotlabel="Chi2 with {} DoF".format(config.timeDim), plottitle="Histogram of synthetic samples' Chi2 Test Statistic", fig=fig, ax=ax)
     plt.show()
 
     if str(df.loc[config.exp_keys[7]][0]) != "nan":

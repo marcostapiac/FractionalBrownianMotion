@@ -197,7 +197,7 @@ def qqplot(x: np.ndarray, y: np.ndarray, xlabel: str = "", ylabel: str = "", plo
 
 def plot_histogram(rvs: np.ndarray, pdf_vals: Union[NoneType, np.ndarray] = None,
                    xlinspace: Union[NoneType, np.ndarray] = None, num_bins: int = 100, xlabel: str = "",
-                   ylabel: str = "", plottitle: str = "", plottlabel: str = "",
+                   ylabel: str = "", plottitle: str = "", plotlabel: str = "",
                    fig: Union[NoneType, matplotlib.figure.Figure] = None,
                    ax: Union[NoneType, matplotlib.axes.Axes] = None) -> Tuple[
     matplotlib.figure.Figure, matplotlib.axes.Axes, np.ndarray]:
@@ -209,7 +209,7 @@ def plot_histogram(rvs: np.ndarray, pdf_vals: Union[NoneType, np.ndarray] = None
     binvals, _, _ = plt.hist(rvs, num_bins, density=True, label="Histogram")
     if pdf_vals is not None:
         assert(xlinspace is not None)
-        ax.plot(xlinspace, pdf_vals, label=plottlabel, color="red")
+        ax.plot(xlinspace, pdf_vals, label=plotlabel, color="blue")
     plt.legend()
     return fig, ax, binvals
 
@@ -218,8 +218,7 @@ def gibbs_histogram_plot(thetas: np.ndarray, burnOut: int, titlePlot: str, trueV
                          priorParams: np.ndarray) -> None:
     muUPriorParams, alphaPriorParams, muXPriorParams, sigmaXPriorParams = priorParams
 
-    fig, ax, binVals = plot_histogram(thetas[burnOut:, 0], xlabel="Observation Mean", ylabel="PDF",
-                                      plottitle=titlePlot)
+    fig, ax, binVals = plot_histogram(thetas[burnOut:, 0], xlabel="Observation Mean", ylabel="PDF", plottitle=titlePlot)
     ax.axvline(trueVals[0], label="True Parameter Value $ " + str(round(trueVals[0], 3)) + " $", color="blue")
     axis = np.linspace(snorm.ppf(0.001, loc=muUPriorParams[0], scale=muUPriorParams[1]),
                        snorm.ppf(0.999, loc=muUPriorParams[0], scale=muUPriorParams[1]), num=1000)
@@ -228,8 +227,7 @@ def gibbs_histogram_plot(thetas: np.ndarray, burnOut: int, titlePlot: str, trueV
     plt.legend()
 
     fig, ax, binVals = plot_histogram(thetas[burnOut:, 1], xlabel="Volatility Standardised Mean Reversion",
-                                      ylabel="PDF",
-                                      plottitle=titlePlot)
+                                      ylabel="PDF", plottitle=titlePlot)
     ax.axvline(trueVals[1], label="True Parameter Value $ " + str(round(trueVals[1], 3)) + " $", color="blue")
     mean, sigma = alphaPriorParams[0], alphaPriorParams[1]
     axis = np.linspace(truncnorm.ppf(q=0.001, a=-mean / sigma, b=np.inf, loc=mean, scale=sigma),
@@ -239,8 +237,7 @@ def gibbs_histogram_plot(thetas: np.ndarray, burnOut: int, titlePlot: str, trueV
             color="orange")
     plt.legend()
 
-    fig, ax, binVals = plot_histogram(thetas[burnOut:, 2], xlabel="Volatility Mean", ylabel="PDF",
-                                      plottitle=titlePlot)
+    fig, ax, binVals = plot_histogram(thetas[burnOut:, 2], xlabel="Volatility Mean", ylabel="PDF", plottitle=titlePlot)
     ax.axvline(trueVals[2], label="True Parameter Value $ " + str(round(trueVals[2], 3)) + " $", color="blue")
     mean, sigma = muXPriorParams[0], muXPriorParams[1]
     axis = np.linspace(truncnorm.ppf(q=0.001, a=-mean / sigma, b=np.inf, loc=mean, scale=sigma),
