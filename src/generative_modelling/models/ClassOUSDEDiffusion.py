@@ -46,11 +46,16 @@ class OUSDEDiffusion(nn.Module):
         """
         return diff_times
 
-    def prior_sampling(self, shape: Tuple[int, int]) -> torch.Tensor:
-        """ Sample from the target in the forward diffusion """
-        return torch.randn(shape)  # device= TODO
+    @staticmethod
+    def prior_sampling(shape: Tuple[int, int]) -> torch.Tensor:
+        """ Sample from the target in the forward diffusion
+        :param shape: Shape of desired sample
+        :returns: Normal random sample
+        """
+        return torch.randn(shape)
 
-    def get_reverse_sde(self, x_prev: torch.Tensor, score_network: Union[NaiveMLP, TimeSeriesScoreMatching],
+    @staticmethod
+    def get_reverse_sde(x_prev: torch.Tensor, score_network: Union[NaiveMLP, TimeSeriesScoreMatching],
                         t: torch.Tensor, dt: float) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """ Euler Maruyama discretisation of reverse-time SDE
             :param x_prev: Current sample

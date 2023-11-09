@@ -48,7 +48,8 @@ class FractionalCIR:
         # return currX
         return prevObs + (self.obsMean - 0.5 * np.exp(currX)) * deltaT
 
-    def observation_var(self, currX, deltaT):
+    @staticmethod
+    def observation_var(currX: np.ndarray, deltaT: float):
         # return deltaT
         return np.exp(currX) * deltaT
 

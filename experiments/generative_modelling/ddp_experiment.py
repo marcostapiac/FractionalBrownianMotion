@@ -14,6 +14,7 @@ def main():
     torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
     return backend
 
+
 def main2(backend, model):
     # At this point, as many processes as specified by the input arguments should have started
     print("Backend used is :: {}\n".format(backend))
@@ -23,10 +24,10 @@ def main2(backend, model):
     print("World size for rank {} is {}\n".format(int(os.environ["LOCAL_RANK"]), int(os.environ["WORLD_SIZE"])))
     print("Total number of available GPUs is {}\n".format(torch.cuda.device_count()))
     print("Current process device ID is {}\n".format(torch.cuda.get_device_name()))
-    model = DDP(model.to(torch.device("cpu"))) #, device_ids=[int(os.environ["LOCAL_RANK"])])
+    model = DDP(model.to(torch.device("cpu")))  # , device_ids=[int(os.environ["LOCAL_RANK"])])
 
 
 if __name__ == "__main__":
     backend = main()
-    main2(backend=backend,model=torch.nn.Conv2d(16, 33, 3))
+    main2(backend=backend, model=torch.nn.Conv2d(16, 33, 3))
     destroy_process_group()

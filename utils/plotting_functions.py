@@ -1,4 +1,6 @@
+import glob
 import numbers
+import os
 from types import NoneType
 from typing import Union, Optional, Tuple, Mapping
 
@@ -6,6 +8,9 @@ import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
 import seaborn as sns
+import torch
+from PIL import Image
+from scipy import stats
 from scipy.stats import invgamma as sinvgamma
 from scipy.stats import norm as snorm
 from scipy.stats import truncnorm
@@ -35,7 +40,7 @@ def plot_subplots(time_ax: np.ndarray, data: np.ndarray, label_args: np.ndarray[
     :param label_args: Labels for each plot
     :param xlabels: X-axis labels
     :param ylabels: Y-axis labels
-    :param title: Global title
+    :param globalTitle: Global title
     :param fig: Figure object
     :param ax: Axis object or Array of
     :param saveTransparent: Indicates whether to remove background from figure
@@ -75,8 +80,8 @@ def plot(time_ax, data, label_args: np.ndarray[str], xlabel: str, ylabel: str, t
         :param time_ax: MCMC timeline
         :param data: Data containing MCMC trace values
         :param label_args: Labels for each plot
-        :param xlabels: X-axis label
-        :param ylabels: Y-axis label
+        :param xlabel: X-axis label
+        :param ylabel: Y-axis label
         :param title: Plot title
         :param fig: Figure object
         :param ax: Axis object
@@ -115,6 +120,15 @@ def qqplot(x: np.ndarray, y: np.ndarray, xlabel: str = "", ylabel: str = "", plo
     x, y : array-like
         One-dimensional numeric arrays.
 
+    xlabel: string
+        X-axis label
+
+    ylabel: string
+        Y-axis label
+
+    plottitle: str
+        Title for entire plot
+
     ax : matplotlib.axes.Axes, optional
         Axes on which to plot. If not provided, the current axes will be used.
 
@@ -136,7 +150,12 @@ def qqplot(x: np.ndarray, y: np.ndarray, xlabel: str = "", ylabel: str = "", plo
     rug_length : float in [0, 1], optional
         Specifies the length of the rug plot lines as a fraction of the total
         vertical or horizontal length.
-
+    font_size: int
+        Size of font in plot
+    title_size: int
+        Size of title font in plot
+    log: bool
+        Flag indicating whether to use log-axis
     rug_kwargs : dict of keyword arguments
         Keyword arguments to pass to matplotlib.axes.Axes.axvline() and
         matplotlib.axes.Axes.axhline() when drawing rug plots.
@@ -208,7 +227,7 @@ def plot_histogram(rvs: np.ndarray, pdf_vals: Union[NoneType, np.ndarray] = None
     ax.set_title(plottitle)
     binvals, _, _ = plt.hist(rvs, num_bins, density=True, label="Histogram")
     if pdf_vals is not None:
-        assert(xlinspace is not None)
+        assert (xlinspace is not None)
         ax.plot(xlinspace, pdf_vals, label=plotlabel, color="blue")
     plt.legend()
     return fig, ax, binvals
@@ -268,7 +287,7 @@ def plot_and_save_boxplot(data: np.ndarray, dataLabels: list, xlabel: str = "", 
     :param data: Data
     :param xlabel: X-axis label
     :param ylabel: Y-axis label
-    :param plottitle: Title for plot
+    :param title_plot: Title for plot
     :param dataLabels: Legends for EACH boxplot
     :param fig: Figure object
     :param ax: Axis object
@@ -550,3 +569,80 @@ def compare_fBm_to_normal(h: float, generated_samples: np.ndarray, td: int, rng:
         normal_rvs[_, :] = rng.standard_normal(td)
     plot_tSNE(generated_samples, y=normal_rvs, labels=["Reverse Diffusion Samples", "Standard Normal RVS"],
               image_path=project_config.ROOT_DIR + "pngs/tSNE_normal_vs_generatedfBm_H{:.3e}_T{}".format(h, td))
+
+
+def plot_score_errors_ts(diff_time_space: np.ndarray, errors: np.ndarray, plot_title: str) -> None:
+    """
+    Plot score error over time, averaged over many samples at each point in time.
+        :param diff_time_space: Diffusion time space
+        :param errors: Score erros
+        :param plot_title:  Title for plot
+        :return: None
+    """
+    plt.plot(diff_time_space, errors, label="L2 Error")
+    plt.xlabel("Diffusion Time")
+    plt.ylabel("L2 Error")
+    plt.title(plot_title)
+    plt.show()
+
+
+def plot_score_errors_heatmap(errors: np.ndarray, plot_title: str) -> None:
+    """
+    Plot heat map of score network errors over time and space
+        :param errors: Matrix with score errors over space and time
+        :param plot_title: Title for plot
+        :return: None
+    """
+    sns.heatmap(errors, annot=False, annot_kws={'size': 15})
+    plt.xlabel("Dimension")
+    plt.ylabel("Reverse-Time Diffusion Index")
+    plt.title(plot_title)
+    plt.show()
+
+
+def make_gif(frame_folder_path: str, process_str_path: str) -> None:
+    """
+    Function to take sequence of images and turn into GIF
+        :param frame_folder_path: Path where images are stored
+        :param process_str_path: String identifying which images to turn into a GIF
+        :return: None
+    """
+    try:
+        images = [image for image in glob.glob("{}{}*.png".format(frame_folder_path, process_str_path))]
+        images = sorted(images, key=lambda x: int(x.replace(".png", "").split("_")[-1]))
+        frames = [Image.open(image) for image in images]
+    except RuntimeError as e:
+        raise RuntimeError("Error {}".format(e))
+    frame_one = frames[0]
+    # Proceed to cleaning contents of folder
+    for image in images:
+        os.remove(image)
+    frame_one.save(frame_folder_path + process_str_path + ".gif", format="GIF", append_images=frames, save_all=True,
+                   duration=1000, loop=1)
+
+
+def plot_and_save_diffused_fBm_snapshot(samples:torch.Tensor,  cov:torch.Tensor, save_path:str, x_label:str, y_label:str, plot_title:str)->None:
+    """
+    Function to save figure of diffusion samples scatter plot and contours of theoretical marginal
+        :param samples: Samples for scatter plot
+        :param cov: Covariance matrix of theoretical marginal
+        :param save_path: Path to save figure
+        :param x_label: X-axis label
+        :param y_label: Y-axis label
+        :param plot_title: Title for plot
+        :return: None
+    """
+    d1, d2 = samples[:, 0], samples[:, 1]
+    t = np.linspace(torch.mean(d1) - 3 * torch.std(d1), torch.mean(d1) + 3 * torch.std(d1), 500)
+    h = np.linspace(torch.mean(d2) - 3 * torch.std(d2), torch.mean(d2) + 3 * torch.std(d2), 500)
+    expected_dist = stats.multivariate_normal(mean=None, cov=cov)
+    z = expected_dist.pdf(np.dstack(np.meshgrid(t, h)))
+    fig, ax = plt.subplots()
+    ax.scatter(d1, d2)
+    ax.contour(t, h, z, levels=100)
+    ax.set_xlabel(x_label)
+    ax.set_ylabel(y_label)
+    ax.set_title(plot_title)
+    plt.savefig(save_path, bbox_inches="tight")
+    plt.show()
+    plt.close()

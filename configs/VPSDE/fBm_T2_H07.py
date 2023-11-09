@@ -73,25 +73,37 @@ def get_config():
     config.max_lang_steps = 0
     config.snr = 0.
     config.predictor_model = "ancestral"  # vs "euler-maryuama"
-    config.corrector_model = "VP"  # vs "VE"
+    config.corrector_model = "VP"  # vs "VE" vs "OUSDE"
 
     # Experiment evaluation parameters
     config.dataSize = 100000
-    config.num_runs = 10
+    config.num_runs = 20
     config.unitInterval = True
-    config.annot_heatmap = True
-    config.plot = True
+    config.plot = False
+    config.annot_heatmap = False
     config.isfBm = True
     config.permute_test = False
     config.image_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",
                                                              "pngs/")
     config.exp_keys = ["Mean Abs Percent Diff", "Cov Abs Percent Diff", "Chi2 Lower", "Chi2 Upper", "Chi2 True Stat",
-                       "Chi2 Synthetic Stat", "Marginal p-vals", "Original MAE", "Synthetic MAE", "Original Disc Score",
-                       "Synthetic Disc Score"]
+                       "Chi2 Synthetic Stat", "Marginal p-vals", "Original Pred Score", "Synthetic Pred Score",
+                       "Original Disc Score", "Synthetic Disc Score", "True Hurst Estimates",
+                       "Synthetic Hurst Estimates"]
+
     config.experiment_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",
-                                                                  "experiments/results/")
+                                                                  "experiments/results/") + ".csv.gzip"
 
     # LSTM parameters
-    config.test_lstm = False
+    config.test_pred_lstm = False
+    config.test_disc_lstm = False
+    config.lookback = 10
+    config.pred_lstm_max_epochs = 700
+    config.disc_lstm_max_epochs = 5000
+    config.lstm_batch_size = 128
+    config.disc_lstm_trained_path = config.scoreNet_trained_path.replace(
+        "src/generative_modelling/trained_models/trained_", "src/evaluation_pipeline/trained_models/trained_discLSTM_")
+    config.disc_lstm_snapshot_path = config.disc_lstm_trained_path.replace("trained_models/", "snapshots/")
+    config.pred_lstm_trained_path = config.disc_lstm_trained_path.replace("disc", "pred")
+    config.pred_lstm_snapshot_path = config.disc_lstm_snapshot_path.replace("disc", "pred")
 
     return config

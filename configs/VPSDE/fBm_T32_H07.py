@@ -77,13 +77,12 @@ def get_config():
 
     # Experiment evaluation parameters
     config.dataSize = 100000
-    config.num_runs = 10
+    config.num_runs = 20
     config.unitInterval = True
+    config.plot = False
     config.annot_heatmap = False
-    config.plot = True
     config.isfBm = True
     config.permute_test = False
-
     config.image_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",
                                                              "pngs/")
     config.exp_keys = ["Mean Abs Percent Diff", "Cov Abs Percent Diff", "Chi2 Lower", "Chi2 Upper", "Chi2 True Stat",
@@ -92,13 +91,13 @@ def get_config():
                        "Synthetic Hurst Estimates"]
 
     config.experiment_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",
-                                                                  "experiments/results/")
+                                                                  "experiments/results/") + ".csv.gzip"
 
     # LSTM parameters
-    config.test_pred_lstm = True
-    config.test_disc_lstm = True
+    config.test_pred_lstm = False
+    config.test_disc_lstm = False
     config.lookback = 10
-    config.pred_lstm_max_epochs = 2000
+    config.pred_lstm_max_epochs = 700
     config.disc_lstm_max_epochs = 5000
     config.lstm_batch_size = 128
     config.disc_lstm_trained_path = config.scoreNet_trained_path.replace(

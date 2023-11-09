@@ -75,6 +75,7 @@ class JumpLevyProcess(LevyProcess):
             raise ValueError("Case number needs to be an integer between 1 and 3 inclusive")
 
 
+# noinspection PyAttributeOutsideInit
 class GammaProcess(JumpLevyProcess):
     """
 	Pure jump Gamma process
@@ -115,6 +116,7 @@ class GammaProcess(JumpLevyProcess):
         return self.rng.gamma(shape=tHorizon * self.C, scale=1 / self.beta, size=numSamples)
 
 
+# noinspection PyAttributeOutsideInit
 class TemperedStableProcess(JumpLevyProcess):
 
     def __init__(self, alpha=None, beta=None, C=None, rng=np.random.default_rng()):
@@ -169,6 +171,7 @@ class TemperedStableProcess(JumpLevyProcess):
         return x
 
 
+# noinspection PyAttributeOutsideInit
 class GIGProcess(JumpLevyProcess):
 
     def __init__(self, delta=None, gamma=None, lambd=None, rng=np.random.default_rng()):
@@ -305,6 +308,7 @@ class GIGProcess(JumpLevyProcess):
             H0 = z1 * hankel_squared(np.abs(lambd), z1)
             return 2 * delta * truncation * np.sqrt((2. * truncation) / np.pi) / (3. * np.pi * H0)
 
+    # noinspection PyMethodOverriding
     class SimpleSimulator(JumpLevyProcess):
         def __init__(self, outer, rng=np.random.default_rng()):
             self.outer = outer

@@ -8,9 +8,9 @@ from utils.plotting_functions import plot, plt
 def plot_simulated(obs_data, vol_data, T_horizon):
     time = np.linspace(0., T_horizon, T_horizon)
     fig, ax = plt.subplots(2, 1)
-    plot(time, lines=[obs_data], label_args=["Price Process"], xlabel="Time", ylabel="Price Process",
+    plot(time, data=[obs_data], label_args=np.array(["Price Process"]), xlabel="Time", ylabel="Price Process",
          title="GARCH(1,1) Model", fig=fig, ax=ax[0])
-    plot(time, lines=[vol_data], label_args=["Volatility Process"], xlabel="Time", ylabel="Volatility Process",
+    plot(time, data=[vol_data], label_args=np.array(["Volatility Process"]), xlabel="Time", ylabel="Volatility Process",
          title="GARCH(1,1) Model", fig=fig, ax=ax[1])
     # plt.close()
 

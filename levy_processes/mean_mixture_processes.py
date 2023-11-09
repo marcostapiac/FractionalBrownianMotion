@@ -1,5 +1,6 @@
 import numpy as np
-from processes import base_processes
+
+from levy_processes import base_processes
 
 
 class MeanMixtureLevyProcess(base_processes.LevyProcess):

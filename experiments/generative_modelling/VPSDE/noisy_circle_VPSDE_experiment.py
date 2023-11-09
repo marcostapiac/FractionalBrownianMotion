@@ -7,9 +7,10 @@ from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
-from utils.data_processing import evaluate_circle_performance, init_experiment, cleanup_experiment
+from utils.data_processing import generate_circles
+from utils.data_processing import init_experiment, cleanup_experiment
+from utils.experiment_evaluations import evaluate_circle_performance
 from utils.experiment_evaluations import prepare_circle_experiment, run_circle_experiment
-from utils.math_functions import generate_circles
 
 
 def run_experiment(dataSize: int, diffusion: VPSDEDiffusion, scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],

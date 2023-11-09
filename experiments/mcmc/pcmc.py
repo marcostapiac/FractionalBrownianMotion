@@ -20,8 +20,9 @@ def test_no_H(S=10000, muU=1., muX=2., gamma=2., X0=1., U0=0., H=0.8, N=2 ** 7, 
     m = FractionalCEV(muU=muU, muX=muX, sigmaX=sigmaX, gamma=gamma, X0=X0, U0=U0)
     Xs, Us = m.euler_simulation(H=H, N=N, deltaT=deltaT)  # Simulated data
     L = Us.size
-    plot_subplots(np.arange(0, T + deltaT, step=deltaT), [Xs, Us], [None, None], ["Time", "Time"],
-                  ["Volatility", "Log Price"],
+    plot_subplots(np.arange(0, T + deltaT, step=deltaT), np.array([Xs, Us]), np.array([None, None]),
+                  np.array(["Time", "Time"]),
+                  np.array(["Volatility", "Log Price"]),
                   "Project Model Simulation")
     muUParams, gammaParams, muXParams, sigmaXParams = (0., 0.1), 1., (1.), (2.1, np.power(1., 2) * 1.1)
     thetaPrev = prior(muUParams=muUParams, gammaParams=gammaParams, muXParams=muXParams, sigmaXParams=sigmaXParams)

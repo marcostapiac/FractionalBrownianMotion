@@ -14,10 +14,11 @@ def calculate_ACF(data):
 
 def plot_traces(nIters, a, b, s, title):
     iters = np.linspace(0, nIters, nIters)
-    xlabels = ["Iterations" for _ in range(3)]
-    ylabels = ["a", "b", "s"]
-    label_args = [None for _ in range(3)]
-    plot_subplots(iters, [a, b, s], label_args=label_args, xlabels=xlabels, ylabels=ylabels, title=title)
+    xlabels = np.array(["Iterations" for _ in range(3)])
+    ylabels = np.array(["a", "b", "s"])
+    label_args = np.array([None for _ in range(3)])
+    plot_subplots(iters, np.array([a, b, s]), label_args=label_args, xlabels=xlabels, ylabels=ylabels,
+                  globalTitle=title)
 
 
 def preprocessing(logvol2s):

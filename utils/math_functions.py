@@ -124,7 +124,8 @@ def permutation_test(data1: np.ndarray, data2: np.ndarray, num_permutations: int
     return p_value
 
 
-def generate_fBn(H: float, T: int, S: int, rng: np.random.Generator, rvs:Union[NoneType, np.ndarray]=None) -> np.ndarray:
+def generate_fBn(H: float, T: int, S: int, rng: np.random.Generator,
+                 rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
     """
     Function generates samples of fractional Brownian noise
         :param H: (float) Hurst parameter
@@ -141,7 +142,8 @@ def generate_fBn(H: float, T: int, S: int, rng: np.random.Generator, rvs:Union[N
     return np.array(data).reshape((S, T))
 
 
-def generate_fBm(H: float, T: int, S: int, rng: np.random.Generator, rvs:Union[NoneType, np.ndarray]=None) -> np.ndarray:
+def generate_fBm(H: float, T: int, S: int, rng: np.random.Generator,
+                 rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
     """
     Function generates samples of fractional Brownian motion
         :param H: Hurst parameter

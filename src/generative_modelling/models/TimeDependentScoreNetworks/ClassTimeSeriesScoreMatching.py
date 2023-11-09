@@ -38,7 +38,8 @@ class DiffusionEmbedding(nn.Module):
         high = self.embedding[high_idx]
         return low + (t - low_idx).unsqueeze(-1) * (high - low)
 
-    def _build_embedding(self, diff_embed_size: int, max_steps: int):
+    @staticmethod
+    def _build_embedding(diff_embed_size: int, max_steps: int):
         steps = torch.arange(max_steps).unsqueeze(1)  # [max_steps,1]
         dims = torch.arange(diff_embed_size).unsqueeze(0)  # [max_steps,diff_input_size]
         table = steps * 10.0 ** (dims * 4.0 / 63.0)  # [max_steps,diff_input_size]
@@ -59,6 +60,7 @@ def get_timestep_embedding(timesteps: torch.Tensor, embedding_dim: int):
     emb = torch.exp(torch.arange(start=0, end=half_dim, dtype=torch.float32) * -emb)
     # emb = tf.range(num_embeddings, dtype=DEFAULT_DTYPE)[:, None] * emb[None, :]
     emb = timesteps.to(torch.float32)[:, None] * emb[None, :]
+    # noinspection PyArgumentList
     emb = torch.concat([torch.sin(emb), torch.cos(emb)], axis=1)
     if embedding_dim % 2 == 1:  # zero pad
         # emb = tf.concat([emb, tf.zeros([num_embeddings, 1])], axis=1)

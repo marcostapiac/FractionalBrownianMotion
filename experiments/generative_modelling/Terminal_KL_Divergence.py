@@ -3,6 +3,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 from configs import project_config
+from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
+from utils.math_functions import compute_fBm_cov
 
 plt.style.use('ggplot')
 matplotlib.rcParams.update({
@@ -14,11 +16,16 @@ matplotlib.rcParams.update({
 fig, ax = plt.subplots()
 
 td = 2
-data = np.load(project_config.ROOT_DIR + "data/noisy_circle_samples.npy")[0, :].reshape((td, 1))
+hurst = 0.7
+rng = np.random.default_rng()
+fbn = FractionalBrownianNoise(H=hurst, rng=rng)
+fBm_cov = compute_fBm_cov(fbn, T=td, isUnitInterval=True)
+data = np.load(project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(str(hurst).replace(".", ""), td))[0,
+       :].reshape((td, 1)).cumsum()
 eps = 1e-4
 
 Tmax = 1.2
-S = int(Tmax / 1e-3)
+S = int(Tmax / eps)
 times = np.linspace(eps, Tmax, num=S)
 for i in range(3):
     if i == 0:
@@ -39,7 +46,7 @@ for i in range(3):
     else:
         # VE SDE
         std_min = np.sqrt(0.1)
-        std_max = np.sqrt(40.)
+        std_max = np.sqrt(20.)
         vars0 = std_min ** 2 * (std_max / std_min) ** (2. * times)
         means0 = np.vstack([data] * S).reshape((S, td))
         vars1 = 0. * vars0 + np.power(std_max, 2.)

@@ -54,7 +54,7 @@ class DiffusionModelTrainer:
 
         # Move score network to appropriate device
         if type(self.device_id) == int:
-            self.score_network = DDP(self.score_network.to(self.device_id)) # Avoid bug when using device_ids arg
+            self.score_network = DDP(self.score_network.to(self.device_id))  # Avoid bug when using device_ids arg
         else:
             self.score_network = self.score_network.to(self.device_id)
 
@@ -148,10 +148,8 @@ class DiffusionModelTrainer:
             :param epoch: Current epoch number
             :return: None
         """
-        snapshot = {}
+        snapshot = {"EPOCHS_RUN": epoch, "OPTIMISER_STATE": self.opt.state_dict()}
         # self.score_network now points to DDP wrapped object, so we need to access parameters via ".module"
-        snapshot["EPOCHS_RUN"] = epoch
-        snapshot["OPTIMISER_STATE"] = self.opt.state_dict()
         if type(self.device_id) == int:
             snapshot["MODEL_STATE"] = self.score_network.module.state_dict()
         else:

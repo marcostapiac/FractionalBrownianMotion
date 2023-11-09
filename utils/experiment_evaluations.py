@@ -1,13 +1,16 @@
 import ast
+import pickle
 from typing import Union
 
-import pickle
 import numpy as np
 import pandas as pd
 import scipy
 import torch
 from matplotlib import pyplot as plt
 from ml_collections import ConfigDict
+from scipy import stats
+from scipy.stats import kstest, ks_2samp
+from tqdm import tqdm
 
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.evaluation_pipeline.classes.DiscriminativeLSTM.ClassDiscriminativeLSTM import DiscriminativeLSTM
@@ -25,8 +28,8 @@ from utils.data_processing import generate_circles, generate_sine_dataset
 from utils.math_functions import chiSquared_test, reduce_to_fBn, compute_fBm_cov, permutation_test, \
     energy_statistic, MMD_statistic, generate_fBm, compute_circle_proportions, generate_fBn, estimate_hurst, \
     compute_pvals
-from utils.plotting_functions import plot_final_diff_marginals, plot_dataset, \
-    plot_diffCov_heatmap, plot_tSNE, plot_and_save_boxplot, plot_histogram
+from utils.plotting_functions import plot_dataset, \
+    plot_diffCov_heatmap, plot_tSNE, plot_histogram, plot_and_save_diffused_fBm_snapshot
 
 
 def prepare_sines_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion],
@@ -173,7 +176,7 @@ def evaluate_sines_performance(true_samples: np.ndarray, generated_samples: np.n
         plot_diffCov_heatmap(true_cov, gen_cov, annot=config.annot_heatmap,
                              image_path=config.image_path + "_diffCov.png")
         plot_dataset(true_samples, generated_samples, image_path=config.image_path + "_scatter.png")
-        #plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.plot,
+        # plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.plot,
         #                          timeDim=config.timeDim, image_path=config.image_path)
     return exp_dict
 
@@ -299,13 +302,15 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
     exp_dict[config.exp_keys[2]] = c2[0]
     exp_dict[config.exp_keys[3]] = c2[2]
     exp_dict[config.exp_keys[4]] = c2[1]
-    print("Chi-Squared test for true: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], np.sum(c2[1]),
-                                                                                                     c2[2]))
+    print(
+        "Chi-Squared test for true: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], np.sum(c2[1]),
+                                                                                                   c2[2]))
     # Chi-2 test for joint distribution of synthetic fractional Brownian noise
     c2 = chiSquared_test(T=config.timeDim, H=config.hurst,
                          samples=reduce_to_fBn(generated_samples, reduce=config.isfBm),
                          isUnitInterval=config.unitInterval)
-    print("Chi-Squared test for target: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0], np.sum(c2[1]),
+    print("Chi-Squared test for target: Lower Critical {} :: Statistic {} :: Upper Critical {}".format(c2[0],
+                                                                                                       np.sum(c2[1]),
                                                                                                        c2[2]))
     exp_dict[config.exp_keys[5]] = c2[1]
 
@@ -349,7 +354,7 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
                   image_path=config.image_path + "_tSNE.png") \
             if config.timeDim > 2 else plot_dataset(true_samples, generated_samples,
                                                     image_path=config.image_path + "_scatter.png")
-        #plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.plot,
+        # plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.plot,
         #                          timeDim=config.timeDim, image_path=config.image_path)
     return exp_dict
 
@@ -361,7 +366,6 @@ def prepare_circle_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, V
         Helper function to train and / or load necessary models for fBm experiments
             :param diffusion: Diffusion model
             :param scoreModel: Score network
-            :param rng: Default random number generator
             :param config: ML experiment configuration file
             :return: Trained score network
         """
@@ -390,7 +394,6 @@ def run_circle_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDED
         :param dataSize: Size of output data
         :param diffusion: Diffusion model
         :param scoreModel: Trained score network
-        :param rng: Default random number generator
         :param config: ML configuration file
         :return: None
     """
@@ -459,7 +462,7 @@ def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.
         plot_diffCov_heatmap(true_cov, gen_cov, annot=config.annot_heatmap,
                              image_path=config.image_path + "_diffCov.png")
         plot_dataset(true_samples, generated_samples, image_path=config.image_path + "_scatter.png")
-        #plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.plot,
+        # plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.plot,
         #                          timeDim=config.timeDim, image_path=config.image_path)
     return exp_dict
 
@@ -473,28 +476,29 @@ def plot_fBm_results_from_csv(config: ConfigDict) -> None:
     df = pd.read_csv(config.experiment_path, compression="gzip", index_col=[0])
 
     # Mean Abs Difference
-    plot_and_save_boxplot(data=df.loc[config.exp_keys[0]].astype(float).to_numpy(), xlabel="1",
-                          ylabel=config.exp_keys[0], title_plot="Mean Absolute Percentage Difference in Mean Vector",
-                          dataLabels=[None], toSave=False, saveName="")
+    # plot_and_save_boxplot(data=df.loc[config.exp_keys[0]].astype(float).to_numpy(), xlabel="1",
+    #                      ylabel=config.exp_keys[0], title_plot="Mean Absolute Percentage Difference in Mean Vector",
+    #                      dataLabels=[None], toSave=False, saveName="")
 
     # Covariance Abs Difference
-    plot_and_save_boxplot(data=df.loc[config.exp_keys[1]].astype(float).to_numpy(), xlabel="1",
-                          ylabel=config.exp_keys[1], title_plot="Absolute Percentage Difference in Covariance Matrix",
-                          dataLabels=[None], toSave=False, saveName="")
+    # plot_and_save_boxplot(data=df.loc[config.exp_keys[1]].astype(float).to_numpy(), xlabel="1",
+    #                      ylabel=config.exp_keys[1], title_plot="Absolute Percentage Difference in Covariance Matrix",
+    #                      dataLabels=[None], toSave=False, saveName="")
 
     # Exact Sample Chi2 Test Statistic Histogram
+    dfs = config.timeDim
     fig, ax = plt.subplots()
     org_chi2 = df.loc[config.exp_keys[4]].to_list()
     true_chi2 = []
     for j in range(config.num_runs):
         true_chi2 += (ast.literal_eval(org_chi2[j]))
-    xlinspace = np.linspace(scipy.stats.chi2.ppf(0.0001, config.timeDim), scipy.stats.chi2.ppf(0.9999, config.timeDim), 1000)
-    pdfvals = scipy.stats.chi2.pdf(xlinspace, df=config.timeDim)
+    xlinspace = np.linspace(scipy.stats.chi2.ppf(0.0001, dfs), scipy.stats.chi2.ppf(0.9999, dfs), 1000)
+    pdfvals = scipy.stats.chi2.pdf(xlinspace, df=dfs)
     plot_histogram(np.array(true_chi2), pdf_vals=pdfvals, xlinspace=xlinspace, num_bins=200, xlabel="Chi2 Statistic",
-                   ylabel="density", plotlabel="Chi2 with {} DoF".format(config.timeDim),
+                   ylabel="density", plotlabel="Chi2 with {} DoF".format(dfs),
                    plottitle="Histogram of exact samples' Chi2 Test Statistic", fig=fig, ax=ax)
     plt.show()
-
+    print(ks_2samp(true_chi2, scipy.stats.chi2.rvs(df=dfs, size=len(true_chi2)), alternative="two-sided"))
     # Synthetic Sample Chi2 Test Statistic Histogram
     fig, ax = plt.subplots()
     f_chi2 = df.loc[config.exp_keys[5]].to_list()
@@ -502,10 +506,12 @@ def plot_fBm_results_from_csv(config: ConfigDict) -> None:
     for j in range(config.num_runs):
         synth_chi2 += (ast.literal_eval(f_chi2[j]))
     plot_histogram(np.array(synth_chi2), pdf_vals=pdfvals, xlinspace=xlinspace, num_bins=200, xlabel="Chi2 Statistic",
-                   ylabel="density", plotlabel="Chi2 with {} DoF".format(config.timeDim), plottitle="Histogram of synthetic samples' Chi2 Test Statistic", fig=fig, ax=ax)
+                   ylabel="density", plotlabel="Chi2 with {} DoF".format(dfs),
+                   plottitle="Histogram of synthetic samples' Chi2 Test Statistic", fig=fig, ax=ax)
     plt.show()
+    print(ks_2samp(synth_chi2, scipy.stats.chi2.rvs(df=dfs, size=len(synth_chi2)), alternative="two-sided"))
 
-    if str(df.loc[config.exp_keys[7]][0]) != "nan":
+    """if str(df.loc[config.exp_keys[7]][0]) != "nan":
         # Predictive Scores
         org_pred = df.loc[config.exp_keys[7]].astype(float).to_numpy().reshape((config.num_runs,))
         synth_pred = df.loc[config.exp_keys[8]].astype(float).to_numpy().reshape((config.num_runs,))
@@ -521,7 +527,7 @@ def plot_fBm_results_from_csv(config: ConfigDict) -> None:
                               ylabel=config.exp_keys[5],
                               title_plot="Discriminative Scores", dataLabels=["True", "Generated"], toSave=False,
                               saveName="")
-
+    """
     # Histogram of exact samples Hurst parameter
     fig, ax = plt.subplots()
     ax.axvline(x=config.hurst, color="blue", label="True Hurst")
@@ -545,6 +551,8 @@ def plot_fBm_results_from_csv(config: ConfigDict) -> None:
                    plottitle="Histogram of synthetic samples' estimated Hurst parameter", fig=fig, ax=ax)
     plt.show()
 
+    print(ks_2samp(synth_Hs, true_Hs, alternative="two-sided"))
+
     """pvals = df.loc[config.exp_keys[6]].to_list()
     for i in range(config.timeDim):
         pval = []
@@ -555,3 +563,188 @@ def plot_fBm_results_from_csv(config: ConfigDict) -> None:
                               ylabel="KS Test p-value",
                               title_plot="KS p-val for dimension {}".format(i + 1), dataLabels=[None], toSave=False,
                               saveName="")"""
+
+
+def run_fBm_VESDE_score_error_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion],
+                                   scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], rng: np.random.Generator,
+                                   config: ConfigDict) -> torch.Tensor:
+    """
+        Visualise the error between score
+            :param dataSize: Size of output data
+            :param diffusion: Diffusion model
+            :param scoreModel: Trained score network
+            :param rng: Default random number generator
+            :param config: ML configuration file
+            :return: Tensor of errors over time and space
+        """
+    try:
+        assert (config.train_eps <= config.sample_eps)
+    except AssertionError:
+        raise ValueError("Final time during sampling should be at least as large as final time during training")
+    if config.has_cuda:
+        device = torch.device(0)
+    else:
+        device = torch.device("cpu")
+
+    # Compute covariance function to compute exact score afterwards
+    fBm_cov = torch.from_numpy(
+        compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim, isUnitInterval=True)).to(
+        torch.float32)
+
+    # Placeholder
+    errors = torch.zeros(size=(config.max_diff_steps, config.timeDim))
+
+    timesteps = torch.linspace(start=config.end_diff_time, end=config.sample_eps, steps=config.max_diff_steps)
+    x = diffusion.prior_sampling(shape=(dataSize, config.timeDim)).to(device)  # Move to correct device
+    for i in tqdm(iterable=(range(0, config.max_diff_steps)), dynamic_ncols=False,
+                  desc="Sampling for Score Error Visualisation :: ", position=0):
+        diff_index = torch.Tensor([i]).to(device)
+
+        # Obtain required diffusion parameters
+        if config.predictor_model == "ancestral":
+            pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[i] * torch.ones(
+                (x.shape[0], 1)).to(device), score_network=scoreModel,diff_index=diff_index, max_diff_steps=config.max_diff_steps)
+        else:
+            dt = -config.end_diff_time / config.max_diff_steps
+            pred_score, drift, diffusion_param = diffusion.get_reverse_sde(x, score_network=scoreModel,
+                                                                           t=timesteps[i] * torch.ones(
+                                                                               (x.shape[0], 1)).to(device),
+                                                                           dt=torch.Tensor([dt]).to(device))
+
+        exp_score = torch.stack([-torch.linalg.inv((diffusion.get_ancestral_var(max_diff_steps=config.max_diff_steps,
+                                                                                diff_index=config.max_diff_steps - 1 - diff_index)) * torch.eye(
+            config.timeDim) + fBm_cov) @ x[j,:] for j in range(dataSize)])
+
+        errors[config.max_diff_steps - 1 - i, :] = torch.linalg.norm(pred_score - exp_score, ord=2, axis=0)
+
+        # One-step reverse-time SDE
+        x = drift + diffusion_param * torch.randn_like(x)
+
+    return errors
+
+
+def run_fBm_perfect_VESDE_score(dataSize: int, dim_pair: torch.Tensor,
+                                diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion], folderPath:str, gifPath:str,
+                                rng: np.random.Generator, perfect_config: ConfigDict) -> None:
+    """
+    Run reverse-time diffusion under perfect VESDE score knowledge and plot scatter plot for neighbouring dimensions
+        :param dataSize: Size of output data
+        :param dim_pair: Vector of dimensions of interest
+        :param diffusion: Diffusion model
+        :param folderPath: Path to folder to save images
+        :param gifPath: Path to save GIF
+        :param rng: Default random number generator
+        :param perfect_config: ML configuration file
+        :return: None
+    """
+    try:
+        assert(dim_pair.shape[0] == 2)
+    except AssertionError:
+        raise ValueError("You can only choose a pair of dimensions to plot\n")
+    if perfect_config.has_cuda:
+        device = torch.device(0)
+    else:
+        device = torch.device("cpu")
+
+    x = diffusion.prior_sampling(shape=(dataSize, dim_pair.shape[0])).to(device)  # Move to correct device
+
+    fBm_cov = torch.from_numpy(
+        compute_fBm_cov(FractionalBrownianNoise(H=perfect_config.hurst, rng=rng), T=perfect_config.timeDim, isUnitInterval=True)).to(
+        torch.float32)
+    fBm_cov = torch.index_select(torch.index_select(fBm_cov, dim=0, index=dim_pair), dim=1, index=dim_pair)
+
+    for i in tqdm(iterable=(range(0, perfect_config.max_diff_steps)), dynamic_ncols=False,
+                  desc="Sampling for Backward Diffusion Visualisation :: ", position=0):
+        diff_index = torch.Tensor([i]).to(device)
+        max_diff_steps = torch.Tensor([perfect_config.max_diff_steps]).to(device)
+
+        eff_time = diffusion.get_ancestral_var(max_diff_steps=max_diff_steps, diff_index=max_diff_steps - 1 - diff_index)
+        cov = eff_time*torch.eye(dim_pair.shape[0]) + fBm_cov
+
+        # Compute exact score
+        exp_score = torch.stack([-torch.linalg.inv(cov) @ x[j,:] for j in range(dataSize)])
+        if perfect_config.predictor_model == "ancestral":
+            drift = diffusion.get_ancestral_drift(x=x, pred_score=exp_score, diff_index=diff_index,
+                                                  max_diff_steps=max_diff_steps)
+            diffusion_param = diffusion.get_ancestral_diff(diff_index=diff_index, max_diff_steps=max_diff_steps)
+        else:
+            raise ValueError("Alternative to ancestral sampling has not been implemented\n")
+        if i % perfect_config.save_freq == 0 or i == (perfect_config.max_diff_steps - 1):
+            save_path = folderPath + gifPath + "_diffIndex_{}.png".format(i + 1)
+            xlabel = "fBm Dimension {}".format(dim_pair[0]+1)
+            ylabel = "fBm Dimension {}".format(dim_pair[1]+1)
+            plot_title = "Reverse-time samples $T={}$ at time {}".format(perfect_config.timeDim, round((
+                                                                                                       i + 1) / perfect_config.max_diff_steps,
+                                                                                           5))
+            plot_and_save_diffused_fBm_snapshot(samples=x, cov=cov, save_path=save_path, x_label=xlabel,
+                                                y_label=ylabel, plot_title=plot_title)
+
+        x = drift + diffusion_param * torch.randn_like(x)
+
+
+def run_fBm_VESDE_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
+                                diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion], folderPath:str, gifPath:str,
+                                rng: np.random.Generator, config: ConfigDict) -> None:
+    """
+    Run reverse-time diffusion and plot scatter plot for neighbouring dimensions and compare with theoretical contours
+        :param dataSize: Size of output data
+        :param dim_pair: Vector of dimensions of interest
+        :param scoreModel: Trained score network
+        :param diffusion: Diffusion model
+        :param folderPath: Path to folder to save images
+        :param gifPath: Path to save GIF
+        :param rng: Default random number generator
+        :param config: ML configuration file
+        :return: None
+    """
+    try:
+        assert(dim_pair.shape[0] == 2)
+    except AssertionError:
+        raise ValueError("You can only choose a pair of dimensions to plot\n")
+    if config.has_cuda:
+        device = torch.device(0)
+    else:
+        device = torch.device("cpu")
+
+    x = diffusion.prior_sampling(shape=(dataSize, dim_pair.shape[0])).to(device)  # Move to correct device
+
+    fBm_cov = torch.from_numpy(
+        compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim, isUnitInterval=True)).to(
+        torch.float32)
+    fBm_cov = torch.index_select(torch.index_select(fBm_cov, dim=0, index=dim_pair), dim=1, index=dim_pair)
+    timesteps = torch.linspace(start=config.end_diff_time, end=config.sample_eps, steps=config.max_diff_steps)
+
+    for i in tqdm(iterable=(range(0, config.max_diff_steps)), dynamic_ncols=False,
+                  desc="Sampling for Backward Diffusion Visualisation :: ", position=0):
+        diff_index = torch.Tensor([i]).to(device)
+        max_diff_steps = torch.Tensor([config.max_diff_steps]).to(device)
+
+        eff_time = diffusion.get_ancestral_var(max_diff_steps=max_diff_steps, diff_index=max_diff_steps - 1 - diff_index)
+        cov = eff_time*torch.eye(dim_pair.shape[0]) + fBm_cov
+
+        # Compute exact score
+        if config.predictor_model == "ancestral":
+            pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[i] * torch.ones(
+                (x.shape[0], 1)).to(device), score_network=scoreModel, diff_index=diff_index,
+                                                                                  max_diff_steps=config.max_diff_steps)
+        else:
+            dt = -config.end_diff_time / config.max_diff_steps
+            pred_score, drift, diffusion_param = diffusion.get_reverse_sde(x, score_network=scoreModel,
+                                                                           t=timesteps[i] * torch.ones(
+                                                                               (x.shape[0], 1)).to(device),
+                                                                           dt=torch.Tensor([dt]).to(device))
+        if i % config.save_freq == 0 or i == (config.max_diff_steps - 1):
+            save_path = folderPath + gifPath + "_diffIndex_{}.png".format(i + 1)
+            xlabel = "fBm Dimension {}".format(dim_pair[0]+1)
+            ylabel = "fBm Dimension {}".format(dim_pair[1]+1)
+            plot_title = "Reverse-time samples $T={}$ at time {}".format(config.timeDim, round((
+                                                                                                       i + 1) / config.max_diff_steps,
+                                                                                           5))
+            plot_and_save_diffused_fBm_snapshot(samples=x, cov=cov, save_path=save_path, x_label=xlabel,
+                                                y_label=ylabel, plot_title=plot_title)
+
+        x = drift + diffusion_param * torch.randn_like(x)
+
+
+
+

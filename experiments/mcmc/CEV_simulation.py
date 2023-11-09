@@ -14,7 +14,7 @@ def simulate(muU=1., muX=2., gamma=1., N=2 ** 11, T=10., H=0.8, X0=1., U0=0., sa
     X.append(Xs)
     plot_subplots(np.arange(0, T + deltaT, step=deltaT), data=np.array([Xs, Us]), label_args=np.array([None, None]),
                   xlabels=np.array(["Time", "Time"]),
-                  ylabel=np.array(["Volatility", "Log Price"]),
+                  ylabels=np.array(["Volatility", "Log Price"]),
                   globalTitle="Fractional CEV with $\mu_{U}, \gamma, \mu_{X}, \sigma_{X}, H = " + str(muU) + " ," + str(
                       gamma) + " ," + str(muX) + " ," + str(round(sigmaX, 3)) + " ," + str(H) + "$",
                   saveTransparent=False)

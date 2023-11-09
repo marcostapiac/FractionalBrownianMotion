@@ -49,7 +49,8 @@ class FractionalCEV:
     def observation_mean(self, prevObs: np.ndarray, currX: np.ndarray, deltaT: float):
         return prevObs + (self.obsMean - 0.5 * np.exp(currX)) * deltaT  # U_i-1 +(muU-0.5exp(X))delta
 
-    def observation_var(self, currX: np.ndarray, deltaT: float):
+    @staticmethod
+    def observation_var(currX: np.ndarray, deltaT: float):
         # return deltaT
         return np.exp(currX) * deltaT  # delta exp(currX)
 
@@ -64,7 +65,7 @@ class FractionalCEV:
         else:
             self.gaussIncs = gaussRvs
         if Ms is None:
-            Ms = self.sample_increments(deltaT=deltaT, H=H, N=N, gaussRvs=self.gaussIncs)
+            Ms = self.sample_increments(H=H, N=N, gaussRvs=self.gaussIncs)
         for i in range(1, N + 1):
             Zs.append(self.increment_state(prev=Zs[i - 1], deltaT=deltaT, M=Ms[i - 1]))
         return self.inverse_lamperti(np.array(Zs))
@@ -78,7 +79,7 @@ class FractionalCEV:
         else:
             self.gaussIncs = gaussRvs
         if Ms is None:
-            Ms = self.sample_increments(deltaT=deltaT, H=H, N=N, gaussRvs=self.gaussIncs)
+            Ms = self.sample_increments(H=H, N=N, gaussRvs=self.gaussIncs)
         for i in range(1, N + 1):
             Zs.append(self.increment_state(prev=Zs[i - 1], deltaT=deltaT, M=Ms[i - 1]))  # Ms[0] = B^H_1 - B^H_0
             Us.append(self.increment_simulation(prev=Us[i - 1], currX=self.inverse_lamperti(Zs[i]), deltaT=deltaT))

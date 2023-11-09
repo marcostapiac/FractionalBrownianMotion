@@ -24,8 +24,7 @@ class VESDEDiffusion(nn.Module):
         """ Get minimum variance parameter """
         return torch.Tensor([self.stdMin ** 2]).to(torch.float32)
 
-    @staticmethod
-    def noising_process(dataSamples: torch.Tensor, effTimes: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    def noising_process(self, dataSamples: torch.Tensor, effTimes: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward diffusion in continuous time
             :param dataSamples: Initial time SDE value
@@ -36,7 +35,7 @@ class VESDEDiffusion(nn.Module):
 
         """
         epsts = torch.randn_like(dataSamples)  # Already in same device as dataSamples
-        return dataSamples + torch.sqrt(effTimes) * epsts, -epsts / torch.sqrt(effTimes)
+        return dataSamples + torch.sqrt(effTimes) * epsts, -epsts / torch.sqrt(effTimes)  # -self.get_var_min()
 
     @staticmethod
     def get_loss_weighting(eff_times: torch.Tensor) -> torch.Tensor:
@@ -59,19 +58,56 @@ class VESDEDiffusion(nn.Module):
         return var_min * (var_max / var_min) ** diff_times
 
     def prior_sampling(self, shape: Tuple[int, int]) -> torch.Tensor:
-        """ Sample from the target in the forward diffusion """
-        return torch.sqrt(self.get_var_max()) * torch.randn(shape)  # device= TODO
+        """ Sample from the target in the forward diffusion
+            :param shape: Dimension of required sample
+            :return: Desired sample
+        """
+        return torch.sqrt(self.get_var_max()) * torch.randn(shape)
 
     def get_ancestral_var(self, max_diff_steps: torch.Tensor, diff_index: torch.Tensor) -> torch.Tensor:
         """
         Discretisation of noise schedule for ancestral sampling
-        :return: None
+            :param max_diff_steps: Number of reverse-time discretisation steps
+            :param diff_index: Forward time diffusion index
+            :return: None
         """
         device = diff_index.device
         var_max = self.get_var_max().to(device)
         var_min = self.get_var_min().to(device)
         vars = var_min * torch.pow((var_max / var_min), diff_index / (max_diff_steps - 1))
         return vars
+
+    def get_ancestral_drift(self, x: torch.Tensor, pred_score: torch.Tensor, diff_index: torch.Tensor,
+                            max_diff_steps: torch.Tensor) -> torch.Tensor:
+        """
+        Compute drift for one-step of reverse-time diffusion
+            :param x: Current samples
+            :param pred_score: Predicted score vector
+            :param diff_index: FORWARD diffusion index
+            :param max_diff_steps: Maximum number of diffusion steps
+            :return: Drift
+        """
+        device = diff_index.device
+        curr_var = self.get_ancestral_var(max_diff_steps=max_diff_steps, diff_index=max_diff_steps - 1 - diff_index)
+        next_var = self.get_ancestral_var(max_diff_steps=max_diff_steps,
+                                          diff_index=max_diff_steps - 1 - diff_index - 1)
+        noise_diff = curr_var - (next_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]).to(device))
+        return x + noise_diff * pred_score
+
+    def get_ancestral_diff(self, diff_index: torch.Tensor, max_diff_steps: torch.Tensor) -> torch.Tensor:
+        """
+        Compute diffusion parameter for one-step of reverse-time diffusion
+            :param diff_index: FORWARD diffusion index
+            :param max_diff_steps: Maximum number of diffusion steps
+            :return: Diffusion parameter
+        """
+        device = diff_index.device
+        curr_var = self.get_ancestral_var(max_diff_steps=max_diff_steps, diff_index=max_diff_steps - 1 - diff_index)
+        next_var = self.get_ancestral_var(max_diff_steps=max_diff_steps,
+                                          diff_index=max_diff_steps - 1 - diff_index - 1)
+        noise_diff = curr_var - (next_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]).to(device))
+        return torch.sqrt(
+            noise_diff * next_var / curr_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]).to(device))
 
     def get_ancestral_sampling(self, x: torch.Tensor, t: torch.Tensor,
                                score_network: Union[NaiveMLP, TimeSeriesScoreMatching],
@@ -94,10 +130,7 @@ class VESDEDiffusion(nn.Module):
             device = diff_index.device
             max_diff_steps = torch.Tensor([max_diff_steps]).to(device)
             predicted_score = score_network.forward(x, t.squeeze(-1)).squeeze(1)
-            curr_var = self.get_ancestral_var(max_diff_steps=max_diff_steps, diff_index=max_diff_steps - 1 - diff_index)
-            next_var = self.get_ancestral_var(max_diff_steps=max_diff_steps,
-                                              diff_index=max_diff_steps - 1 - diff_index - 1)
-            drift_param = curr_var - (next_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]).to(device))
-            diffusion_param = torch.sqrt(
-                drift_param * next_var / curr_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]).to(device))
-        return predicted_score, x + drift_param * predicted_score, diffusion_param
+            drift = self.get_ancestral_drift(x=x, pred_score=predicted_score, diff_index=diff_index,
+                                             max_diff_steps=max_diff_steps)
+            diffusion_param = self.get_ancestral_diff(diff_index=diff_index, max_diff_steps=max_diff_steps)
+        return predicted_score, drift, diffusion_param

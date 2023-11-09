@@ -118,10 +118,8 @@ class PredictiveLSTMTrainer:
             :param epoch: Current epoch number
             :return: None
         """
-        snapshot = {}
+        snapshot = {"EPOCHS_RUN": epoch, "OPTIMISER_STATE": self.opt.state_dict()}
         # self.model now points to DDP wrapped object, so we need to access parameters via ".module"
-        snapshot["EPOCHS_RUN"] = epoch
-        snapshot["OPTIMISER_STATE"] = self.opt.state_dict()
         if type(self.device_id) == int:
             snapshot["MODEL_STATE"] = self.model.module.state_dict()
         else:
