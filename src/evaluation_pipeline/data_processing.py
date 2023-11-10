@@ -24,6 +24,7 @@ def prepare_predLSTM_data(data: np.ndarray, config: ConfigDict) -> Tuple[Dataset
     """
     Prepare data loaders to feed into predictive LSTM
         :param data: Synthetic time-series
+        :param config: ML Experiment configuration file
         :return:
             1. New dataset
             2. Corresponding dataloader
@@ -113,7 +114,9 @@ def prepare_discLSTM_data(original: np.ndarray, synthetic: np.ndarray, labels: l
     Dataset, DataLoader]:
     """
     Prepare data loaders to feed into discriminative LSTM
-        :param originals: Original / exact time-series
+        :param original: Original / exact time-series
+        :param config: ML Experiment configuration file
+        :param labels: Labels for data for training
         :param synthetic: Synthetic time-series
         :return:
             1. New dataset

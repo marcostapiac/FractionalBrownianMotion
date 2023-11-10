@@ -589,10 +589,10 @@ def run_fBm_VESDE_score_error_experiment(dataSize: int, diffusion: Union[OUSDEDi
     # Compute covariance function to compute exact score afterwards
     fBm_cov = torch.from_numpy(
         compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim, isUnitInterval=True)).to(
-        torch.float32)
+        torch.float32).to(device)
 
     # Placeholder
-    errors = torch.zeros(size=(config.max_diff_steps, config.timeDim))
+    errors = torch.zeros(size=(config.max_diff_steps, config.timeDim)).to(device)
 
     timesteps = torch.linspace(start=config.end_diff_time, end=config.sample_eps, steps=config.max_diff_steps)
     x = diffusion.prior_sampling(shape=(dataSize, config.timeDim)).to(device)  # Move to correct device
@@ -613,7 +613,7 @@ def run_fBm_VESDE_score_error_experiment(dataSize: int, diffusion: Union[OUSDEDi
 
         exp_score = torch.stack([-torch.linalg.inv((diffusion.get_ancestral_var(max_diff_steps=config.max_diff_steps,
                                                                                 diff_index=config.max_diff_steps - 1 - diff_index)) * torch.eye(
-            config.timeDim) + fBm_cov) @ x[j,:] for j in range(dataSize)])
+            config.timeDim).to(device) + fBm_cov) @ x[j,:] for j in range(dataSize)])
 
         errors[config.max_diff_steps - 1 - i, :] = torch.linalg.norm(pred_score - exp_score, ord=2, axis=0)
 
@@ -651,7 +651,7 @@ def run_fBm_perfect_VESDE_score(dataSize: int, dim_pair: torch.Tensor,
     fBm_cov = torch.from_numpy(
         compute_fBm_cov(FractionalBrownianNoise(H=perfect_config.hurst, rng=rng), T=perfect_config.timeDim, isUnitInterval=True)).to(
         torch.float32)
-    fBm_cov = torch.index_select(torch.index_select(fBm_cov, dim=0, index=dim_pair), dim=1, index=dim_pair)
+    fBm_cov = torch.index_select(torch.index_select(fBm_cov, dim=0, index=dim_pair), dim=1, index=dim_pair).to(device)
 
     for i in tqdm(iterable=(range(0, perfect_config.max_diff_steps)), dynamic_ncols=False,
                   desc="Sampling for Backward Diffusion Visualisation :: ", position=0):
@@ -659,7 +659,7 @@ def run_fBm_perfect_VESDE_score(dataSize: int, dim_pair: torch.Tensor,
         max_diff_steps = torch.Tensor([perfect_config.max_diff_steps]).to(device)
 
         eff_time = diffusion.get_ancestral_var(max_diff_steps=max_diff_steps, diff_index=max_diff_steps - 1 - diff_index)
-        cov = eff_time*torch.eye(dim_pair.shape[0]) + fBm_cov
+        cov = eff_time*torch.eye(dim_pair.shape[0]).to(device) + fBm_cov
 
         # Compute exact score
         exp_score = torch.stack([-torch.linalg.inv(cov) @ x[j,:] for j in range(dataSize)])
@@ -676,7 +676,7 @@ def run_fBm_perfect_VESDE_score(dataSize: int, dim_pair: torch.Tensor,
             plot_title = "Reverse-time samples $T={}$ at time {}".format(perfect_config.timeDim, round((
                                                                                                        i + 1) / perfect_config.max_diff_steps,
                                                                                            5))
-            plot_and_save_diffused_fBm_snapshot(samples=x, cov=cov, save_path=save_path, x_label=xlabel,
+            plot_and_save_diffused_fBm_snapshot(samples=x.cpu(), cov=cov.cpu(), save_path=save_path, x_label=xlabel,
                                                 y_label=ylabel, plot_title=plot_title)
 
         x = drift + diffusion_param * torch.randn_like(x)
@@ -720,7 +720,7 @@ def run_fBm_VESDE_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union
         max_diff_steps = torch.Tensor([config.max_diff_steps]).to(device)
 
         eff_time = diffusion.get_ancestral_var(max_diff_steps=max_diff_steps, diff_index=max_diff_steps - 1 - diff_index)
-        cov = eff_time*torch.eye(dim_pair.shape[0]) + fBm_cov
+        cov = eff_time*torch.eye(dim_pair.shape[0]).to(device) + fBm_cov
 
         # Compute exact score
         if config.predictor_model == "ancestral":
@@ -740,7 +740,7 @@ def run_fBm_VESDE_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union
             plot_title = "Reverse-time samples $T={}$ at time {}".format(config.timeDim, round((
                                                                                                        i + 1) / config.max_diff_steps,
                                                                                            5))
-            plot_and_save_diffused_fBm_snapshot(samples=x, cov=cov, save_path=save_path, x_label=xlabel,
+            plot_and_save_diffused_fBm_snapshot(samples=x.cpu(), cov=cov.cpu(), save_path=save_path, x_label=xlabel,
                                                 y_label=ylabel, plot_title=plot_title)
 
         x = drift + diffusion_param * torch.randn_like(x)

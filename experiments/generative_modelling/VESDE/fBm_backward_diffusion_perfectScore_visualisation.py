@@ -44,9 +44,9 @@ if __name__ == "__main__":
     config.predictor_model = "ancestral"
     config.hurst = 0.7
     config.timeDim = 256
-    config.max_diff_steps = 100
+    config.max_diff_steps = 1000
     config.end_diff_time = 1
-    config.std_max = 20
+    config.std_max = 5.
     config.std_min = 0.01
     config.dim1 = 254
     config.dim2 = 255
