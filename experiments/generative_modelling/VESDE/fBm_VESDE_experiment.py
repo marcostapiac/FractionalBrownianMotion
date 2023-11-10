@@ -9,7 +9,7 @@ from utils.experiment_evaluations import run_fBm_experiment, prepare_fBm_experim
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.VESDE.fBm_T2_H07 import get_config
+    from configs.VESDE.fBm_T32_H07 import get_config
 
     config = get_config()
     assert (0. < config.hurst < 1.)
