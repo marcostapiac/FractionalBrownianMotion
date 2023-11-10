@@ -48,8 +48,6 @@ def train_and_save_diffusion_model(data: np.ndarray,
                                    scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching]) -> None:
     """
     Helper function to initiate training
-        :param rank: Unique process indentifier
-        :param world_size: Total number of processes
         :param data: Dataset
         :param config: Configuration dictionary with relevant parameters
         :param diffusion: SDE model
