@@ -29,7 +29,7 @@ def main2(backend, model):
     if backend=="nccl":
         print("Total number of available GPUs is {}\n".format(torch.cuda.device_count()))
         print("Current process device ID is {}\n".format(torch.cuda.get_device_name()))
-    model = DDP(model.to(int(os.environ["LOCAL_RANK"])))
+        model = DDP(model.to(int(os.environ["LOCAL_RANK"])))
 
 if __name__ == "__main__":
     backend = main()
