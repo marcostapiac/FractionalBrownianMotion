@@ -12,7 +12,9 @@ def main():
     backend = "nccl" if torch.cuda.is_available() else "gloo"
     print("Backend is ", backend)
     init_process_group(backend)
-    if backend=="nccl": torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
+    if backend=="nccl":
+        print("Total number of available GPUs is {}\n".format(torch.cuda.device_count()))
+        torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
     return backend
 
 
