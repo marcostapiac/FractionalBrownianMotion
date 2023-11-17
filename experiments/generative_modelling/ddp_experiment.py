@@ -9,6 +9,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 @record
 def main():
     # If we run with torchrun, environment variables should be set by
+    print("Torch version {}".format(torch.version.cuda))
     backend = "nccl" if torch.cuda.is_available() else "gloo"
     print("Backend is ", backend)
     init_process_group(backend)
