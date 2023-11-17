@@ -13,6 +13,7 @@ def main():
     print("Backend is ", backend)
     init_process_group(backend)
     if backend=="nccl":
+        print(int(os.environ["LOCAL_RANK"]))
         print("Total number of available GPUs is {}\n".format(torch.cuda.device_count()))
         torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
     return backend
