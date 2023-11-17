@@ -10,6 +10,7 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 def main():
     # If we run with torchrun, environment variables should be set by
     backend = "nccl" if torch.cuda.is_available() else "gloo"
+    print("Backend is ", backend)
     init_process_group(backend)
     torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
     return backend
@@ -24,8 +25,7 @@ def main2(backend, model):
     print("World size for rank {} is {}\n".format(int(os.environ["LOCAL_RANK"]), int(os.environ["WORLD_SIZE"])))
     print("Total number of available GPUs is {}\n".format(torch.cuda.device_count()))
     print("Current process device ID is {}\n".format(torch.cuda.get_device_name()))
-    model = DDP(model.to(torch.device("cpu")))  # , device_ids=[int(os.environ["LOCAL_RANK"])])
-
+    model = DDP(model.to(int(os.environ["LOCAL_RANK"])))
 
 if __name__ == "__main__":
     backend = main()

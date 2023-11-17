@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+import torch
 from ml_collections import ConfigDict
 from sklearn import datasets
 from torch.distributed import init_process_group, destroy_process_group
@@ -108,6 +109,7 @@ def init_experiment(config: ConfigDict) -> None:
     """
     if config.has_cuda:
         ddp_setup(backend="nccl")
+        torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
     else:
         ddp_setup(backend="gloo")
 
