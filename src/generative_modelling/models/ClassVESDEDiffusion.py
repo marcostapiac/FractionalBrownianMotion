@@ -35,7 +35,7 @@ class VESDEDiffusion(nn.Module):
 
         """
         epsts = torch.randn_like(dataSamples)  # Already in same device as dataSamples
-        return dataSamples + torch.sqrt(effTimes) * epsts, -epsts / torch.sqrt(effTimes)  # -self.get_var_min()
+        return dataSamples + torch.sqrt(effTimes-self.get_var_min().to(dataSamples.device)) * epsts, -epsts / torch.sqrt(effTimes)
 
     @staticmethod
     def get_loss_weighting(eff_times: torch.Tensor) -> torch.Tensor:
