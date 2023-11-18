@@ -1,7 +1,7 @@
 import glob
 import numbers
 import os
-from types import NoneType
+from configs.project_config import NoneType
 from typing import Union, Optional, Tuple, Mapping
 
 import matplotlib
@@ -644,5 +644,4 @@ def plot_and_save_diffused_fBm_snapshot(samples:torch.Tensor,  cov:torch.Tensor,
     ax.set_ylabel(y_label)
     ax.set_title(plot_title)
     plt.savefig(save_path, bbox_inches="tight")
-    plt.show()
     plt.close()

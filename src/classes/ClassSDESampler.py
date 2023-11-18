@@ -1,4 +1,4 @@
-from types import NoneType
+from configs.project_config import NoneType
 from typing import Union, Tuple
 
 import torch
