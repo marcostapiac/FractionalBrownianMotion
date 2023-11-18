@@ -1,6 +1,6 @@
 import multiprocessing as mp
 from math import gamma
-from types import NoneType
+from configs.project_config import NoneType
 from typing import Union
 
 import numpy as np
