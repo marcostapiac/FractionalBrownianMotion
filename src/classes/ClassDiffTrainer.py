@@ -118,7 +118,7 @@ class DiffusionModelTrainer:
         for x0s in tqdm(iter(self.train_loader)):
             x0s = x0s[0].to(self.device_id)
             diff_times = timesteps[torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,
-                                                 size=(x0s.shape[0], 1))].view(x0s.shape[0],
+                                                 size=(x0s.shape[0], 1)).long()].view(x0s.shape[0],
                                                                                *([1] * len(x0s.shape[1:]))).to(
                 self.device_id)
             eff_times = self.diffusion.get_eff_times(diff_times)
