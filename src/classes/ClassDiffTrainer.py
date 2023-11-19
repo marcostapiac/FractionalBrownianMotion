@@ -5,7 +5,6 @@ import torch
 import torchmetrics
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torchmetrics import MeanMetric
-import time
 from tqdm import tqdm
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
@@ -186,10 +185,9 @@ class DiffusionModelTrainer:
         """
         self.score_network.train()
         for epoch in range(self.epochs_run, max_epochs):
-            t0 = time.time()
             self._run_epoch(epoch)
-            print("Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}".format((epoch + 1) / max_epochs,
-                                                                       float(self.loss_aggregator.compute().item()), float(time.time()-t0)))
+            print("Percent Completed {:0.4f} :: Train {:0.4f}".format((epoch + 1) / max_epochs,
+                                                                       float(self.loss_aggregator.compute().item())))
             if (self.device_id == 0 or type(self.device_id) == torch.device) and epoch + 1 == max_epochs:
                 self._save_model(filepath=model_filename)
             elif (self.device_id == 0 or type(self.device_id) == torch.device) and ((epoch + 1) % self.save_every == 0):
