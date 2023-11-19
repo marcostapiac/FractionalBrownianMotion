@@ -60,7 +60,7 @@ class DiffusionModelTrainer:
 
         self.snapshot_path = snapshot_path
         # Load snapshot if available
-        if os.path.exists(self.snapshot_path):
+        if os.path.exists(self.snapshot_path) and (self.device_id == 0 or type(self.device_id) == torch.device):
             print("Loading snapshot\n")
             self._load_snapshot(self.snapshot_path)
 
@@ -110,8 +110,9 @@ class DiffusionModelTrainer:
         """
         # TODO: How to deal with validation losses?
         b_sz = len(next(iter(self.train_loader))[0])
-        print(
-            f"[Device {self.device_id}] Epoch {epoch + 1} | Batchsize: {b_sz} | Total Num of Batches: {len(self.train_loader)} \n")
+        if self.device_id == 0 or type(self.device_id) == torch.device:
+            print(
+                f"[Device {self.device_id}] Epoch {epoch + 1} | Batchsize: {b_sz} | Total Num of Batches: {len(self.train_loader)} \n")
         self.score_network.train()
         timesteps = torch.linspace(self.train_eps, end=self.end_diff_time,
                                    steps=self.max_diff_steps)
@@ -140,7 +141,7 @@ class DiffusionModelTrainer:
             self.score_network.module.load_state_dict(snapshot["MODEL_STATE"])
         else:
             self.score_network.load_state_dict(snapshot["MODEL_STATE"])
-        print("Resuming training from snapshot at epoch {}\n".format(self.epochs_run + 1))
+        print("Resuming training from snapshot at epoch {} and device {}\n".format(self.epochs_run + 1,self.device_id))
 
     def _save_snapshot(self, epoch: int) -> None:
         """
@@ -172,7 +173,8 @@ class DiffusionModelTrainer:
         torch.save(ckp, filepath)
         print(f"Trained model saved at {filepath}\n")
         try:
-            os.remove(self.snapshot_path)  # Remove snapshot path since training is done
+            pass
+            #os.remove(self.snapshot_path)  # Do NOT remove snapshot path yet eventhough training is done
         except FileNotFoundError:
             print("Snapshot file does not exist\n")
 
@@ -186,9 +188,10 @@ class DiffusionModelTrainer:
         self.score_network.train()
         for epoch in range(self.epochs_run, max_epochs):
             self._run_epoch(epoch)
-            print("Percent Completed {:0.4f} :: Train {:0.4f}\n".format((epoch + 1) / max_epochs,
-                                                                       float(self.loss_aggregator.compute().item())))
-            if (self.device_id == 0 or type(self.device_id) == torch.device) and epoch + 1 == max_epochs:
-                self._save_model(filepath=model_filename)
-            elif (self.device_id == 0 or type(self.device_id) == torch.device) and ((epoch + 1) % self.save_every == 0):
-                self._save_snapshot(epoch=epoch)
+            if self.device_id == 0 or type(self.device_id) == torch.device:
+                print("Percent Completed {:0.4f} :: Train {:0.4f}\n".format((epoch + 1) / max_epochs,
+                                                                           float(self.loss_aggregator.compute().item())))
+                if epoch + 1 == max_epochs:
+                    self._save_model(filepath=model_filename)
+                elif (epoch + 1) % self.save_every == 0:
+                    self._save_snapshot(epoch=epoch)
