@@ -35,7 +35,7 @@ class VESDEDiffusion(nn.Module):
 
         """
         epsts = torch.randn_like(dataSamples)  # Already in same device as dataSamples
-        return dataSamples + torch.sqrt(effTimes-self.get_var_min().to(dataSamples.device)) * epsts, -epsts / torch.sqrt(effTimes)
+        return dataSamples + torch.sqrt(effTimes) * epsts, -epsts / torch.sqrt(effTimes)
 
     @staticmethod
     def get_loss_weighting(eff_times: torch.Tensor) -> torch.Tensor:
@@ -55,7 +55,7 @@ class VESDEDiffusion(nn.Module):
         device = diff_times.device
         var_max = self.get_var_max().to(device)
         var_min = self.get_var_min().to(device)
-        return var_min * (var_max / var_min) ** diff_times
+        return var_min * (var_max / var_min) ** diff_times - var_min
 
     def prior_sampling(self, shape: Tuple[int, int]) -> torch.Tensor:
         """ Sample from the target in the forward diffusion
