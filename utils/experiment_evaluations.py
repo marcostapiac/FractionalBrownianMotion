@@ -687,7 +687,7 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
                                                                            t=timesteps[diff_index.long()] * torch.ones(
                                                                                (x.shape[0], 1)).to(device),
                                                                            dt=torch.Tensor([dt]).to(device))
-        if i % config.save_freq == 0 or i == (config.max_diff_steps - 1):
+        if i % config.gif_save_freq == 0 or i == (config.max_diff_steps - 1):
             save_path = folderPath + gifPath + "_diffIndex_{}.png".format(i + 1)
             xlabel = "fBm Dimension {}".format(dim_pair[0] + 1)
             ylabel = "fBm Dimension {}".format(dim_pair[1] + 1)
@@ -753,7 +753,7 @@ def run_fBm_perfect_score(dataSize: int, dim_pair: torch.Tensor,
             diffusion_param = diffusion.get_ancestral_diff(diff_index=diff_index, max_diff_steps=max_diff_steps)
         else:
             raise ValueError("Alternative to ancestral sampling has not been implemented\n")
-        if i % perfect_config.save_freq == 0 or i == (perfect_config.max_diff_steps - 1):
+        if i % perfect_config.gif_save_freq == 0 or i == (perfect_config.max_diff_steps - 1):
             save_path = folderPath + gifPath + "_diffIndex_{}.png".format(i + 1)
             xlabel = "fBm Dimension {}".format(dim_pair[0] + 1)
             ylabel = "fBm Dimension {}".format(dim_pair[1] + 1)
