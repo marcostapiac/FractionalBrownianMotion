@@ -740,7 +740,7 @@ def run_fBm_perfect_score(dataSize: int, dim_pair: torch.Tensor,
 
         if isinstance(diffusion, VESDEDiffusion):
             diffType = "VESDE"
-            cov = (eff_time) * torch.eye(dim_pair.shape[0]).to(device) + fBm_cov
+            cov = eff_time * torch.eye(dim_pair.shape[0]).to(device) + fBm_cov
         else:
             diffType = "VPSDE"
             cov = (1. - torch.exp(-eff_time)) * torch.eye(dim_pair.shape[0]).to(device) + torch.exp(-eff_time) * fBm_cov
