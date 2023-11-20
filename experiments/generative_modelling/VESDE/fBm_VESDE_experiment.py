@@ -19,9 +19,9 @@ if __name__ == "__main__":
         *config.model_parameters)
     diffusion = VESDEDiffusion(stdMax=config.std_max, stdMin=config.std_min)
 
-    scoreModel = prepare_fBm_experiment(diffusion=diffusion, scoreModel=scoreModel, config=config, rng=rng)
-
     init_experiment(config=config)
+
+    scoreModel = prepare_fBm_experiment(diffusion=diffusion, scoreModel=scoreModel, config=config, rng=rng)
 
     run_fBm_experiment(dataSize=config.dataSize, diffusion=diffusion, scoreModel=scoreModel, rng=rng, config=config)
 
