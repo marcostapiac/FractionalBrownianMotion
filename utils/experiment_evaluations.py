@@ -594,7 +594,7 @@ def run_fBm_score_error_experiment(dataSize: int,
         torch.float32).to(device)
 
     # Placeholder
-    errors = torch.zeros(size=(config.max_diff_steps, config.timeDim)).to(device)
+    errors = torch.zeros(size=(config.max_diff_steps, config.timeDim))
 
     timesteps = torch.linspace(start=config.end_diff_time, end=config.sample_eps, steps=config.max_diff_steps).to(device)
     x = diffusion.prior_sampling(shape=(dataSize, config.timeDim)).to(device)  # Move to correct device
@@ -623,7 +623,7 @@ def run_fBm_score_error_experiment(dataSize: int,
 
         exp_score = (inv_cov@x.T).T
 
-        errors[config.max_diff_steps - 1 - i, :] = torch.pow(torch.linalg.norm(pred_score - exp_score, ord=2, axis=0),2)
+        errors[config.max_diff_steps - 1 - i, :] = torch.pow(torch.linalg.norm(pred_score - exp_score, ord=2, axis=0),2).detach().cpu()
 
         # One-step reverse-time SDE
         x = drift + diffusion_param * torch.randn_like(x)
