@@ -26,7 +26,7 @@ def run(config: ConfigDict):
             "Error {}; no valid trained model found; train model {} before running experiment\n".format(e,
                                                                                                         config.scoreNet_trained_path))
 
-    score_errors = run_fBm_score_error_experiment(dataSize=10, diffusion=diffusion, scoreModel=scoreModel,
+    score_errors = run_fBm_score_error_experiment(dataSize=5000, diffusion=diffusion, scoreModel=scoreModel,
                                                   rng=rng,
                                                   config=config)
     start_index = int(0. * config.max_diff_steps)
