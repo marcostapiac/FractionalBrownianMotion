@@ -604,13 +604,13 @@ def run_fBm_score_error_experiment(dataSize: int,
 
         # Obtain required diffusion parameters
         if config.predictor_model == "ancestral":
-            pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[diff_index] * torch.ones(
+            pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[diff_index.long()] * torch.ones(
                 (x.shape[0], 1)).to(device), score_network=scoreModel, diff_index=diff_index,
                                                                                   max_diff_steps=config.max_diff_steps)
         else:
             dt = -config.end_diff_time / config.max_diff_steps
             pred_score, drift, diffusion_param = diffusion.get_reverse_sde(x, score_network=scoreModel,
-                                                                           t=timesteps[diff_index] * torch.ones(
+                                                                           t=timesteps[diff_index.long()] * torch.ones(
                                                                                (x.shape[0], 1)).to(device),
                                                                            dt=torch.Tensor([dt]).to(device))
         max_diff_steps = torch.Tensor([config.max_diff_steps]).to(device)
@@ -659,8 +659,8 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
     fBm_cov = torch.from_numpy(
         compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim, isUnitInterval=True)).to(
         torch.float32)
-    fBm_cov = torch.index_select(torch.index_select(fBm_cov, dim=0, index=dim_pair), dim=1, index=dim_pair)
-    timesteps = torch.linspace(start=config.end_diff_time, end=config.sample_eps, steps=config.max_diff_steps)
+    fBm_cov = torch.index_select(torch.index_select(fBm_cov, dim=0, index=dim_pair), dim=1, index=dim_pair).to(device)
+    timesteps = torch.linspace(start=config.end_diff_time, end=config.sample_eps, steps=config.max_diff_steps).to(device)
 
     for i in tqdm(iterable=(range(0, config.max_diff_steps)), dynamic_ncols=False,
                   desc="Sampling for Backward Diffusion Visualisation :: ", position=0):
@@ -677,13 +677,13 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
             cov = (1. - torch.exp(-eff_time)) * torch.eye(dim_pair.shape[0]).to(device) + torch.exp(-eff_time) * fBm_cov
 
         if config.predictor_model == "ancestral":
-            pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[i] * torch.ones(
+            pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[diff_index.long()] * torch.ones(
                 (x.shape[0], 1)).to(device), score_network=scoreModel, diff_index=diff_index,
                                                                                   max_diff_steps=config.max_diff_steps)
         else:
             dt = -config.end_diff_time / config.max_diff_steps
             pred_score, drift, diffusion_param = diffusion.get_reverse_sde(x, score_network=scoreModel,
-                                                                           t=timesteps[i] * torch.ones(
+                                                                           t=timesteps[diff_index.long()] * torch.ones(
                                                                                (x.shape[0], 1)).to(device),
                                                                            dt=torch.Tensor([dt]).to(device))
         if i % config.save_freq == 0 or i == (config.max_diff_steps - 1):
