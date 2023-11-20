@@ -52,11 +52,11 @@ def run(config: ConfigDict) -> None:
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.VESDE.fBm_T32_H07 import get_config
+    from configs.VESDE.fBm_T2_H07 import get_config
 
     config = get_config()
     assert (0. < config.hurst < 1.)
-    config.gif_save_freq = int(1/(0.4*config.max_diff_steps))
+    config.gif_save_freq = int(0.1*config.max_diff_steps)
     config.dataSize = 5000
     config.dim1 = 0
     config.dim2 = 1

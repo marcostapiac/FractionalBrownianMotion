@@ -637,13 +637,13 @@ def plot_and_save_diffused_fBm_snapshot(samples:torch.Tensor,  cov:torch.Tensor,
         :return: None
     """
     d1, d2 = samples[:, 0], samples[:, 1]
-    t = np.linspace(torch.min(d1) - 1* torch.std(d1), torch.max(d1) + 1 * torch.std(d1), 500)
-    h = np.linspace(torch.min(d2) - 1 * torch.std(d2), torch.max(d2) + 1 * torch.std(d2), 500)
     expected_dist = stats.multivariate_normal(mean=None, cov=cov)
+    t =(np.linspace(stats.norm(loc=0, scale=np.sqrt(cov[0,0])).ppf(0.001),stats.norm(loc=0, scale=np.sqrt(cov[0,0])).ppf(0.999), 500))
+    h = (np.linspace(stats.norm(loc=0, scale=np.sqrt(cov[1,1])).ppf(0.001),stats.norm(loc=0, scale=np.sqrt(cov[1,1])).ppf(0.999), 500))
     z = expected_dist.pdf(np.dstack(np.meshgrid(t, h)))
     fig, ax = plt.subplots()
+    ax.contour(t, h, z, levels=100, alpha=0.6)
     ax.scatter(d1, d2)
-    ax.contour(t, h, z, levels=100)
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
     ax.set_title(plot_title)

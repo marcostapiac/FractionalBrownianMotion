@@ -52,7 +52,7 @@ def run(perfect_config: ConfigDict) -> None:
     for i in tqdm(range(perfect_config.max_diff_steps)):
         eff_time = diffusion.get_eff_times(diff_times=torch.Tensor([ts[i]]))
         xts, _ = diffusion.noising_process(data, eff_time)
-        if i % perfect_config.save_freq == 0 or i == (perfect_config.max_diff_steps - 1):
+        if i % perfect_config.gif_save_freq == 0 or i == (perfect_config.max_diff_steps - 1):
             save_path = folder_path + gif_path + "_diffIndex_{}.png".format(i + 1)
             plot_title = "Forward Diffused Samples with $T={}$ at time {}".format(perfect_config.timeDim,
                                                                                      round((
@@ -80,7 +80,7 @@ if __name__ == "__main__":
     config.dim1 = 254
     config.dim2 = 255
     config.dataSize = 5000
-    config.save_freq = 10
+    config.gif_save_freq = 10
 
     # Run experiment
     run(config)
