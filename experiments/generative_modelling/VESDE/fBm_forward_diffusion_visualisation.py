@@ -15,6 +15,7 @@ from utils.plotting_functions import make_gif, plot_and_save_diffused_fBm_snapsh
 
 
 def run(perfect_config: ConfigDict) -> None:
+    print("!!!! Running started !!!! \n")
     try:
         assert(perfect_config.save_freq <= perfect_config.max_diff_steps)
         assert(perfect_config.save_freq > 0)
@@ -71,13 +72,13 @@ if __name__ == "__main__":
     config = ml_collections.ConfigDict()
     config.has_cuda = torch.cuda.is_available()
     config.hurst = 0.7
-    config.timeDim = 32
-    config.max_diff_steps = 4000
+    config.timeDim = 256
+    config.max_diff_steps = 5000
     config.end_diff_time = 1
     config.std_max = 90
     config.std_min = 0.01
-    config.dim1 = 0
-    config.dim2 = 1
+    config.dim1 = 254
+    config.dim2 = 255
     config.dataSize = 5000
     config.save_freq = 10
 

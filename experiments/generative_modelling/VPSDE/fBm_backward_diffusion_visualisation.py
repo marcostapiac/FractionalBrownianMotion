@@ -35,14 +35,14 @@ def run(config: ConfigDict) -> None:
 
     folder_path = project_config.ROOT_DIR + "experiments/results/backward_gifs/"
 
-    gif_path = "fBm_dimPair{}_dimPair{}_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_BetaMax{:.4e}_BetaMin{:.4e}".format(dim_pair[0],
+    gif_path = "fBm_dimPair{}_dimPair{}_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_BetaMax{:.4e}_BetaMin{:.4e}_Nepochs{}".format(dim_pair[0],
                                                                                                           dim_pair[1],
                                                                                                           config.hurst,
                                                                                                           config.timeDim,
                                                                                                           config.max_diff_steps,
                                                                                                           config.end_diff_time,
                                                                                                           config.beta_max,
-                                                                                                          config.beta_min).replace(
+                                                                                                          config.beta_min, config.max_epochs).replace(
         ".", "")
     run_fBm_score(dataSize=config.dataSize, dim_pair=dim_pair, diffusion=diffusion, scoreModel = scoreModel,rng=rng,
                                 config=config, folderPath=folder_path, gifPath=gif_path)
@@ -57,8 +57,16 @@ if __name__ == "__main__":
     config = get_config()
     assert (0. < config.hurst < 1.)
     config.gif_save_freq = int(1/(0.4*config.max_diff_steps))
+    config.dataSize = 5000
     config.dim1 = 0
     config.dim2 = 1
-    config.dataSize = 5000
     # Run experiments
     run(config)
+    if config.timeDim == 32:
+        config.dim1 = 30
+        config.dim2 = 31
+        run(config)
+    elif config.timeDim == 256:
+        config.dim1 = 254
+        config.dim2 = 255
+        run(config)
