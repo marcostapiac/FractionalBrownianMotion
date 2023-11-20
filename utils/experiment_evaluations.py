@@ -596,7 +596,7 @@ def run_fBm_score_error_experiment(dataSize: int,
     # Placeholder
     errors = torch.zeros(size=(config.max_diff_steps, config.timeDim)).to(device)
 
-    timesteps = torch.linspace(start=config.end_diff_time, end=config.sample_eps, steps=config.max_diff_steps)
+    timesteps = torch.linspace(start=config.end_diff_time, end=config.sample_eps, steps=config.max_diff_steps).to(device)
     x = diffusion.prior_sampling(shape=(dataSize, config.timeDim)).to(device)  # Move to correct device
     for i in tqdm(iterable=(range(0, config.max_diff_steps)), dynamic_ncols=False,
                   desc="Sampling for Score Error Visualisation :: ", position=0):
@@ -604,7 +604,7 @@ def run_fBm_score_error_experiment(dataSize: int,
 
         # Obtain required diffusion parameters
         if config.predictor_model == "ancestral":
-            pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[i] * torch.ones(
+            pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[diff_index] * torch.ones(
                 (x.shape[0], 1)).to(device), score_network=scoreModel, diff_index=diff_index,
                                                                                   max_diff_steps=config.max_diff_steps)
         else:
