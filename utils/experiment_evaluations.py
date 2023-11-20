@@ -617,11 +617,11 @@ def run_fBm_score_error_experiment(dataSize: int,
         max_diff_steps = torch.Tensor([config.max_diff_steps]).to(device)
         eff_time = diffusion.get_eff_times(diff_times=(max_diff_steps - 1 - diff_index) / (max_diff_steps - 1))
         if isinstance(diffusion, VESDEDiffusion):
-            cov = eff_time * torch.eye(config.timeDim).to(device) + fBm_cov
+            inv_cov = -torch.linalg.inv(eff_time * torch.eye(config.timeDim).to(device) + fBm_cov)
         else:
-            cov = (1. - torch.exp(-eff_time)) * torch.eye(config.timeDim).to(device) + torch.exp(-eff_time) * fBm_cov
+            inv_cov = -torch.linalg.inv((1. - torch.exp(-eff_time)) * torch.eye(config.timeDim).to(device) + torch.exp(-eff_time) * fBm_cov)
 
-        exp_score = torch.stack([-torch.linalg.inv(cov) @ x[j, :] for j in range(dataSize)])
+        exp_score = (inv_cov@x.T).T
 
         errors[config.max_diff_steps - 1 - i, :] = torch.pow(torch.linalg.norm(pred_score - exp_score, ord=2, axis=0),2)
 
@@ -672,10 +672,10 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
 
         if isinstance(diffusion, VESDEDiffusion):
             diffType = "VESDE"
-            cov = eff_time * torch.eye(dim_pair.shape[0]).to(device) + fBm_cov
+            inv_cov = eff_time * torch.eye(dim_pair.shape[0]).to(device) + fBm_cov
         else:
             diffType = "VPSDE"
-            cov = (1. - torch.exp(-eff_time)) * torch.eye(dim_pair.shape[0]).to(device) + torch.exp(-eff_time) * fBm_cov
+            inv_cov = (1. - torch.exp(-eff_time)) * torch.eye(dim_pair.shape[0]).to(device) + torch.exp(-eff_time) * fBm_cov
 
         if config.predictor_model == "ancestral":
             pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[diff_index.long()] * torch.ones(
@@ -746,7 +746,7 @@ def run_fBm_perfect_score(dataSize: int, dim_pair: torch.Tensor,
             cov = (1. - torch.exp(-eff_time)) * torch.eye(dim_pair.shape[0]).to(device) + torch.exp(-eff_time) * fBm_cov
 
         # Compute exact score
-        exp_score = torch.stack([-torch.linalg.inv(cov) @ x[j, :] for j in range(dataSize)])
+        exp_score = (-torch.linalg.inv(cov)@x.T).T
         if perfect_config.predictor_model == "ancestral":
             drift = diffusion.get_ancestral_drift(x=x, pred_score=exp_score, diff_index=diff_index,
                                                   max_diff_steps=max_diff_steps)
