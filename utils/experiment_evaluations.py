@@ -610,7 +610,7 @@ def run_fBm_score_error_experiment(dataSize: int,
         else:
             dt = -config.end_diff_time / config.max_diff_steps
             pred_score, drift, diffusion_param = diffusion.get_reverse_sde(x, score_network=scoreModel,
-                                                                           t=timesteps[i] * torch.ones(
+                                                                           t=timesteps[diff_index] * torch.ones(
                                                                                (x.shape[0], 1)).to(device),
                                                                            dt=torch.Tensor([dt]).to(device))
         max_diff_steps = torch.Tensor([config.max_diff_steps]).to(device)
