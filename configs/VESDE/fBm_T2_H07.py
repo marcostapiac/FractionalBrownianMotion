@@ -73,7 +73,7 @@ def get_config():
 
     # Sampling hyperparameters
     config.sample_eps = 1e-5
-    config.max_lang_steps = 1
+    config.max_lang_steps = 0
     config.snr = 0.01
     config.predictor_model = "ancestral"  # vs "euler-maryuama"
     config.corrector_model = "VE"  # vs "VE"

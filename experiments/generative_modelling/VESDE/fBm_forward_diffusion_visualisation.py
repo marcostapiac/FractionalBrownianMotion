@@ -49,7 +49,7 @@ def run(perfect_config: ConfigDict) -> None:
         ".", "")
 
     for i in tqdm(range(perfect_config.max_diff_steps)):
-        eff_time = diffusion.get_eff_times(diff_times=torch.Tensor([ts[i]]))  # - self.-get_var_min()
+        eff_time = diffusion.get_eff_times(diff_times=torch.Tensor([ts[i]]))
         xts, _ = diffusion.noising_process(data, eff_time)
         if i % perfect_config.save_freq == 0 or i == (perfect_config.max_diff_steps - 1):
             save_path = folder_path + gif_path + "_diffIndex_{}.png".format(i + 1)
@@ -71,13 +71,13 @@ if __name__ == "__main__":
     config = ml_collections.ConfigDict()
     config.has_cuda = torch.cuda.is_available()
     config.hurst = 0.7
-    config.timeDim = 256
-    config.max_diff_steps = 1000
+    config.timeDim = 32
+    config.max_diff_steps = 4000
     config.end_diff_time = 1
-    config.std_max = 200
+    config.std_max = 90
     config.std_min = 0.01
-    config.dim1 = 254
-    config.dim2 = 255
+    config.dim1 = 0
+    config.dim2 = 1
     config.dataSize = 5000
     config.save_freq = 10
 

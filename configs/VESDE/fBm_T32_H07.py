@@ -14,7 +14,7 @@ def get_config():
     config.has_cuda = torch.cuda.is_available()
 
     # Data set parameters
-    config.hurst = 0.7
+    config.hurst = 0.3
     config.timeDim = 32
     config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(
         str(config.hurst).replace(".", ""), config.timeDim)
@@ -25,11 +25,11 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = 60000
+    config.max_epochs = 300
     config.batch_size = 256
 
     # Diffusion hyperparameters
-    config.std_max = 90.
+    config.std_max = 20.
     config.std_min = 0.01
 
     # MLP Architecture parameters
@@ -44,13 +44,13 @@ def get_config():
     config.dialation_length = 10
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_fBm_VESDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_StdMax{:.4e}_StdMin{:.4e}_TembDim{}_EncShapes{}_60000".format(
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_fBm_VESDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_StdMax{:.4e}_StdMin{:.4e}_TembDim{}_EncShapes{}".format(
         config.hurst,
         config.timeDim,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.std_max, config.std_min, config.temb_dim,
         config.enc_shapes).replace(".", "")
 
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_fBm_VESDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_StdMax{:.3e}_StdMin{:.4e}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}_60000".format(
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_fBm_VESDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_StdMax{:.3e}_StdMin{:.4e}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}".format(
         config.hurst,
         config.timeDim,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.std_max, config.std_min, config.temb_dim,
