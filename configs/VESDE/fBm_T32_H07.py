@@ -14,14 +14,14 @@ def get_config():
     config.has_cuda = torch.cuda.is_available()
 
     # Data set parameters
-    config.hurst = 0.3
+    config.hurst = 0.7
     config.timeDim = 32
     config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(
         str(config.hurst).replace(".", ""), config.timeDim)
 
     # Training hyperparameters
     config.train_eps = 1e-5
-    config.max_diff_steps = 4000 #* max(int(np.log2(config.timeDim) - 1), 1)
+    config.max_diff_steps = 500 #* max(int(np.log2(config.timeDim) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3

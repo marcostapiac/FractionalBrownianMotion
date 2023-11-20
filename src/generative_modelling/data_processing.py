@@ -37,7 +37,7 @@ def prepare_scoreModel_data(data: np.ndarray, batch_size: int, config: ConfigDic
     else:
         trainLoader = DataLoader(train, batch_size=batch_size, pin_memory=True, shuffle=True,
                                  num_workers=0)
-
+    print("Total Number of Datapoints {} :: DataLoader Total Number of Datapoints {}".format(data.shape[0], len(trainLoader.sampler)))
     return trainLoader
 
 
