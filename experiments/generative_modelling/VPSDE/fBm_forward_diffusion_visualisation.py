@@ -46,7 +46,7 @@ def run(perfect_config: ConfigDict) -> None:
         ".", "")
 
     for i in tqdm(range(perfect_config.max_diff_steps)):
-        eff_time = diffusion.get_eff_times(diff_times=torch.Tensor([ts[i]]))  # - self.-get_var_min()
+        eff_time = diffusion.get_eff_times(diff_times=torch.Tensor([ts[i]]))
         xts, _ = diffusion.noising_process(data, eff_time)
         if i % perfect_config.save_freq == 0 or i == (perfect_config.max_diff_steps - 1):
             save_path = folder_path + gif_path + "_diffIndex_{}.png".format(i + 1)

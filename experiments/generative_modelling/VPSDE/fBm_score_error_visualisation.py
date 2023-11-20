@@ -2,6 +2,7 @@ import numpy as np
 import torch
 from ml_collections import ConfigDict
 
+from configs import project_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
@@ -29,17 +30,28 @@ def run(config: ConfigDict):
     score_errors = run_fBm_score_error_experiment(dataSize=5000, diffusion=diffusion, scoreModel=scoreModel,
                                                         rng=rng,
                                                         config=config)
+    pic_path = project_config.ROOT_DIR + "experiments/results/score_plots/ScoreErrorTS_fBm_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_BetaMax{:.4e}_BetaMin{:.4e}_Nepochs{}".format(
+        config.hurst, config.timeDim, config.max_diff_steps, config.end_diff_time, config.beta_max,
+        config.beta_min, config.max_epochs).replace(
+        ".", "")
+
     start_index = int(0. * config.max_diff_steps)
     end_index = int(1. * config.max_diff_steps)
+
     time_dim_score_errors = score_errors.mean(axis=1).reshape((config.max_diff_steps, 1))
     plot_score_errors_ts(
         np.linspace(config.sample_eps, config.end_diff_time, config.max_diff_steps)[start_index:end_index],
         time_dim_score_errors[start_index:end_index],
-        plot_title="L2 Score Error for VPSDE fBm with $(H, T) = ({},{})$".format(config.hurst, config.timeDim))
-    end_index = int(.1 * config.max_diff_steps)
+        plot_title="MSE Score Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst, config.timeDim),
+        path=pic_path)
+
+    pic_path = pic_path.replace("ScoreErrorTS", "ScoreErrorHM")
+
+    end_index = int(0.1 * config.max_diff_steps)
     plot_score_errors_heatmap(score_errors[start_index:end_index, :],
-                              plot_title="L2 Score Error for VPSDE fBm with $(H, T) = ({},{})$".format(config.hurst,
-                                                                                                 config.timeDim))
+                              plot_title="MSE Score Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst,
+                                                                                                        config.timeDim),
+                              path=pic_path)
 
 
 if __name__ == "__main__":
