@@ -672,10 +672,10 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
 
         if isinstance(diffusion, VESDEDiffusion):
             diffType = "VESDE"
-            inv_cov = eff_time * torch.eye(dim_pair.shape[0]).to(device) + fBm_cov
+            cov = eff_time * torch.eye(dim_pair.shape[0]).to(device) + fBm_cov
         else:
             diffType = "VPSDE"
-            inv_cov = (1. - torch.exp(-eff_time)) * torch.eye(dim_pair.shape[0]).to(device) + torch.exp(-eff_time) * fBm_cov
+            cov = (1. - torch.exp(-eff_time)) * torch.eye(dim_pair.shape[0]).to(device) + torch.exp(-eff_time) * fBm_cov
 
         if config.predictor_model == "ancestral":
             pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[diff_index.long()] * torch.ones(
