@@ -11,8 +11,8 @@ from utils.plotting_functions import make_gif
 
 def run(perfect_config: ConfigDict) -> None:
     try:
-        assert(perfect_config.save_freq <= perfect_config.max_diff_steps)
-        assert(perfect_config.save_freq > 0)
+        assert(perfect_config.gif_save_freq <= perfect_config.max_diff_steps)
+        assert(perfect_config.gif_save_freq > 0)
         assert(perfect_config.dim1 < perfect_config.timeDim)
         assert(perfect_config.dim2 < perfect_config.timeDim)
     except AssertionError as e:
@@ -43,15 +43,15 @@ if __name__ == "__main__":
     config.has_cuda = torch.cuda.is_available()
     config.predictor_model = "ancestral"
     config.hurst = 0.7
-    config.timeDim = 256
-    config.max_diff_steps = 1000
     config.end_diff_time = 1
-    config.std_max = 2.
+    config.dataSize = 5000
     config.std_min = 0.01
+    config.timeDim = 256
+    config.max_diff_steps = 4000
+    config.gif_save_freq = 40
+    config.std_max = 200.
     config.dim1 = 254
     config.dim2 = 255
-    config.dataSize = 5000
-    config.save_freq = 10
 
     # Run experiments
     run(config)

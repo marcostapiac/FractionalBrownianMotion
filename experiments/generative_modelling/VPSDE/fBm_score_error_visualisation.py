@@ -18,8 +18,6 @@ def run(config: ConfigDict):
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    init_experiment(config=config)
-
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
     except FileNotFoundError as e:

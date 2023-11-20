@@ -18,7 +18,6 @@ def run(config: ConfigDict):
     scoreModel = TimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VESDEDiffusion(stdMax=config.std_max, stdMin=config.std_min)
-    init_experiment(config=config)
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
     except FileNotFoundError as e:
