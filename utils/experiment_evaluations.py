@@ -605,11 +605,11 @@ def run_fBm_score_error_experiment(dataSize: int,
         # Obtain required diffusion parameters
         if config.predictor_model == "ancestral":
             pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[diff_index.long()] * torch.ones(
-                (x.shape[0], 1)).to(device), score_network=scoreModel, diff_index=diff_index,
+                (x.shape[0], 1)).to(device), score_network=scoreModel.to(device), diff_index=diff_index,
                                                                                   max_diff_steps=config.max_diff_steps)
         else:
             dt = -config.end_diff_time / config.max_diff_steps
-            pred_score, drift, diffusion_param = diffusion.get_reverse_sde(x, score_network=scoreModel,
+            pred_score, drift, diffusion_param = diffusion.get_reverse_sde(x, score_network=scoreModel.to(device),
                                                                            t=timesteps[diff_index.long()] * torch.ones(
                                                                                (x.shape[0], 1)).to(device),
                                                                            dt=torch.Tensor([dt]).to(device))
@@ -678,11 +678,11 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
 
         if config.predictor_model == "ancestral":
             pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[diff_index.long()] * torch.ones(
-                (x.shape[0], 1)).to(device), score_network=scoreModel, diff_index=diff_index,
+                (x.shape[0], 1)).to(device), score_network=scoreModel.to(device), diff_index=diff_index,
                                                                                   max_diff_steps=config.max_diff_steps)
         else:
             dt = -config.end_diff_time / config.max_diff_steps
-            pred_score, drift, diffusion_param = diffusion.get_reverse_sde(x, score_network=scoreModel,
+            pred_score, drift, diffusion_param = diffusion.get_reverse_sde(x, score_network=scoreModel.to(device),
                                                                            t=timesteps[diff_index.long()] * torch.ones(
                                                                                (x.shape[0], 1)).to(device),
                                                                            dt=torch.Tensor([dt]).to(device))
