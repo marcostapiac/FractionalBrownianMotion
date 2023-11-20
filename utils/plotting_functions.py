@@ -571,32 +571,36 @@ def compare_fBm_to_normal(h: float, generated_samples: np.ndarray, td: int, rng:
               image_path=project_config.ROOT_DIR + "pngs/tSNE_normal_vs_generatedfBm_H{:.3e}_T{}".format(h, td))
 
 
-def plot_score_errors_ts(diff_time_space: np.ndarray, errors: np.ndarray, plot_title: str) -> None:
+def plot_score_errors_ts(diff_time_space: np.ndarray, errors: np.ndarray, plot_title: str, path:str) -> None:
     """
     Plot score error over time, averaged over many samples at each point in time.
         :param diff_time_space: Diffusion time space
         :param errors: Score erros
         :param plot_title:  Title for plot
+        :param path: Path to save figure
         :return: None
     """
-    plt.plot(diff_time_space, errors, label="L2 Error")
+    plt.plot(diff_time_space, errors, label="MSE")
     plt.xlabel("Diffusion Time")
-    plt.ylabel("L2 Error")
+    plt.ylabel("MSE")
     plt.title(plot_title)
+    plt.savefig(path)
     plt.show()
 
 
-def plot_score_errors_heatmap(errors: np.ndarray, plot_title: str) -> None:
+def plot_score_errors_heatmap(errors: np.ndarray, plot_title: str, path:str) -> None:
     """
     Plot heat map of score network errors over time and space
         :param errors: Matrix with score errors over space and time
         :param plot_title: Title for plot
+        :param path: Path to save figure
         :return: None
     """
     sns.heatmap(errors, annot=False, annot_kws={'size': 15})
     plt.xlabel("Dimension")
     plt.ylabel("Reverse-Time Diffusion Index")
     plt.title(plot_title)
+    plt.savefig(path)
     plt.show()
 
 
