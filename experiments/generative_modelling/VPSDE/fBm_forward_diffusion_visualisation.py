@@ -13,8 +13,8 @@ from utils.plotting_functions import make_gif, plot_and_save_diffused_fBm_snapsh
 
 def run(perfect_config: ConfigDict) -> None:
     try:
-        assert(perfect_config.save_freq <= perfect_config.max_diff_steps)
-        assert(perfect_config.save_freq > 0)
+        assert(perfect_config.gif_save_freq <= perfect_config.max_diff_steps)
+        assert(perfect_config.gif_save_freq > 0)
         assert(perfect_config.dim1 < perfect_config.timeDim)
         assert(perfect_config.dim2 < perfect_config.timeDim)
     except AssertionError as e:

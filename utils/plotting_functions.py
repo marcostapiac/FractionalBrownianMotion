@@ -647,6 +647,5 @@ def plot_and_save_diffused_fBm_snapshot(samples:torch.Tensor,  cov:torch.Tensor,
     ax.set_xlabel(x_label)
     ax.set_ylabel(y_label)
     ax.set_title(plot_title)
-    plt.show()
-    #plt.savefig(save_path, bbox_inches="tight")
+    plt.savefig(save_path, bbox_inches="tight")
     plt.close()

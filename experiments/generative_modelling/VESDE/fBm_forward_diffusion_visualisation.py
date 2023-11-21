@@ -17,8 +17,8 @@ from utils.plotting_functions import make_gif, plot_and_save_diffused_fBm_snapsh
 def run(perfect_config: ConfigDict) -> None:
     print("!!!! Running started !!!! \n")
     try:
-        assert(perfect_config.save_freq <= perfect_config.max_diff_steps)
-        assert(perfect_config.save_freq > 0)
+        assert(perfect_config.gif_save_freq <= perfect_config.max_diff_steps)
+        assert(perfect_config.gif_save_freq > 0)
         assert(perfect_config.dim1 < perfect_config.timeDim)
         assert(perfect_config.dim2 < perfect_config.timeDim)
     except AssertionError as e:
@@ -77,8 +77,8 @@ if __name__ == "__main__":
     config.end_diff_time = 1
     config.std_max = 90
     config.std_min = 0.01
-    config.dim1 = 254
-    config.dim2 = 255
+    config.dim1 = 0
+    config.dim2 = 1
     config.dataSize = 5000
     config.gif_save_freq = 10
 
