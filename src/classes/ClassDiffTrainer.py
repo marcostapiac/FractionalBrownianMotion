@@ -86,7 +86,6 @@ class DiffusionModelTrainer:
             :return: None
         """
         loss = self.loss_fn()(outputs, targets)
-        print(loss)
         self._batch_update(loss)
 
     def _run_batch(self, xts: torch.Tensor, target_scores: torch.Tensor, diff_times: torch.Tensor,
@@ -112,15 +111,11 @@ class DiffusionModelTrainer:
         """
         # TODO: How to deal with validation losses?
         b_sz = len(next(iter(self.train_loader))[0])
-        if self.device_id >= 0 or type(self.device_id) == torch.device:
-            print(
-                f"[Device {self.device_id}] Epoch {epoch + 1} | Batchsize: {b_sz} | Total Num of Batches: {len(self.train_loader)} \n")
+        print(
+            f"[Device {self.device_id}] Epoch {epoch + 1} | Batchsize: {b_sz} | Total Num of Batches: {len(self.train_loader)} \n")
         timesteps = torch.linspace(self.train_eps, end=self.end_diff_time,
                                    steps=self.max_diff_steps)
         if type(self.device_id) != torch.device: self.train_loader.sampler.set_epoch(epoch)
-        print("Device {} entering epoch {} loop\n".format(self.device_id, epoch))
-        if self.device_id == 0: m=0
-        if self.device_id == 1: n=0
         for x0s in (iter(self.train_loader)):
             x0s = x0s[0].to(self.device_id)
             diff_times = timesteps[torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,
@@ -130,12 +125,6 @@ class DiffusionModelTrainer:
             eff_times = self.diffusion.get_eff_times(diff_times)
             xts, target_scores = self.diffusion.noising_process(x0s, eff_times)
             self._run_batch(xts=xts, target_scores=target_scores, diff_times=diff_times, eff_times=eff_times)
-            if self.device_id==0:
-                m+=1
-                print("Device {} went through batch {} at epoch {}".format(self.device_id, m, epoch))
-            elif self.device_id == 1:
-                n+=1
-                print("Device {} went through batch {} at epoch {}".format(self.device_id, n, epoch))
 
     def _load_snapshot(self, snapshot_path: str) -> None:
         """
@@ -200,13 +189,11 @@ class DiffusionModelTrainer:
         for epoch in range(self.epochs_run, max_epochs):
             t0 = time.time()
             self._run_epoch(epoch)
-            print("Device 0 has exited epoch and is now printing\n")
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
             # see  https://github.com/Lightning-AI/torchmetrics/issues/626
             print("Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format((epoch + 1) / max_epochs,
                                                                         float(
                                                                             self.loss_aggregator.compute().item()),float(time.time()-t0)))
-            print("Device 0 has exited epoch and has finished printing\n")
             if self.device_id == 0 or type(self.device_id) == torch.device:
                 if epoch + 1 == max_epochs:
                     self._save_model(filepath=model_filename)
