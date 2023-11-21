@@ -113,9 +113,9 @@ class DiffusionModelTrainer:
         if self.device_id == 0 or type(self.device_id) == torch.device:
             print(
                 f"[Device {self.device_id}] Epoch {epoch + 1} | Batchsize: {b_sz} | Total Num of Batches: {len(self.train_loader)} \n")
-        self.score_network.train()
         timesteps = torch.linspace(self.train_eps, end=self.end_diff_time,
                                    steps=self.max_diff_steps)
+        if type(self.device_id)!=torch.device: self.train_loader.sampler.set_epoch(epoch)
         for x0s in tqdm(iter(self.train_loader)):
             x0s = x0s[0].to(self.device_id)
             diff_times = timesteps[torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,

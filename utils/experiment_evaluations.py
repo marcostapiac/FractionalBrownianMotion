@@ -598,6 +598,7 @@ def run_fBm_score_error_experiment(dataSize: int,
 
     timesteps = torch.linspace(start=config.end_diff_time, end=config.sample_eps, steps=config.max_diff_steps).to(device)
     x = diffusion.prior_sampling(shape=(dataSize, config.timeDim)).to(device)  # Move to correct device
+    scoreModel.eval()
     scoreModel.to(device)
     for i in tqdm(iterable=(range(0, config.max_diff_steps)), dynamic_ncols=False,
                   desc="Sampling for Score Error Visualisation :: ", position=0):
@@ -662,6 +663,7 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
         torch.float32)
     fBm_cov = torch.index_select(torch.index_select(fBm_cov, dim=0, index=dim_pair), dim=1, index=dim_pair).to(device)
     timesteps = torch.linspace(start=config.end_diff_time, end=config.sample_eps, steps=config.max_diff_steps).to(device)
+    scoreModel.eval()
     scoreModel.to(device)
     for i in tqdm(iterable=(range(0, config.max_diff_steps)), dynamic_ncols=False,
                   desc="Sampling for Backward Diffusion Visualisation :: ", position=0):
