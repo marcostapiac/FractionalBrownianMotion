@@ -46,7 +46,7 @@ class DiffusionModelTrainer:
         self.save_every = checkpoint_freq  # Specifies how often we choose to save our model during training
         self.train_loader = train_data_loader
         self.loss_fn = loss_fn  # If callable, need to ensure we allow for gradient computation
-        self.loss_aggregator = loss_aggregator().to(self.device_id)  # No need to move to device since they
+        self.loss_aggregator = loss_aggregator()
 
         self.diffusion = diffusion
         self.train_eps = train_eps
@@ -55,7 +55,7 @@ class DiffusionModelTrainer:
 
         # Move score network to appropriate device
         if type(self.device_id) == int:
-            self.score_network = DDP(self.score_network.to(self.device_id))  # Avoid bug when using device_ids arg
+            self.score_network = DDP(self.score_network.to(self.device_id), device_ids=[self.device_id])
         else:
             self.score_network = self.score_network.to(self.device_id)
 
@@ -119,6 +119,8 @@ class DiffusionModelTrainer:
                                    steps=self.max_diff_steps)
         if type(self.device_id) != torch.device: self.train_loader.sampler.set_epoch(epoch)
         print("Device {} entering epoch {} loop\n".format(self.device_id, epoch))
+        if self.device_id == 0: m=0
+        if self.device_id == 1: n=0
         for x0s in (iter(self.train_loader)):
             x0s = x0s[0].to(self.device_id)
             diff_times = timesteps[torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,
@@ -128,6 +130,12 @@ class DiffusionModelTrainer:
             eff_times = self.diffusion.get_eff_times(diff_times)
             xts, target_scores = self.diffusion.noising_process(x0s, eff_times)
             self._run_batch(xts=xts, target_scores=target_scores, diff_times=diff_times, eff_times=eff_times)
+            if self.device_id==0:
+                m+=1
+                print("Device {} went through batch {} at epoch {}".format(self.device_id, m, epoch))
+            elif self.device_id == 1:
+                n+=1
+                print("Device {} went through batch {} at epoch {}".format(self.device_id, n, epoch))
 
     def _load_snapshot(self, snapshot_path: str) -> None:
         """
@@ -193,9 +201,11 @@ class DiffusionModelTrainer:
             t0 = time.time()
             self._run_epoch(epoch)
             if self.device_id == 0 or type(self.device_id) == torch.device:
+                print("Device 0 has exited epoch and is now printing\n")
                 print("Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format((epoch + 1) / max_epochs,
                                                                             float(
                                                                                 self.loss_aggregator.compute().item()),float(time.time()-t0)))
+                print("Device 0 has exited epoch and has finished printing\n")
                 if epoch + 1 == max_epochs:
                     self._save_model(filepath=model_filename)
                 elif (epoch + 1) % self.save_every == 0:
