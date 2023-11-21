@@ -157,7 +157,6 @@ class DiffusionModelTrainer:
             snapshot["MODEL_STATE"] = self.score_network.state_dict()
         torch.save(snapshot, self.snapshot_path)
         print(f"Epoch {epoch + 1} | Training snapshot saved at {self.snapshot_path}\n")
-        torch.distributed.barrier()
 
     def _save_model(self, filepath: str) -> None:
         """
@@ -191,7 +190,7 @@ class DiffusionModelTrainer:
             self._run_epoch(epoch)
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
             # see  https://github.com/Lightning-AI/torchmetrics/issues/626
-            print("Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format((epoch + 1) / max_epochs,
+            print("Device {}:: Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format(self.device_id, (epoch + 1) / max_epochs,
                                                                         float(
                                                                             self.loss_aggregator.compute().item()),float(time.time()-t0)))
             if self.device_id == 0 or type(self.device_id) == torch.device:
