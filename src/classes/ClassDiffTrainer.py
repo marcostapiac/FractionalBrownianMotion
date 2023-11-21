@@ -1,4 +1,5 @@
 import os
+import time
 from typing import Union
 
 import torch
@@ -85,6 +86,7 @@ class DiffusionModelTrainer:
             :return: None
         """
         loss = self.loss_fn()(outputs, targets)
+        print(loss)
         self._batch_update(loss)
 
     def _run_batch(self, xts: torch.Tensor, target_scores: torch.Tensor, diff_times: torch.Tensor,
@@ -110,17 +112,18 @@ class DiffusionModelTrainer:
         """
         # TODO: How to deal with validation losses?
         b_sz = len(next(iter(self.train_loader))[0])
-        if self.device_id == 0 or type(self.device_id) == torch.device:
+        if self.device_id >= 0 or type(self.device_id) == torch.device:
             print(
                 f"[Device {self.device_id}] Epoch {epoch + 1} | Batchsize: {b_sz} | Total Num of Batches: {len(self.train_loader)} \n")
         timesteps = torch.linspace(self.train_eps, end=self.end_diff_time,
                                    steps=self.max_diff_steps)
-        if type(self.device_id)!=torch.device: self.train_loader.sampler.set_epoch(epoch)
-        for x0s in tqdm(iter(self.train_loader)):
+        if type(self.device_id) != torch.device: self.train_loader.sampler.set_epoch(epoch)
+        print("Device {} entering epoch {} loop\n".format(self.device_id, epoch))
+        for x0s in (iter(self.train_loader)):
             x0s = x0s[0].to(self.device_id)
             diff_times = timesteps[torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,
-                                                 size=(x0s.shape[0], 1)).long()].view(x0s.shape[0],
-                                                                               *([1] * len(x0s.shape[1:]))).to(
+                                                 size=(x0s.shape[0], 1))].view(x0s.shape[0],
+                                                                                      *([1] * len(x0s.shape[1:]))).to(
                 self.device_id)
             eff_times = self.diffusion.get_eff_times(diff_times)
             xts, target_scores = self.diffusion.noising_process(x0s, eff_times)
@@ -141,7 +144,7 @@ class DiffusionModelTrainer:
             self.score_network.module.load_state_dict(snapshot["MODEL_STATE"])
         else:
             self.score_network.load_state_dict(snapshot["MODEL_STATE"])
-        print("Resuming training from snapshot at epoch {} and device {}\n".format(self.epochs_run + 1,self.device_id))
+        print("Resuming training from snapshot at epoch {} and device {}\n".format(self.epochs_run + 1, self.device_id))
 
     def _save_snapshot(self, epoch: int) -> None:
         """
@@ -174,7 +177,7 @@ class DiffusionModelTrainer:
         print(f"Trained model saved at {filepath}\n")
         try:
             pass
-            #os.remove(self.snapshot_path)  # Do NOT remove snapshot path yet eventhough training is done
+            # os.remove(self.snapshot_path)  # Do NOT remove snapshot path yet eventhough training is done
         except FileNotFoundError:
             print("Snapshot file does not exist\n")
 
@@ -187,10 +190,12 @@ class DiffusionModelTrainer:
         """
         self.score_network.train()
         for epoch in range(self.epochs_run, max_epochs):
+            t0 = time.time()
             self._run_epoch(epoch)
             if self.device_id == 0 or type(self.device_id) == torch.device:
-                print("Percent Completed {:0.4f} :: Train {:0.4f}\n".format((epoch + 1) / max_epochs,
-                                                                           float(self.loss_aggregator.compute().item())))
+                print("Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format((epoch + 1) / max_epochs,
+                                                                            float(
+                                                                                self.loss_aggregator.compute().item()),float(time.time()-t0)))
                 if epoch + 1 == max_epochs:
                     self._save_model(filepath=model_filename)
                 elif (epoch + 1) % self.save_every == 0:
