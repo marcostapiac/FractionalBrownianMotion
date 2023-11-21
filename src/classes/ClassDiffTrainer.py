@@ -200,12 +200,14 @@ class DiffusionModelTrainer:
         for epoch in range(self.epochs_run, max_epochs):
             t0 = time.time()
             self._run_epoch(epoch)
+            print("Device 0 has exited epoch and is now printing\n")
+            # NOTE: .compute() cannot be called on only one process since it will wait for other processes
+            # see  https://github.com/Lightning-AI/torchmetrics/issues/626
+            print("Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format((epoch + 1) / max_epochs,
+                                                                        float(
+                                                                            self.loss_aggregator.compute().item()),float(time.time()-t0)))
+            print("Device 0 has exited epoch and has finished printing\n")
             if self.device_id == 0 or type(self.device_id) == torch.device:
-                print("Device 0 has exited epoch and is now printing\n")
-                print("Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format((epoch + 1) / max_epochs,
-                                                                            float(
-                                                                                self.loss_aggregator.compute().item()),float(time.time()-t0)))
-                print("Device 0 has exited epoch and has finished printing\n")
                 if epoch + 1 == max_epochs:
                     self._save_model(filepath=model_filename)
                 elif (epoch + 1) % self.save_every == 0:
