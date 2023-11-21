@@ -22,8 +22,8 @@ if __name__ == "__main__":
     print("\n\n")
 
     fBm_cov = (compute_fBm_cov(fbn, T=timedim, isUnitInterval=True))
-    fBm_r_mat = np.diag([1. / (ti ** hurst) for ti in time_space]).reshape(timedim, timedim)
-    fBm_corrmat = fBm_r_mat @ fBm_cov @ fBm_r_mat
+    fBm_r_mat = np.diag([1. / np.sqrt((ti ** (2*hurst)+.0)) for ti in time_space]).reshape(timedim, timedim)
+    fBm_corrmat = fBm_r_mat @ (.0*np.eye(timedim)+fBm_cov) @ fBm_r_mat
     print("fBm Variance matrix:\n", np.linalg.inv(fBm_r_mat) @ np.linalg.inv(fBm_r_mat))
     print("fBm Covariance matrix:\n", fBm_cov)
     print("fBm Correlation matrix:\n", fBm_corrmat)

@@ -656,13 +656,14 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
     else:
         device = torch.device("cpu")
 
-    x = diffusion.prior_sampling(shape=(dataSize, dim_pair.shape[0])).to(device)  # Move to correct device
+    dim_pair = dim_pair.to(device)
+    x = diffusion.prior_sampling(shape=(dataSize, config.timeDim)).to(device)  # Move to correct device
 
     fBm_cov = torch.from_numpy(
         compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim, isUnitInterval=True)).to(
-        torch.float32)
-    fBm_cov = torch.index_select(torch.index_select(fBm_cov, dim=0, index=dim_pair), dim=1, index=dim_pair).to(device)
-    timesteps = torch.linspace(start=config.end_diff_time, end=config.sample_eps, steps=config.max_diff_steps).to(device)
+        torch.float32).to(device)
+    timesteps = torch.linspace(start=config.end_diff_time, end=config.sample_eps, steps=config.max_diff_steps).to(
+        device)
     scoreModel.eval()
     scoreModel.to(device)
     for i in tqdm(iterable=(range(0, config.max_diff_steps)), dynamic_ncols=False,
@@ -674,13 +675,14 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
 
         if isinstance(diffusion, VESDEDiffusion):
             diffType = "VESDE"
-            cov = eff_time * torch.eye(dim_pair.shape[0]).to(device) + fBm_cov
+            cov = eff_time * torch.eye(config.timeDim).to(device) + fBm_cov
         else:
             diffType = "VPSDE"
-            cov = (1. - torch.exp(-eff_time)) * torch.eye(dim_pair.shape[0]).to(device) + torch.exp(-eff_time) * fBm_cov
+            cov = (1. - torch.exp(-eff_time)) * torch.eye(config.timeDim).to(device) + torch.exp(-eff_time) * fBm_cov
 
         if config.predictor_model == "ancestral":
-            pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[diff_index.long()] * torch.ones(
+            pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[
+                                                                                           diff_index.long()] * torch.ones(
                 (x.shape[0], 1)).to(device), score_network=scoreModel, diff_index=diff_index,
                                                                                   max_diff_steps=config.max_diff_steps)
         else:
@@ -696,7 +698,10 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
             plot_title = "Rev-Time {} samples $T={}$ at time {}".format(diffType, config.timeDim, round((
                                                                                                                 i + 1) / config.max_diff_steps,
                                                                                                         5))
-            plot_and_save_diffused_fBm_snapshot(samples=x.cpu(), cov=cov.cpu(), save_path=save_path, x_label=xlabel,
+            paired_cov = torch.index_select(torch.index_select(cov, dim=0, index=dim_pair), dim=1, index=dim_pair).to(
+                device)
+            plot_and_save_diffused_fBm_snapshot(samples=x[:, dim_pair].cpu(), cov=paired_cov.cpu(), save_path=save_path,
+                                                x_label=xlabel,
                                                 y_label=ylabel, plot_title=plot_title)
 
         x = drift + diffusion_param * torch.randn_like(x)
@@ -725,7 +730,7 @@ def run_fBm_perfect_score(dataSize: int, dim_pair: torch.Tensor,
         device = torch.device(0)
     else:
         device = torch.device("cpu")
-
+    # NOTE: No need to diffuse whole sample since the score is set correctly manually
     x = diffusion.prior_sampling(shape=(dataSize, dim_pair.shape[0])).to(device)  # Move to correct device
 
     fBm_cov = torch.from_numpy(

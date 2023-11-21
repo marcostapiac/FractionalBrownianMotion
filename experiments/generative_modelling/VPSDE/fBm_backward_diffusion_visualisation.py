@@ -56,7 +56,7 @@ if __name__ == "__main__":
 
     config = get_config()
     assert (0. < config.hurst < 1.)
-    config.gif_save_freq = int((0.1*config.max_diff_steps))
+    config.gif_save_freq = int((0.05*config.max_diff_steps))
     config.dataSize = 5000
     config.dim1 = 0
     config.dim2 = 1
