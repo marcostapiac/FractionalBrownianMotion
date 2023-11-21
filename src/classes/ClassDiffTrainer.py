@@ -46,7 +46,7 @@ class DiffusionModelTrainer:
         self.save_every = checkpoint_freq  # Specifies how often we choose to save our model during training
         self.train_loader = train_data_loader
         self.loss_fn = loss_fn  # If callable, need to ensure we allow for gradient computation
-        self.loss_aggregator = loss_aggregator()
+        self.loss_aggregator = loss_aggregator().to(self.device_id)
 
         self.diffusion = diffusion
         self.train_eps = train_eps
