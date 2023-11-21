@@ -92,10 +92,12 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
         :param config: Configuration dictionary for experiment
         :return: Final reverse-time samples
     """
-    # TODO: DDP cannot be used here since sampling is sequential, so only single-machine, single-GPU/CPU?
     if config.has_cuda:
+        # Sampling is sequential, so only single-machine, single-GPU/CPU
+        os.environ["WORLD_SIZE"] = "1"
         device = 0
     else:
+        os.environ["WORLD_SIZE"] = "1"
         device = torch.device("cpu")
 
     # Define predictor
