@@ -32,7 +32,7 @@ def prepare_scoreModel_data(data: np.ndarray, batch_size: int, config: ConfigDic
     dataset = torch.utils.data.TensorDataset(torch.from_numpy(data).float())
     train, _, _ = torch.utils.data.random_split(dataset, [1., 0., 0.])
     if config.has_cuda:
-        trainLoader = DataLoader(train, batch_size=batch_size, pin_memory=True, shuffle=False,
+        trainLoader = DataLoader(train, batch_size=batch_size, pin_memory=False, shuffle=False,
                                  sampler=DistributedSampler(train))
     else:
         trainLoader = DataLoader(train, batch_size=batch_size, pin_memory=True, shuffle=True,
