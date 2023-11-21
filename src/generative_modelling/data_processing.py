@@ -94,10 +94,8 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
     """
     if config.has_cuda:
         # Sampling is sequential, so only single-machine, single-GPU/CPU
-        os.environ["WORLD_SIZE"] = "1"
         device = 0
     else:
-        os.environ["WORLD_SIZE"] = "1"
         device = torch.device("cpu")
 
     # Define predictor
