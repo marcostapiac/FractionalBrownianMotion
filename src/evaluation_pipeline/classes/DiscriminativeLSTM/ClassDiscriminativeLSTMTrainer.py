@@ -1,4 +1,5 @@
 import os
+import time
 from typing import Union
 
 import torch
@@ -27,7 +28,7 @@ class DiscriminativeLSTMTrainer:
 
         self.device_id = device
         assert (self.device_id == int(os.environ["LOCAL_RANK"]) or self.device_id == torch.device("cpu"))
-        self.model = model.to(self.device_id)
+        self.model = model
         self.epochs_run = 0
 
         self.opt = optimiser
@@ -38,14 +39,14 @@ class DiscriminativeLSTMTrainer:
 
         # Move model to appropriate device
         if type(self.device_id) == int:
-            self.model = DDP(self.model, device_ids=[self.device_id])
+            self.model = DDP(self.model.to(self.device_id), device_ids=[self.device_id])
         else:
             self.model = self.model.to(self.device_id)
 
         self.snapshot_path = snapshot_path
         # Load snapshot if available
         if os.path.exists(self.snapshot_path):
-            print("Loading snapshot")
+            print("Device {} :: Loading snapshot\n".format(self.device_id))
             self._load_snapshot(self.snapshot_path)
 
     def _batch_update(self, loss) -> None:
@@ -89,7 +90,7 @@ class DiscriminativeLSTMTrainer:
         b_sz = len(next(iter(self.train_loader))[0])
         print(
             f"[Device {self.device_id}] Epoch {epoch + 1} | Batchsize: {b_sz} | Total Num of Batches: {len(self.train_loader)} \n")
-        self.model.train()
+        if type(self.device_id) != torch.device: self.train_loader.sampler.set_epoch(epoch)
         for X_batch, y_batch in iter(self.train_loader):
             X_batch = X_batch.to(self.device_id).to(torch.float32)
             y_batch = y_batch.to(self.device_id).to(torch.float32)
@@ -110,7 +111,7 @@ class DiscriminativeLSTMTrainer:
             self.model.module.load_state_dict(snapshot["MODEL_STATE"])
         else:
             self.model.load_state_dict(snapshot["MODEL_STATE"])
-        print("Resuming training from snapshot at epoch {}".format(self.epochs_run + 1))
+        print("Device {} :: Resuming training from snapshot at epoch {} and device {}\n".format(self.device_id, self.epochs_run + 1, self.device_id))
 
     def _save_snapshot(self, epoch: int) -> None:
         """
@@ -125,13 +126,13 @@ class DiscriminativeLSTMTrainer:
         else:
             snapshot["MODEL_STATE"] = self.model.state_dict()
         torch.save(snapshot, self.snapshot_path)
-        print(f"Epoch {epoch + 1} | Training snapshot saved at {self.snapshot_path}")
-        torch.distributed.barrier()
+        print(f"Epoch {epoch + 1} | Training snapshot saved at {self.snapshot_path}\n")
 
-    def _save_model(self, filepath: str) -> None:
+    def _save_model(self, filepath: str, final_epoch: int) -> None:
         """
         Save final trained model
             :param filepath: Filepath to save model
+            :param final_epoch: Final training epoch
             :return: None
         """
         # self.model now points to DDP wrapped object so we need to access parameters via ".module"
@@ -139,12 +140,14 @@ class DiscriminativeLSTMTrainer:
             ckp = self.model.to(torch.device("cpu")).module.state_dict()  # Save model on CPU
         else:
             ckp = self.model.to(torch.device("cpu")).state_dict()  # Save model on CPU
+        filepath = filepath + "_Nepochs{}".format(final_epoch)
         torch.save(ckp, filepath)
-        print(f"Trained model saved at {filepath}")
+        print(f"Trained model saved at {filepath}\n")
         try:
-            os.remove(self.snapshot_path)  # Remove snapshot path since training is done
+            pass
+            # os.remove(self.snapshot_path)  # Do NOT remove snapshot path yet eventhough training is done
         except FileNotFoundError:
-            print("Snapshot file does not exist")
+            print("Snapshot file does not exist\n")
 
     def train(self, max_epochs: int, model_filename: str) -> None:
         """
@@ -155,10 +158,16 @@ class DiscriminativeLSTMTrainer:
         """
         self.model.train()
         for epoch in range(self.epochs_run, max_epochs):
+            t0 = time.time()
             self._run_epoch(epoch)
-            print("Percent Completed {:0.4f} :: Train {:0.4f} ".format((epoch + 1) / max_epochs,
-                                                                       float(self.loss_aggregator.compute().item())))
-            if (self.device_id == 0 or type(self.device_id) == torch.device) and epoch + 1 == max_epochs:
-                self._save_model(filepath=model_filename)
-            elif (self.device_id == 0 or type(self.device_id) == torch.device) and ((epoch + 1) % self.save_every == 0):
-                self._save_snapshot(epoch=epoch)
+            # NOTE: .compute() cannot be called on only one process since it will wait for other processes
+            # see  https://github.com/Lightning-AI/torchmetrics/issues/626
+            print("Device {} :: Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format(
+                self.device_id, (epoch + 1) / max_epochs,
+                float(
+                    self.loss_aggregator.compute().item()), float(time.time() - t0)))
+            if self.device_id == 0 or type(self.device_id) == torch.device:
+                if epoch + 1 == max_epochs:
+                    self._save_model(filepath=model_filename, final_epoch=epoch + 1)
+                elif (epoch + 1) % self.save_every == 0:
+                    self._save_snapshot(epoch=epoch)

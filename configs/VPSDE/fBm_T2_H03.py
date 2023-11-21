@@ -91,7 +91,7 @@ def get_config():
                        "Synthetic Hurst Estimates"]
 
     config.experiment_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",
-                                                                  "experiments/results/") + ".csv.gzip"
+                                                                  "experiments/results/")
 
     # LSTM parameters
     config.test_pred_lstm = False

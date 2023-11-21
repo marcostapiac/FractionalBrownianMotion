@@ -27,11 +27,11 @@ def run(config: ConfigDict) -> None:
     try:
         scoreModel = TimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
             *config.model_parameters)
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path+"_Nepochs"+str(config.max_epochs)))
     except FileNotFoundError as e:
         raise FileNotFoundError(
             "Error {}; no valid trained model found; train model {} before running experiment\n".format(e,
-                                                                                                        config.scoreNet_trained_path))
+                                                                                                        config.scoreNet_trained_path+"_Nepochs"+str(config.max_epochs)))
 
     folder_path = project_config.ROOT_DIR + "experiments/results/backward_gifs/"
 

@@ -9,7 +9,7 @@ import torch
 from matplotlib import pyplot as plt
 from ml_collections import ConfigDict
 from scipy import stats
-from scipy.stats import kstest, ks_2samp
+from scipy.stats import ks_2samp
 from tqdm import tqdm
 
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
@@ -28,8 +28,7 @@ from utils.data_processing import generate_circles, generate_sine_dataset
 from utils.math_functions import chiSquared_test, reduce_to_fBn, compute_fBm_cov, permutation_test, \
     energy_statistic, MMD_statistic, generate_fBm, compute_circle_proportions, generate_fBn, estimate_hurst, \
     compute_pvals
-from utils.plotting_functions import plot_dataset, \
-    plot_diffCov_heatmap, plot_tSNE, plot_histogram, plot_and_save_diffused_fBm_snapshot
+from utils.plotting_functions import plot_histogram, plot_and_save_diffused_fBm_snapshot
 
 
 def prepare_sines_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion],
@@ -44,39 +43,40 @@ def prepare_sines_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VE
         :return: Trained score network
     """
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs"+str(config.max_epochs)))
     except FileNotFoundError as e:
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
+        training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
         try:
             data = np.load(config.data_path, allow_pickle=True)
-        except (FileNotFoundError, pickle.UnpicklingError) as e:
+            assert(data.shape[0] >= training_size)
+        except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
-            training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
             data = generate_sine_dataset(T=config.timeDim, S=training_size, rng=rng)
             np.save(config.data_path, data)
         finally:
-            data = data.cumsum(axis=1)
+            data = data.cumsum(axis=1)[:training_size, :]
             train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
-            scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
+            scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path+"_Nepochs"+str(config.max_epochs)))
 
     if config.test_pred_lstm:
         try:
-            torch.load(config.pred_lstm_trained_path)
+            torch.load(config.pred_lstm_trained_path+ "_Nepochs"+str(config.pred_lstm_max_epochs))
         except FileNotFoundError as e:
             print("Error {}; training predictive LSTM\n".format(e))
             pred = PredictiveLSTM(ts_dim=1)
-            dataSize = min(10 * sum(p.numel() for p in pred.parameters() if p.requires_grad), 2000000) // 10
+            dataSize = min(10 * sum(p.numel() for p in pred.parameters() if p.requires_grad), 2000000)
             synthetic = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                          data_shape=(dataSize, config.timeDim),
                                          config=config)
             train_and_save_predLSTM(data=synthetic.cpu().numpy(), config=config, model=pred)
     if config.test_disc_lstm:
         try:
-            torch.load(config.disc_lstm_trained_path)
+            torch.load(config.disc_lstm_trained_path+"_Nepochs"+str(config.disc_lstm_max_epochs))
         except FileNotFoundError as e:
             print("Error {}; training discriminative LSTM\n".format(e))
             disc = DiscriminativeLSTM(ts_dim=1)
-            dataSize = min(10 * sum(p.numel() for p in disc.parameters() if p.requires_grad), 2000000) // 10
+            dataSize = min(10 * sum(p.numel() for p in disc.parameters() if p.requires_grad), 2000000)
             synthetic = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                          data_shape=(dataSize, config.timeDim),
                                          config=config)
@@ -114,8 +114,8 @@ def run_sines_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDEDi
         agg_dict[j] = exp_dict
     df = pd.DataFrame.from_dict(data=agg_dict)
     df.index = config.exp_keys
-    df.to_csv(config.experiment_path, compression="gzip", index=True)
-    print(pd.read_csv(config.experiment_path, compression="gzip", index_col=[0]))
+    df.to_csv(config.experiment_path+"_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip", index=True)
+    print(pd.read_csv(config.experiment_path+"_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip", index_col=[0]))
 
 
 def evaluate_sines_performance(true_samples: np.ndarray, generated_samples: np.ndarray, rng: np.random.Generator,
@@ -172,12 +172,6 @@ def evaluate_sines_performance(true_samples: np.ndarray, generated_samples: np.n
         print("Energy Permutation test: p-value {}".format(
             permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=energy_statistic,
                              num_permutations=1000)))
-    if config.plot:
-        plot_diffCov_heatmap(true_cov, gen_cov, annot=config.annot_heatmap,
-                             image_path=config.image_path + "_diffCov.png")
-        plot_dataset(true_samples, generated_samples, image_path=config.image_path + "_scatter.png")
-        # plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.plot,
-        #                          timeDim=config.timeDim, image_path=config.image_path)
     return exp_dict
 
 
@@ -193,7 +187,7 @@ def prepare_fBm_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESD
         :return: Trained score network
     """
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path+"_Nepochs"+str(config.max_epochs)))
     except FileNotFoundError as e:
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
         training_size = int(min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000))
@@ -207,26 +201,26 @@ def prepare_fBm_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESD
         finally:
             data = data.cumsum(axis=1)[:training_size, :]
             train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
-            scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
+            scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path+"_Nepochs"+str(config.max_epochs)))
 
     if config.test_pred_lstm:
         try:
-            torch.load(config.pred_lstm_trained_path)
+            torch.load(config.pred_lstm_trained_path+"_Nepochs"+str(config.pred_lstm_max_epochs))
         except FileNotFoundError as e:
             print("Error {}; training predictive LSTM\n".format(e))
             pred = PredictiveLSTM(ts_dim=1)
-            dataSize = min(10 * sum(p.numel() for p in pred.parameters() if p.requires_grad), 2000000) // 10
+            dataSize = min(10 * sum(p.numel() for p in pred.parameters() if p.requires_grad), 2000000)
             synthetic = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                          data_shape=(dataSize, config.timeDim),
                                          config=config)
             train_and_save_predLSTM(data=synthetic.cpu().numpy(), config=config, model=pred)
     if config.test_disc_lstm:
         try:
-            torch.load(config.disc_lstm_trained_path)
+            torch.load(config.disc_lstm_trained_path+"_Nepochs"+str(config.disc_lstm_max_epochs))
         except FileNotFoundError as e:
             print("Error {}; training discriminative LSTM\n".format(e))
             disc = DiscriminativeLSTM(ts_dim=1)
-            dataSize = min(10 * sum(p.numel() for p in disc.parameters() if p.requires_grad), 2000000) // 10
+            dataSize = min(10 * sum(p.numel() for p in disc.parameters() if p.requires_grad), 2000000)
             synthetic = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                          data_shape=(dataSize, config.timeDim),
                                          config=config)
@@ -263,9 +257,9 @@ def run_fBm_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDEDiff
         agg_dict[j] = exp_dict
     df = pd.DataFrame.from_dict(data=agg_dict)
     df.index = config.exp_keys
-    df.to_csv(config.experiment_path, compression="gzip",
+    df.to_csv(config.experiment_path+"_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip",
               index=True)
-    print(pd.read_csv(config.experiment_path, compression="gzip", index_col=[0]))
+    print(pd.read_csv(config.experiment_path+"_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip", index_col=[0]))
 
 
 def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.ndarray, rng: np.random.Generator,
@@ -348,15 +342,6 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
 
     exp_dict = estimate_hurst(true=true_samples, synthetic=generated_samples, exp_dict=exp_dict, S=S, config=config)
 
-    if config.plot:
-        plot_diffCov_heatmap(expec_cov, gen_cov, annot=config.annot_heatmap,
-                             image_path=config.image_path + "_diffCov.png")
-        plot_tSNE(x=true_samples, y=generated_samples, labels=["True Samples", "Generated Samples"],
-                  image_path=config.image_path + "_tSNE.png") \
-            if config.timeDim > 2 else plot_dataset(true_samples, generated_samples,
-                                                    image_path=config.image_path + "_scatter.png")
-        # plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.plot,
-        #                          timeDim=config.timeDim, image_path=config.image_path)
     return exp_dict
 
 
@@ -371,19 +356,20 @@ def prepare_circle_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, V
             :return: Trained score network
         """
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path+"_Nepochs"+str(config.max_epochs)))
     except FileNotFoundError as e:
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
+        training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
         try:
             data = np.load(config.data_path, allow_pickle=True)
-        except (FileNotFoundError, pickle.UnpicklingError) as e:
+            assert(data.shape[0] >= training_size)
+        except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
-            training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
             data = generate_circles(S=training_size, noise=config.cnoise)
             np.save(config.data_path, data)  # TODO is this the most efficient way
         finally:
             train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
-            scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
+            scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path+"_Nepochs"+str(config.max_epochs)))
     return scoreModel
 
 
@@ -415,8 +401,8 @@ def run_circle_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDED
         agg_dict[j] = exp_dict
     df = pd.DataFrame.from_dict(data=agg_dict)
     df.index = config.exp_keys
-    df.to_csv(config.experiment_path, compression="gzip", index=True)
-    print(pd.read_csv(config.experiment_path, compression="gzip", index_col=[0]))
+    df.to_csv(config.experiment_path+"_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip", index=True)
+    print(pd.read_csv(config.experiment_path+"_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip", index_col=[0]))
 
 
 def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.ndarray, config: ConfigDict,
@@ -458,13 +444,6 @@ def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.
         print("Energy Permutation test: p-value {}".format(
             permutation_test(true_samples[:test_L], generated_samples[:test_L], compute_statistic=energy_statistic,
                              num_permutations=1000)))
-
-    if config.plot:
-        plot_diffCov_heatmap(true_cov, gen_cov, annot=config.annot_heatmap,
-                             image_path=config.image_path + "_diffCov.png")
-        plot_dataset(true_samples, generated_samples, image_path=config.image_path + "_scatter.png")
-        # plot_final_diff_marginals(true_samples, generated_samples, print_marginals=config.plot,
-        #                          timeDim=config.timeDim, image_path=config.image_path)
     return exp_dict
 
 
@@ -474,7 +453,7 @@ def plot_fBm_results_from_csv(config: ConfigDict) -> None:
         :param config: ML experiment metrics
         :return: None
     """
-    df = pd.read_csv(config.experiment_path, compression="gzip", index_col=[0])
+    df = pd.read_csv(config.experiment_path+"_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip", index_col=[0])
 
     # Mean Abs Difference
     # plot_and_save_boxplot(data=df.loc[config.exp_keys[0]].astype(float).to_numpy(), xlabel="1",

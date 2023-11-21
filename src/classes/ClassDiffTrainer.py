@@ -62,7 +62,7 @@ class DiffusionModelTrainer:
         self.snapshot_path = snapshot_path
         # Load snapshot if available
         if os.path.exists(self.snapshot_path):
-            print("Loading snapshot\n")
+            print("Device {} :: Loading snapshot\n".format(self.device_id))
             self._load_snapshot(self.snapshot_path)
 
     def _batch_update(self, loss) -> None:
@@ -141,7 +141,7 @@ class DiffusionModelTrainer:
             self.score_network.module.load_state_dict(snapshot["MODEL_STATE"])
         else:
             self.score_network.load_state_dict(snapshot["MODEL_STATE"])
-        print("Resuming training from snapshot at epoch {} and device {}\n".format(self.epochs_run + 1, self.device_id))
+        print("Device {} :: Resuming training from snapshot at epoch {} and device {}\n".format(self.device_id, self.epochs_run + 1, self.device_id))
 
     def _save_snapshot(self, epoch: int) -> None:
         """
@@ -158,10 +158,11 @@ class DiffusionModelTrainer:
         torch.save(snapshot, self.snapshot_path)
         print(f"Epoch {epoch + 1} | Training snapshot saved at {self.snapshot_path}\n")
 
-    def _save_model(self, filepath: str) -> None:
+    def _save_model(self, filepath: str, final_epoch:int) -> None:
         """
         Save final trained model
             :param filepath: Filepath to save model
+            :param final_epoch: Final training epoch
             :return: None
         """
         # self.score_network now points to DDP wrapped object so we need to access parameters via ".module"
@@ -169,6 +170,7 @@ class DiffusionModelTrainer:
             ckp = self.score_network.to(torch.device("cpu")).module.state_dict()  # Save model on CPU
         else:
             ckp = self.score_network.to(torch.device("cpu")).state_dict()  # Save model on CPU
+        filepath = filepath + "_Nepochs{}".format(final_epoch)
         torch.save(ckp, filepath)
         print(f"Trained model saved at {filepath}\n")
         try:
@@ -195,6 +197,6 @@ class DiffusionModelTrainer:
                                                                             self.loss_aggregator.compute().item()),float(time.time()-t0)))
             if self.device_id == 0 or type(self.device_id) == torch.device:
                 if epoch + 1 == max_epochs:
-                    self._save_model(filepath=model_filename)
+                    self._save_model(filepath=model_filename, final_epoch=epoch+1)
                 elif (epoch + 1) % self.save_every == 0:
                     self._save_snapshot(epoch=epoch)

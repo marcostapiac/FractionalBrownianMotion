@@ -19,11 +19,11 @@ def run(config: ConfigDict):
         *config.model_parameters)
     diffusion = VESDEDiffusion(stdMax=config.std_max, stdMin=config.std_min)
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path+"_Nepochs"+str(config.max_epochs)))
     except FileNotFoundError as e:
         raise FileNotFoundError(
             "Error {}; no valid trained model found; train model {} before running experiment\n".format(e,
-                                                                                                        config.scoreNet_trained_path))
+                                                                                                        config.scoreNet_trained_path+"_Nepochs"+str(config.max_epochs)))
 
     score_errors = run_fBm_score_error_experiment(dataSize=5000, diffusion=diffusion, scoreModel=scoreModel,
                                                   rng=rng,

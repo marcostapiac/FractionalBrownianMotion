@@ -109,6 +109,8 @@ def init_experiment(config: ConfigDict) -> None:
         :return: None
     """
     if config.has_cuda:
+        if int(os.environ["WORLD_SIZE"]) > torch.cuda.device_count():
+            os.environ["WORLD_SIZE"] = str(torch.cuda.device_count())
         ddp_setup(backend="nccl")
         torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
     else:
