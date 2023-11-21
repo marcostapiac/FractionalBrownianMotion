@@ -61,7 +61,7 @@ class DiffusionModelTrainer:
 
         self.snapshot_path = snapshot_path
         # Load snapshot if available
-        if os.path.exists(self.snapshot_path) and (self.device_id == 0 or type(self.device_id) == torch.device):
+        if os.path.exists(self.snapshot_path):
             print("Loading snapshot\n")
             self._load_snapshot(self.snapshot_path)
 
