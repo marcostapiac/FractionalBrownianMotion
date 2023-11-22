@@ -541,8 +541,8 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
         torch.float32).to(device)
     timesteps = torch.linspace(start=config.end_diff_time, end=config.sample_eps, steps=config.max_diff_steps).to(
         device)
-    scoreModel.eval()
     scoreModel.to(device)
+    scoreModel.eval()
     for i in tqdm(iterable=(range(0, config.max_diff_steps)), dynamic_ncols=False,
                   desc="Sampling for Backward Diffusion Visualisation :: ", position=0):
         diff_index = torch.Tensor([i]).to(device)
