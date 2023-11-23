@@ -45,7 +45,7 @@ def run(config: ConfigDict):
     pic_path = pic_path.replace("ScoreErrorTS", "ScoreErrorHM")
 
     start_index = int(0.*config.max_diff_steps)
-    end_index = int(1.*config.max_diff_steps)
+    end_index = int(.2*config.max_diff_steps)
     plot_score_errors_heatmap(score_errors[start_index:end_index, :],
                               plot_title="MSE Score Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst,
                                                                                                        config.timeDim),path=pic_path)
