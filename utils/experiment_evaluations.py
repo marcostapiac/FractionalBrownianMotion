@@ -546,9 +546,7 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
     for i in tqdm(iterable=(range(0, config.max_diff_steps)), dynamic_ncols=False,
                   desc="Sampling for Backward Diffusion Visualisation :: ", position=0):
         diff_index = torch.Tensor([i]).to(device)
-        max_diff_steps = torch.Tensor([config.max_diff_steps]).to(device)
-
-        eff_time = diffusion.get_eff_times(diff_times=(max_diff_steps - 1 - diff_index) / (max_diff_steps - 1))
+        eff_time = diffusion.get_eff_times(diff_times = timesteps[diff_index.long()])
 
         if isinstance(diffusion, VESDEDiffusion):
             diffType = "VESDE"
