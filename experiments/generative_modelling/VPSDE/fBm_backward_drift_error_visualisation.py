@@ -33,7 +33,7 @@ def run(config: ConfigDict):
     start_index = int(0. * config.max_diff_steps)
     end_index = int(1. * config.max_diff_steps)
 
-    drift_pic_path = project_config.ROOT_DIR + "experiments/results/drift_plots/DriftErrorTS_fBm_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_BetaMax{:.4e}_BetaMin{:.4e}_Nepochs{}".format(
+    drift_pic_path = project_config.ROOT_DIR + "experiments/results/drift_plots/DriftErrorsTS_fBm_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_BetaMax{:.4e}_BetaMin{:.4e}_Nepochs{}".format(
         config.hurst, config.timeDim, config.max_diff_steps, config.end_diff_time, config.beta_max,
         config.beta_min, config.max_epochs).replace(
         ".", "")
@@ -55,8 +55,8 @@ def run(config: ConfigDict):
                                                                                              config.timeDim),
         path=score_only_drift_pic_path)
 
-    drift_hm_path = drift_pic_path.replace("DriftErrorTS", "DriftErrorHM")
-    score_only_drift_hm_path = drift_hm_path.replace("DriftErrorHM", "ScoreOnlyDriftErrorHM")
+    drift_hm_path = drift_pic_path.replace("DriftErrorsTS", "DriftErrorsHM")
+    score_only_drift_hm_path = drift_hm_path.replace("DriftErrorsHM", "ScoreOnlyDriftErrorsHM")
 
     start_index = int(0. * config.max_diff_steps)
     end_index = int(.05 * config.max_diff_steps)
