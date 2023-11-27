@@ -99,7 +99,7 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
         device = torch.device("cpu")
 
     # Define predictor
-    predictor_params = [diffusion, scoreModel, config.end_diff_time, config.max_diff_steps, device]
+    predictor_params = [diffusion, scoreModel, config.end_diff_time, config.max_diff_steps, device, config.sample_eps]
     predictor = AncestralSamplingPredictor(
         *predictor_params) if config.predictor_model == "ancestral" else EulerMaruyamaPredictor(*predictor_params)
 

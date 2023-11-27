@@ -571,9 +571,9 @@ def compare_fBm_to_normal(h: float, generated_samples: np.ndarray, td: int, rng:
               image_path=project_config.ROOT_DIR + "pngs/tSNE_normal_vs_generatedfBm_H{:.3e}_T{}".format(h, td))
 
 
-def plot_score_errors_ts(diff_time_space: np.ndarray, errors: np.ndarray, plot_title: str, path:str) -> None:
+def plot_errors_ts(diff_time_space: np.ndarray, errors: np.ndarray, plot_title: str, path:str) -> None:
     """
-    Plot score error over time, averaged over many samples at each point in time.
+    Plot error over time, averaged over many samples at each point in time.
         :param diff_time_space: Diffusion time space
         :param errors: Score erros
         :param plot_title:  Title for plot
@@ -588,10 +588,10 @@ def plot_score_errors_ts(diff_time_space: np.ndarray, errors: np.ndarray, plot_t
     plt.show()
 
 
-def plot_score_errors_heatmap(errors: np.ndarray, plot_title: str, path:str) -> None:
+def plot_errors_heatmap(errors: np.ndarray, plot_title: str, path:str) -> None:
     """
-    Plot heat map of score network errors over time and space
-        :param errors: Matrix with score errors over space and time
+    Plot heat map of errors over time and space
+        :param errors: Matrix with errors over space and time
         :param plot_title: Title for plot
         :param path: Path to save figure
         :return: None

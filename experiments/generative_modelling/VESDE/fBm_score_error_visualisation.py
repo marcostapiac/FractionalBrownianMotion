@@ -9,7 +9,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesS
     TimeSeriesScoreMatching
 from utils.data_processing import init_experiment
 from utils.experiment_evaluations import run_fBm_score_error_experiment
-from utils.plotting_functions import plot_score_errors_ts, plot_score_errors_heatmap
+from utils.plotting_functions import plot_errors_ts, plot_errors_heatmap
 from tqdm import tqdm
 
 
@@ -37,7 +37,7 @@ def run(config: ConfigDict):
         ".", "")
 
     time_dim_score_errors = score_errors.mean(axis=1).reshape((config.max_diff_steps, 1))
-    plot_score_errors_ts(
+    plot_errors_ts(
         np.linspace(config.sample_eps, config.end_diff_time, config.max_diff_steps)[start_index:end_index],
         time_dim_score_errors[start_index:end_index],
         plot_title="MSE Score Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst, config.timeDim), path=pic_path)
@@ -46,9 +46,9 @@ def run(config: ConfigDict):
 
     start_index = int(0.*config.max_diff_steps)
     end_index = int(.2*config.max_diff_steps)
-    plot_score_errors_heatmap(score_errors[start_index:end_index, :],
-                              plot_title="MSE Score Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst,
-                                                                                                       config.timeDim),path=pic_path)
+    plot_errors_heatmap(score_errors[start_index:end_index, :],
+                        plot_title="MSE Score Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst,
+                                                                                                       config.timeDim), path=pic_path)
 
 
 if __name__ == "__main__":

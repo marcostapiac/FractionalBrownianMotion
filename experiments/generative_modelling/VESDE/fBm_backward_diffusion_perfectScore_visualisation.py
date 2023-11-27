@@ -48,18 +48,7 @@ if __name__ == "__main__":
     config.std_min = 0.01
     config.timeDim = 256
     config.max_diff_steps = 20000
-    config.gif_save_freq = 40
+    config.gif_save_freq = 100
     config.std_max = 20.
     config.dim1 = 0
     config.dim2 = 1
-
-    # Run experiments
-    run(config)
-
-    config.dim1=1
-    config.dim2 =2
-    run(config)
-
-    config.dim1 = 254
-    config.dim2 = 255
-    run(config)

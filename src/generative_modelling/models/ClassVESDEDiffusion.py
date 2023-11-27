@@ -77,6 +77,20 @@ class VESDEDiffusion(nn.Module):
         vars = var_min * torch.pow((var_max / var_min), diff_index / (max_diff_steps - 1))
         return vars
 
+    def get_ancestral_drift_coeff(self, max_diff_steps: torch.Tensor, diff_index: torch.Tensor):
+        """
+        Function to compute the noise term in front of score in VESDE model
+        :param max_diff_steps: Maximum number of diffusion steps
+        :param diff_index: FORWARD diffusion index
+        :return: Noise term
+        """
+        device = diff_index.device
+        curr_var = self.get_ancestral_var(max_diff_steps=max_diff_steps, diff_index=max_diff_steps - 1 - diff_index)
+        next_var = self.get_ancestral_var(max_diff_steps=max_diff_steps,
+                                          diff_index=max_diff_steps - 1 - diff_index - 1)
+        noise_diff = curr_var - (next_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]).to(device))
+        return noise_diff
+
     def get_ancestral_drift(self, x: torch.Tensor, pred_score: torch.Tensor, diff_index: torch.Tensor,
                             max_diff_steps: torch.Tensor) -> torch.Tensor:
         """
@@ -87,11 +101,7 @@ class VESDEDiffusion(nn.Module):
             :param max_diff_steps: Maximum number of diffusion steps
             :return: Drift
         """
-        device = diff_index.device
-        curr_var = self.get_ancestral_var(max_diff_steps=max_diff_steps, diff_index=max_diff_steps - 1 - diff_index)
-        next_var = self.get_ancestral_var(max_diff_steps=max_diff_steps,
-                                          diff_index=max_diff_steps - 1 - diff_index - 1)
-        noise_diff = curr_var - (next_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]).to(device))
+        noise_diff = self.get_ancestral_drift_coeff(max_diff_steps=max_diff_steps, diff_index=diff_index)
         return x + noise_diff * pred_score
 
     def get_ancestral_diff(self, diff_index: torch.Tensor, max_diff_steps: torch.Tensor) -> torch.Tensor:
@@ -105,7 +115,7 @@ class VESDEDiffusion(nn.Module):
         curr_var = self.get_ancestral_var(max_diff_steps=max_diff_steps, diff_index=max_diff_steps - 1 - diff_index)
         next_var = self.get_ancestral_var(max_diff_steps=max_diff_steps,
                                           diff_index=max_diff_steps - 1 - diff_index - 1)
-        noise_diff = curr_var - (next_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]).to(device))
+        noise_diff = self.get_ancestral_drift_coeff(max_diff_steps=max_diff_steps, diff_index=diff_index)
         return torch.sqrt(
             noise_diff * next_var / curr_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]).to(device))
 

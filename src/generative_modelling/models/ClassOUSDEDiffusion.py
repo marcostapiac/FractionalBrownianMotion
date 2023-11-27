@@ -75,6 +75,3 @@ class OUSDEDiffusion(nn.Module):
             diffusion = np.sqrt(-dt)
         return predicted_score, drift, diffusion
 
-    def conditional_reverse_sde(self):
-        # TODO
-        pass

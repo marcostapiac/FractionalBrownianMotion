@@ -1,6 +1,6 @@
 import ast
 import pickle
-from typing import Union
+from typing import Union, Tuple
 
 import numpy as np
 import pandas as pd
@@ -39,13 +39,13 @@ def prepare_sines_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VE
         :return: Trained score network
     """
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs"+str(config.max_epochs)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
     except FileNotFoundError as e:
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
         training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
         try:
             data = np.load(config.data_path, allow_pickle=True)
-            assert(data.shape[0] >= training_size)
+            assert (data.shape[0] >= training_size)
         except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
             data = generate_sine_dataset(T=config.timeDim, S=training_size, rng=rng)
@@ -53,11 +53,11 @@ def prepare_sines_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VE
         finally:
             data = data.cumsum(axis=1)[:training_size, :]
             train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
-            scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path+"_Nepochs"+str(config.max_epochs)))
+            scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
 
     if config.test_pred_lstm:
         try:
-            torch.load(config.pred_lstm_trained_path+ "_Nepochs"+str(config.pred_lstm_max_epochs))
+            torch.load(config.pred_lstm_trained_path + "_Nepochs" + str(config.pred_lstm_max_epochs))
         except FileNotFoundError as e:
             print("Error {}; training predictive LSTM\n".format(e))
             pred = PredictiveLSTM(ts_dim=1)
@@ -68,7 +68,7 @@ def prepare_sines_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VE
             train_and_save_predLSTM(data=synthetic.cpu().numpy(), config=config, model=pred)
     if config.test_disc_lstm:
         try:
-            torch.load(config.disc_lstm_trained_path+"_Nepochs"+str(config.disc_lstm_max_epochs))
+            torch.load(config.disc_lstm_trained_path + "_Nepochs" + str(config.disc_lstm_max_epochs))
         except FileNotFoundError as e:
             print("Error {}; training discriminative LSTM\n".format(e))
             disc = DiscriminativeLSTM(ts_dim=1)
@@ -110,8 +110,9 @@ def run_sines_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDEDi
         agg_dict[j] = exp_dict
     df = pd.DataFrame.from_dict(data=agg_dict)
     df.index = config.exp_keys
-    df.to_csv(config.experiment_path+"_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip", index=True)
-    print(pd.read_csv(config.experiment_path+"_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip", index_col=[0]))
+    df.to_csv(config.experiment_path + "_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip", index=True)
+    print(pd.read_csv(config.experiment_path + "_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip",
+                      index_col=[0]))
 
 
 def evaluate_sines_performance(true_samples: np.ndarray, generated_samples: np.ndarray, rng: np.random.Generator,
@@ -183,7 +184,7 @@ def prepare_fBm_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESD
         :return: Trained score network
     """
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path+"_Nepochs"+str(config.max_epochs)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
     except FileNotFoundError as e:
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
         training_size = int(min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000))
@@ -197,11 +198,11 @@ def prepare_fBm_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESD
         finally:
             data = data.cumsum(axis=1)[:training_size, :]
             train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
-            scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path+"_Nepochs"+str(config.max_epochs)))
+            scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
 
     if config.test_pred_lstm:
         try:
-            torch.load(config.pred_lstm_trained_path+"_Nepochs"+str(config.pred_lstm_max_epochs))
+            torch.load(config.pred_lstm_trained_path + "_Nepochs" + str(config.pred_lstm_max_epochs))
         except FileNotFoundError as e:
             print("Error {}; training predictive LSTM\n".format(e))
             pred = PredictiveLSTM(ts_dim=1)
@@ -212,7 +213,7 @@ def prepare_fBm_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESD
             train_and_save_predLSTM(data=synthetic.cpu().numpy(), config=config, model=pred)
     if config.test_disc_lstm:
         try:
-            torch.load(config.disc_lstm_trained_path+"_Nepochs"+str(config.disc_lstm_max_epochs))
+            torch.load(config.disc_lstm_trained_path + "_Nepochs" + str(config.disc_lstm_max_epochs))
         except FileNotFoundError as e:
             print("Error {}; training discriminative LSTM\n".format(e))
             disc = DiscriminativeLSTM(ts_dim=1)
@@ -253,9 +254,10 @@ def run_fBm_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDEDiff
         agg_dict[j] = exp_dict
     df = pd.DataFrame.from_dict(data=agg_dict)
     df.index = config.exp_keys
-    df.to_csv(config.experiment_path+"_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip",
+    df.to_csv(config.experiment_path + "_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip",
               index=True)
-    print(pd.read_csv(config.experiment_path+"_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip", index_col=[0]))
+    print(pd.read_csv(config.experiment_path + "_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip",
+                      index_col=[0]))
 
 
 def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.ndarray, rng: np.random.Generator,
@@ -352,20 +354,20 @@ def prepare_circle_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, V
             :return: Trained score network
         """
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path+"_Nepochs"+str(config.max_epochs)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
     except FileNotFoundError as e:
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
         training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
         try:
             data = np.load(config.data_path, allow_pickle=True)
-            assert(data.shape[0] >= training_size)
+            assert (data.shape[0] >= training_size)
         except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
             data = generate_circles(S=training_size, noise=config.cnoise)
             np.save(config.data_path, data)  # TODO is this the most efficient way
         finally:
             train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
-            scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path+"_Nepochs"+str(config.max_epochs)))
+            scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
     return scoreModel
 
 
@@ -397,8 +399,9 @@ def run_circle_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDED
         agg_dict[j] = exp_dict
     df = pd.DataFrame.from_dict(data=agg_dict)
     df.index = config.exp_keys
-    df.to_csv(config.experiment_path+"_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip", index=True)
-    print(pd.read_csv(config.experiment_path+"_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip", index_col=[0]))
+    df.to_csv(config.experiment_path + "_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip", index=True)
+    print(pd.read_csv(config.experiment_path + "_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip",
+                      index_col=[0]))
 
 
 def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.ndarray, config: ConfigDict,
@@ -458,8 +461,14 @@ def run_fBm_score_error_experiment(dataSize: int,
         """
     try:
         assert (config.train_eps <= config.sample_eps)
-    except AssertionError:
-        raise ValueError("Final time during sampling should be at least as large as final time during training")
+    except AssertionError as e:
+        raise ValueError(
+            "Error {};Final time during sampling should be at least as large as final time during training\n".format(e))
+    try:
+        assert (config.predictor_model == "ancestral")
+    except AssertionError as e:
+        print("Error {}; only ancestral sampling is supported currently\n".format(e))
+
     if config.has_cuda:
         device = torch.device(0)
     else:
@@ -473,7 +482,8 @@ def run_fBm_score_error_experiment(dataSize: int,
     # Placeholder
     errors = torch.zeros(size=(config.max_diff_steps, config.timeDim))
 
-    timesteps = torch.linspace(start=config.end_diff_time, end=config.sample_eps, steps=config.max_diff_steps).to(device)
+    timesteps = torch.linspace(start=config.end_diff_time, end=config.sample_eps, steps=config.max_diff_steps).to(
+        device)
     x = diffusion.prior_sampling(shape=(dataSize, config.timeDim)).to(device)  # Move to correct device
     scoreModel.eval()
     scoreModel.to(device)
@@ -482,31 +492,106 @@ def run_fBm_score_error_experiment(dataSize: int,
         diff_index = torch.Tensor([i]).to(device)
 
         # Obtain required diffusion parameters
-        if config.predictor_model == "ancestral":
-            pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[diff_index.long()] * torch.ones(
-                (x.shape[0], 1)).to(device), score_network=scoreModel, diff_index=diff_index,
-                                                                                  max_diff_steps=config.max_diff_steps)
-        else:
-            dt = -config.end_diff_time / config.max_diff_steps
-            pred_score, drift, diffusion_param = diffusion.get_reverse_sde(x, score_network=scoreModel,
-                                                                           t=timesteps[diff_index.long()] * torch.ones(
-                                                                               (x.shape[0], 1)).to(device),
-                                                                           dt=torch.Tensor([dt]).to(device))
-        max_diff_steps = torch.Tensor([config.max_diff_steps]).to(device)
-        eff_time = diffusion.get_eff_times(diff_times=(max_diff_steps - 1 - diff_index) / (max_diff_steps - 1))
+        pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[
+                                                                                       diff_index.long()] * torch.ones(
+            (x.shape[0], 1)).to(device), score_network=scoreModel, diff_index=diff_index,
+                                                                              max_diff_steps=config.max_diff_steps)
+        eff_time = diffusion.get_eff_times(diff_times=timesteps[diff_index.long()])
         if isinstance(diffusion, VESDEDiffusion):
             inv_cov = -torch.linalg.inv(eff_time * torch.eye(config.timeDim).to(device) + fBm_cov)
         else:
-            inv_cov = -torch.linalg.inv((1. - torch.exp(-eff_time)) * torch.eye(config.timeDim).to(device) + torch.exp(-eff_time) * fBm_cov)
+            inv_cov = -torch.linalg.inv(
+                (1. - torch.exp(-eff_time)) * torch.eye(config.timeDim).to(device) + torch.exp(-eff_time) * fBm_cov)
 
-        exp_score = (inv_cov@x.T).T
+        exp_score = (inv_cov @ x.T).T
 
-        errors[config.max_diff_steps - 1 - i, :] = torch.pow(torch.linalg.norm(pred_score - exp_score, ord=2, axis=0),2).detach().cpu()
+        errors[config.max_diff_steps - 1 - i, :] = torch.pow(torch.linalg.norm(pred_score - exp_score, ord=2, axis=0),
+                                                             2).detach().cpu()
 
         # One-step reverse-time SDE
         x = drift + diffusion_param * torch.randn_like(x)
 
     return errors
+
+
+def run_fBm_backward_drift_experiment(dataSize: int,
+                                      diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion],
+                                      scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], rng: np.random.Generator,
+                                      config: ConfigDict) -> Tuple[torch.Tensor, torch.Tensor]:
+    """
+    Visualise the error between drifts
+        :param dataSize: Size of output data
+        :param diffusion: Diffusion model
+        :param scoreModel: Trained score network
+        :param rng: Default random number generator
+        :param config: ML configuration file
+        :return: Tensor of errors over time and space
+    """
+    try:
+        assert (config.train_eps <= config.sample_eps)
+    except AssertionError as e:
+        raise ValueError(
+            "Error {}; Final time during sampling should be at least as large as final time during training\n".format(
+                e))
+    try:
+        assert (config.predictor_model == "ancestral")
+    except AssertionError as e:
+        print("Error {}; only ancestral sampling is supported currently\n".format(e))
+
+    if config.has_cuda:
+        device = torch.device(0)
+    else:
+        device = torch.device("cpu")
+
+    # Compute covariance function to compute exact score afterwards
+    fBm_cov = torch.from_numpy(
+        compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim, isUnitInterval=True)).to(
+        torch.float32).to(device)
+
+    # Placeholder
+    drift_errors = torch.zeros(size=(config.max_diff_steps, config.timeDim))
+    score_only_errors = torch.zeros(size=(config.max_diff_steps, config.timeDim))
+
+    timesteps = torch.linspace(start=config.end_diff_time, end=config.sample_eps, steps=config.max_diff_steps).to(
+        device)
+    x = diffusion.prior_sampling(shape=(dataSize, config.timeDim)).to(device)  # Move to correct device
+
+    scoreModel.eval()
+    scoreModel.to(device)
+    for i in tqdm(iterable=(range(0, config.max_diff_steps)), dynamic_ncols=False,
+                  desc="Sampling for Score Error Visualisation :: ", position=0):
+        diff_index = torch.Tensor([i]).to(device)
+        max_diff_steps = torch.Tensor([config.max_diff_steps]).to(device)
+
+        # Obtain required diffusion parameters
+        _, pred_drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[diff_index.long()] * torch.ones(
+            (x.shape[0], 1)).to(device), score_network=scoreModel, diff_index=diff_index,
+                                                                                   max_diff_steps=config.max_diff_steps)
+        eff_time = diffusion.get_eff_times(diff_times=timesteps[diff_index.long()])
+        if isinstance(diffusion, VESDEDiffusion):
+            inv_cov = -torch.linalg.inv(eff_time * torch.eye(config.timeDim).to(device) + fBm_cov)
+            score_only_pred_drift = pred_drift - x
+            exp_score_only_drift = (diffusion.get_ancestral_drift_coeff(max_diff_steps=max_diff_steps, diff_index=diff_index)) * (inv_cov @ x.T).T
+
+            exp_drift = x + exp_score_only_drift
+        else:
+            inv_cov = -torch.linalg.inv(
+                (1. - torch.exp(-eff_time)) * torch.eye(config.timeDim).to(device) + torch.exp(-eff_time) * fBm_cov)
+            beta_t = diffusion.get_discretised_beta(max_diff_steps - 1 - diff_index, max_diff_steps)
+            score_only_pred_drift = pred_drift - x*(2.-torch.sqrt(1.-beta_t))
+            exp_score_only_drift =  (beta_t * (inv_cov @ x.T).T)
+            exp_drift = x*(2.-torch.sqrt(1.-beta_t))+ exp_score_only_drift
+
+        drift_errors[config.max_diff_steps - 1 - i, :] = torch.pow(torch.linalg.norm(pred_drift - exp_drift, ord=2, axis=0),
+                                                             2).detach().cpu()
+        score_only_errors[config.max_diff_steps - 1 - i, :] = torch.pow(
+            torch.linalg.norm(score_only_pred_drift - exp_score_only_drift, ord=2, axis=0),
+            2).detach().cpu()
+
+        # One-step reverse-time SDE
+        x = pred_drift + diffusion_param * torch.randn_like(x)
+
+    return drift_errors, score_only_errors
 
 
 def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
@@ -528,6 +613,16 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
         assert (dim_pair.shape[0] == 2)
     except AssertionError:
         raise ValueError("You can only choose a pair of dimensions to plot\n")
+    try:
+        assert (config.train_eps <= config.sample_eps)
+    except AssertionError as e:
+        raise ValueError(
+            "Error {}; Final time during sampling should be at least as large as final time during training\n".format(
+                e))
+    try:
+        assert (config.predictor_model == "ancestral")
+    except AssertionError as e:
+        print("Error {}; only ancestral sampling is supported currently\n".format(e))
     if config.has_cuda:
         device = torch.device(0)
     else:
@@ -546,7 +641,7 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
     for i in tqdm(iterable=(range(0, config.max_diff_steps)), dynamic_ncols=False,
                   desc="Sampling for Backward Diffusion Visualisation :: ", position=0):
         diff_index = torch.Tensor([i]).to(device)
-        eff_time = diffusion.get_eff_times(diff_times = timesteps[diff_index.long()])
+        eff_time = diffusion.get_eff_times(diff_times=timesteps[diff_index.long()])
 
         if isinstance(diffusion, VESDEDiffusion):
             diffType = "VESDE"
@@ -555,18 +650,11 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
             diffType = "VPSDE"
             cov = (1. - torch.exp(-eff_time)) * torch.eye(config.timeDim).to(device) + torch.exp(-eff_time) * fBm_cov
 
-        if config.predictor_model == "ancestral":
-            pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[
-                                                                                           diff_index.long()] * torch.ones(
-                (x.shape[0], 1)).to(device), score_network=scoreModel, diff_index=diff_index,
-                                                                                  max_diff_steps=config.max_diff_steps)
-        else:
-            dt = -config.end_diff_time / config.max_diff_steps
-            pred_score, drift, diffusion_param = diffusion.get_reverse_sde(x, score_network=scoreModel,
-                                                                           t=timesteps[diff_index.long()] * torch.ones(
-                                                                               (x.shape[0], 1)).to(device),
-                                                                           dt=torch.Tensor([dt]).to(device))
-        if i % config.gif_save_freq == 0 or i == (config.max_diff_steps - 1):
+        pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[
+                                                                                       diff_index.long()] * torch.ones(
+            (x.shape[0], 1)).to(device), score_network=scoreModel, diff_index=diff_index,
+                                                                              max_diff_steps=config.max_diff_steps)
+        """if i % config.gif_save_freq == 0 or i == (config.max_diff_steps - 1):
             save_path = folderPath + gifPath + "_diffIndex_{}.png".format(i + 1)
             xlabel = "fBm Dimension {}".format(dim_pair[0] + 1)
             ylabel = "fBm Dimension {}".format(dim_pair[1] + 1)
@@ -577,9 +665,10 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
                 device)
             plot_and_save_diffused_fBm_snapshot(samples=x[:, dim_pair].cpu(), cov=paired_cov.cpu(), save_path=save_path,
                                                 x_label=xlabel,
-                                                y_label=ylabel, plot_title=plot_title)
+                                                y_label=ylabel, plot_title=plot_title)"""
 
         x = drift + diffusion_param * torch.randn_like(x)
+    return x
 
 
 def run_fBm_perfect_score(dataSize: int, dim_pair: torch.Tensor,
@@ -628,7 +717,7 @@ def run_fBm_perfect_score(dataSize: int, dim_pair: torch.Tensor,
             cov = (1. - torch.exp(-eff_time)) * torch.eye(dim_pair.shape[0]).to(device) + torch.exp(-eff_time) * fBm_cov
 
         # Compute exact score
-        exp_score = (-torch.linalg.inv(cov)@x.T).T
+        exp_score = (-torch.linalg.inv(cov) @ x.T).T
         if perfect_config.predictor_model == "ancestral":
             drift = diffusion.get_ancestral_drift(x=x, pred_score=exp_score, diff_index=diff_index,
                                                   max_diff_steps=max_diff_steps)
@@ -646,3 +735,4 @@ def run_fBm_perfect_score(dataSize: int, dim_pair: torch.Tensor,
                                                 y_label=ylabel, plot_title=plot_title)
 
         x = drift + diffusion_param * torch.randn_like(x)
+    return x

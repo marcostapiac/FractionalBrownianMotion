@@ -7,7 +7,7 @@ from matplotlib import pyplot as plt
 from ml_collections import ConfigDict
 from scipy.stats import ks_2samp
 
-from utils.plotting_functions import plot_histogram
+from utils.plotting_functions import plot_histogram, plot_and_save_boxplot
 
 
 def plot_fBm_results_from_csv(config: ConfigDict) -> None:
@@ -24,9 +24,9 @@ def plot_fBm_results_from_csv(config: ConfigDict) -> None:
     #                      dataLabels=[None], toSave=False, saveName="")
 
     # Covariance Abs Difference
-    # plot_and_save_boxplot(data=df.loc[config.exp_keys[1]].astype(float).to_numpy(), xlabel="1",
-    #                      ylabel=config.exp_keys[1], title_plot="Absolute Percentage Difference in Covariance Matrix",
-    #                      dataLabels=[None], toSave=False, saveName="")
+    plot_and_save_boxplot(data=df.loc[config.exp_keys[1]].astype(float).to_numpy(), xlabel="1",
+                          ylabel=config.exp_keys[1], title_plot="Absolute Percentage Difference in Covariance Matrix",
+                          dataLabels=[None], toSave=False, saveName="")
 
     # Exact Sample Chi2 Test Statistic Histogram
     dfs = config.timeDim
