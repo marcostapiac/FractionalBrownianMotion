@@ -571,7 +571,7 @@ def compare_fBm_to_normal(h: float, generated_samples: np.ndarray, td: int, rng:
               image_path=project_config.ROOT_DIR + "pngs/tSNE_normal_vs_generatedfBm_H{:.3e}_T{}".format(h, td))
 
 
-def plot_errors_ts(diff_time_space: np.ndarray, errors: np.ndarray, plot_title: str, path:str) -> None:
+def plot_errors_ts(diff_time_space: np.ndarray, errors: np.ndarray, plot_title: str, path: str) -> None:
     """
     Plot error over time, averaged over many samples at each point in time.
         :param diff_time_space: Diffusion time space
@@ -588,7 +588,7 @@ def plot_errors_ts(diff_time_space: np.ndarray, errors: np.ndarray, plot_title: 
     plt.show()
 
 
-def plot_errors_heatmap(errors: np.ndarray, plot_title: str, path:str) -> None:
+def plot_errors_heatmap(errors: np.ndarray, plot_title: str, path: str) -> None:
     """
     Plot heat map of errors over time and space
         :param errors: Matrix with errors over space and time
@@ -625,7 +625,8 @@ def make_gif(frame_folder_path: str, process_str_path: str) -> None:
                    duration=1000, loop=1)
 
 
-def plot_and_save_diffused_fBm_snapshot(samples:torch.Tensor,  cov:torch.Tensor, save_path:str, x_label:str, y_label:str, plot_title:str)->None:
+def plot_and_save_diffused_fBm_snapshot(samples: torch.Tensor, cov: torch.Tensor, save_path: str, x_label: str,
+                                        y_label: str, plot_title: str) -> None:
     """
     Function to save figure of diffusion samples scatter plot and contours of theoretical marginal
         :param samples: Samples for scatter plot
@@ -638,8 +639,10 @@ def plot_and_save_diffused_fBm_snapshot(samples:torch.Tensor,  cov:torch.Tensor,
     """
     d1, d2 = samples[:, 0], samples[:, 1]
     expected_dist = stats.multivariate_normal(mean=None, cov=cov)
-    t =(np.linspace(stats.norm(loc=0, scale=np.sqrt(cov[0,0])).ppf(0.001),stats.norm(loc=0, scale=np.sqrt(cov[0,0])).ppf(0.999), 500))
-    h = (np.linspace(stats.norm(loc=0, scale=np.sqrt(cov[1,1])).ppf(0.001),stats.norm(loc=0, scale=np.sqrt(cov[1,1])).ppf(0.999), 500))
+    t = (np.linspace(stats.norm(loc=0, scale=np.sqrt(cov[0, 0])).ppf(0.001),
+                     stats.norm(loc=0, scale=np.sqrt(cov[0, 0])).ppf(0.999), 500))
+    h = (np.linspace(stats.norm(loc=0, scale=np.sqrt(cov[1, 1])).ppf(0.001),
+                     stats.norm(loc=0, scale=np.sqrt(cov[1, 1])).ppf(0.999), 500))
     z = expected_dist.pdf(np.dstack(np.meshgrid(t, h)))
     fig, ax = plt.subplots()
     ax.contour(t, h, z, levels=100, alpha=0.6)
@@ -649,3 +652,53 @@ def plot_and_save_diffused_fBm_snapshot(samples:torch.Tensor,  cov:torch.Tensor,
     ax.set_title(plot_title)
     plt.savefig(save_path, bbox_inches="tight")
     plt.close()
+
+
+def pairplot(samples: torch.Tensor, row_idxs: np.ndarray, col_idxs: np.ndarray, cov: torch.Tensor, image_path: str,
+             suptitle: str) -> None:
+    """
+    Function to produce correlation matrix pairplots
+    :param samples: Data
+    :param row_idxs: Dimensions along row
+    :param col_idxs: Dimensions along columns
+    :param cov: Covariance matrix
+    :param image_path: Save path for image
+    :param suptitle: Title for image
+    :return: None
+    """
+    device = samples.device
+    fig, ax = plt.subplots(row_idxs.shape[0], col_idxs.shape[0], squeeze=False)
+    N = row_idxs.shape[0]
+    M = col_idxs.shape[0]
+    for idrow in range(N):
+        ax[idrow, 0].set_ylabel("Dim {}".format(row_idxs[idrow] + 1))
+        row_dim = row_idxs[idrow]
+        for idcol in range(idrow, M):
+            col_dim = col_idxs[idcol]
+            if row_dim == col_dim:
+                ax[idrow, idcol].hist(samples[:, row_dim], bins=100, density=True)
+                std = torch.sqrt(cov[row_dim, row_dim])
+                linspace = np.linspace(stats.norm.ppf(0.001, loc=0, scale=std), stats.norm.ppf(0.999, loc=0, scale=std),
+                                       500)
+                expected_pdf = stats.norm.pdf(linspace, loc=0, scale=std)
+                ax[idrow, idcol].plot(linspace, expected_pdf)
+            else:
+                dim_pair = torch.Tensor(np.array([row_dim, col_dim])).to(torch.int32).to(device)
+                d1, d2 = samples[:, row_dim], samples[:, col_dim]
+                paired_cov = torch.index_select(torch.index_select(cov, dim=0, index=dim_pair), dim=1, index=dim_pair)
+                expected_dist = stats.multivariate_normal(mean=None, cov=paired_cov)
+                t = (np.linspace(stats.norm(loc=0, scale=np.sqrt(paired_cov[0, 0])).ppf(0.001),
+                                 stats.norm(loc=0, scale=np.sqrt(paired_cov[0, 0])).ppf(0.999), 500))
+                h = (np.linspace(stats.norm(loc=0, scale=np.sqrt(paired_cov[1, 1])).ppf(0.001),
+                                 stats.norm(loc=0, scale=np.sqrt(paired_cov[1, 1])).ppf(0.999), 500))
+                z = expected_dist.pdf(np.dstack(np.meshgrid(t, h)))
+                ax[idrow, idcol].contour(t, h, z, levels=100, alpha=0.6)
+                ax[idrow, idcol].scatter(d1, d2, s=2, color="red")
+                ax[idrow, idcol].tick_params(which="both", bottom=False, top=False)
+        if idrow == (N - 1):
+            for j in range(M):
+                ax[idrow, j].set_xlabel("Dim {}".format(col_idxs[j] + 1))
+
+    plt.suptitle(suptitle)
+    plt.savefig(image_path)
+    plt.show()

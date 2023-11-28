@@ -1,13 +1,14 @@
-import ast
 import pickle
+import time
 from typing import Union, Tuple
 
 import numpy as np
 import pandas as pd
 import torch
+from matplotlib import pyplot as plt
 from ml_collections import ConfigDict
 from tqdm import tqdm
-
+import seaborn as sns
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.evaluation_pipeline.classes.DiscriminativeLSTM.ClassDiscriminativeLSTM import DiscriminativeLSTM
 from src.evaluation_pipeline.classes.PredictiveLSTM.ClassPredictiveLSTM import PredictiveLSTM
@@ -579,7 +580,7 @@ def run_fBm_backward_drift_experiment(dataSize: int,
                 (1. - torch.exp(-eff_time)) * torch.eye(config.timeDim).to(device) + torch.exp(-eff_time) * fBm_cov)
             beta_t = diffusion.get_discretised_beta(max_diff_steps - 1 - diff_index, max_diff_steps)
             score_only_pred_drift = pred_drift - x*(2.-torch.sqrt(1.-beta_t))
-            exp_score_only_drift =  (beta_t * (inv_cov @ x.T).T)
+            exp_score_only_drift = (beta_t * (inv_cov @ x.T).T)
             exp_drift = x*(2.-torch.sqrt(1.-beta_t))+ exp_score_only_drift
 
         drift_errors[config.max_diff_steps - 1 - i, :] = torch.pow(torch.linalg.norm(pred_drift - exp_drift, ord=2, axis=0),
@@ -596,7 +597,7 @@ def run_fBm_backward_drift_experiment(dataSize: int,
 
 def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
                   diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion], folderPath: str, gifPath: str,
-                  rng: np.random.Generator, config: ConfigDict) -> None:
+                  rng: np.random.Generator, config: ConfigDict) -> torch.Tensor:
     """
     Run reverse-time diffusion and plot scatter plot for neighbouring dimensions and compare with theoretical contours
         :param dataSize: Size of output data
@@ -654,7 +655,7 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
                                                                                        diff_index.long()] * torch.ones(
             (x.shape[0], 1)).to(device), score_network=scoreModel, diff_index=diff_index,
                                                                               max_diff_steps=config.max_diff_steps)
-        """if i % config.gif_save_freq == 0 or i == (config.max_diff_steps - 1):
+        if i % config.gif_save_freq == 0 or i == (config.max_diff_steps - 1):
             save_path = folderPath + gifPath + "_diffIndex_{}.png".format(i + 1)
             xlabel = "fBm Dimension {}".format(dim_pair[0] + 1)
             ylabel = "fBm Dimension {}".format(dim_pair[1] + 1)
@@ -665,10 +666,80 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
                 device)
             plot_and_save_diffused_fBm_snapshot(samples=x[:, dim_pair].cpu(), cov=paired_cov.cpu(), save_path=save_path,
                                                 x_label=xlabel,
-                                                y_label=ylabel, plot_title=plot_title)"""
+                                                y_label=ylabel, plot_title=plot_title)
 
         x = drift + diffusion_param * torch.randn_like(x)
     return x
+
+
+def run_fBm_scatter_matrix(dataSize: int, scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
+                  diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion], folderPath: str, gifPath: str,
+                  rng: np.random.Generator, config: ConfigDict)->None:
+    """
+        Run reverse-time diffusion and plot scatter plot for neighbouring dimensions and compare with theoretical contours
+            :param dataSize: Size of output data
+            :param dim_pair: Vector of dimensions of interest
+            :param scoreModel: Trained score network
+            :param diffusion: Diffusion model
+            :param folderPath: Path to folder to save images
+            :param gifPath: Path to save GIF
+            :param rng: Default random number generator
+            :param config: ML configuration file
+            :return: None
+        """
+    try:
+        assert (config.train_eps <= config.sample_eps)
+    except AssertionError as e:
+        raise ValueError(
+            "Error {}; Final time during sampling should be at least as large as final time during training\n".format(
+                e))
+    try:
+        assert (config.predictor_model == "ancestral")
+    except AssertionError as e:
+        print("Error {}; only ancestral sampling is supported currently\n".format(e))
+    if config.has_cuda:
+        device = torch.device(0)
+    else:
+        device = torch.device("cpu")
+
+    x = diffusion.prior_sampling(shape=(dataSize, config.timeDim)).to(device)  # Move to correct device
+
+    fBm_cov = torch.from_numpy(
+        compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim, isUnitInterval=True)).to(
+        torch.float32).to(device)
+    timesteps = torch.linspace(start=config.end_diff_time, end=config.sample_eps, steps=config.max_diff_steps).to(
+        device)
+    scoreModel.to(device)
+    scoreModel.eval()
+    for i in tqdm(iterable=(range(0, config.max_diff_steps)), dynamic_ncols=False,
+                  desc="Sampling for Backward Diffusion Visualisation :: ", position=0):
+        diff_index = torch.Tensor([i]).to(device)
+        eff_time = diffusion.get_eff_times(diff_times=timesteps[diff_index.long()])
+
+        if isinstance(diffusion, VESDEDiffusion):
+            diffType = "VESDE"
+            cov = eff_time * torch.eye(config.timeDim).to(device) + fBm_cov
+        else:
+            diffType = "VPSDE"
+            cov = (1. - torch.exp(-eff_time)) * torch.eye(config.timeDim).to(device) + torch.exp(-eff_time) * fBm_cov
+
+        pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[
+                                                                                       diff_index.long()] * torch.ones(
+            (x.shape[0], 1)).to(device), score_network=scoreModel, diff_index=diff_index,
+                                                                              max_diff_steps=config.max_diff_steps)
+        if (i >= config.idx_start_save) and (i % config.gif_save_freq == 0 or i == (config.max_diff_steps - 1)):
+            row_vars = config.row_idxs
+            col_vars = config.col_idxs
+            save_path = folderPath + gifPath + "_diffIndex_{}.png".format(i + 1)
+            title = "Rev-Time {} samples $T={}$ at time {}".format(diffType, config.timeDim, round((i + 1) / config.max_diff_steps,5))
+            pairplot(x, row_idxs=row_vars, col_idxs=col_vars, cov=cov, image_path=save_path, suptitle=title)
+
+        x = drift + diffusion_param * torch.randn_like(x)
+    return x
+
+
+
+
 
 
 def run_fBm_perfect_score(dataSize: int, dim_pair: torch.Tensor,
