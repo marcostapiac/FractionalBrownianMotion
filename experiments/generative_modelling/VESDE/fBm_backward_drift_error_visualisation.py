@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import torch
 from ml_collections import ConfigDict
 
@@ -39,6 +40,11 @@ def run(config: ConfigDict):
         ".", "")
     score_only_drift_pic_path = drift_pic_path.replace("DriftErrorsTS", "ScoreOnlyDriftErrorsTS")
 
+    pd.DataFrame(data=drift_errors).to_csv(drift_pic_path+".csv.gzip", compression="gzip", index=True)
+    pd.DataFrame(data=score_only_drift_errors).to_csv(score_only_drift_pic_path+".csv.gzip", compression="gzip", index=True)
+    print(pd.read_csv(drift_pic_path+".csv.gzip", compression="gzip",index_col=[0]))
+    print(pd.read_csv(score_only_drift_pic_path+".csv.gzip", compression="gzip",index_col=[0]))
+
     time_dim_drift_errors = drift_errors.mean(axis=1).reshape((config.max_diff_steps, 1))
     time_dim_score_only_drift_errors = score_only_drift_errors.mean(axis=1).reshape((config.max_diff_steps, 1))
 
@@ -59,7 +65,7 @@ def run(config: ConfigDict):
     score_only_drift_hm_path = drift_hm_path.replace("DriftErrorsHM", "ScoreOnlyDriftErrorsHM")
 
     start_index = int(0. * config.max_diff_steps)
-    end_index = int(.05 * config.max_diff_steps)
+    end_index = int(min(.05 * config.max_diff_steps, 20))
     plot_errors_heatmap(drift_errors[start_index:end_index, :],
                         plot_title="MSE Drift Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst,
                                                                                                         config.timeDim),
@@ -74,7 +80,7 @@ def run(config: ConfigDict):
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.VESDE.fBm_T2_H07 import get_config
+    from configs.VESDE.fBm_T256_H07 import get_config
 
     config = get_config()
     assert (0. < config.hurst < 1.)
