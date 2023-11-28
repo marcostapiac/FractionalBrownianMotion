@@ -55,7 +55,7 @@ def run_early_stopping(config:ConfigDict)->None:
     print("No early stopping synth:", np.mean(no_stop_synth_Hs), np.std(no_stop_synth_Hs))
     keys = ["True Hs", "Synthetic Hs", "No Early Stop Hs"]
     results_dict = {keys[0]:true_Hs,keys[1]:synth_Hs, keys[2]: no_stop_synth_Hs}
-    df = pd.DataFrame.from_dict(data=results_dict, columns=keys)
+    df = pd.DataFrame.from_dict(data=results_dict)
     df.to_csv(config.experiment_path + "EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip", index=True)
     print(pd.read_csv(config.experiment_path + "EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip",
                       index_col=[0]))
@@ -65,5 +65,5 @@ if __name__ == "__main__":
     config = get_config()
     assert(0<config.hurst<1)
     assert(config.early_stop_idx == 1)
-    config.dataSize = 10
+    config.dataSize = 10000
     run_early_stopping(config)
