@@ -53,14 +53,14 @@ scoreModel = TimeSeriesScoreMatching(*config.model_parameters) if config.model_c
 scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
 true_Hs = []
 fbn = FractionalBrownianNoise(H=H, rng=rng)
-config.dataSize = 5000
+config.dataSize = 10000
 synth_samples = np.zeros((config.dataSize, T))
 exact_samples = np.zeros((config.dataSize, T))
 for j in tqdm(range(config.dataSize)):
     exact_samples[j,:] = fbn.circulant_simulation(N_samples=T)
 
 synth_samples = reverse_sampling(data_shape=(config.dataSize, config.timeDim), diffusion=diffusion, scoreModel=scoreModel,
-                          config=config).numpy().reshape((config.dataSize,T))
+                          config=config).cpu().numpy().reshape((config.dataSize,T))
 true_Hs = []
 synth_Hs = []
 synth_Hs_no_mean = []
