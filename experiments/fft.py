@@ -88,15 +88,18 @@ print("Synth Mean Removed:",np.mean(synth_Hs_no_mean), np.std(synth_Hs_no_mean))
 fig, ax = plt.subplots()
 plot_histogram(np.array(true_Hs), num_bins=100, xlabel="H", ylabel="density",
                    plottitle="Histogram of exact samples' estimated Hurst parameter", fig=fig, ax=ax)
+plt.savefig("myplot1.png")
 plt.show()
 
 fig, ax = plt.subplots()
 plot_histogram(np.array(synth_Hs), num_bins=100, xlabel="H", ylabel="density",
                    plottitle="Histogram of synth samples' estimated Hurst parameter", fig=fig, ax=ax)
+plt.savefig("myplot2.png")
 plt.show()
 
 fig, ax = plt.subplots()
 plot_histogram(np.array(synth_Hs_no_mean), num_bins=100, xlabel="H", ylabel="density",
                    plottitle="Histogram of synth samples' mean-reduced estimated Hurst parameter", fig=fig, ax=ax)
+plt.savefig("myplot3.png")
 plt.show()
 
