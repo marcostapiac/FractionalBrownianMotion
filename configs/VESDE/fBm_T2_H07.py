@@ -31,7 +31,6 @@ def get_config():
     # Diffusion hyperparameters
     config.std_max = 15.
     config.std_min = 0.01
-
     # MLP Architecture parameters
     config.temb_dim = 32
     config.enc_shapes = [8, 16, 32]
@@ -72,7 +71,9 @@ def get_config():
     config.scoreNet_snapshot_path = config.scoreNet_trained_path.replace("trained_models/", "snapshots/")
 
     # Sampling hyperparameters
+    config.early_stop_idx = 0 
     config.sample_eps = 1e-5
+
     config.max_lang_steps = 0
     config.snr = 0.01
     config.predictor_model = "ancestral"  # vs "euler-maryuama"

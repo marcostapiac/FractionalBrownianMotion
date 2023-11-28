@@ -57,7 +57,8 @@ def get_config():
     config.scoreNet_snapshot_path = config.scoreNet_trained_path.replace("trained_models/", "snapshots/")
 
     # Sampling hyperparameters
-    config.sample_eps = 1e-3
+    config.early_stop_idx = 0 
+    config.sample_eps = 1e-3    
     config.max_lang_steps = 0
     config.snr = 0.
     config.predictor_model = "euler-maruyama"  # vs "ancestral"

@@ -114,5 +114,5 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
     sampler = SDESampler(diffusion=diffusion, sample_eps=config.sample_eps, predictor=predictor, corrector=corrector)
 
     # Sample
-    final_samples = sampler.sample(shape=data_shape, torch_device=device)
+    final_samples = sampler.sample(shape=data_shape, torch_device=device, early_stop_idx=config.early_stop_idx)
     return final_samples  # TODO Check if need to detach
