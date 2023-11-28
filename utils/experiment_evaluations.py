@@ -730,7 +730,7 @@ def run_fBm_scatter_matrix(dataSize: int, scoreModel: Union[NaiveMLP, TimeSeries
             col_vars = config.col_idxs
             save_path = folderPath + gifPath + "_diffIndex_{}.png".format(i + 1)
             title = "Rev-Time {} samples $T={}$ at time {}".format(diffType, config.timeDim, round((i + 1) / config.max_diff_steps,5))
-            my_pairplot(x, row_idxs=row_vars, col_idxs=col_vars, cov=cov, image_path=save_path, suptitle=title)
+            my_pairplot(x.cpu(), row_idxs=row_vars, col_idxs=col_vars, cov=cov.cpu(), image_path=save_path, suptitle=title)
 
         x = drift + diffusion_param * torch.randn_like(x)
     return x
