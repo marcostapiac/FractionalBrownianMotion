@@ -701,4 +701,4 @@ def pairplot(samples: torch.Tensor, row_idxs: np.ndarray, col_idxs: np.ndarray, 
 
     plt.suptitle(suptitle)
     plt.savefig(image_path)
-    plt.show()
+    plt.close()
