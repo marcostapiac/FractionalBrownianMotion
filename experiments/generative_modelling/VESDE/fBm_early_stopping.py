@@ -1,3 +1,4 @@
+import pandas as pd
 import torch
 from ml_collections import ConfigDict
 from tqdm import tqdm
@@ -51,24 +52,14 @@ def run_early_stopping(config:ConfigDict)->None:
 
     print("Exact:", np.mean(true_Hs), np.std(true_Hs))
     print("Synth:", np.mean(synth_Hs), np.std(synth_Hs))
+    print("No early stopping synth:", np.mean(no_stop_synth_Hs), np.std(no_stop_synth_Hs))
 
-    fig, ax = plt.subplots()
-    plot_histogram(np.array(true_Hs), num_bins=100, xlabel="H", ylabel="density",
-                   plottitle="Histogram of exact samples' estimated Hurst parameter", fig=fig, ax=ax)
-    plt.savefig("myplot1.png")
-    plt.show()
-
-    fig, ax = plt.subplots()
-    plot_histogram(np.array(synth_Hs), num_bins=100, xlabel="H", ylabel="density",
-                   plottitle="Histogram of early stopping synth samples' estimated Hurst parameter", fig=fig, ax=ax)
-    plt.savefig("myplot2.png")
-    plt.show()
-
-    fig, ax = plt.subplots()
-    plot_histogram(np.array(no_stop_synth_Hs), num_bins=100, xlabel="H", ylabel="density",
-                   plottitle="Histogram of synthetic samples' estimated Hurst parameter", fig=fig, ax=ax)
-    plt.savefig("myplot3.png")
-    plt.show()
+    results_dict = {"True Hs":true_Hs, "Synthetic Hs":synth_Hs, "No Early Stop Hs": no_stop_synth_Hs}
+    df = pd.DataFrame.from_dict(data=results_dict)
+    df.index = config.exp_keys
+    df.to_csv(config.experiment_path + "EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip", index=True)
+    print(pd.read_csv(config.experiment_path + "EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip",
+                      index_col=[0]))
 
 if __name__ == "__main__":
     from configs.VESDE.fBm_T256_H07 import get_config
