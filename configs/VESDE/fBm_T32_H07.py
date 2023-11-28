@@ -25,11 +25,11 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = 300
+    config.max_epochs = 36000
     config.batch_size = 256
 
     # Diffusion hyperparameters
-    config.std_max = 20.
+    config.std_max = 90.
     config.std_min = 0.01
 
     # MLP Architecture parameters
