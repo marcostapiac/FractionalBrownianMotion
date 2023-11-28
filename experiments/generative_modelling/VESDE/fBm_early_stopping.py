@@ -67,7 +67,7 @@ def run_early_stopping(config:ConfigDict)->None:
     fig, ax = plt.subplots()
     plot_histogram(np.array(no_stop_synth_Hs), num_bins=100, xlabel="H", ylabel="density",
                    plottitle="Histogram of synthetic samples' estimated Hurst parameter", fig=fig, ax=ax)
-    plt.savefig("myplot2.png")
+    plt.savefig("myplot3.png")
     plt.show()
 
 if __name__ == "__main__":
