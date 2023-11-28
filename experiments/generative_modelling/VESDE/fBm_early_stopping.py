@@ -31,15 +31,23 @@ def run_early_stopping(config:ConfigDict)->None:
     synth_samples = reverse_sampling(data_shape=(config.dataSize, config.timeDim), diffusion=diffusion,
                                      scoreModel=scoreModel,
                                      config=config).cpu().numpy().reshape((config.dataSize, T))
+    config.early_stop_idx = 0
+    no_stop_synth_samples = reverse_sampling(data_shape=(config.dataSize, config.timeDim), diffusion=diffusion,
+                                     scoreModel=scoreModel,
+                                     config=config).cpu().numpy().reshape((config.dataSize, T))
     true_Hs = []
     synth_Hs = []
+    no_stop_synth_Hs = []
     approx_true_fBn = reduce_to_fBn(exact_samples, reduce=True)
     approx_fBn = reduce_to_fBn(synth_samples, reduce=True)
+    approx_no_stop_fBn = reduce_to_fBn(no_stop_synth_samples, reduce=True)
     for j in tqdm(range(config.dataSize),desc="Estimating Hurst Parameters ::", dynamic_ncols=False, position=0):
         ht = optimise_whittle(data=approx_true_fBn, idx=j)
         h = optimise_whittle(data=approx_fBn, idx=j)
+        nh = optimise_whittle(data=approx_no_stop_fBn, idx=j)
         true_Hs.append(ht)
         synth_Hs.append(h)
+        no_stop_synth_Hs.append(nh)
 
     print("Exact:", np.mean(true_Hs), np.std(true_Hs))
     print("Synth:", np.mean(synth_Hs), np.std(synth_Hs))
@@ -52,6 +60,12 @@ def run_early_stopping(config:ConfigDict)->None:
 
     fig, ax = plt.subplots()
     plot_histogram(np.array(synth_Hs), num_bins=100, xlabel="H", ylabel="density",
+                   plottitle="Histogram of early stopping synth samples' estimated Hurst parameter", fig=fig, ax=ax)
+    plt.savefig("myplot2.png")
+    plt.show()
+
+    fig, ax = plt.subplots()
+    plot_histogram(np.array(no_stop_synth_Hs), num_bins=100, xlabel="H", ylabel="density",
                    plottitle="Histogram of synthetic samples' estimated Hurst parameter", fig=fig, ax=ax)
     plt.savefig("myplot2.png")
     plt.show()
