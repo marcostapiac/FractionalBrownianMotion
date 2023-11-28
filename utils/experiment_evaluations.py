@@ -5,10 +5,8 @@ from typing import Union, Tuple
 import numpy as np
 import pandas as pd
 import torch
-from matplotlib import pyplot as plt
 from ml_collections import ConfigDict
 from tqdm import tqdm
-import seaborn as sns
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.evaluation_pipeline.classes.DiscriminativeLSTM.ClassDiscriminativeLSTM import DiscriminativeLSTM
 from src.evaluation_pipeline.classes.PredictiveLSTM.ClassPredictiveLSTM import PredictiveLSTM
@@ -25,7 +23,7 @@ from utils.data_processing import generate_circles, generate_sine_dataset
 from utils.math_functions import chiSquared_test, reduce_to_fBn, compute_fBm_cov, permutation_test, \
     energy_statistic, MMD_statistic, generate_fBm, compute_circle_proportions, generate_fBn, estimate_hurst, \
     compute_pvals
-from utils.plotting_functions import plot_and_save_diffused_fBm_snapshot
+from utils.plotting_functions import plot_and_save_diffused_fBm_snapshot, my_pairplot
 
 
 def prepare_sines_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion],
@@ -732,7 +730,7 @@ def run_fBm_scatter_matrix(dataSize: int, scoreModel: Union[NaiveMLP, TimeSeries
             col_vars = config.col_idxs
             save_path = folderPath + gifPath + "_diffIndex_{}.png".format(i + 1)
             title = "Rev-Time {} samples $T={}$ at time {}".format(diffType, config.timeDim, round((i + 1) / config.max_diff_steps,5))
-            pairplot(x, row_idxs=row_vars, col_idxs=col_vars, cov=cov, image_path=save_path, suptitle=title)
+            my_pairplot(x, row_idxs=row_vars, col_idxs=col_vars, cov=cov, image_path=save_path, suptitle=title)
 
         x = drift + diffusion_param * torch.randn_like(x)
     return x

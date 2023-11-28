@@ -654,7 +654,7 @@ def plot_and_save_diffused_fBm_snapshot(samples: torch.Tensor, cov: torch.Tensor
     plt.close()
 
 
-def pairplot(samples: torch.Tensor, row_idxs: np.ndarray, col_idxs: np.ndarray, cov: torch.Tensor, image_path: str,
+def my_pairplot(samples: torch.Tensor, row_idxs: np.ndarray, col_idxs: np.ndarray, cov: torch.Tensor, image_path: str,
              suptitle: str) -> None:
     """
     Function to produce correlation matrix pairplots
