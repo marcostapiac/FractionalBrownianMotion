@@ -49,10 +49,9 @@ def prepare_sines_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VE
             print("Error {}; generating synthetic data\n".format(e))
             data = generate_sine_dataset(T=config.timeDim, S=training_size, rng=rng)
             np.save(config.data_path, data)
-        finally:
-            data = data.cumsum(axis=1)[:training_size, :]
-            train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
-            scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
+        data = data.cumsum(axis=1)[:training_size, :]
+        train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
 
     if config.test_pred_lstm:
         try:
@@ -194,10 +193,9 @@ def prepare_fBm_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESD
             print("Error {}; generating synthetic data\n".format(e))
             data = generate_fBn(T=config.timeDim, S=training_size, H=config.hurst, rng=rng)
             np.save(config.data_path, data)
-        finally:
-            data = data.cumsum(axis=1)[:training_size, :]
-            train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
-            scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
+        data = data.cumsum(axis=1)[:training_size, :]
+        train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
 
     if config.test_pred_lstm:
         try:
@@ -364,9 +362,8 @@ def prepare_circle_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, V
             print("Error {}; generating synthetic data\n".format(e))
             data = generate_circles(S=training_size, noise=config.cnoise)
             np.save(config.data_path, data)  # TODO is this the most efficient way
-        finally:
-            train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
-            scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
+        train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
     return scoreModel
 
 

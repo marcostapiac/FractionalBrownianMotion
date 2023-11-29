@@ -40,7 +40,7 @@ def get_config():
     # TSM Architecture parameters
     config.residual_layers = 10
     config.residual_channels = 8
-    config.diff_hidden_size = 32
+    config.diff_hidden_size = 256
     config.dialation_length = 10
 
     # Model filepath
