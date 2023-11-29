@@ -372,7 +372,7 @@ def prepare_circle_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, V
 
 def run_circle_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion],
                           scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
-                          config: ConfigDict) -> dict:
+                          config: ConfigDict) -> None:
     """
     Run circle experiment
         :param dataSize: Size of output data
@@ -676,7 +676,6 @@ def run_fBm_scatter_matrix(dataSize: int, scoreModel: Union[NaiveMLP, TimeSeries
     """
         Run reverse-time diffusion and plot scatter plot for neighbouring dimensions and compare with theoretical contours
             :param dataSize: Size of output data
-            :param dim_pair: Vector of dimensions of interest
             :param scoreModel: Trained score network
             :param diffusion: Diffusion model
             :param folderPath: Path to folder to save images

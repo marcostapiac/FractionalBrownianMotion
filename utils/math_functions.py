@@ -119,7 +119,7 @@ def permutation_test(data1: np.ndarray, data2: np.ndarray, num_permutations: int
     permuted_statistics = pool.starmap(compute_statistic, tqdm([(combined_data, n1) for _ in range(num_permutations)]))
     pool.close()
 
-    larger_count = np.sum(1. * (np.abs((permuted_statistics)) >= np.abs(observed_statistic)))
+    larger_count = np.sum(1. * (np.abs(permuted_statistics) >= np.abs(observed_statistic)))
     p_value = (larger_count + 1) / (num_permutations + 1)
     return p_value
 
@@ -227,17 +227,18 @@ def compute_fBm_cov(fBn_generator: ClassFractionalBrownianNoise, T: int, isUnitI
 def chiSquared_test(T: int, H: float, isUnitInterval: bool, samples: Union[np.ndarray, NoneType] = None,
                     M: Union[int, NoneType] = None,
                     invL: Union[np.ndarray, NoneType] = None) -> [float, float, float]:
+    # noinspection HttpUrlsUsage
     """
-    Function which compute chi-squared test from Ton Dieker's 2004 thesis see
-    http://www.columbia.edu/~ad3217/fbm/thesisold.pdf
-        :param T: Length of each sample
-        :param H: Hurst index
-        :param isUnitInterval: Indicates whether fBn is generated on [0,1] (True) or [0, T]
-        :param samples: fBn data
-        :param M: Optional parameter which provides number of samples to consider for the test
-        :param invL: Optional parameter which provides pre-computed inverse covariance matrix
-        :return: Lower critical test value, critical statistic, Upper critical value
-    """
+        Function which compute chi-squared test from Ton Dieker's 2004 thesis see
+        http://www.columbia.edu/~ad3217/fbm/thesisold.pdf
+            :param T: Length of each sample
+            :param H: Hurst index
+            :param isUnitInterval: Indicates whether fBn is generated on [0,1] (True) or [0, T]
+            :param samples: fBn data
+            :param M: Optional parameter which provides number of samples to consider for the test
+            :param invL: Optional parameter which provides pre-computed inverse covariance matrix
+            :return: Lower critical test value, critical statistic, Upper critical value
+        """
 
     assert ((M is None and samples is not None) or (M is not None and samples is None))
 
@@ -342,7 +343,7 @@ def optimise_whittle(data: np.ndarray, idx: int) -> float:
     tmp = np.abs(np.fft.fft(datap))
     gamma_hat = np.exp(2 * np.log(tmp[1:halfN + 1])) / (2 * np.pi * N)
     func = lambda Hurst: whittle_ll(Hurst, gamma_hat, N)
-    return so.fminbound(func, 0., 1.)
+    return float(so.fminbound(func, 0., 1.))
 
 
 def estimate_hurst(true: np.ndarray, synthetic: np.ndarray, exp_dict: dict, S: int, config: ConfigDict) -> dict:

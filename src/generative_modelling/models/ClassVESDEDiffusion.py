@@ -23,8 +23,8 @@ class VESDEDiffusion(nn.Module):
     def get_var_min(self) -> torch.Tensor:
         """ Get minimum variance parameter """
         return torch.Tensor([self.stdMin ** 2]).to(torch.float32)
-
-    def noising_process(self, dataSamples: torch.Tensor, effTimes: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
+    @staticmethod
+    def noising_process(dataSamples: torch.Tensor, effTimes: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Forward diffusion in continuous time
             :param dataSamples: Initial time SDE value

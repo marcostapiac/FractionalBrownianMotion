@@ -526,7 +526,7 @@ def compare_against_isotropic_Gaussian(forward_samples: np.ndarray, td: int, dif
     """
     assert (forward_samples.shape[1] == td)
     stdn_samples = rng.normal(size=(forward_samples.shape[0], td))
-    labels = ["Forward Samples at time {}".format((diffTime)), "Standard Normal Samples"]
+    labels = ["Forward Samples at time {}".format(diffTime), "Standard Normal Samples"]
     if td == 2: plot_dataset(forward_samples=forward_samples, reverse_samples=stdn_samples, labels=labels,
                              image_path=filepath)
     plot_heatmap(np.cov(forward_samples, rowvar=False), annot=False if td > 16 else True,
