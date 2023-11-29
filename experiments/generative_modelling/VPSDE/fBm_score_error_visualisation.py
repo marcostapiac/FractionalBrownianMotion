@@ -7,7 +7,6 @@ from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
-from utils.data_processing import init_experiment
 from utils.experiment_evaluations import run_fBm_score_error_experiment
 from utils.plotting_functions import plot_errors_ts, plot_errors_heatmap
 
@@ -19,15 +18,16 @@ def run(config: ConfigDict):
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path+"_Nepochs"+str(config.max_epochs)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
     except FileNotFoundError as e:
         raise FileNotFoundError(
             "Error {}; no valid trained model found; train model {} before running experiment\n".format(e,
-                                                                                                        config.scoreNet_trained_path+"_Nepochs"+str(config.max_epochs)))
+                                                                                                        config.scoreNet_trained_path + "_Nepochs" + str(
+                                                                                                            config.max_epochs)))
 
     score_errors = run_fBm_score_error_experiment(dataSize=5000, diffusion=diffusion, scoreModel=scoreModel,
-                                                        rng=rng,
-                                                        config=config)
+                                                  rng=rng,
+                                                  config=config)
     pic_path = project_config.ROOT_DIR + "experiments/results/score_plots/ScoreErrorTS_fBm_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_BetaMax{:.4e}_BetaMin{:.4e}_Nepochs{}".format(
         config.hurst, config.timeDim, config.max_diff_steps, config.end_diff_time, config.beta_max,
         config.beta_min, config.max_epochs).replace(
@@ -48,7 +48,7 @@ def run(config: ConfigDict):
     end_index = int(0.1 * config.max_diff_steps)
     plot_errors_heatmap(score_errors[start_index:end_index, :],
                         plot_title="MSE Score Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst,
-                                                                                                        config.timeDim),
+                                                                                                  config.timeDim),
                         path=pic_path)
 
 

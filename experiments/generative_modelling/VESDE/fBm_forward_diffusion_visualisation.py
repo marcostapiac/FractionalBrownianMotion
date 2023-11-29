@@ -1,10 +1,7 @@
-import matplotlib
 import ml_collections
 import numpy as np
 import torch
-from matplotlib import pyplot as plt
 from ml_collections import ConfigDict
-from scipy import stats
 from tqdm import tqdm
 
 from configs import project_config
@@ -17,10 +14,10 @@ from utils.plotting_functions import make_gif, plot_and_save_diffused_fBm_snapsh
 def run(perfect_config: ConfigDict) -> None:
     print("!!!! Running started !!!! \n")
     try:
-        assert(perfect_config.gif_save_freq <= perfect_config.max_diff_steps)
-        assert(perfect_config.gif_save_freq > 0)
-        assert(perfect_config.dim1 < perfect_config.timeDim)
-        assert(perfect_config.dim2 < perfect_config.timeDim)
+        assert (perfect_config.gif_save_freq <= perfect_config.max_diff_steps)
+        assert (perfect_config.gif_save_freq > 0)
+        assert (perfect_config.dim1 < perfect_config.timeDim)
+        assert (perfect_config.dim2 < perfect_config.timeDim)
     except AssertionError as e:
         raise AssertionError("Error {}; check experiment parameters\n".format(e))
     diffusion = VESDEDiffusion(stdMax=perfect_config.std_max, stdMin=perfect_config.std_min)
@@ -55,11 +52,11 @@ def run(perfect_config: ConfigDict) -> None:
         if i % perfect_config.gif_save_freq == 0 or i == (perfect_config.max_diff_steps - 1):
             save_path = folder_path + gif_path + "_diffIndex_{}.png".format(i + 1)
             plot_title = "Forward Diffused Samples with $T={}$ at time {}".format(perfect_config.timeDim,
-                                                                                     round((
-                                                                                                   i + 1) / perfect_config.max_diff_steps,
-                                                                                           5))
-            xlabel = "fBm Dimension {}".format(dim_pair[0]+1)
-            ylabel = "fBm Dimension {}".format(dim_pair[1]+1)
+                                                                                  round((
+                                                                                                i + 1) / perfect_config.max_diff_steps,
+                                                                                        5))
+            xlabel = "fBm Dimension {}".format(dim_pair[0] + 1)
+            ylabel = "fBm Dimension {}".format(dim_pair[1] + 1)
             cov = eff_time * torch.eye(2) + fBm_cov
             plot_and_save_diffused_fBm_snapshot(samples=xts, cov=cov, save_path=save_path, x_label=xlabel,
                                                 y_label=ylabel, plot_title=plot_title)

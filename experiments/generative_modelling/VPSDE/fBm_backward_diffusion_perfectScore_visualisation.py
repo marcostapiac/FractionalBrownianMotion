@@ -11,10 +11,10 @@ from utils.plotting_functions import make_gif
 
 def run(perfect_config: ConfigDict) -> None:
     try:
-        assert(perfect_config.save_freq <= perfect_config.max_diff_steps)
-        assert(perfect_config.save_freq > 0)
-        assert(perfect_config.dim1 < perfect_config.timeDim)
-        assert(perfect_config.dim2 < perfect_config.timeDim)
+        assert (perfect_config.save_freq <= perfect_config.max_diff_steps)
+        assert (perfect_config.save_freq > 0)
+        assert (perfect_config.dim1 < perfect_config.timeDim)
+        assert (perfect_config.dim2 < perfect_config.timeDim)
     except AssertionError as e:
         raise AssertionError("Error {}; check experiment parameters\n".format(e))
     rng = np.random.default_rng()
@@ -22,17 +22,18 @@ def run(perfect_config: ConfigDict) -> None:
     dim_pair = torch.Tensor([perfect_config.dim1, perfect_config.dim2]).to(torch.int32)
     folder_path = project_config.ROOT_DIR + "experiments/results/perfect_backward_gifs/"
 
-    gif_path = "perfect_fBm_dimPair{}_dimPair{}_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_BetaMax{:.4e}_BetaMin{:.4e}".format(dim_pair[0],
-                                                                                                          dim_pair[1],
-                                                                                                          perfect_config.hurst,
-                                                                                                          perfect_config.timeDim,
-                                                                                                          perfect_config.max_diff_steps,
-                                                                                                          perfect_config.end_diff_time,
-                                                                                                          perfect_config.beta_max,
-                                                                                                          perfect_config.beta_min).replace(
+    gif_path = "perfect_fBm_dimPair{}_dimPair{}_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_BetaMax{:.4e}_BetaMin{:.4e}".format(
+        dim_pair[0],
+        dim_pair[1],
+        perfect_config.hurst,
+        perfect_config.timeDim,
+        perfect_config.max_diff_steps,
+        perfect_config.end_diff_time,
+        perfect_config.beta_max,
+        perfect_config.beta_min).replace(
         ".", "")
     run_fBm_perfect_score(dataSize=perfect_config.dataSize, dim_pair=dim_pair, diffusion=diffusion, rng=rng,
-                                perfect_config=perfect_config, folderPath=folder_path, gifPath=gif_path)
+                          perfect_config=perfect_config, folderPath=folder_path, gifPath=gif_path)
 
     make_gif(folder_path, gif_path)
 

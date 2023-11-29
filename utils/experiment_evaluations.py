@@ -558,7 +558,7 @@ def run_fBm_backward_drift_experiment(dataSize: int,
     scoreModel.eval()
     scoreModel.to(device)
     for i in tqdm(iterable=(range(0, config.max_diff_steps)), dynamic_ncols=False,
-                  desc="Sampling for Score Error Visualisation :: ", position=0):
+                  desc="Sampling for Drift Error Visualisation :: ", position=0):
         diff_index = torch.Tensor([i]).to(device)
         max_diff_steps = torch.Tensor([config.max_diff_steps]).to(device)
 

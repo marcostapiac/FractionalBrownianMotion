@@ -26,4 +26,3 @@ if __name__ == "__main__":
     cleanup_experiment()
 
     run_sines_experiment(dataSize=config.dataSize, diffusion=diffusion, scoreModel=scoreModel, rng=rng, config=config)
-

@@ -43,4 +43,3 @@ if __name__ == "__main__":
     cleanup_experiment()
 
     run_circle_experiment(dataSize=config.dataSize, diffusion=diffusion, scoreModel=scoreModel, config=config)
-
