@@ -40,7 +40,7 @@ def run_early_stopping(config: ConfigDict) -> None:
     df = pd.concat([df1, df2], ignore_index=False)
     df.index = pd.MultiIndex.from_product(
         [["Synthetic", "No Early Stop Synthetic"], [i for i in range(config.dataSize)]])
-    df.to_csv(config.experiment_path + "_Samples_EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs))
+    df.to_csv(config.experiment_path + "_Samples_EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip")
 
     true_Hs = []
     synth_Hs = []
