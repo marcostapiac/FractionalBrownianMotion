@@ -35,8 +35,11 @@ def run_early_stopping(config: ConfigDict) -> None:
     no_stop_synth_samples = reverse_sampling(data_shape=(config.dataSize, config.timeDim), diffusion=diffusion,
                                              scoreModel=scoreModel,
                                              config=config).cpu().numpy().reshape((config.dataSize, T))
-    samples_dict = {"Synthetic": synth_samples,"No Early Stop Synthetic": no_stop_synth_samples}
-    df = pd.DataFrame.from_dict(samples_dict)
+    df1 = pd.DataFrame(synth_samples)
+    df2 = pd.DataFrame(no_stop_synth_samples)
+    df = pd.concat([df1, df2], ignore_index=False)
+    df.index = pd.MultiIndex.from_product(
+        [["Synthetic", "No Early Stop Synthetic"], [i for i in range(config.dataSize)]])
     df.to_csv(config.experiment_path + "_Samples_EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs))
 
     true_Hs = []
