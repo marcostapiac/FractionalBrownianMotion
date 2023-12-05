@@ -37,7 +37,7 @@ def run_early_stopping(config: ConfigDict) -> None:
                                              config=config).cpu().numpy().reshape((config.dataSize, T))
     samples_dict = {"Synthetic": synth_samples,"No Early Stop Synthetic": no_stop_synth_samples}
     df = pd.DataFrame.from_dict(samples_dict)
-    df.to_csv(config.experiment_path + "Samples_EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs))
+    df.to_csv(config.experiment_path + "_Samples_EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs))
 
     true_Hs = []
     synth_Hs = []
@@ -56,7 +56,7 @@ def run_early_stopping(config: ConfigDict) -> None:
     keys = ["True Hs", "Synthetic Hs", "No Early Stop Hs"]
     results_dict = {keys[0]: true_Hs, keys[1]: synth_Hs, keys[2]: no_stop_synth_Hs}
     df = pd.DataFrame.from_dict(data=results_dict)
-    df.to_csv(config.experiment_path + "EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs),
+    df.to_csv(config.experiment_path + "_EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs),
               compression="gzip", index=True)
 
 
@@ -66,5 +66,5 @@ if __name__ == "__main__":
     config = get_config()
     assert (0 < config.hurst < 1)
     assert (config.early_stop_idx == 1)
-    config.dataSize = 10000
+    config.dataSize = 5000
     run_early_stopping(config)
