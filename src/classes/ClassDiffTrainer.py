@@ -114,9 +114,12 @@ class DiffusionModelTrainer:
         print(
             f"[Device {self.device_id}] Epoch {epoch + 1} | Batchsize: {b_sz} | Total Num of Batches: {len(self.train_loader)} \n")
         if type(self.device_id) != torch.device: self.train_loader.sampler.set_epoch(epoch)
+        timesteps = torch.linspace(self.train_eps, end=self.end_diff_time,
+                                   steps=self.max_diff_steps)
         for x0s in (iter(self.train_loader)):
             x0s = x0s[0].to(self.device_id)
-            diff_times = ((self.train_eps - self.end_diff_time) * torch.rand((x0s.shape[0], 1)) + self.end_diff_time).view(x0s.shape[0],
+            diff_times = timesteps[torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,
+                                                 size=(x0s.shape[0], 1)).long()].view(x0s.shape[0],
                                                                                       *([1] * len(x0s.shape[1:]))).to(
                 self.device_id)
             eff_times = self.diffusion.get_eff_times(diff_times)

@@ -450,18 +450,20 @@ def plot_heatmap(map: np.ndarray, annot: bool, title: str, filepath: str) -> Non
     plt.show()
 
 
-def plot_diffCov_heatmap(true_cov: np.ndarray, gen_cov: np.ndarray, image_path: str, annot: bool = True) -> None:
+def plot_diffCov_heatmap(true_cov: np.ndarray, gen_cov: np.ndarray, image_path: str, annot: bool = True, title:str = "") -> None:
     """
     Compute and plot difference between expected and sample covariance matrices
         :param true_cov: Theoretical covariance matrix
         :param gen_cov: Covariance matrix from samples of reverse-time diffusion
         :param image_path: Path to save image
         :param annot: Indicates whether to annotate error on diagram
+        :param title: Title of plot
         :return: None
     """
     s = 100 * (gen_cov - true_cov) / true_cov
     print("Average absolute percentage error: ", np.mean(np.abs(s)))
-    plot_heatmap(map=np.abs(s), annot=annot, title="Difference in Covariance Matrices", filepath=image_path)
+    if title=="": title="Abs Percentage Error in Covariance Matrices"
+    plot_heatmap(map=np.abs(s), annot=annot, title=title, filepath=image_path)
 
 
 def plot_dataset(forward_samples: np.ndarray, reverse_samples: np.ndarray, image_path: str,

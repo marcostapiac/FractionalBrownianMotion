@@ -33,7 +33,7 @@ def get_config():
     config.beta_min = 0.1
 
     # MLP Architecture parameters
-    config.temb_dim = 32 # Usually 64
+    config.temb_dim =  64
     config.enc_shapes = [8, 16, 32]
     config.dec_shapes = config.enc_shapes[::-1]
 
