@@ -23,7 +23,6 @@ from utils.data_processing import generate_circles, generate_sine_dataset
 from utils.math_functions import chiSquared_test, reduce_to_fBn, compute_fBm_cov, permutation_test, \
     energy_statistic, MMD_statistic, generate_fBm, compute_circle_proportions, generate_fBn, estimate_hurst, \
     compute_pvals
-from utils.plotting_functions import plot_and_save_diffused_fBm_snapshot, my_pairplot
 
 
 def prepare_sines_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion],
@@ -605,6 +604,7 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
         :param config: ML configuration file
         :return: None
     """
+    from utils.plotting_functions import plot_and_save_diffused_fBm_snapshot
     try:
         assert (dim_pair.shape[0] == 2)
     except AssertionError:
@@ -670,6 +670,7 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
 def run_fBm_scatter_matrix(dataSize: int, scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
                   diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion], folderPath: str, gifPath: str,
                   rng: np.random.Generator, config: ConfigDict)->None:
+    from utils.plotting_functions import my_pairplot
     """
         Run reverse-time diffusion and plot scatter plot for neighbouring dimensions and compare with theoretical contours
             :param dataSize: Size of output data
@@ -740,6 +741,7 @@ def run_fBm_perfect_score(dataSize: int, dim_pair: torch.Tensor,
                           diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion], folderPath: str,
                           gifPath: str,
                           rng: np.random.Generator, perfect_config: ConfigDict) -> None:
+    from utils.plotting_functions import plot_and_save_diffused_fBm_snapshot
     """
     Run reverse-time diffusion under perfect VESDE score knowledge and plot scatter plot for neighbouring dimensions
         :param dataSize: Size of output data
