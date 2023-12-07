@@ -6,11 +6,10 @@ from tqdm import tqdm
 
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.generative_modelling.data_processing import reverse_sampling
-from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
+from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
-from utils.math_functions import optimise_whittle, reduce_to_fBn
 
 
 def run_early_stopping(config: ConfigDict) -> None:
@@ -18,7 +17,7 @@ def run_early_stopping(config: ConfigDict) -> None:
     H = config.hurst
     T = config.timeDim
 
-    diffusion = VESDEDiffusion(stdMax=config.std_max, stdMin=config.std_min)
+    diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     scoreModel = TimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
@@ -39,32 +38,11 @@ def run_early_stopping(config: ConfigDict) -> None:
     df2 = pd.DataFrame(no_stop_synth_samples)
     df = pd.concat([df1, df2], ignore_index=False)
     df.index = pd.MultiIndex.from_product(
-        [["Synthetic", "No Early Stop Synthetic"], [i for i in range(config.dataSize)]])
+        [["Early Stop Synthetic", "No Early Stop Synthetic"], [i for i in range(config.dataSize)]])
     df.to_csv(config.experiment_path + "_Samples_EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip")
 
-    true_Hs = []
-    synth_Hs = []
-    no_stop_synth_Hs = []
-    approx_true_fBn = reduce_to_fBn(exact_samples, reduce=True)
-    approx_fBn = reduce_to_fBn(synth_samples, reduce=True)
-    approx_no_stop_fBn = reduce_to_fBn(no_stop_synth_samples, reduce=True)
-    for j in tqdm(range(config.dataSize), desc="Estimating Hurst Parameters ::", dynamic_ncols=False, position=0):
-        ht = optimise_whittle(data=approx_true_fBn, idx=j)
-        h = optimise_whittle(data=approx_fBn, idx=j)
-        nh = optimise_whittle(data=approx_no_stop_fBn, idx=j)
-        true_Hs.append(ht)
-        synth_Hs.append(h)
-        no_stop_synth_Hs.append(nh)
-
-    keys = ["True Hs", "Synthetic Hs", "No Early Stop Hs"]
-    results_dict = {keys[0]: true_Hs, keys[1]: synth_Hs, keys[2]: no_stop_synth_Hs}
-    df = pd.DataFrame.from_dict(data=results_dict)
-    df.to_csv(config.experiment_path + "_EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs),
-              compression="gzip", index=True)
-
-
 if __name__ == "__main__":
-    from configs.VESDE.fBm_T256_H07 import get_config
+    from configs.VPSDE.fBm_T256_H07 import get_config
 
     config = get_config()
     assert (0 < config.hurst < 1)

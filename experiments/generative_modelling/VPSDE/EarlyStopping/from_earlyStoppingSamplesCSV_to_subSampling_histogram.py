@@ -7,7 +7,7 @@ from utils.math_functions import reduce_to_fBn, optimise_whittle
 from utils.plotting_functions import plot_histogram
 
 if __name__ == "__main__":
-    from configs.VESDE.fBm_T256_H07 import get_config
+    from configs.VPSDE.fBm_T256_H07 import get_config
     config = get_config()
     H = config.hurst
     df = pd.read_csv(config.experiment_path + "_Samples_EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs),
@@ -35,7 +35,7 @@ if __name__ == "__main__":
             fig, ax = plt.subplots()
             ax.axvline(x=H, color="blue", label="True Hurst")
             plot_histogram(my_hs[i], num_bins=150, xlabel="H", ylabel="density",
-                           plottitle="Histogram of {} samples' estimated Hurst parameter".format(titles[i]), fig=fig, ax=ax)
+                           plottitle="Histogram of {} {} samples' estimated Hurst parameter".format(titles[i], sample_type), fig=fig, ax=ax)
             print(my_hs[i].mean())
             print(my_hs[i].std())
             plt.show()
