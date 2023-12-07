@@ -25,7 +25,7 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = 400
+    config.max_epochs = 2300
     config.batch_size = 256
 
     # Diffusion hyperparameters
@@ -33,7 +33,7 @@ def get_config():
     config.beta_min = 0.1
 
     # MLP Architecture parameters
-    config.temb_dim = 32
+    config.temb_dim = 64
     config.enc_shapes = [8, 16, 32]
     config.dec_shapes = config.enc_shapes[::-1]
 

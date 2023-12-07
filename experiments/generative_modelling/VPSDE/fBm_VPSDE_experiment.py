@@ -9,10 +9,11 @@ from utils.experiment_evaluations import run_fBm_experiment, prepare_fBm_experim
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.VPSDE.fBm_T32_H07 import get_config
+    from configs.VPSDE.fBm_T256_H07 import get_config
 
     config = get_config()
     assert (0 < config.hurst < 1.)
+    assert (config.early_stop_idx == 0)
 
     rng = np.random.default_rng()
     scoreModel = TimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
@@ -22,6 +23,7 @@ if __name__ == "__main__":
     init_experiment(config=config)
 
     scoreModel = prepare_fBm_experiment(diffusion=diffusion, scoreModel=scoreModel, config=config, rng=rng)
+
     cleanup_experiment()
 
     run_fBm_experiment(dataSize=config.dataSize, diffusion=diffusion, scoreModel=scoreModel, rng=rng, config=config)
