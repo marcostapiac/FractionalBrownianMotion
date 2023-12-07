@@ -33,10 +33,10 @@ def run_early_stopping(config: ConfigDict) -> None:
     df.to_csv(config.experiment_path.replace("/results/", "/results/early_stopping/") + "_Samples_EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip")
 
 if __name__ == "__main__":
-    from configs.VESDE.fBm_T32_H07 import get_config
+    from configs.VESDE.fBm_T256_H07 import get_config
 
     config = get_config()
     assert (0 < config.hurst < 1)
     assert (config.early_stop_idx == 1)
-    config.dataSize = 5000
+    config.dataSize = 70000
     run_early_stopping(config)

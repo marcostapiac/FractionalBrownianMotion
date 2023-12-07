@@ -11,8 +11,6 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesS
 
 
 def run_early_stopping(config: ConfigDict) -> None:
-    rng = np.random.default_rng()
-    H = config.hurst
     T = config.timeDim
 
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
@@ -40,5 +38,5 @@ if __name__ == "__main__":
     config = get_config()
     assert (0 < config.hurst < 1)
     assert (config.early_stop_idx == 1)
-    config.dataSize = 5000
+    config.dataSize = 70000
     run_early_stopping(config)

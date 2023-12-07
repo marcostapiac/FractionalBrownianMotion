@@ -328,16 +328,6 @@ def whittle_ll(hurst: float, gammah: np.ndarray, nbpoints: int) -> float:
     """
     return 2. * (2. * np.pi / nbpoints) * np.sum((gammah/ fBn_spectral_density(hurst, nbpoints)))
 
-def batch_whittle_ll(hurst: float, gammah: np.ndarray, nbpoints: int) -> float:
-    """
-    Function computes the Whittle likelihood
-        :param hurst: Hurst index
-        :param gammah: Function of the data
-        :param nbpoints: Number of observation of path
-        :return: Whittle likelihood
-    """
-    return 2. * (2. * np.pi / nbpoints) * np.sum((gammah / fBn_spectral_density(hurst, nbpoints)), axis=1)
-
 def optimise_whittle(data: np.ndarray, idx: int) -> float:
     """
     Function to calculate Whittle estimate for Hurst parameter
@@ -354,14 +344,6 @@ def optimise_whittle(data: np.ndarray, idx: int) -> float:
     func = lambda Hurst: whittle_ll(Hurst, gamma_hat, N)
     return(float(so.fminbound(func, 0.,1.)))
 
-
-def batch_optimise_whittle(data: np.ndarray) -> float:
-    N = data.shape[1]
-    halfN = int((N - 1) / 2)
-    tmp = np.abs(np.fft.fft(data, axis=1))
-    gamma_hat = np.exp(2.*np.log(tmp[:,1:halfN +1]))/(2.*np.pi*N)
-    func = lambda Hurst: batch_whittle_ll(Hurst, gamma_hat, N)
-    print([float(so.fminbound(lambda h: whittle_ll(h, gamma_hat[i], N), 0., 1.)) for i in tqdm(range(data.shape[0]))])
 
 def estimate_hurst(true: np.ndarray, synthetic: np.ndarray, exp_dict: dict, S: int, config: ConfigDict) -> dict:
     """
