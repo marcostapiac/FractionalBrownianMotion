@@ -29,7 +29,7 @@ def run(config: ConfigDict):
                                                                               rng=rng,
                                                                               config=config)
 
-    drift_pic_path = project_config.ROOT_DIR + "experiments/results/drift_plots/DriftErrorsTS_fBm_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_BetaMax{:.4e}_BetaMin{:.4e}_Nepochs{}".format(
+    drift_pic_path = project_config.ROOT_DIR + "experiments/results/drift_data_and_plots/DriftErrorsTS_fBm_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_BetaMax{:.4e}_BetaMin{:.4e}_Nepochs{}".format(
         config.hurst, config.timeDim, config.max_diff_steps, config.end_diff_time, config.beta_max,
         config.beta_min, config.max_epochs).replace(
         ".", "")
