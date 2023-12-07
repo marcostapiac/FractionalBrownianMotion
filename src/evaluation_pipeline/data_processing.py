@@ -84,8 +84,8 @@ def test_predLSTM(original_data: np.ndarray, synthetic_data: np.ndarray, config:
     try:
         model.load_state_dict(torch.load(config.pred_lstm_trained_path+"_Nepochs{}".format(config.pred_lstm_max_epochs)))
     except FileNotFoundError as e:
-        print("Please train predictive LSTM before testing\n")
-    finally:
+        raise RuntimeError("Error {};Please train predictive LSTM before testing\n".format(e))
+    else:
         if config.has_cuda:
             device = int(os.environ["LOCAL_RANK"])
         else:
@@ -179,8 +179,8 @@ def test_discLSTM(original_data: np.ndarray, synthetic_data: np.ndarray, config:
     try:
         model.load_state_dict(torch.load(config.disc_lstm_trained_path))
     except FileNotFoundError as e:
-        print("Please train discriminative LSTM before testing\n")
-    finally:
+        raise RuntimeError("Error {}; Please train discriminative LSTM before testing\n".format(e))
+    else:
         if config.has_cuda:
             device = int(os.environ["LOCAL_RANK"])
         else:

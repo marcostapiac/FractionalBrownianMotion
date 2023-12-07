@@ -580,7 +580,7 @@ def plot_errors_ts(diff_time_space: np.ndarray, errors: np.ndarray, plot_title: 
         :param path: Path to save figure
         :return: None
     """
-    plt.plot(diff_time_space, errors, label="MSE")
+    plt.scatter(diff_time_space, errors, label="MSE")
     plt.xlabel("Diffusion Time")
     plt.ylabel("MSE")
     plt.title(plot_title)
@@ -588,17 +588,19 @@ def plot_errors_ts(diff_time_space: np.ndarray, errors: np.ndarray, plot_title: 
     plt.show()
 
 
-def plot_errors_heatmap(errors: np.ndarray, plot_title: str, path: str) -> None:
+def plot_errors_heatmap(errors: np.ndarray, plot_title: str, path: str, xticks:list, yticks:list) -> None:
     """
     Plot heat map of errors over time and space
         :param errors: Matrix with errors over space and time
         :param plot_title: Title for plot
         :param path: Path to save figure
+        :param xticks: Correct Dimension Numbers (0-indexed)
+        :param yticks: Correct Reverse-diffusion index (0-indexed)
         :return: None
     """
-    sns.heatmap(errors, annot=False, annot_kws={'size': 15})
-    plt.xlabel("Dimension")
-    plt.ylabel("Reverse-Time Diffusion Index")
+    ax =sns.heatmap(errors, annot=False, xticklabels=xticks, yticklabels=yticks, annot_kws={'size': 15})
+    ax.set_xlabel("Dimension")
+    ax.set_ylabel("Reverse-Time Diffusion Time")
     plt.title(plot_title)
     plt.savefig(path)
     plt.show()
@@ -611,11 +613,14 @@ def make_gif(frame_folder_path: str, process_str_path: str) -> None:
         :param process_str_path: String identifying which images to turn into a GIF
         :return: None
     """
+    images = []
     try:
         images = [image for image in glob.glob("{}{}*.png".format(frame_folder_path, process_str_path))]
         images = sorted(images, key=lambda x: int(x.replace(".png", "").split("_")[-1]))
         frames = [Image.open(image) for image in images]
     except RuntimeError as e:
+        for image in images:
+            os.remove(image)
         raise RuntimeError("Error {}".format(e))
     frame_one = frames[0]
     # Proceed to cleaning contents of folder
@@ -658,13 +663,13 @@ def my_pairplot(samples: torch.Tensor, row_idxs: np.ndarray, col_idxs: np.ndarra
              suptitle: str) -> None:
     """
     Function to produce correlation matrix pairplots
-    :param samples: Data
-    :param row_idxs: Dimensions along row
-    :param col_idxs: Dimensions along columns
-    :param cov: Covariance matrix
-    :param image_path: Save path for image
-    :param suptitle: Title for image
-    :return: None
+        :param samples: Data
+        :param row_idxs: Dimensions along row
+        :param col_idxs: Dimensions along columns
+        :param cov: Covariance matrix
+        :param image_path: Save path for image
+        :param suptitle: Title for image
+        :return: None
     """
     device = samples.device
     fig, ax = plt.subplots(row_idxs.shape[0], col_idxs.shape[0], squeeze=False)

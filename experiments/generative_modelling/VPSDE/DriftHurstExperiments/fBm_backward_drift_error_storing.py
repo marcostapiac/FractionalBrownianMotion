@@ -29,9 +29,9 @@ def run(config: ConfigDict):
                                                                               rng=rng,
                                                                               config=config)
 
-    drift_pic_path = project_config.ROOT_DIR + "experiments/results/drift_plots/DriftErrorsTS_fBm_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_StdMax{:.4e}_StdMin{:.4e}_Nepochs{}".format(
-        config.hurst, config.timeDim, config.max_diff_steps, config.end_diff_time, config.std_max,
-        config.std_min, config.max_epochs).replace(
+    drift_pic_path = project_config.ROOT_DIR + "experiments/results/drift_plots/DriftErrorsTS_fBm_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_BetaMax{:.4e}_BetaMin{:.4e}_Nepochs{}".format(
+        config.hurst, config.timeDim, config.max_diff_steps, config.end_diff_time, config.beta_max,
+        config.beta_min, config.max_epochs).replace(
         ".", "")
 
     score_only_drift_pic_path = drift_pic_path.replace("DriftErrorsTS", "ScoreOnlyDriftErrorsTS")

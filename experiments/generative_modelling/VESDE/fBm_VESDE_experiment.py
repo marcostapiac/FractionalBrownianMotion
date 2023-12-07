@@ -13,7 +13,7 @@ if __name__ == "__main__":
 
     config = get_config()
     assert (0. < config.hurst < 1.)
-
+    assert (config.early_stop_idx == 0)
     rng = np.random.default_rng()
     scoreModel = TimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
