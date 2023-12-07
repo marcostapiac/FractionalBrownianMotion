@@ -14,6 +14,7 @@ if __name__ == "__main__":
                      compression="gzip", index_col=[0,1])
     for sample_type in df.index.get_level_values(level=0).unique():
         approx_fBn = reduce_to_fBn(df.loc[sample_type].to_numpy(), reduce=True)
+        if sample_type == "Synthetic": sample_type = "Early Stop Synthetic"
         even_approx_fBn = approx_fBn[:, ::2]  # Every even index
         odd_approx_fBn = approx_fBn[:, 1::2]  # Every odd index
         assert (approx_fBn.shape[0] == even_approx_fBn.shape[0] == odd_approx_fBn.shape[0])

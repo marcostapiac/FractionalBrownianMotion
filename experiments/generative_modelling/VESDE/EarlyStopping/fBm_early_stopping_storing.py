@@ -30,7 +30,7 @@ def run_early_stopping(config: ConfigDict) -> None:
     df = pd.concat([df1, df2], ignore_index=False)
     df.index = pd.MultiIndex.from_product(
         [["Early Stop Synthetic", "No Early Stop Synthetic"], [i for i in range(config.dataSize)]])
-    df.to_csv(config.experiment_path + "_Samples_EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip")
+    df.to_csv(config.experiment_path + "early_stopping/_Samples_EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip")
 
 if __name__ == "__main__":
     from configs.VESDE.fBm_T256_H07 import get_config

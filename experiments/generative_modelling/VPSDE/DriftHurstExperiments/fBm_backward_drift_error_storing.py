@@ -29,15 +29,15 @@ def run(config: ConfigDict):
                                                                               rng=rng,
                                                                               config=config)
 
-    drift_pic_path = project_config.ROOT_DIR + "experiments/results/drift_data_and_plots/DriftErrorsTS_fBm_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_BetaMax{:.4e}_BetaMin{:.4e}_Nepochs{}".format(
+    drift_data_path = project_config.ROOT_DIR + "experiments/results/drift_data/DriftErrorsTS_fBm_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_BetaMax{:.4e}_BetaMin{:.4e}_Nepochs{}".format(
         config.hurst, config.timeDim, config.max_diff_steps, config.end_diff_time, config.beta_max,
         config.beta_min, config.max_epochs).replace(
         ".", "")
 
-    score_only_drift_pic_path = drift_pic_path.replace("DriftErrorsTS", "ScoreOnlyDriftErrorsTS")
+    score_only_drift_data_path = drift_data_path.replace("DriftErrorsTS", "ScoreOnlyDriftErrorsTS")
 
-    pd.DataFrame(data=drift_errors.numpy()).to_csv(drift_pic_path + ".csv.gzip", compression="gzip", index=True)
-    pd.DataFrame(data=score_only_drift_errors.numpy()).to_csv(score_only_drift_pic_path + ".csv.gzip",
+    pd.DataFrame(data=drift_errors.numpy()).to_csv(drift_data_path + ".csv.gzip", compression="gzip", index=True)
+    pd.DataFrame(data=score_only_drift_errors.numpy()).to_csv(score_only_drift_data_path + ".csv.gzip",
                                                               compression="gzip", index=True)
 
 
