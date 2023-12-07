@@ -2,9 +2,7 @@ import numpy as np
 import pandas as pd
 import torch
 from ml_collections import ConfigDict
-from tqdm import tqdm
 
-from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.generative_modelling.data_processing import reverse_sampling
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
@@ -21,11 +19,6 @@ def run_early_stopping(config: ConfigDict) -> None:
     scoreModel = TimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
-    fbn = FractionalBrownianNoise(H=H, rng=rng)
-
-    exact_samples = np.zeros((config.dataSize, T))
-    for j in tqdm(range(config.dataSize), desc="Exact Sampling ::", dynamic_ncols=False, position=0):
-        exact_samples[j, :] = fbn.circulant_simulation(N_samples=T).cumsum()
 
     synth_samples = reverse_sampling(data_shape=(config.dataSize, config.timeDim), diffusion=diffusion,
                                      scoreModel=scoreModel,
