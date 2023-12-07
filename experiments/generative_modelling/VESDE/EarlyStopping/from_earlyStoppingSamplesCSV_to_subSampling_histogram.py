@@ -10,7 +10,7 @@ if __name__ == "__main__":
     from configs.VESDE.fBm_T256_H07 import get_config
     config = get_config()
     H = config.hurst
-    df = pd.read_csv(config.experiment_path + "_Samples_EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs),
+    df = pd.read_csv(config.experiment_path.replace("/results/","/results/early_stopping/")+"_Samples_EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs),
                      compression="gzip", index_col=[0,1])
     for sample_type in df.index.get_level_values(level=0).unique():
         approx_fBn = reduce_to_fBn(df.loc[sample_type].to_numpy(), reduce=True)
@@ -19,6 +19,8 @@ if __name__ == "__main__":
         odd_approx_fBn = approx_fBn[:, 1::2]  # Every odd index
         assert (approx_fBn.shape[0] == even_approx_fBn.shape[0] == odd_approx_fBn.shape[0])
         assert (even_approx_fBn.shape[1] == odd_approx_fBn.shape[1])
+
+        print("sample_type")
         hs = []
         even_hs = []
         odd_hs = []

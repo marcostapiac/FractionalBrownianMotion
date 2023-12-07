@@ -17,8 +17,8 @@ if __name__ == "__main__":
 
     time_space = np.linspace(config.sample_eps, config.end_diff_time, config.max_diff_steps)
 
-    start_index = 1
-    end_index = config.max_diff_steps//2
+    start_index = 0
+    end_index = 10 #config.max_diff_steps//2
     time_idxs = [i for i in range(start_index, end_index)]
     drift_errors = pd.read_csv(drift_data_path + ".csv.gzip", compression="gzip", index_col=[0])
     drift_hm_path = drift_pic_path.replace("DriftErrorsTS", "DriftErrorsHM")
@@ -42,8 +42,8 @@ if __name__ == "__main__":
     #                                                                                        config.timeDim),
     #    path=score_only_drift_pic_path)
 
-    start_index = 1
-    end_index = 1
+    start_index = 0
+    end_index = 10
 
     time_idxs = [i for i in range(start_index, end_index+1)]
     dims = [i for i in range(0, config.timeDim)]

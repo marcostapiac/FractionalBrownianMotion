@@ -10,13 +10,14 @@ if __name__ == "__main__":
     from configs.VPSDE.fBm_T256_H07 import get_config
     config = get_config()
     H = config.hurst
-    df = pd.read_csv(config.experiment_path + "_Samples_EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs),
+    df = pd.read_csv(config.experiment_path.replace("/results/","/results/early_stopping/") + "_Samples_EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs),
                      compression="gzip", index_col=[0,1])
     for sample_type in df.index.get_level_values(level=0).unique():
         approx_fBn = reduce_to_fBn(df.loc[sample_type].to_numpy(), reduce=True)
         if sample_type == "Synthetic": sample_type = "Early Stop Synthetic"
-        even_approx_fBn = approx_fBn[:, ::8]  # Every even eigth index
-        odd_approx_fBn = approx_fBn[:, 1::8]  # Every odd eigth index
+        print(sample_type)
+        even_approx_fBn = approx_fBn[:, ::2]  # Every even index
+        odd_approx_fBn = approx_fBn[:, 1::2]  # Every odd index
         assert (approx_fBn.shape[0] == even_approx_fBn.shape[0] == odd_approx_fBn.shape[0])
         assert (even_approx_fBn.shape[1] == odd_approx_fBn.shape[1])
         hs = []
@@ -30,7 +31,7 @@ if __name__ == "__main__":
             odd_hs.append(optimise_whittle(odd_approx_fBn, idx=i))
 
         my_hs = [np.array(hs), np.array(even_hs), np.array(odd_hs)]
-        titles = ["Exact", "Even Exact", "Odd Exact"]
+        titles = ["All", "Even", "Odd"]
 
         for i in range(len(my_hs)):
             fig, ax = plt.subplots()
