@@ -38,5 +38,5 @@ if __name__ == "__main__":
     config = get_config()
     assert (0 < config.hurst < 1)
     assert (config.early_stop_idx == 1)
-    config.dataSize = 70000
+    config.dataSize = 60000
     run_early_stopping(config)
