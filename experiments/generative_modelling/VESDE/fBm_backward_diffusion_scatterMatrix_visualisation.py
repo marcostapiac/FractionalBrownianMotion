@@ -32,15 +32,10 @@ def run(config: ConfigDict) -> None:
 
     folder_path = project_config.ROOT_DIR + "experiments/results/scatter_matrix_gifs/"
 
-    gif_path = "fBm_ScatterMatrix_rowIdxs{}_colIdxs{}_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_StdMax{:.4e}_StdMin{:.4e}_Nepochs{}".format(
-        config.row_idxs, config.col_idxs,
-        config.hurst,
-        config.timeDim,
-        config.max_diff_steps,
-        config.end_diff_time,
-        config.std_max,
-        config.std_min, config.max_epochs).replace(
+    gif_path = config.experiment_path + "fBm_ScatterMatrix_rowIdxs{}_colIdxs{}".format(
+        config.row_idxs, config.col_idxs).replace(
         ".", "").replace("[", "").replace("]", "").replace(" ", ",")
+
     run_fBm_scatter_matrix(dataSize=config.dataSize, diffusion=diffusion, scoreModel=scoreModel, rng=rng,
                            config=config, folderPath=folder_path, gifPath=gif_path)
     make_gif(folder_path, gif_path)
@@ -53,7 +48,7 @@ if __name__ == "__main__":
     config = get_config()
     assert (0. < config.hurst < 1.)
     assert(config.early_stop_idx == 0)
-   config.dataSize = 10000
+    config.dataSize = 10000
     config.idx_start_save = int(0.0 * config.max_diff_steps)
     config.gif_save_freq = int(max(0.05 * (config.max_diff_steps - config.idx_start_save), 1))
     for i in range(0, config.timeDim, 3):

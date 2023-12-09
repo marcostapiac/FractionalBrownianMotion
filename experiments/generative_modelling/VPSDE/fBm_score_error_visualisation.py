@@ -28,9 +28,9 @@ def run(config: ConfigDict):
     score_errors = run_fBm_score_error_experiment(dataSize=10000, diffusion=diffusion, scoreModel=scoreModel,
                                                   rng=rng,
                                                   config=config)
-    pic_path = project_config.ROOT_DIR + "experiments/results/score_plots/ScoreErrorTS_fBm_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_BetaMax{:.4e}_BetaMin{:.4e}_Nepochs{}".format(
-        config.hurst, config.timeDim, config.max_diff_steps, config.end_diff_time, config.beta_max,
-        config.beta_min, config.max_epochs).replace(
+    pic_path = config.experiment_path.replace("experiments/results/",
+                                              "experiments/results/score_plots/") + "ScoreErrorTS_Nepochs{}".format(
+        config.max_epochs).replace(
         ".", "")
 
     start_index = int(0. * config.max_diff_steps)
@@ -45,16 +45,17 @@ def run(config: ConfigDict):
 
     pic_path = pic_path.replace("ScoreErrorTS", "ScoreErrorHM")
 
-    end_index = int(0.1 * config.max_diff_steps)
+    dims = [i for i in range(config.timeDim)]
+    times = np.linspace(start_index, end_index)
     plot_errors_heatmap(score_errors[start_index:end_index, :],
                         plot_title="MSE Score Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst,
                                                                                                   config.timeDim),
-                        path=pic_path)
+                        path=pic_path, xticks=dims, yticks=list(times))
 
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.VPSDE.fBm_T2_H07 import get_config
+    from configs.VPSDE.fBm_T256_H07 import get_config
 
     config = get_config()
     assert (0. < config.hurst < 1.)

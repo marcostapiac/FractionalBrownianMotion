@@ -9,9 +9,8 @@ if __name__ == "__main__":
 
     config = get_config()
 
-    drift_data_path = project_config.ROOT_DIR + "experiments/results/drift_data/DriftErrorsTS_fBm_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_BetaMax{:.4e}_BetaMin{:.4e}_Nepochs{}".format(
-        config.hurst, config.timeDim, config.max_diff_steps, config.end_diff_time, config.beta_max,
-        config.beta_min, config.max_epochs).replace(
+    drift_data_path = config.experiment_path.replace("results/", "results/drift_data/") + "_DriftErrorsTS_Nepochs{}".format(
+        config.max_epochs).replace(
         ".", "")
     drift_pic_path = drift_data_path.replace("/drift_data/", "/drift_plots/")
 

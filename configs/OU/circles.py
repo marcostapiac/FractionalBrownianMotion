@@ -25,6 +25,8 @@ def get_config():
     config.lr = 1e-3
     config.max_epochs = 1000
     config.batch_size = 128
+    config.hybrid = True
+    config.weightings = True
 
     # MLP Architecture parameters
     config.temb_dim = 32
@@ -38,13 +40,13 @@ def get_config():
     config.dialation_length = 10
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_noisy_circle_OUSDE_model_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_TembDim{}_EncShapes{}".format(
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_noisy_circle_OUSDE_model_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_TembDim{}_EncShapes{}_{}Hybrid_{}Weightings".format(
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.temb_dim,
-        config.enc_shapes).replace(".", "")
+        config.enc_shapes, config.hybrid, config.weightings).replace(".", "")
 
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_noisy_circle_OUSDE_model_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}".format(
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_noisy_circle_OUSDE_model_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Weightings".format(
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.temb_dim,
-        config.residual_layers, config.residual_channels, config.diff_hidden_size).replace(".", "")
+        config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings).replace(".", "")
 
     config.model_choice = "TSM"
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName

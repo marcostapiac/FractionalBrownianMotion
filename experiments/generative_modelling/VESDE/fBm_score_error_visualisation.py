@@ -30,9 +30,8 @@ def run(config: ConfigDict):
     start_index = int(0. * config.max_diff_steps)
     end_index = int(1. * config.max_diff_steps)
 
-    pic_path = project_config.ROOT_DIR + "experiments/results/score_plots/ScoreErrorTS_fBm_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_StdMax{:.4e}_StdMin{:.4e}_Nepochs{}".format(
-        config.hurst, config.timeDim, config.max_diff_steps, config.end_diff_time, config.std_max,
-        config.std_min, config.max_epochs).replace(
+    pic_path = config.experiment_path.replace("experiments/results/","experiments/results/score_plots/") + "ScoreErrorTS_Nepochs{}".format(
+        config.max_epochs).replace(
         ".", "")
 
     time_dim_score_errors = score_errors.mean(axis=1).reshape((config.max_diff_steps, 1))
@@ -46,10 +45,12 @@ def run(config: ConfigDict):
 
     start_index = int(0. * config.max_diff_steps)
     end_index = int(.2 * config.max_diff_steps)
+    dims = [i for i in range(config.timeDim)]
+    times = np.linspace(start_index, end_index)
     plot_errors_heatmap(score_errors[start_index:end_index, :],
                         plot_title="MSE Score Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst,
                                                                                                   config.timeDim),
-                        path=pic_path)
+                        path=pic_path, xticks=dims, yticks=list(times))
 
 
 if __name__ == "__main__":

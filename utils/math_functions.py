@@ -253,8 +253,8 @@ def chiSquared_test(T: int, H: float, isUnitInterval: bool, samples: Union[np.nd
     invL = invL if (invL is not None) else np.linalg.inv(np.linalg.cholesky(compute_fBn_cov(fBn, T, isUnitInterval)))
     alpha = 0.05
     S = samples.shape[0] if samples is not None else M
-    critUpp = chi2.ppf(q=1. - 0.5 * alpha, df=S * T - 1)  # Upper alpha quantile, and dOf = T - 1
-    critLow = chi2.ppf(q=0.5 * alpha, df=S * T - 1)  # Lower alpha quantile, and d0f = T -1
+    critUpp = chi2.ppf(q=1. - 0.5 * alpha, df=T - 1)  # Upper alpha quantile, and dOf = T - 1
+    critLow = chi2.ppf(q=0.5 * alpha, df=T - 1)  # Lower alpha quantile, and d0f = T -1
     ts = []
     for i in tqdm(range(S)):
         tss = chiSquared(samples[i, :], invL) if samples is not None else chiSquared(fBn.circulant_simulation(T), invL)

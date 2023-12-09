@@ -74,7 +74,7 @@ def train_and_save_diffusion_model(data: np.ndarray,
                                     loss_aggregator=torchmetrics.aggregation.MeanMetric,
                                     snapshot_path=config.scoreNet_snapshot_path, device=device,
                                     train_eps=train_eps,
-                                    end_diff_time=end_diff_time, max_diff_steps=max_diff_steps)
+                                    end_diff_time=end_diff_time, max_diff_steps=max_diff_steps, to_weight=config.weightings, hybrid_training=config.is_hybrid)
 
     # Start training
     trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
@@ -97,7 +97,6 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
         device = 0
     else:
         device = torch.device("cpu")
-
     # Define predictor
     predictor_params = [diffusion, scoreModel, config.end_diff_time, config.max_diff_steps, device, config.sample_eps]
     predictor = AncestralSamplingPredictor(

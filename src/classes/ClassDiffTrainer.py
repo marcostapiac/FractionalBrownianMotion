@@ -34,6 +34,8 @@ class DiffusionModelTrainer:
                  snapshot_path: str,
                  device: Union[torch.device, int],
                  checkpoint_freq: int,
+                 to_weight:bool,
+                 hybrid_training:bool,
                  loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
 
@@ -52,6 +54,8 @@ class DiffusionModelTrainer:
         self.train_eps = train_eps
         self.max_diff_steps = max_diff_steps
         self.end_diff_time = end_diff_time
+        self.is_hybrid = hybrid_training
+        self.include_weightings = to_weight
 
         # Move score network to appropriate device
         if type(self.device_id) == int:
@@ -101,7 +105,8 @@ class DiffusionModelTrainer:
         self.opt.zero_grad()
         outputs = self.score_network.forward(inputs=xts, times=diff_times.squeeze(-1)).squeeze(1)
         weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
-        self._batch_loss_compute(outputs= outputs, targets= target_scores)
+        if not self.include_weightings: weights *= 1.
+        self._batch_loss_compute(outputs= weights*outputs, targets= weights*target_scores)
 
     def _run_epoch(self, epoch: int) -> None:
         """
@@ -114,12 +119,18 @@ class DiffusionModelTrainer:
         print(
             f"[Device {self.device_id}] Epoch {epoch + 1} | Batchsize: {b_sz} | Total Num of Batches: {len(self.train_loader)} \n")
         if type(self.device_id) != torch.device: self.train_loader.sampler.set_epoch(epoch)
-        timesteps = torch.linspace(self.train_eps, end=self.end_diff_time,
+        if self.is_hybrid:
+            timesteps = torch.linspace(self.train_eps, end=self.end_diff_time,
                                    steps=self.max_diff_steps)
         for x0s in (iter(self.train_loader)):
             x0s = x0s[0].to(self.device_id)
-            diff_times = timesteps[torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,
-                                                 size=(x0s.shape[0], 1)).long()].view(x0s.shape[0],
+            if self.is_hybrid:
+                diff_times = timesteps[torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,
+                                                     size=(x0s.shape[0], 1)).long()].view(x0s.shape[0],
+                                                                                          *([1] * len(x0s.shape[1:]))).to(
+                    self.device_id)
+            else:
+                diff_times = ((self.train_eps - self.end_diff_time) * torch.rand((x0s.shape[0], 1)) + self.end_diff_time).view(x0s.shape[0],
                                                                                       *([1] * len(x0s.shape[1:]))).to(
                 self.device_id)
             eff_times = self.diffusion.get_eff_times(diff_times)
