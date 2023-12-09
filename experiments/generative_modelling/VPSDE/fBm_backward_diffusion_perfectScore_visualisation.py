@@ -51,7 +51,7 @@ if __name__ == "__main__":
     config.beta_min = 0.1
     config.dim1 = 254
     config.dim2 = 255
-    config.dataSize = 5000
+   config.dataSize = 10000
     config.save_freq = 10
 
     # Run experiments

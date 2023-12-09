@@ -24,7 +24,7 @@ def run(config: ConfigDict):
                                                                                                         config.scoreNet_trained_path + "_Nepochs" + str(
                                                                                                             config.max_epochs)))
 
-    drift_errors, score_only_drift_errors = run_fBm_backward_drift_experiment(dataSize=5000, diffusion=diffusion,
+    drift_errors, score_only_drift_errors = run_fBm_backward_drift_experiment(dataSize=10000, diffusion=diffusion,
                                                                               scoreModel=scoreModel,
                                                                               rng=rng,
                                                                               config=config)

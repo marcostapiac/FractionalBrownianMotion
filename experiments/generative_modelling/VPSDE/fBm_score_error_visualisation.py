@@ -25,7 +25,7 @@ def run(config: ConfigDict):
                                                                                                         config.scoreNet_trained_path + "_Nepochs" + str(
                                                                                                             config.max_epochs)))
 
-    score_errors = run_fBm_score_error_experiment(dataSize=5000, diffusion=diffusion, scoreModel=scoreModel,
+    score_errors = run_fBm_score_error_experiment(dataSize=10000, diffusion=diffusion, scoreModel=scoreModel,
                                                   rng=rng,
                                                   config=config)
     pic_path = project_config.ROOT_DIR + "experiments/results/score_plots/ScoreErrorTS_fBm_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_BetaMax{:.4e}_BetaMin{:.4e}_Nepochs{}".format(

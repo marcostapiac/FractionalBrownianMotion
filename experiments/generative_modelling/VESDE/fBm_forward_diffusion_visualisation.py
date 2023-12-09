@@ -21,7 +21,7 @@ def run(perfect_config: ConfigDict) -> None:
     except AssertionError as e:
         raise AssertionError("Error {}; check experiment parameters\n".format(e))
     diffusion = VESDEDiffusion(stdMax=perfect_config.std_max, stdMin=perfect_config.std_min)
-
+    ts  = np.linspace(1e-5, config.end_diff_time, config.max_diff_steps)
     gen = FractionalBrownianNoise(perfect_config.hurst, np.random.default_rng())
     fBm_cov = torch.from_numpy(compute_fBm_cov(gen, T=perfect_config.timeDim, isUnitInterval=True)).to(torch.float32)
 
@@ -29,7 +29,7 @@ def run(perfect_config: ConfigDict) -> None:
         [gen.circulant_simulation(perfect_config.timeDim).cumsum() for _ in tqdm(range(perfect_config.dataSize))])).to(
         torch.float32)
     dim_pair = torch.Tensor([perfect_config.dim1, perfect_config.dim2]).to(torch.int32)
-
+    
     # Now choose the dimensions we are interested in
     data = torch.index_select(data, dim=1, index=dim_pair)
     fBm_cov = torch.index_select(torch.index_select(fBm_cov, dim=0, index=dim_pair), dim=1, index=dim_pair)
@@ -73,13 +73,13 @@ if __name__ == "__main__":
     config.has_cuda = torch.cuda.is_available()
     config.hurst = 0.7
     config.timeDim = 256
-    config.max_diff_steps = 5000
+    config.max_diff_steps = 20000
     config.end_diff_time = 1
     config.std_max = 20
     config.std_min = 0.01
     config.dim1 = 20
     config.dim2 = 255
-    config.dataSize = 5000
+    config.dataSize = 10000
     config.gif_save_freq = 50
 
     # Run experiment

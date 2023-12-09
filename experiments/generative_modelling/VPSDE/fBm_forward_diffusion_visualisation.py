@@ -75,7 +75,7 @@ if __name__ == "__main__":
     config.beta_min = 0.1
     config.dim1 = 0
     config.dim2 = 1
-    config.dataSize = 5000
+   config.dataSize = 10000
     config.gif_save_freq = 10
 
     # Run experiment

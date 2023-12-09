@@ -45,7 +45,7 @@ if __name__ == "__main__":
     config.predictor_model = "ancestral"
     config.hurst = 0.7
     config.end_diff_time = 1
-    config.dataSize = 5000
+   config.dataSize = 10000
     config.std_min = 0.01
     config.timeDim = 256
     config.max_diff_steps = 20000
