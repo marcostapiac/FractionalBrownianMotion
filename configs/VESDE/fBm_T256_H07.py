@@ -25,7 +25,7 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = 600
+    config.max_epochs = 3700
     config.batch_size = 256
     config.hybrid = True
     config.weightings = True
@@ -76,7 +76,7 @@ def get_config():
     config.corrector_model = "VE"  # vs "VE"
 
     # Experiment evaluation parameters
-    config.dataSize = 20000
+    config.dataSize = 200
     config.num_runs = 20
     config.unitInterval = True
     config.plot = False
