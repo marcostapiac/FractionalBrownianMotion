@@ -28,7 +28,7 @@ def get_config():
     config.max_epochs = 3700
     config.batch_size = 256
     config.hybrid = True
-    config.weightings = True
+    config.weightings = False
 
     config.std_max = 20.
     config.std_min = 0.01
