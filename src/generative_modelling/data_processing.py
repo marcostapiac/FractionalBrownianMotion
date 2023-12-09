@@ -74,7 +74,7 @@ def train_and_save_diffusion_model(data: np.ndarray,
                                     loss_aggregator=torchmetrics.aggregation.MeanMetric,
                                     snapshot_path=config.scoreNet_snapshot_path, device=device,
                                     train_eps=train_eps,
-                                    end_diff_time=end_diff_time, max_diff_steps=max_diff_steps, to_weight=config.weightings, hybrid_training=config.is_hybrid)
+                                    end_diff_time=end_diff_time, max_diff_steps=max_diff_steps, to_weight=config.weightings, hybrid_training=config.hybrid)
 
     # Start training
     trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
