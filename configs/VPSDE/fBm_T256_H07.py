@@ -20,22 +20,22 @@ def get_config():
         str(config.hurst).replace(".", ""), config.timeDim)
 
     # Training hyperparameters
-    config.train_eps = 1e-3
-    config.max_diff_steps = 1000 * max(int(np.log2(config.timeDim) - 1), 1)
+    config.train_eps = 1e-4
+    config.max_diff_steps = 10000 #1000 * max(int(np.log2(config.timeDim) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = 2350
+    config.max_epochs = 3700
     config.batch_size = 256
     config.hybrid = True
-    config.weightings = True
+    config.weightings = False
 
     # Diffusion hyperparameters
-    config.beta_max = 30.
-    config.beta_min = 0.1
+    config.beta_max = 20.
+    config.beta_min = 0.0001
 
     # MLP Architecture parameters
-    config.temb_dim =  32
+    config.temb_dim = 64
     config.enc_shapes = [8, 16, 32]
     config.dec_shapes = config.enc_shapes[::-1]
 
@@ -79,7 +79,7 @@ def get_config():
     config.corrector_model = "VP"  # vs "VE" vs "OUSDE"
 
     # Experiment evaluation parameters
-    config.dataSize = 10000
+    config.dataSize = 20000
     config.num_runs = 20
     config.unitInterval = True
     config.plot = False
