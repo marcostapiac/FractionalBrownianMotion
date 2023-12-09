@@ -57,7 +57,10 @@ def run(perfect_config: ConfigDict) -> None:
                                                                                         5))
             xlabel = "fBm Dimension {}".format(dim_pair[0] + 1)
             ylabel = "fBm Dimension {}".format(dim_pair[1] + 1)
-            cov = eff_time * torch.eye(2) + fBm_cov
+            if i == (perfect_config.max_diff_steps - 1):
+                cov = eff_time * torch.eye(2)
+            else:
+                cov = eff_time * torch.eye(2) + fBm_cov
             plot_and_save_diffused_fBm_snapshot(samples=xts, cov=cov, save_path=save_path, x_label=xlabel,
                                                 y_label=ylabel, plot_title=plot_title)
 
@@ -72,12 +75,12 @@ if __name__ == "__main__":
     config.timeDim = 256
     config.max_diff_steps = 5000
     config.end_diff_time = 1
-    config.std_max = 90
+    config.std_max = 20
     config.std_min = 0.01
-    config.dim1 = 0
-    config.dim2 = 1
+    config.dim1 = 20
+    config.dim2 = 255
     config.dataSize = 5000
-    config.gif_save_freq = 10
+    config.gif_save_freq = 50
 
     # Run experiment
     run(config)

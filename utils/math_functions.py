@@ -301,22 +301,21 @@ def fBn_spectral_density(hurst: float, N: int) -> np.ndarray:
         :return: Spectral density
     """
     hhest = - ((2 * hurst) + 1)
-    const = np.sin(np.pi * hurst) * gamma(-hhest) / np.pi
+    const = np.sin(np.pi * hurst) * gamma(-hhest) / np.pi # TODO: Why dividing by np.pi?
     halfN = int((N - 1) / 2)
-    dpl = 2 * np.pi * np.arange(1, halfN + 1) / N
+    dpl = 2 * np.pi * np.arange(1, halfN + 1) / N # 2pi/N * [1, 2, 3, ..., N//2] (i.e., the frequencies)
     fspec = np.ones(halfN)
     for i in np.arange(0, halfN):
-        dpfi = np.arange(0, 200)
-        dpfi = 2 * np.pi * dpfi
-        fgi = (np.abs(dpl[i] + dpfi)) ** hhest
+        dpfi = np.arange(0, 200) # Start computation of B(i, H)
+        dpfi = 2 * np.pi * dpfi # 2*pi*freq
+        fgi = (np.abs(dpl[i] + dpfi)) ** hhest # TODO: Why np.abs()?
         fhi = (np.abs(dpl[i] - dpfi)) ** hhest
         dpfi = fgi + fhi
         dpfi[0] = dpfi[0] / 2
-        dpfi = (1 - np.cos(dpl[i])) * const * dpfi
+        dpfi = (1. - np.cos(dpl[i])) * const * dpfi
         fspec[i] = np.sum(dpfi)
-    fspec = fspec / np.exp(2 * np.sum(np.log(fspec)) / N)
+    fspec = fspec / np.exp(2 * np.sum(np.log(fspec)) / N) # fspec / (prod(fspec)**(2/N))
     return fspec
-
 
 def whittle_ll(hurst: float, gammah: np.ndarray, nbpoints: int) -> float:
     """
