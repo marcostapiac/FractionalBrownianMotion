@@ -105,7 +105,7 @@ class DiffusionModelTrainer:
         self.opt.zero_grad()
         outputs = self.score_network.forward(inputs=xts, times=diff_times.squeeze(-1)).squeeze(1)
         weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
-        if not self.include_weightings: weights /= weights
+        if not self.include_weightings: weights = torch.ones_like(weights)
         self._batch_loss_compute(outputs= weights*outputs, targets= weights*target_scores)
 
     def _run_epoch(self, epoch: int) -> None:
