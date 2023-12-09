@@ -4,3 +4,4 @@ experiments/results/forward_gifs/*
 experiments/results/perfect_backward_gifs/*
 experiments/results/scatter_matrix_gifs/*
 experiments/results/score_plots/*
+**/__pycache__/
