@@ -18,7 +18,7 @@ def run_early_stopping(config: ConfigDict) -> None:
         *config.model_parameters)
     scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
 
-    config.early_stop_idx = 7
+    config.early_stop_idx = 36
     synth_samples = reverse_sampling(data_shape=(config.dataSize, config.timeDim), diffusion=diffusion,
                                      scoreModel=scoreModel,
                                      config=config).cpu().numpy().reshape((config.dataSize, T))
@@ -33,7 +33,7 @@ def run_early_stopping(config: ConfigDict) -> None:
     df = pd.concat([df1, df2], ignore_index=False)
     df.index = pd.MultiIndex.from_product(
         [["Early Stop {}".format(early_stop_idx), "Final Time Samples"], [i for i in range(config.dataSize)]])
-    df.to_csv(config.experiment_path.replace("/results/", "/results/early_stopping/") + "_Samples_EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip")
+    df.to_csv(config.experiment_path.replace("/results/", "/results/early_stopping/") + "_Samples_EarlyStopping{}_Nepochs{}.csv.gzip".format(early_stop_idx,config.max_epochs), compression="gzip")
 
 if __name__ == "__main__":
     from configs.VESDE.fBm_T256_H07 import get_config

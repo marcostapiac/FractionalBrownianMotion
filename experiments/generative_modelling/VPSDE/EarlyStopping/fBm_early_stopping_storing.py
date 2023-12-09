@@ -34,8 +34,8 @@ def run_early_stopping(config: ConfigDict) -> None:
     df.index = pd.MultiIndex.from_product(
         [["Early Stop {}".format(early_stop_idx), "Final Time Samples"], [i for i in range(config.dataSize)]])
     df.to_csv(config.experiment_path.replace("/results/",
-                                             "/results/early_stopping/") + "_Samples_EarlyStoppingExperiment_Nepochs{}.csv.gzip".format(
-        config.max_epochs), compression="gzip")
+                                             "/results/early_stopping/") + "_Samples_EarlyStopping{}_Nepochs{}.csv.gzip".format(
+        early_stop_idx, config.max_epochs), compression="gzip")
 
 
 if __name__ == "__main__":
