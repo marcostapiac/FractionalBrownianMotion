@@ -1,0 +1,6 @@
+experiments/results/backward_gifs/*
+experiments/results/drift_plots/*
+experiments/results/forward_gifs/*
+experiments/results/perfect_backward_gifs/*
+experiments/results/scatter_matrix_gifs/*
+experiments/results/score_plots/*
