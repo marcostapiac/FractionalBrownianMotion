@@ -35,7 +35,7 @@ def get_config():
     config.beta_min = 0.1
 
     # MLP Architecture parameters
-    config.temb_dim =  64
+    config.temb_dim =  32
     config.enc_shapes = [8, 16, 32]
     config.dec_shapes = config.enc_shapes[::-1]
 
@@ -79,7 +79,7 @@ def get_config():
     config.corrector_model = "VP"  # vs "VE" vs "OUSDE"
 
     # Experiment evaluation parameters
-    config.dataSize = 100000
+    config.dataSize = 10000
     config.num_runs = 20
     config.unitInterval = True
     config.plot = False

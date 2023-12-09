@@ -27,7 +27,7 @@ def get_config():
     config.lr = 1e-3
     config.max_epochs = 19300
     config.batch_size = 256
-    config.hybrid = True
+    config.hybrid = False
     config.weightings = True
 
     # Diffusion hyperparameters
@@ -78,7 +78,7 @@ def get_config():
     config.corrector_model = "VE"  # vs "VE"
 
     # Experiment evaluation parameters
-    config.dataSize = 100000
+    config.dataSize = 20000
     config.num_runs = 20
     config.unitInterval = True
     config.plot = False
