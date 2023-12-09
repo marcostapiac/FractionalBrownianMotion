@@ -20,6 +20,8 @@ def run(perfect_config: ConfigDict) -> None:
     except AssertionError as e:
         raise AssertionError("Error {}; check experiment parameters\n".format(e))
     diffusion = VPSDEDiffusion(beta_max=perfect_config.beta_max, beta_min=perfect_config.beta_min)
+    ts  = np.linspace(1e-4, config.end_diff_time, config.max_diff_steps)
+    print(diffusion.get_eff_times(torch.Tensor(ts))[:10])
 
     gen = FractionalBrownianNoise(perfect_config.hurst, np.random.default_rng())
     fBm_cov = torch.from_numpy(compute_fBm_cov(gen, T=perfect_config.timeDim, isUnitInterval=True)).to(torch.float32)
@@ -68,11 +70,11 @@ if __name__ == "__main__":
     config = ml_collections.ConfigDict()
     config.has_cuda = torch.cuda.is_available()
     config.hurst = 0.7
-    config.timeDim = 2
-    config.max_diff_steps = 1000
+    config.timeDim = 256
+    config.max_diff_steps = 10000
     config.end_diff_time = 1
     config.beta_max = 20
-    config.beta_min = 0.1
+    config.beta_min = 0.0001
     config.dim1 = 0
     config.dim2 = 1
     config.dataSize = 10000

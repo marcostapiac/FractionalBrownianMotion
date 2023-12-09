@@ -22,6 +22,7 @@ def run(perfect_config: ConfigDict) -> None:
         raise AssertionError("Error {}; check experiment parameters\n".format(e))
     diffusion = VESDEDiffusion(stdMax=perfect_config.std_max, stdMin=perfect_config.std_min)
     ts  = np.linspace(1e-5, config.end_diff_time, config.max_diff_steps)
+    print(diffusion.get_eff_times(torch.Tensor(ts)))
     gen = FractionalBrownianNoise(perfect_config.hurst, np.random.default_rng())
     fBm_cov = torch.from_numpy(compute_fBm_cov(gen, T=perfect_config.timeDim, isUnitInterval=True)).to(torch.float32)
 
@@ -76,7 +77,7 @@ if __name__ == "__main__":
     config.max_diff_steps = 20000
     config.end_diff_time = 1
     config.std_max = 20
-    config.std_min = 0.01
+    config.std_min = 0.001
     config.dim1 = 20
     config.dim2 = 255
     config.dataSize = 10000

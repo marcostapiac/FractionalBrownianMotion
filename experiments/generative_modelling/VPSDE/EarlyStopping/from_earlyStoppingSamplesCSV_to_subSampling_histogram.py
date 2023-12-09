@@ -45,7 +45,7 @@ if __name__ == "__main__":
     H = config.hurst
     df = pd.read_csv(config.experiment_path.replace("/results/",
                                                     "/results/early_stopping/") + "_Samples_EarlyStopping{}_Nepochs{}.csv.gzip".format(
-        1,config.max_epochs),
+        7,config.max_epochs),
                      compression="gzip", index_col=[0, 1])
     # Now onto exact samples for reference
     fbn = FractionalBrownianNoise(H=config.hurst, rng=np.random.default_rng())
