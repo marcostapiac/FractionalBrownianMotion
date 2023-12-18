@@ -7,61 +7,70 @@ from tqdm import tqdm
 from configs import project_config
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
-from utils.math_functions import compute_fBm_cov
+from utils.math_functions import compute_fBm_cov, compute_fBn_cov
 from utils.plotting_functions import make_gif, plot_and_save_diffused_fBm_snapshot
 
 
-def run(perfect_config: ConfigDict) -> None:
+def run(forward_config: ConfigDict) -> None:
     print("!!!! Running started !!!! \n")
     try:
-        assert (perfect_config.gif_save_freq <= perfect_config.max_diff_steps)
-        assert (perfect_config.gif_save_freq > 0)
-        assert (perfect_config.dim1 < perfect_config.timeDim)
-        assert (perfect_config.dim2 < perfect_config.timeDim)
+        assert (forward_config.gif_save_freq <= forward_config.max_diff_steps)
+        assert (forward_config.gif_save_freq > 0)
+        assert (forward_config.dim1 < forward_config.timeDim)
+        assert (forward_config.dim2 < forward_config.timeDim)
     except AssertionError as e:
         raise AssertionError("Error {}; check experiment parameters\n".format(e))
-    diffusion = VESDEDiffusion(stdMax=perfect_config.std_max, stdMin=perfect_config.std_min)
-    ts  = np.linspace(1e-5, config.end_diff_time, config.max_diff_steps)
-    print(diffusion.get_eff_times(torch.Tensor(ts)))
-    gen = FractionalBrownianNoise(perfect_config.hurst, np.random.default_rng())
-    fBm_cov = torch.from_numpy(compute_fBm_cov(gen, T=perfect_config.timeDim, isUnitInterval=True)).to(torch.float32)
+    diffusion = VESDEDiffusion(stdMax=forward_config.std_max, stdMin=forward_config.std_min)
+    dim_pair = torch.Tensor([forward_config.dim1, forward_config.dim2]).to(torch.int32)
 
-    data = torch.from_numpy(np.array(
-        [gen.circulant_simulation(perfect_config.timeDim).cumsum() for _ in tqdm(range(perfect_config.dataSize))])).to(
-        torch.float32)
-    dim_pair = torch.Tensor([perfect_config.dim1, perfect_config.dim2]).to(torch.int32)
-    
+
+    gen = FractionalBrownianNoise(forward_config.hurst, np.random.default_rng())
+    if forward_config.isfBm:
+        data_cov = torch.from_numpy(compute_fBm_cov(gen, T=forward_config.timeDim, isUnitInterval=forward_config.isUnitInterval)).to(torch.float32)
+    else:
+        data_cov = torch.from_numpy(compute_fBn_cov(gen, T=forward_config.timeDim, isUnitInterval=forward_config.isUnitInterval)).to(torch.float32)
+
+    org_data = []
+    for _ in tqdm(range(forward_config.dataSize)):
+        tmp = gen.circulant_simulation(forward_config.timeDim, scaleUnitInterval=forward_config.isUnitInterval)
+        if forward_config.isfBm: tmp = tmp.cumsum()
+        org_data.append(tmp)
+
+    org_data = torch.from_numpy(np.array(org_data)).to(torch.float32)
+
     # Now choose the dimensions we are interested in
-    data = torch.index_select(data, dim=1, index=dim_pair)
-    fBm_cov = torch.index_select(torch.index_select(fBm_cov, dim=0, index=dim_pair), dim=1, index=dim_pair)
+    org_data = torch.index_select(org_data, dim=1, index=dim_pair)
+    data_cov = torch.index_select(torch.index_select(data_cov, dim=0, index=dim_pair), dim=1, index=dim_pair)
 
-    ts = np.linspace(0., perfect_config.end_diff_time, num=perfect_config.max_diff_steps)
+
+    ts = np.linspace(0., forward_config.end_diff_time, num=forward_config.max_diff_steps)
     folder_path = project_config.ROOT_DIR + "experiments/results/forward_gifs/"
-    gif_path = "fBm_dimPair{}_dimPair{}_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_StdMax{:.4e}_StdMin{:.4e}".format(dim_pair[0],
+    gif_path = "{}_incs_{}_unitIntv_fBm_dimPair{}_dimPair{}_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_StdMax{:.4e}_StdMin{:.4e}".format(not forward_config.isfBm, forward_config.isUnitInterval, dim_pair[0],
                                                                                                           dim_pair[1],
-                                                                                                          perfect_config.hurst,
-                                                                                                          perfect_config.timeDim,
-                                                                                                          perfect_config.max_diff_steps,
-                                                                                                          perfect_config.end_diff_time,
-                                                                                                          perfect_config.std_max,
-                                                                                                          perfect_config.std_min).replace(
+                                                                                                          forward_config.hurst,
+                                                                                                          forward_config.timeDim,
+                                                                                                          forward_config.max_diff_steps,
+                                                                                                          forward_config.end_diff_time,
+                                                                                                          forward_config.std_max,
+                                                                                                          forward_config.std_min).replace(
         ".", "")
 
-    for i in tqdm(range(perfect_config.max_diff_steps)):
+    for i in tqdm(range(forward_config.max_diff_steps)):
         eff_time = diffusion.get_eff_times(diff_times=torch.Tensor([ts[i]]))
-        xts, _ = diffusion.noising_process(data, eff_time)
-        if i % perfect_config.gif_save_freq == 0 or i == (perfect_config.max_diff_steps - 1):
+        xts, _ = diffusion.noising_process(org_data, eff_time)
+        if i % forward_config.gif_save_freq == 0 or i == (forward_config.max_diff_steps - 1):
             save_path = folder_path + gif_path + "_diffIndex_{}.png".format(i + 1)
-            plot_title = "Forward Diffused Samples with $T={}$ at time {}".format(perfect_config.timeDim,
+            plot_title = "Forward Diffused Samples with $T={}$ at time {}".format(forward_config.timeDim,
                                                                                   round((
-                                                                                                i + 1) / perfect_config.max_diff_steps,
+                                                                                                i + 1) / forward_config.max_diff_steps,
                                                                                         5))
             xlabel = "fBm Dimension {}".format(dim_pair[0] + 1)
             ylabel = "fBm Dimension {}".format(dim_pair[1] + 1)
-            if i == (perfect_config.max_diff_steps - 1):
+            if i == (forward_config.max_diff_steps - 1):
+                # We compare the final forward time samples with the p_{noise} we sample from.
                 cov = eff_time * torch.eye(2)
             else:
-                cov = eff_time * torch.eye(2) + fBm_cov
+                cov = eff_time * torch.eye(2) + data_cov
             plot_and_save_diffused_fBm_snapshot(samples=xts, cov=cov, save_path=save_path, x_label=xlabel,
                                                 y_label=ylabel, plot_title=plot_title)
 
@@ -70,18 +79,20 @@ def run(perfect_config: ConfigDict) -> None:
 
 if __name__ == "__main__":
     # Data parameters
-    config = ml_collections.ConfigDict()
-    config.has_cuda = torch.cuda.is_available()
-    config.hurst = 0.7
-    config.timeDim = 256
-    config.max_diff_steps = 20000
-    config.end_diff_time = 1
-    config.std_max = 90
-    config.std_min = 0.01
-    config.dim1 = 20
-    config.dim2 = 255
-    config.dataSize = 10000
-    config.gif_save_freq = 50
+    forward_config = ml_collections.ConfigDict()
+    forward_config.has_cuda = torch.cuda.is_available()
+    forward_config.hurst = 0.7
+    forward_config.timeDim = 256
+    forward_config.max_diff_steps = 20000
+    forward_config.end_diff_time = 1
+    forward_config.std_max = 90
+    forward_config.std_min = 0.01
+    forward_config.dim1 = 20
+    forward_config.dim2 = 255
+    forward_config.dataSize = 10000
+    forward_config.isUnitInterval = True
+    forward_config.isfBm = True
+    forward_config.gif_save_freq = 50
 
     # Run experiment
-    run(config)
+    run(forward_config)

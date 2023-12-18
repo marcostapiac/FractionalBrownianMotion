@@ -33,7 +33,7 @@ def run(config: ConfigDict):
         config.max_epochs).replace(
         ".", "")
 
-    score_only_drift_data_path = drift_data_path.replace("DriftErrorsTS", "ScoreOnlyDriftErrorsTS")
+    score_only_drift_data_path = drift_data_path.replace("DriftErrorsTS", "SO_DriftEsTS")
 
     pd.DataFrame(data=drift_errors.numpy()).to_csv(drift_data_path + ".csv.gzip", compression="gzip", index=True)
     pd.DataFrame(data=score_only_drift_errors.numpy()).to_csv(score_only_drift_data_path + ".csv.gzip",

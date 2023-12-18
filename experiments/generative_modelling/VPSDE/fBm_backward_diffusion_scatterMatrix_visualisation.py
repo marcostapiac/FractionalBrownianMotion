@@ -32,7 +32,7 @@ def run(config: ConfigDict) -> None:
 
     folder_path = project_config.ROOT_DIR + "experiments/results/scatter_matrix_gifs/"
 
-    gif_path = config.experiment_path + "fBm_ScatterMatrix_rowIdxs{}_colIdxs{}".format(
+    gif_path = config.experiment_path + "{}_incs_{}_unitIntv_fBm_ScatterMatrix_rowIdxs{}_colIdxs{}".format(not config.isfBm, config.isUnitInterval,
         config.row_idxs, config.col_idxs).replace(
         ".", "").replace("[", "").replace("]", "").replace(" ", ",")
 

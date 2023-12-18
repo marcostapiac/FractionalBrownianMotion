@@ -2,7 +2,6 @@ import numpy as np
 import torch
 from ml_collections import ConfigDict
 
-from configs import project_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
@@ -28,6 +27,10 @@ def run(config: ConfigDict):
     score_errors = run_fBm_score_error_experiment(dataSize=10000, diffusion=diffusion, scoreModel=scoreModel,
                                                   rng=rng,
                                                   config=config)
+
+    increment = "CumSum" if config.isfBm else "Inc"
+    unitInterval = "UnitIntv" if config.isUnitInterval else "StdIntv"
+
     pic_path = config.experiment_path.replace("experiments/results/",
                                               "experiments/results/score_plots/") + "ScoreErrorTS_Nepochs{}".format(
         config.max_epochs).replace(
@@ -40,7 +43,7 @@ def run(config: ConfigDict):
     plot_errors_ts(
         np.linspace(config.sample_eps, config.end_diff_time, config.max_diff_steps)[start_index:end_index],
         time_dim_score_errors[start_index:end_index],
-        plot_title="MSE Score Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst, config.timeDim),
+        plot_title="MSE Score VPSDE {} {} fBm with $(H, T) = ({},{})$".format(increment, unitInterval,config.hurst, config.timeDim),
         path=pic_path)
 
     pic_path = pic_path.replace("ScoreErrorTS", "ScoreErrorHM")
@@ -48,7 +51,7 @@ def run(config: ConfigDict):
     dims = [i for i in range(config.timeDim)]
     times = np.linspace(start_index, end_index)
     plot_errors_heatmap(score_errors[start_index:end_index, :],
-                        plot_title="MSE Score Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst,
+                        plot_title="MSE Score VPSDE {} {} fBm with $(H, T) = ({},{})$".format(increment, unitInterval, config.hurst,
                                                                                                   config.timeDim),
                         path=pic_path, xticks=dims, yticks=list(times))
 

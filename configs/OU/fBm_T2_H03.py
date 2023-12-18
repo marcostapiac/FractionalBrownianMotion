@@ -27,6 +27,8 @@ def get_config():
     config.lr = 1e-3
     config.max_epochs = 1000
     config.batch_size = 256
+    config.isfBm = True
+    config.isUnitInterval = True
     config.hybrid = True
     config.weightings = True
 
@@ -42,17 +44,18 @@ def get_config():
     config.dialation_length = 10
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_fBm_OUSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_TembDim{}_EncShapes{}".format(
-        config.hurst,
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_{}_incs_{}_unitIntv_fBm_OUSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_TembDim{}_EncShapes{}".format(
+        not config.isfBm, config.isUnitInterval, config.hurst,
         config.timeDim,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.temb_dim,
         config.enc_shapes).replace(".", "")
 
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_fBm_OUSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Weightings".format(
-        config.hurst,
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_{}_incs_{}_unitIntv_fBm_OUSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Weightings".format(
+        not config.isfBm, config.isUnitInterval, config.hurst,
         config.timeDim,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.temb_dim,
-        config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings).replace(".", "")
+        config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid,
+        config.weightings).replace(".", "")
 
     config.model_choice = "TSM"
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
@@ -78,7 +81,6 @@ def get_config():
     config.unitInterval = True
     config.annot_heatmap = True
     config.plot = True
-    config.isfBm = True
     config.permute_test = False
     config.image_path = config.scoreNet_trained_path.replace("src/generative_modelling/trained_models/trained_",
                                                              "pngs/")

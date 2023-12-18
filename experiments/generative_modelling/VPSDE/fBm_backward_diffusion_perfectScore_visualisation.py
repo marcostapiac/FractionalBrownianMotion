@@ -22,8 +22,8 @@ def run(perfect_config: ConfigDict) -> None:
     dim_pair = torch.Tensor([perfect_config.dim1, perfect_config.dim2]).to(torch.int32)
     folder_path = project_config.ROOT_DIR + "experiments/results/perfect_backward_gifs/"
 
-    gif_path = "perfect_fBm_dimPair{}_dimPair{}_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_BetaMax{:.4e}_BetaMin{:.4e}".format(
-        dim_pair[0],
+    gif_path = "perfect_{}_incs_{}_unitIntv_fBm_dimPair{}_dimPair{}_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_BetaMax{:.4e}_BetaMin{:.4e}".format(
+        not perfect_config.isfBm, perfect_config.isUnitInterval,dim_pair[0],
         dim_pair[1],
         perfect_config.hurst,
         perfect_config.timeDim,
@@ -40,19 +40,19 @@ def run(perfect_config: ConfigDict) -> None:
 
 if __name__ == "__main__":
     # Data parameters
-    config = ml_collections.ConfigDict()
-    config.has_cuda = torch.cuda.is_available()
-    config.predictor_model = "ancestral"
-    config.hurst = 0.7
-    config.timeDim = 256
-    config.max_diff_steps = 1000
-    config.end_diff_time = 1
-    config.beta_max = 20.
-    config.beta_min = 0.1
-    config.dim1 = 254
-    config.dim2 = 255
-   config.dataSize = 10000
-    config.save_freq = 10
+    perfect_config = ml_collections.ConfigDict()
+    perfect_config.has_cuda = torch.cuda.is_available()
+    perfect_config.predictor_model = "ancestral"
+    perfect_config.hurst = 0.7
+    perfect_config.timeDim = 256
+    perfect_config.max_diff_steps = 1000
+    perfect_config.end_diff_time = 1
+    perfect_config.beta_max = 20.
+    perfect_config.beta_min = 0.1
+    perfect_config.dim1 = 254
+    perfect_config.dim2 = 255
+    perfect_config.dataSize = 10000
+    perfect_config.save_freq = 10
 
     # Run experiments
-    run(config)
+    run(perfect_config)

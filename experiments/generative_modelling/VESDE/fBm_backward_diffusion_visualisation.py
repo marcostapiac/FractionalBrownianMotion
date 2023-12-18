@@ -35,10 +35,12 @@ def run(config: ConfigDict) -> None:
 
     folder_path = project_config.ROOT_DIR + "experiments/results/backward_gifs/"
 
-    gif_path = config.experiment_path + "fBm_dimPair{}_dimPair{}".format(
+    gif_path = config.experiment_path + "{}_interval_{}_unitIntv_fBm_dimPair{}_dimPair{}".format(
+        not config.isfBm, config.isUnitInterval,
         dim_pair[0],
         dim_pair[1]).replace(
         ".", "")
+
     run_fBm_score(dataSize=config.dataSize, dim_pair=dim_pair, diffusion=diffusion, scoreModel=scoreModel, rng=rng,
                   config=config, folderPath=folder_path, gifPath=gif_path)
 

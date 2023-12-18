@@ -24,9 +24,12 @@ def run(config: ConfigDict):
                                                                                                         config.scoreNet_trained_path + "_Nepochs" + str(
                                                                                                             config.max_epochs)))
 
-    score_errors = run_fBm_score_error_experiment(dataSize=5000, diffusion=diffusion, scoreModel=scoreModel,
+    score_errors = run_fBm_score_error_experiment(dataSize=10000, diffusion=diffusion, scoreModel=scoreModel,
                                                   rng=rng,
                                                   config=config)
+    increment = "CumSum" if config.isfBm else "Inc"
+    unitInterval = "UnitIntv" if config.isUnitInterval else "StdIntv"
+
     start_index = int(0. * config.max_diff_steps)
     end_index = int(1. * config.max_diff_steps)
 
@@ -38,7 +41,7 @@ def run(config: ConfigDict):
     plot_errors_ts(
         np.linspace(config.sample_eps, config.end_diff_time, config.max_diff_steps)[start_index:end_index],
         time_dim_score_errors[start_index:end_index],
-        plot_title="MSE Score Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst, config.timeDim),
+        plot_title="MSE Score VESDE {} {} fBm with $(H, T) = ({},{})$".format(increment, unitInterval, config.hurst, config.timeDim),
         path=pic_path)
 
     pic_path = pic_path.replace("ScoreErrorTS", "ScoreErrorHM")
@@ -48,7 +51,7 @@ def run(config: ConfigDict):
     dims = [i for i in range(config.timeDim)]
     times = np.linspace(start_index, end_index)
     plot_errors_heatmap(score_errors[start_index:end_index, :],
-                        plot_title="MSE Score Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst,
+                        plot_title="MSE Score VESDE {} {} fBm with $(H, T) = ({},{})$".format(increment, unitInterval,config.hurst,
                                                                                                   config.timeDim),
                         path=pic_path, xticks=dims, yticks=list(times))
 

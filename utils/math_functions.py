@@ -124,7 +124,7 @@ def permutation_test(data1: np.ndarray, data2: np.ndarray, num_permutations: int
     return p_value
 
 
-def generate_fBn(H: float, T: int, S: int, rng: np.random.Generator,
+def generate_fBn(H: float, T: int, S: int, rng: np.random.Generator, isUnitInterval:bool,
                  rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
     """
     Function generates samples of fractional Brownian noise
@@ -133,16 +133,17 @@ def generate_fBn(H: float, T: int, S: int, rng: np.random.Generator,
         :param S: (int) Number of samples
         :param rng: (random.Generator) Default random number generator
         :param rvs: Pre-computed Gaussian random variables
+        :param isUnitInterval: Whether to scale to unit time interval.
         :return: (np.ndarray) fBn samples
     """
     generator = FractionalBrownianNoise(H=H, rng=rng)
     data = np.zeros((S, T))
     for i in tqdm(range(S)):
-        data[i, :] = generator.circulant_simulation(T, gaussRvs=rvs)
+        data[i, :] = generator.circulant_simulation(T, scaleUnitInterval=isUnitInterval, gaussRvs=rvs)
     return np.array(data).reshape((S, T))
 
 
-def generate_fBm(H: float, T: int, S: int, rng: np.random.Generator,
+def generate_fBm(H: float, T: int, S: int, rng: np.random.Generator, isUnitInterval:bool,
                  rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
     """
     Function generates samples of fractional Brownian motion
@@ -151,9 +152,10 @@ def generate_fBm(H: float, T: int, S: int, rng: np.random.Generator,
         :param S: Number of samples
         :param rng: Random number generator
         :param rvs: Pre-computed Gaussian random variables
+        :param isUnitInterval: Whether to scale samples to unit time interval.
         :return: fBm samples
     """
-    data = generate_fBn(H=H, T=T, S=S, rng=rng, rvs=rvs)
+    data = generate_fBn(H=H, T=T, S=S, rng=rng, rvs=rvs, isUnitInterval=isUnitInterval)
     return np.cumsum(data, axis=1)
 
 
@@ -196,10 +198,10 @@ def reduce_to_fBn(timeseries: np.ndarray, reduce: bool) -> np.ndarray:
 def compute_fBn_cov(fBn_generator: ClassFractionalBrownianNoise, T: int, isUnitInterval: bool) -> np.ndarray:
     """
     Compute covariance matrix of Fractional Brownian Noise
-    :param fBn_generator: Class defining process generator
-    :param T: Covariance matrix dimensionality
-    :param isUnitInterval: Indicates whether to re-scale fBn covariance from [0,td] to [0,1]
-    :return: Covariance matrix
+        :param fBn_generator: Class defining process generator
+        :param T: Covariance matrix dimensionality
+        :param isUnitInterval: Indicates whether to re-scale fBn covariance from [0,td] to [0,1]
+        :return: Covariance matrix
     """
     cov = (np.atleast_2d(
         [[fBn_generator.covariance((i - j)) for j in range(T)] for i in

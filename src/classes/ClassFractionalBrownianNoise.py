@@ -60,7 +60,7 @@ class FractionalBrownianNoise:
             c = np.vstack([c, self.covariance(lag=i + 2)])  # No need to tranpose if c is already column
         return self.scale_to_unit_time_interval(N_samples, np.squeeze(samples))
 
-    def circulant_simulation(self, N_samples: int, gaussRvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
+    def circulant_simulation(self, N_samples: int, scaleUnitInterval:bool=True, gaussRvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
         assert (type(N_samples) == int and (gaussRvs is not None and len(gaussRvs) == 2 * N_samples) or not gaussRvs)
         W = np.atleast_2d([complex(0., 0.)] * (2 * N_samples)).T
         assert (W.shape[1] > 0 and W.shape[0] == 2 * N_samples)
@@ -82,7 +82,8 @@ class FractionalBrownianNoise:
         lambdas = np.fft.ifft(c)  # Should be real
         dotPs = np.diag(np.atleast_2d(np.sqrt(lambdas)).T @ W.T)
         Zs = np.fft.fft(dotPs)  # TOD0: Check implementation divides by root of length of dotPs
-        return self.scale_to_unit_time_interval(N_samples, np.real(Zs[:N_samples]))
+        if scaleUnitInterval: return self.scale_to_unit_time_interval(N_samples, np.real(Zs[:N_samples]))
+        return np.real(Zs[:N_samples])
 
     def crmd_simulation(self, N_samples: int, l: int, r: int) -> np.ndarray:
         g = int(np.ceil(np.log2(N_samples)))
