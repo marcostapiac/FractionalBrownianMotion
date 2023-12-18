@@ -46,5 +46,5 @@ if __name__ == "__main__":
 
     config = get_config()
     assert (0. < config.hurst < 1.)
-
+    assert (config.early_stop_idx == 0)
     run(config)

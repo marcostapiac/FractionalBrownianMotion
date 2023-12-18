@@ -28,6 +28,17 @@ matplotlib.rcParams.update({
     'text.latex.preamble': r"\usepackage{amsmath}"
 })
 
+def plot_efftimes(lin_ts:np.ndarray, eff_ts:np.ndarray)->None:
+    """
+    Function to visualise effective diffusion times
+        :param lin_ts: Linear time series
+        :param eff_ts: Effective Diffusion Times
+        :return: None
+    """
+    plt.scatter(lin_ts, eff_ts)
+    plt.xlabel("Linear Time")
+    plt.ylabel("Effective Diffusion Time")
+    plt.show()
 
 def plot_subplots(time_ax: np.ndarray, data: np.ndarray, label_args: np.ndarray[Union[NoneType, str]],
                   xlabels: np.ndarray[Union[NoneType, str]], ylabels: np.ndarray[Union[NoneType, str]],

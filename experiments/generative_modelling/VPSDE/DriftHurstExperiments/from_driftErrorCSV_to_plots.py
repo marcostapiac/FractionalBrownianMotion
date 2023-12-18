@@ -16,8 +16,8 @@ if __name__ == "__main__":
 
     time_space = np.linspace(config.sample_eps, config.end_diff_time, config.max_diff_steps)
 
-    start_index = 1
-    end_index = 100
+    start_index = 0
+    end_index = 10
     time_idxs = [i for i in range(start_index, end_index)]
     drift_errors = pd.read_csv(drift_data_path + ".csv.gzip", compression="gzip", index_col=[0])
     drift_hm_path = drift_pic_path.replace("DriftErrorsTS", "DriftErrorsHM")
@@ -39,10 +39,10 @@ if __name__ == "__main__":
         path=drift_pic_path)
 
     start_index = 0
-    end_index = 0
+    end_index = 2000
 
     time_idxs = [i for i in range(start_index, end_index + 1)]
-    dims = [0,1,2,3,4,5,250,251,252,253,254,255]
+    dims = [i for i in range(2)]
     plot_errors_heatmap(drift_errors.iloc[time_idxs, dims].to_numpy(),
                         plot_title="MSE Drift Error for VPSDE fBm with $(H, T) = ({},{})$".format(config.hurst,
                                                                                                   config.timeDim),

@@ -36,8 +36,8 @@ class FractionalBrownianNoise:
         return (1.0002 - 0.000134 * x) * (B3 - np.power(2., -7.65 * self.H - 7.4))
 
     def spectral_density(self, x: np.ndarray) -> float:
-        return 2. * np.sin(np.pi * self.H) * gammafnc(2. * self.H + 1.) * (1 - np.cos(x)) * (
-                np.power(np.abs(x), -1 - 2. * self.H) + self.spectral_helper(x))
+        return 2. * np.sin(np.pi * self.H) * gammafnc(2. * self.H + 1.) * (1. - np.cos(x)) * (
+                np.power(np.abs(x), -1. - 2. * self.H) + self.spectral_helper(x))
 
     def hosking_simulation(self, N_samples: int) -> np.ndarray:
         samples = np.atleast_2d([self.rng.normal()])  # Row vector

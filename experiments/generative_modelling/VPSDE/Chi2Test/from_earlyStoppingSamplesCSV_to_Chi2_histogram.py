@@ -20,7 +20,6 @@ def one_model_run(config:ConfigDict,fBm_samples: np.ndarray, sample_type: str):
     low, chi2s, high = chiSquared_test(T=config.timeDim, H=config.hurst,samples=approx_fBn,isUnitInterval=config.unitInterval)
     low_even, even_chi2s, high_even = chiSquared_test(T=config.timeDim//2, H=config.hurst,samples=even_approx_fBn,isUnitInterval=config.unitInterval)
     my_chi2s = [np.array(chi2s), np.array(even_chi2s)]
-    print(min(chi2s))
     my_bounds = [(low, high), (low_even, high_even)]
     titles = ["All", "Even"]
     dfs = [config.timeDim-1, config.timeDim//2 -1]
@@ -28,7 +27,6 @@ def one_model_run(config:ConfigDict,fBm_samples: np.ndarray, sample_type: str):
         fig, ax = plt.subplots()
         ax.axvline(x=my_bounds[i][0], color="blue", label="Lower Bound")
         ax.axvline(x=my_bounds[i][1], color="blue", label="Upper Bound")
-        print(my_bounds[i])
         xlinspace = np.linspace(scipy.stats.chi2.ppf(0.0001, dfs[i]), scipy.stats.chi2.ppf(0.9999, dfs[i]), 1000)
         pdfvals = scipy.stats.chi2.pdf(xlinspace, df=dfs[i])
         plot_histogram(my_chi2s[i], pdf_vals=pdfvals, xlinspace=xlinspace, num_bins=200,
@@ -36,7 +34,7 @@ def one_model_run(config:ConfigDict,fBm_samples: np.ndarray, sample_type: str):
                        ylabel="density", plotlabel="Chi2 with {} DoF".format(dfs[i]),
                        plottitle="Histogram of {} {} samples' Chi2 Test Statistic".format(titles[i], sample_type),
                        fig=fig, ax=ax)
-        ax.set_xlim(my_bounds[i])
+        ax.set_xlim(my_bounds[i][0]/10, 10*my_bounds[i][1])
         plt.show()
 
 

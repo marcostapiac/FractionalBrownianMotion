@@ -76,8 +76,8 @@ if __name__ == "__main__":
     config.timeDim = 256
     config.max_diff_steps = 20000
     config.end_diff_time = 1
-    config.std_max = 20
-    config.std_min = 0.001
+    config.std_max = 90
+    config.std_min = 0.01
     config.dim1 = 20
     config.dim2 = 255
     config.dataSize = 10000

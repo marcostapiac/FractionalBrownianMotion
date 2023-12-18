@@ -67,3 +67,5 @@ if __name__ == "__main__":
         config.dim1 = 254
         config.dim2 = 255
         run(config)
+        config.dim1 = 20
+        config.dim2 = 255

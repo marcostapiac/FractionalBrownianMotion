@@ -51,8 +51,15 @@ if __name__ == "__main__":
     config.dataSize = 10000
     config.idx_start_save = int(0.0 * config.max_diff_steps)
     config.gif_save_freq = int(max(0.05 * (config.max_diff_steps - config.idx_start_save), 1))
+    config.row_idxs = np.array([0,1,2])
+    config.col_idxs = np.array([0,1,2])
+    run(config)
+    config.row_idxs = np.array([24,25,26])
+    config.col_idxs = np.array([253, 254, 255])
+    run(config)
+    """
     for i in range(0, config.timeDim, 3):
-        if i + 2 == config.timeDim:
+       if i + 2 == config.timeDim:
             config.row_idxs = np.array([i, i + 1])
         elif i + 1 == config.timeDim:
             config.row_idxs = np.array([i])
@@ -61,4 +68,4 @@ if __name__ == "__main__":
         N = config.row_idxs.shape[0]
         for j in range(0, config.timeDim - i, 3):
             config.col_idxs = config.row_idxs[np.asarray((config.row_idxs + j) < config.timeDim).nonzero()] + j
-            run(config)
+            run(config)"""

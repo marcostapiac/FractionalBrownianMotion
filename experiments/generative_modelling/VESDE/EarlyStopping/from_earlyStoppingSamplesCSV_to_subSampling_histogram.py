@@ -31,8 +31,17 @@ def one_model_run(fBm_samples: np.ndarray, sample_type: str):
         plot_histogram(my_hs[i], num_bins=150, xlabel="H", ylabel="density",
                        plottitle="Histogram of {} {} samples' estimated Hurst parameter".format(titles[i], sample_type),
                        fig=fig, ax=ax)
-        print(my_hs[i].mean())
-        print(my_hs[i].std())
+        mean, std = my_hs[i].mean(), my_hs[i].std()
+        print(mean)
+        print(std)
+        plt.show()
+        # Repeat with constrained axis
+        fig, ax = plt.subplots()
+        ax.axvline(x=H, color="blue", label="True Hurst")
+        plot_histogram(my_hs[i], num_bins=150, xlabel="H", ylabel="density",
+                       plottitle="Constrained hist of {} {} samples' estimated Hurst parameter".format(titles[i], sample_type),
+                       fig=fig, ax=ax)
+        ax.set_xlim(mean - 5 * std, mean + 5 * std)
         plt.show()
 
 
