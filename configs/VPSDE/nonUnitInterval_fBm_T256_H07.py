@@ -1,5 +1,4 @@
 import ml_collections
-import numpy as np
 import torch
 
 from configs import project_config
@@ -28,7 +27,7 @@ def get_config():
     config.max_epochs = 7060
     config.batch_size = 256
     config.isfBm = True
-    config.isUnitInterval = True
+    config.isUnitInterval = False
     config.hybrid = True
     config.weightings = False
 

@@ -3,7 +3,6 @@ import pandas as pd
 import torch
 from ml_collections import ConfigDict
 
-from configs import project_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
@@ -11,7 +10,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesS
 from utils.experiment_evaluations import run_fBm_backward_drift_experiment
 
 
-def run(config: ConfigDict):
+def run_backward_drift_error_storing(config: ConfigDict):
     rng = np.random.default_rng()
     scoreModel = TimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
@@ -47,4 +46,4 @@ if __name__ == "__main__":
     config = get_config()
     assert (0. < config.hurst < 1.)
     assert (config.early_stop_idx == 0)
-    run(config)
+    run_backward_drift_error_storing(config)

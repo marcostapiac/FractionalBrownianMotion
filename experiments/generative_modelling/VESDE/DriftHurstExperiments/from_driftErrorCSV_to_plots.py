@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 
-from configs import project_config
 from utils.plotting_functions import plot_errors_heatmap, plot_errors_ts
 
 if __name__ == "__main__":
@@ -15,8 +14,9 @@ if __name__ == "__main__":
 
     drift_pic_path = drift_data_path.replace("/drift_data/", "/drift_plots/")
     time_space = np.linspace(config.sample_eps, config.end_diff_time, config.max_diff_steps)
-    start_index = 1
-    end_index = 20
+    start_index = 0
+    end_index = config.max_diff_steps
+
     time_idxs = [i for i in range(start_index, end_index)]
     drift_errors = pd.read_csv(drift_data_path + ".csv.gzip", compression="gzip", index_col=[0])
     drift_hm_path = drift_pic_path.replace("DriftErrorsTS", "DriftErrorsHM")
@@ -29,7 +29,7 @@ if __name__ == "__main__":
         time_dim_drift_errors[time_idxs],
         plot_title="MSE Drift Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst, config.timeDim),
         path=drift_pic_path)
-    time_dim_drift_errors = time_dim_drift_errors.cumsum()/np.arange(1, config.max_diff_steps+1)
+    time_dim_drift_errors = (time_dim_drift_errors[::-1].cumsum()/np.arange(1, config.max_diff_steps+1))[::-1]
 
     plot_errors_ts(
         time_space[time_idxs],
@@ -37,11 +37,11 @@ if __name__ == "__main__":
         plot_title="MSE Drift CumMean Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst, config.timeDim),
         path=drift_pic_path)
 
-    start_index = 0
-    end_index = 5000
+    start_index = int(0.8*config.max_diff_steps)
+    end_index = int(1.*config.max_diff_steps)
 
     time_idxs = [i for i in range(start_index, end_index)]
-    dims = [227, 245]
+    dims = [i for i in range(0,20)]
     plot_errors_heatmap(drift_errors.iloc[time_idxs, dims].to_numpy(),
                         plot_title="MSE Drift Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst,
                                                                                                   config.timeDim),

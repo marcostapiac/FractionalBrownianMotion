@@ -17,9 +17,10 @@ if __name__ == "__main__":
                                                     "/results/early_stopping/") + "_Samples_EStop{}_Nepochs{}.csv.gzip".format(
         1,config.max_epochs)
     df = pd.read_csv(path, compression="gzip", index_col=[0, 1])
+
     # Now onto exact samples for reference
-    unitInterval = True if "True_unitTimeInterval" in path else False
-    isfBm = True if "False_increments" in path else False
+    unitInterval = True if "True_unitIntv" in path else False
+    isfBm = True if "False_incs" in path else False
 
     fbn = FractionalBrownianNoise(H=config.hurst, rng=np.random.default_rng())
     true_cov = compute_fBm_cov(fbn,T=config.timeDim, isUnitInterval=unitInterval) if isfBm else compute_fBn_cov(fbn,T=config.timeDim, isUnitInterval=unitInterval)

@@ -30,7 +30,7 @@ if __name__ == "__main__":
         time_dim_drift_errors[time_idxs],
         plot_title="MSE Drift Error for VPSDE fBm with $(H, T) = ({},{})$".format(config.hurst, config.timeDim),
         path=drift_pic_path)
-    time_dim_drift_errors = time_dim_drift_errors.cumsum() / np.arange(1, config.max_diff_steps + 1)
+    time_dim_drift_errors = (time_dim_drift_errors[::-1].cumsum()/np.arange(1, config.max_diff_steps+1))[::-1]
 
     plot_errors_ts(
         time_space[time_idxs],
@@ -39,10 +39,11 @@ if __name__ == "__main__":
         path=drift_pic_path)
 
     start_index = 0
-    end_index = 2000
+    end_index = 0
 
     time_idxs = [i for i in range(start_index, end_index + 1)]
-    dims = [i for i in range(2)]
+    dims = [i for i in range(0,config.timeDim)]
+    print(drift_errors.iloc[time_idxs, dims].to_numpy())
     plot_errors_heatmap(drift_errors.iloc[time_idxs, dims].to_numpy(),
                         plot_title="MSE Drift Error for VPSDE fBm with $(H, T) = ({},{})$".format(config.hurst,
                                                                                                   config.timeDim),
