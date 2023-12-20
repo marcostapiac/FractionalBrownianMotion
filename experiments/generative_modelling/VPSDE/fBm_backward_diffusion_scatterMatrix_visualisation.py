@@ -30,16 +30,13 @@ def run(config: ConfigDict) -> None:
                                                                                                         config.scoreNet_trained_path + "_Nepochs" + str(
                                                                                                             config.max_epochs)))
 
-    folder_path = project_config.ROOT_DIR + "experiments/results/scatter_matrix_gifs/"
-
-    gif_path = config.experiment_path + "{}_incs_{}_unitIntv_fBm_ScatterMatrix_rowIdxs{}_colIdxs{}".format(not config.isfBm, config.isUnitInterval,
+    gif_path = config.experiment_path.replace("experiments/results/",
+                                              "experiments/results/scatter_matrix_gifs/") + "_r{}_c{}".format(
         config.row_idxs, config.col_idxs).replace(
         ".", "").replace("[", "").replace("]", "").replace(" ", ",")
-
     run_fBm_scatter_matrix(dataSize=config.dataSize, diffusion=diffusion, scoreModel=scoreModel, rng=rng,
-                           config=config, folderPath=folder_path, gifPath=gif_path)
-    make_gif(folder_path, gif_path)
-
+                           config=config, folderPath="", gifPath=gif_path)
+    make_gif("", gif_path)
 
 if __name__ == "__main__":
     # Data parameters
@@ -54,18 +51,7 @@ if __name__ == "__main__":
     config.row_idxs = np.array([0,1,2])
     config.col_idxs = np.array([0,1,2])
     run(config)
-    config.row_idxs = np.array([24,25,26])
     config.col_idxs = np.array([253, 254, 255])
     run(config)
-    """
-    for i in range(0, config.timeDim, 3):
-       if i + 2 == config.timeDim:
-            config.row_idxs = np.array([i, i + 1])
-        elif i + 1 == config.timeDim:
-            config.row_idxs = np.array([i])
-        else:
-            config.row_idxs = np.array([i, i + 1, i + 2])
-        N = config.row_idxs.shape[0]
-        for j in range(0, config.timeDim - i, 3):
-            config.col_idxs = config.row_idxs[np.asarray((config.row_idxs + j) < config.timeDim).nonzero()] + j
-            run(config)"""
+    config.row_idxs = np.array([253,254, 255])
+    run(config)

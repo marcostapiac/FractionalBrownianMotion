@@ -48,8 +48,6 @@ if __name__ == "__main__":
     config.dataSize = 10000
     config.idx_start_save = int(0.0 * config.max_diff_steps)
     config.gif_save_freq = int(max(0.05 * (config.max_diff_steps - config.idx_start_save), 1))
-    config.row_idxs = np.array([0,1,2])
-    config.col_idxs = np.array([0,1,2])
-    run(config)
-    config.col_idxs = np.array([253, 254, 255])
+    config.row_idxs = np.array([227,245])
+    config.col_idxs = np.array([227,245])
     run(config)

@@ -40,4 +40,4 @@ if __name__ == "__main__":
     # Synthetic samples
     for type in df.index.get_level_values(level=0).unique():
         this_cov = np.cov(df.loc[type].to_numpy().T)
-        plot_diffCov_heatmap(true_cov=true_cov[4:,4:], gen_cov=this_cov[4:,4:], annot=False, image_path="")
+        plot_diffCov_heatmap(true_cov=true_cov[:,:], gen_cov=this_cov[:,:], annot=False, image_path="")
