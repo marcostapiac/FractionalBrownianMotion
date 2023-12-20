@@ -6,6 +6,8 @@ from configs import project_config
 
 
 def get_config():
+    """ Training hyperparameters for VP SDE model on 32-dimensional Fractional Brownian Motion with Hurst parameter 0.7"""
+
     config = ml_collections.ConfigDict()
 
     # Experiment environment parameters
@@ -13,25 +15,26 @@ def get_config():
 
     # Data set parameters
     config.hurst = 0.7
-    config.timeDim = 256
+    config.timeDim = 2**10
     config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(
         str(config.hurst).replace(".", ""), config.timeDim)
 
     # Training hyperparameters
-    config.train_eps = 1e-5
-    config.max_diff_steps = 4000  # 1000*max(int(np.log(config.timeDim-1, 1)))
+    config.train_eps = 1e-4
+    config.max_diff_steps = 10000 #1000 * max(int(np.log2(config.timeDim) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = 19000
+    config.max_epochs = 7060
     config.batch_size = 256
     config.isfBm = True
     config.isUnitInterval = True
-    config.hybrid = False
-    config.weightings = True
+    config.hybrid = True
+    config.weightings = False
 
-    config.std_max = 90.
-    config.std_min = 0.01
+    # Diffusion hyperparameters
+    config.beta_max = 20.
+    config.beta_min = 0.0001
 
     # MLP Architecture parameters
     config.temb_dim = 64
@@ -45,18 +48,19 @@ def get_config():
     config.dialation_length = 10
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_{}_incs_{}_unitIntv_fBm_VESDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_StdMax{:.4e}_StdMin{:.4e}_TembDim{}_EncShapes{}".format(
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_{}_incs_{}_unitIntv_fBm_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_TembDim{}_EncShapes{}".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
         config.timeDim,
-        config.max_diff_steps, config.end_diff_time, config.train_eps, config.std_max, config.std_min, config.temb_dim,
+        config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
+        config.temb_dim,
         config.enc_shapes).replace(".", "")
 
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_{}_incs_{}_unitIntv_fBm_VESDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_StdMax{:.3e}_StdMin{:.4e}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Weightings".format(
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_{}_incs_{}_unitIntv_fBm_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Weightings".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
         config.timeDim,
-        config.max_diff_steps, config.end_diff_time, config.train_eps, config.std_max, config.std_min, config.temb_dim,
-        config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid,
-        config.weightings).replace(".", "")
+        config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
+        config.temb_dim,
+        config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings).replace(".", "")
 
     config.model_choice = "TSM"
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
@@ -70,12 +74,12 @@ def get_config():
 
     # Sampling hyperparameters
     config.early_stop_idx = 0
-    config.sample_eps = 1e-5
-    if config.hybrid: assert (config.sample_eps == config.train_eps)
+    config.sample_eps = 1e-4
+    if config.hybrid: assert(config.sample_eps == config.train_eps)
     config.max_lang_steps = 0
-    config.snr = 0.01
+    config.snr = 0.
     config.predictor_model = "ancestral"  # vs "euler-maryuama"
-    config.corrector_model = "VE"  # vs "VE"
+    config.corrector_model = "VP"  # vs "VE" vs "OUSDE"
 
     # Experiment evaluation parameters
     config.dataSize = 20000

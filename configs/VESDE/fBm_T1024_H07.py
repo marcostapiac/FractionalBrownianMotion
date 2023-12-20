@@ -13,22 +13,22 @@ def get_config():
 
     # Data set parameters
     config.hurst = 0.7
-    config.timeDim = 256
+    config.timeDim = 2**10
     config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(
         str(config.hurst).replace(".", ""), config.timeDim)
 
     # Training hyperparameters
     config.train_eps = 1e-5
-    config.max_diff_steps = 4000  # 1000*max(int(np.log(config.timeDim-1, 1)))
+    config.max_diff_steps = 20000  # 1000*max(int(np.log(config.timeDim-1, 1)))
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = 19000
+    config.max_epochs = 7060
     config.batch_size = 256
     config.isfBm = True
     config.isUnitInterval = True
-    config.hybrid = False
-    config.weightings = True
+    config.hybrid = True
+    config.weightings = False
 
     config.std_max = 90.
     config.std_min = 0.01

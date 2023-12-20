@@ -14,8 +14,8 @@ if __name__ == "__main__":
 
     drift_pic_path = drift_data_path.replace("/drift_data/", "/drift_plots/")
     time_space = np.linspace(config.sample_eps, config.end_diff_time, config.max_diff_steps)
-    start_index = 0
-    end_index = config.max_diff_steps
+    start_index = int(0.86 * config.max_diff_steps)
+    end_index = int(0.98 * config.max_diff_steps)
 
     time_idxs = [i for i in range(start_index, end_index)]
     drift_errors = pd.read_csv(drift_data_path + ".csv.gzip", compression="gzip", index_col=[0])
@@ -37,11 +37,11 @@ if __name__ == "__main__":
         plot_title="MSE Drift CumMean Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst, config.timeDim),
         path=drift_pic_path)
 
-    start_index = int(0.8*config.max_diff_steps)
-    end_index = int(1.*config.max_diff_steps)
+    start_index = 0
+    end_index = 2
 
     time_idxs = [i for i in range(start_index, end_index)]
-    dims = [i for i in range(0,20)]
+    dims = [i for i in range(0,config.timeDim)]
     plot_errors_heatmap(drift_errors.iloc[time_idxs, dims].to_numpy(),
                         plot_title="MSE Drift Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst,
                                                                                                   config.timeDim),

@@ -17,6 +17,7 @@ def one_model_run(fBm_samples: np.ndarray, sample_type: str):
     hs = []
     even_hs = []
     S = approx_fBn.shape[0]
+
     # Compute Hurst parameters
     for i in tqdm(range(S), desc="Computing Hurst Indexes"):
         hs.append(optimise_whittle(approx_fBn, idx=i))

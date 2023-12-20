@@ -19,18 +19,18 @@ def get_config():
 
     # Training hyperparameters
     config.train_eps = 1e-5
-    config.max_diff_steps = 4000  # 1000*max(int(np.log(config.timeDim-1, 1)))
+    config.max_diff_steps = 20000  # 1000*max(int(np.log(config.timeDim-1, 1)))
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = 19000
+    config.max_epochs = 7060
     config.batch_size = 256
-    config.isfBm = True
+    config.isfBm = False
     config.isUnitInterval = True
-    config.hybrid = False
-    config.weightings = True
+    config.hybrid = True
+    config.weightings = False
 
-    config.std_max = 90.
+    config.std_max = 20.
     config.std_min = 0.01
 
     # MLP Architecture parameters
