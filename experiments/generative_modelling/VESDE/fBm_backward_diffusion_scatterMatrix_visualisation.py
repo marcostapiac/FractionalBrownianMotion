@@ -30,7 +30,7 @@ def run(config: ConfigDict) -> None:
                                                                                                         config.scoreNet_trained_path + "_Nepochs" + str(
                                                                                                             config.max_epochs)))
 
-    gif_path = config.experiment_path.replace("experiments/results/", "experiments/results/scatter_matrix_gifs/") + "_rowIdxs{}_colIdxs{}".format(
+    gif_path = config.experiment_path.replace("experiments/results/", "experiments/results/scatter_matrix_gifs/") + "_r{}_c{}".format(
         config.row_idxs, config.col_idxs).replace(
         ".", "").replace("[", "").replace("]", "").replace(" ", ",")
     run_fBm_scatter_matrix(dataSize=config.dataSize, diffusion=diffusion, scoreModel=scoreModel, rng=rng,
