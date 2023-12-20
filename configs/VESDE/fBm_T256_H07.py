@@ -27,8 +27,8 @@ def get_config():
     config.batch_size = 256
     config.isfBm = True
     config.isUnitInterval = True
-    config.hybrid = False
-    config.weightings = True
+    config.hybrid = True
+    config.weightings = False
 
     config.std_max = 20.
     config.std_min = 0.01
