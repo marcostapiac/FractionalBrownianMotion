@@ -546,10 +546,16 @@ def run_fBm_backward_drift_experiment(dataSize: int,
     else:
         device = torch.device("cpu")
 
-    # Compute covariance function to compute exact score afterwards
-    fBm_cov = torch.from_numpy(
-        compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim, isUnitInterval=True)).to(
-        torch.float32).to(device)
+    if config.isfBm:
+        data_cov = torch.from_numpy(
+            compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim,
+                            isUnitInterval=config.isUnitInterval)).to(
+            torch.float32).to(device)
+    else:
+        data_cov = torch.from_numpy(
+            compute_fBn_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim,
+                            isUnitInterval=config.isUnitInterval)).to(
+            torch.float32).to(device)
 
     # Placeholder
     drift_errors = torch.zeros(size=(config.max_diff_steps, config.timeDim))
@@ -572,14 +578,14 @@ def run_fBm_backward_drift_experiment(dataSize: int,
                                                                                    max_diff_steps=config.max_diff_steps)
         eff_time = diffusion.get_eff_times(diff_times=timesteps[diff_index.long()])
         if isinstance(diffusion, VESDEDiffusion):
-            inv_cov = -torch.linalg.inv(eff_time * torch.eye(config.timeDim).to(device) + fBm_cov)
+            inv_cov = -torch.linalg.inv(eff_time * torch.eye(config.timeDim).to(device) + data_cov)
             score_only_pred_drift = pred_drift - x
             exp_score_only_drift = (diffusion.get_ancestral_drift_coeff(max_diff_steps=max_diff_steps, diff_index=diff_index)) * (inv_cov @ x.T).T
 
             exp_drift = x + exp_score_only_drift
         else:
             inv_cov = -torch.linalg.inv(
-                (1. - torch.exp(-eff_time)) * torch.eye(config.timeDim).to(device) + torch.exp(-eff_time) * fBm_cov)
+                (1. - torch.exp(-eff_time)) * torch.eye(config.timeDim).to(device) + torch.exp(-eff_time) * data_cov)
             beta_t = diffusion.get_discretised_beta(max_diff_steps - 1 - diff_index, max_diff_steps)
             score_only_pred_drift = pred_drift - x*(2.-torch.sqrt(1.-beta_t))
             exp_score_only_drift = (beta_t * (inv_cov @ x.T).T)
@@ -749,7 +755,7 @@ def run_fBm_scatter_matrix(dataSize: int, scoreModel: Union[NaiveMLP, TimeSeries
         if (i >= config.idx_start_save) and (i % config.gif_save_freq == 0 or i == (config.max_diff_steps - 1)):
             row_vars = config.row_idxs
             col_vars = config.col_idxs
-            save_path = folderPath + gifPath + "_diffIndex_{}.png".format(i + 1)
+            save_path = folderPath + gifPath + "_dI_{}.png".format(i + 1)
             title = "Rev-Time {} samples $T={}$ at time {}".format(diffType, config.timeDim, round((i + 1) / config.max_diff_steps,5))
             my_pairplot(x.cpu(), row_idxs=row_vars, col_idxs=col_vars, cov=cov.cpu(), image_path=save_path, suptitle=title)
 
