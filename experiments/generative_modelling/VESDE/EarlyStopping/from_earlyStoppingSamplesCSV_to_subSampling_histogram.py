@@ -1,6 +1,7 @@
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
+from ml_collections import ConfigDict
 from tqdm import tqdm
 
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
@@ -8,8 +9,8 @@ from utils.math_functions import reduce_to_fBn, optimise_whittle
 from utils.plotting_functions import plot_histogram
 
 
-def one_model_run(fBm_samples: np.ndarray, sample_type: str):
-    approx_fBn = reduce_to_fBn(fBm_samples, reduce=True)
+def one_model_run(fBm_samples: np.ndarray, sample_type: str, config:ConfigDict):
+    approx_fBn = reduce_to_fBn(fBm_samples, reduce=config.isfBm)
     if sample_type == "Synthetic": sample_type = "Early Stop"
     even_approx_fBn = approx_fBn[:, ::2]  # Every even index
 
@@ -53,17 +54,17 @@ if __name__ == "__main__":
     H = config.hurst
     df = pd.read_csv(config.experiment_path.replace("/results/",
                                                     "/results/early_stopping/") + "_Samples_EStop{}_Nepochs{}.csv.gzip".format(
-        1,config.max_epochs), compression="gzip", index_col=[0, 1])
+        393,config.max_epochs), compression="gzip", index_col=[0, 1])
 
     # Synthetic samples
     for type in df.index.get_level_values(level=0).unique():
-        one_model_run(df.loc[type].to_numpy(), sample_type=type)
+        one_model_run(df.loc[type].to_numpy(), sample_type=type, config=config)
 
-    # Now onto exact samples for reference
+    exact_samples = []
     fbn = FractionalBrownianNoise(H=config.hurst, rng=np.random.default_rng())
-    S = df.index.levshape[1]
-    exact_samples = np.array(
-        [fbn.circulant_simulation(N_samples=config.timeDim).cumsum() for _ in tqdm(range(S))]).reshape(
-        (S, config.timeDim))
-    one_model_run(fBm_samples=exact_samples, sample_type="exact")
+    for _ in tqdm(range(df.index.levshape[1])):
+        tmp = fbn.circulant_simulation(N_samples=config.timeDim, scaleUnitInterval=config.isUnitInterval)
+        if config.isfBm: tmp = tmp.cumsum()
+        exact_samples.append(tmp)
+    one_model_run(np.array(exact_samples), sample_type="exact", config=config)
 

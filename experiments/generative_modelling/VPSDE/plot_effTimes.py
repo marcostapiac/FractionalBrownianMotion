@@ -9,10 +9,11 @@ from utils.plotting_functions import plot_efftimes
 def run(perfect_config: ConfigDict) -> None:
     diffusion = VPSDEDiffusion(beta_max=perfect_config.beta_max, beta_min=perfect_config.beta_min)
     ts = np.linspace(config.sample_eps, config.end_diff_time, config.max_diff_steps)
-    plot_efftimes(ts, diffusion.get_eff_times(torch.Tensor(ts)).numpy())
-    plot_efftimes(ts[:10], diffusion.get_eff_times(torch.Tensor(ts)).numpy()[:10])
-    plot_efftimes(ts[:3], diffusion.get_eff_times(torch.Tensor(ts)).numpy()[:3])
-
+    efftimes = diffusion.get_eff_times(torch.Tensor(ts)).numpy()
+    plot_efftimes(ts, efftimes)
+    plot_efftimes(ts[:10], efftimes[:10])
+    plot_efftimes(ts[:3], efftimes[:3])
+    print(efftimes[:2])
 
 if __name__ == "__main__":
     # Data parameters

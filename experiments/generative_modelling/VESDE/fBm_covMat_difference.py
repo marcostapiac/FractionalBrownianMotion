@@ -15,7 +15,7 @@ if __name__ == "__main__":
 
     path = config.experiment_path.replace("/results/",
                                           "/results/early_stopping/") + "_Samples_EStop{}_Nepochs{}.csv.gzip".format(
-        1, config.max_epochs)
+        393, config.max_epochs)
     df = pd.read_csv(path, compression="gzip", index_col=[0, 1])
 
     # Now onto exact samples for reference
@@ -28,6 +28,11 @@ if __name__ == "__main__":
                                                                                                                  isUnitInterval=unitInterval)
 
     S = df.index.levshape[1]
+    # Synthetic samples
+    for type in df.index.get_level_values(level=0).unique():
+        this_cov = np.cov(df.loc[type].to_numpy().T)
+        plot_diffCov_heatmap(true_cov=true_cov[:,:], gen_cov=this_cov[:,:], annot=False, image_path="")
+
     exact_samples = []
     for _ in tqdm(range(S)):
         tmp = fbn.circulant_simulation(N_samples=config.timeDim, scaleUnitInterval=unitInterval)
@@ -37,7 +42,3 @@ if __name__ == "__main__":
     exact_samples = np.array(exact_samples).reshape((S, config.timeDim))
 
     plot_diffCov_heatmap(true_cov=true_cov, gen_cov=np.cov(exact_samples.T), annot=False, image_path="")
-    # Synthetic samples
-    for type in df.index.get_level_values(level=0).unique():
-        this_cov = np.cov(df.loc[type].to_numpy().T)
-        plot_diffCov_heatmap(true_cov=true_cov[:,:], gen_cov=this_cov[:,:], annot=False, image_path="")

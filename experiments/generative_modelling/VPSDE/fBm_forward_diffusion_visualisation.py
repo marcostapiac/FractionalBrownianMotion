@@ -86,11 +86,11 @@ if __name__ == "__main__":
     forward_config.end_diff_time = 1
     forward_config.beta_max = 20
     forward_config.beta_min = 0.0001
-    forward_config.dim1 = 0
-    forward_config.dim2 = 1
+    forward_config.dim1 = 254
+    forward_config.dim2 = 255
     forward_config.dataSize = 10000
     forward_config.gif_save_freq = 10
-    forward_config.isUnitInterval = True
+    forward_config.isUnitInterval = False
     forward_config.isfBm = True
 
     # Run experiment
