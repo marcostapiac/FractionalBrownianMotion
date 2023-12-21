@@ -259,7 +259,7 @@ def chiSquared_test(T: int, H: float, isUnitInterval: bool, samples: Union[np.nd
     critLow = chi2.ppf(q=0.5 * alpha, df=T - 1)  # Lower alpha quantile, and d0f = T -1
     ts = []
     for i in tqdm(range(S)):
-        tss = chiSquared(samples[i, :], invL) if samples is not None else chiSquared(fBn.circulant_simulation(T), invL)
+        tss = chiSquared(samples[i, :], invL) if samples is not None else chiSquared(fBn.circulant_simulation(T, scaleUnitInterval=isUnitInterval), invL)
         ts.append(tss)
     return critLow, ts, critUpp
 

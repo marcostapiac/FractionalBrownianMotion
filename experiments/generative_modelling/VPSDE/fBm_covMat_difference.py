@@ -8,7 +8,7 @@ import pandas as pd
 
 
 if __name__ == "__main__":
-    from configs.VPSDE.fBm_T256_H07 import get_config
+    from configs.VPSDE.increment_fBm_T256_H07 import get_config
 
     config = get_config()
     H = config.hurst
@@ -21,6 +21,7 @@ if __name__ == "__main__":
     # Now onto exact samples for reference
     unitInterval = True if "True_unitIntv" in path else False
     isfBm = True if "False_incs" in path else False
+    print(unitInterval, isfBm)
 
     fbn = FractionalBrownianNoise(H=config.hurst, rng=np.random.default_rng())
     true_cov = compute_fBm_cov(fbn,T=config.timeDim, isUnitInterval=unitInterval) if isfBm else compute_fBn_cov(fbn,T=config.timeDim, isUnitInterval=unitInterval)

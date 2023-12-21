@@ -37,8 +37,8 @@ if __name__ == "__main__":
         plot_title="MSE Drift CumMean Error for VPSDE fBm with $(H, T) = ({},{})$".format(config.hurst, config.timeDim),
         path=drift_pic_path)
 
-    start_index = 8000
-    end_index = 10000
+    start_index = 0
+    end_index = 100
 
     time_idxs = [i for i in range(start_index, end_index)]
     dims = [i for i in range(0,config.timeDim)]
