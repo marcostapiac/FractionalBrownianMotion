@@ -23,7 +23,7 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = 3700
+    config.max_epochs = 7060
     config.batch_size = 256
     config.isfBm = True
     config.isUnitInterval = True
@@ -31,7 +31,7 @@ def get_config():
     config.weightings = False
 
     config.std_max = 20.
-    config.std_min = 0.01
+    config.std_min = 0.001
 
     # MLP Architecture parameters
     config.temb_dim = 64

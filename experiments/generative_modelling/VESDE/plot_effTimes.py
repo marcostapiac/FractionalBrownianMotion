@@ -12,7 +12,8 @@ def run(perfect_config: ConfigDict) -> None:
     ts  = np.linspace(config.sample_eps, config.end_diff_time, config.max_diff_steps)
     efftimes = diffusion.get_eff_times(torch.Tensor(ts)).numpy()
     plot_efftimes(ts, efftimes)
-    plot_efftimes(ts[:1], efftimes[:1])
+    plot_efftimes(ts[:10], efftimes[:10])
+    plot_efftimes(ts[:2], efftimes[:2])
     print(efftimes[:2])
 
 
@@ -25,7 +26,7 @@ if __name__ == "__main__":
     config.max_diff_steps = 20000
     config.end_diff_time = 1
     config.std_max = 20
-    config.std_min = 0.01
+    config.std_min = 0.001
     config.sample_eps = 1e-5
 
     # Run experiment

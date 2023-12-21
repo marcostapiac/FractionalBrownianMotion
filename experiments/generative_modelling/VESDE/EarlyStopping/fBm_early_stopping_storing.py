@@ -18,7 +18,7 @@ def run_early_stopping(config: ConfigDict) -> None:
         *config.model_parameters)
     scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
 
-    config.early_stop_idx = 1
+    config.early_stop_idx = 393
     synth_samples = reverse_sampling(data_shape=(config.dataSize, config.timeDim), diffusion=diffusion,
                                      scoreModel=scoreModel,
                                      config=config).cpu().numpy().reshape((config.dataSize, T))
