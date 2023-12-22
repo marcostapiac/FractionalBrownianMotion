@@ -1,4 +1,5 @@
 import ml_collections
+import numpy as np
 import torch
 
 from configs import project_config
@@ -13,21 +14,21 @@ def get_config():
     config.has_cuda = torch.cuda.is_available()
 
     # Data set parameters
-    config.hurst = 0.7
+    config.hurst = 0.9
     config.timeDim = 256
     config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(
         str(config.hurst).replace(".", ""), config.timeDim)
 
     # Training hyperparameters
     config.train_eps = 1e-4
-    config.max_diff_steps = 10000 #1000 * max(int(np.log2(config.timeDim) - 1), 1)
+    config.max_diff_steps = 10000 # 1000 * max(int(np.log2(config.timeDim) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = 14120
+    config.max_epochs = 7060
     config.batch_size = 256
     config.isfBm = True
-    config.isUnitInterval = False
+    config.isUnitInterval = True
     config.hybrid = True
     config.weightings = False
 
