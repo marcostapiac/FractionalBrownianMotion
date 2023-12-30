@@ -1,4 +1,3 @@
-import multiprocessing as mp
 from math import gamma
 from configs.project_config import NoneType
 from typing import Union
@@ -13,6 +12,8 @@ from tqdm import tqdm
 from src.classes import ClassFractionalBrownianNoise
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.classes.ClassFractionalCEV import FractionalCEV
+import multiprocessing as mp
+from functools import partial
 
 
 def logsumexp(w: np.ndarray, x: np.ndarray, h: callable, axis: int = 0, isLog: bool = False):
@@ -124,38 +125,52 @@ def permutation_test(data1: np.ndarray, data2: np.ndarray, num_permutations: int
     return p_value
 
 
-def generate_fBn(H: float, T: int, S: int, rng: np.random.Generator, isUnitInterval:bool,
+def parallel_fBn_generation(T: int, H: int, scaleUnitInterval: bool,
+                            gaussRvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
+    """
+    Function which generates new random seed for rng to allow for parallel generation of fBN
+        :param H: (float) Hurst parameter
+        :param T: (int) Length of each samples
+        :param S: (int) Number of samples
+        :param gaussRvs: Pre-computed Gaussian random variables
+        :param scaleUnitInterval: Whether to scale to unit time interval.
+        :return: fBn sample
+    """
+    rng = np.random.default_rng(seed=np.random.seed())
+    generator = FractionalBrownianNoise(H=H, rng=rng)
+    return generator.circulant_simulation(N_samples=T, scaleUnitInterval=scaleUnitInterval, gaussRvs=gaussRvs)
+
+
+def generate_fBn(H: float, T: int, S: int, isUnitInterval: bool,
                  rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
     """
     Function generates samples of fractional Brownian noise
         :param H: (float) Hurst parameter
         :param T: (int) Length of each samples
         :param S: (int) Number of samples
-        :param rng: (random.Generator) Default random number generator
         :param rvs: Pre-computed Gaussian random variables
         :param isUnitInterval: Whether to scale to unit time interval.
         :return: (np.ndarray) fBn samples
     """
-    generator = FractionalBrownianNoise(H=H, rng=rng)
-    data = np.zeros((S, T))
-    for i in tqdm(range(S)):
-        data[i, :] = generator.circulant_simulation(T, scaleUnitInterval=isUnitInterval, gaussRvs=rvs)
-    return np.array(data).reshape((S, T))
+    with mp.Pool(processes=mp.cpu_count()) as pool:
+        result = pool.starmap(
+            partial(parallel_fBn_generation, H=H, scaleUnitInterval=isUnitInterval, gaussRvs=rvs),
+            [(T,) for _ in range(S)])
+    return np.array(result).reshape((S, T))
 
 
-def generate_fBm(H: float, T: int, S: int, rng: np.random.Generator, isUnitInterval:bool,
+def generate_fBm(H: float, T: int, S: int, isUnitInterval: bool,
                  rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
     """
     Function generates samples of fractional Brownian motion
         :param H: Hurst parameter
         :param T: Length of each sample
         :param S: Number of samples
-        :param rng: Random number generator
         :param rvs: Pre-computed Gaussian random variables
         :param isUnitInterval: Whether to scale samples to unit time interval.
         :return: fBm samples
     """
-    data = generate_fBn(H=H, T=T, S=S, rng=rng, rvs=rvs, isUnitInterval=isUnitInterval)
+    data = generate_fBn(H=H, T=T, S=S,  rvs=rvs, isUnitInterval=isUnitInterval)
     return np.cumsum(data, axis=1)
 
 
@@ -259,7 +274,8 @@ def chiSquared_test(T: int, H: float, isUnitInterval: bool, samples: Union[np.nd
     critLow = chi2.ppf(q=0.5 * alpha, df=T - 1)  # Lower alpha quantile, and d0f = T -1
     ts = []
     for i in tqdm(range(S)):
-        tss = chiSquared(samples[i, :], invL) if samples is not None else chiSquared(fBn.circulant_simulation(T, scaleUnitInterval=isUnitInterval), invL)
+        tss = chiSquared(samples[i, :], invL) if samples is not None else chiSquared(
+            fBn.circulant_simulation(T, scaleUnitInterval=isUnitInterval), invL)
         ts.append(tss)
     return critLow, ts, critUpp
 
@@ -303,21 +319,22 @@ def fBn_spectral_density(hurst: float, N: int) -> np.ndarray:
         :return: Spectral density
     """
     hhest = - ((2 * hurst) + 1)
-    const = np.sin(np.pi * hurst) * gamma(-hhest) / np.pi # TODO: Why dividing by np.pi?
+    const = np.sin(np.pi * hurst) * gamma(-hhest) / np.pi  # TODO: Why dividing by np.pi?
     halfN = int((N - 1) / 2)
-    dpl = 2 * np.pi * np.arange(1, halfN + 1) / N # 2pi/N * [1, 2, 3, ..., N//2] (i.e., the frequencies)
+    dpl = 2 * np.pi * np.arange(1, halfN + 1) / N  # 2pi/N * [1, 2, 3, ..., N//2] (i.e., the frequencies)
     fspec = np.ones(halfN)
     for i in np.arange(0, halfN):
-        dpfi = np.arange(0, 200) # Start computation of B(i, H)
-        dpfi = 2 * np.pi * dpfi # 2*pi*freq
-        fgi = (np.abs(dpl[i] + dpfi)) ** hhest # TODO: Why np.abs()?
+        dpfi = np.arange(0, 200)  # Start computation of B(i, H)
+        dpfi = 2 * np.pi * dpfi  # 2*pi*freq
+        fgi = (np.abs(dpl[i] + dpfi)) ** hhest  # TODO: Why np.abs()?
         fhi = (np.abs(dpl[i] - dpfi)) ** hhest
         dpfi = fgi + fhi
         dpfi[0] = dpfi[0] / 2
         dpfi = (1. - np.cos(dpl[i])) * const * dpfi
         fspec[i] = np.sum(dpfi)
-    fspec = fspec / np.exp(2 * np.sum(np.log(fspec)) / N) # fspec / (prod(fspec)**(2/N))
+    fspec = fspec / np.exp(2 * np.sum(np.log(fspec)) / N)  # fspec / (prod(fspec)**(2/N))
     return fspec
+
 
 def whittle_ll(hurst: float, gammah: np.ndarray, nbpoints: int) -> float:
     """
@@ -327,9 +344,10 @@ def whittle_ll(hurst: float, gammah: np.ndarray, nbpoints: int) -> float:
         :param nbpoints: Number of observation of path
         :return: Whittle likelihood
     """
-    return 2. * (2. * np.pi / nbpoints) * np.sum((gammah/ fBn_spectral_density(hurst, nbpoints)))
+    return 2. * (2. * np.pi / nbpoints) * np.sum((gammah / fBn_spectral_density(hurst, nbpoints)))
 
-def optimise_whittle(data: np.ndarray, idx: int) -> float:
+
+def optimise_whittle(idx: int, data: np.ndarray) -> float:
     """
     Function to calculate Whittle estimate for Hurst parameter
     Code taken from https://github.com/JFBazille/ICode/blob/master/ICode/estimators/whittle.py
@@ -343,7 +361,7 @@ def optimise_whittle(data: np.ndarray, idx: int) -> float:
     tmp = np.abs(np.fft.fft(datap))
     gamma_hat = np.exp(2 * np.log(tmp[1:halfN + 1])) / (2 * np.pi * N)
     func = lambda Hurst: whittle_ll(Hurst, gamma_hat, N)
-    return(float(so.fminbound(func, 0.,1.)))
+    return (float(so.fminbound(func, 0., 1.)))
 
 
 def estimate_hurst(true: np.ndarray, synthetic: np.ndarray, exp_dict: dict, S: int, config: ConfigDict) -> dict:

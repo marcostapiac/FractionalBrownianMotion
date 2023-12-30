@@ -25,7 +25,6 @@ def stock_csv_to_df() -> pd.DataFrame:
     """
     df = pd.read_csv(project_config.ROOT_DIR + "data/stock_data.csv")
     df.index.name = "GOOGLE"
-    print(df)
     return df
 
 

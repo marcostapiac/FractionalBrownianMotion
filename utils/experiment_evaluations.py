@@ -190,7 +190,7 @@ def prepare_fBm_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESD
             assert (data.shape[0] >= training_size)
         except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
-            data = generate_fBn(T=config.timeDim, isUnitInterval=config.isUnitInterval, S=training_size, H=config.hurst, rng=rng)
+            data = generate_fBn(T=config.timeDim, isUnitInterval=config.isUnitInterval, S=training_size, H=config.hurst)
             np.save(config.data_path, data)
         if config.isfBm:
             data = data.cumsum(axis=1)[:training_size, :]
@@ -248,9 +248,9 @@ def run_fBm_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDEDiff
         except AssertionError:
             raise ValueError("Final time during sampling should be at least as large as final time during training")
         if config.isfBm:
-            true_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=dataSize, rng=rng, isUnitInterval=config.isUnitInterval)
+            true_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=dataSize, isUnitInterval=config.isUnitInterval)
         else:
-            true_samples = generate_fBn(H=config.hurst, T=config.timeDim, S=dataSize, rng=rng, isUnitInterval=config.isUnitInterval)
+            true_samples = generate_fBn(H=config.hurst, T=config.timeDim, S=dataSize, isUnitInterval=config.isUnitInterval)
         exp_dict = evaluate_fBm_performance(true_samples, synth_samples.cpu().numpy(), rng=rng, config=config,
                                             exp_dict=exp_dict)
         agg_dict[j] = exp_dict

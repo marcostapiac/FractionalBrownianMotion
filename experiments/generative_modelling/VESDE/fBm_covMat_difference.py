@@ -2,7 +2,7 @@ import numpy as np
 from tqdm import tqdm
 
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
-from utils.math_functions import compute_fBm_cov, compute_fBn_cov
+from utils.math_functions import compute_fBm_cov, compute_fBn_cov, generate_fBm, generate_fBn
 from utils.plotting_functions import plot_diffCov_heatmap
 import pandas as pd
 
@@ -33,12 +33,11 @@ if __name__ == "__main__":
         this_cov = np.cov(df.loc[type].to_numpy().T)
         plot_diffCov_heatmap(true_cov=true_cov[:,:], gen_cov=this_cov[:,:], annot=False, image_path="")
 
-    exact_samples = []
-    for _ in tqdm(range(S)):
-        tmp = fbn.circulant_simulation(N_samples=config.timeDim, scaleUnitInterval=unitInterval)
-        if isfBm: tmp = tmp.cumsum()
-        exact_samples.append(tmp)
-
-    exact_samples = np.array(exact_samples).reshape((S, config.timeDim))
+    if config.isfBm:
+        exact_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=S,
+                                     isUnitInterval=config.isUnitInterval)
+    else:
+        exact_samples = generate_fBn(H=config.hurst, T=config.timeDim, S=S,
+                                     isUnitInterval=config.isUnitInterval)
 
     plot_diffCov_heatmap(true_cov=true_cov, gen_cov=np.cov(exact_samples.T), annot=False, image_path="")

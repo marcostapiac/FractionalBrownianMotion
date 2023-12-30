@@ -2,13 +2,13 @@ import numpy as np
 from tqdm import tqdm
 
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
-from utils.math_functions import compute_fBm_cov, compute_fBn_cov
+from utils.math_functions import compute_fBm_cov, compute_fBn_cov, generate_fBm, generate_fBn
 from utils.plotting_functions import plot_diffCov_heatmap
 import pandas as pd
 
 
 if __name__ == "__main__":
-    from configs.VPSDE.increment_fBm_T256_H07 import get_config
+    from configs.VPSDE.fBm_T256_H07 import get_config
 
     config = get_config()
     H = config.hurst
@@ -21,19 +21,16 @@ if __name__ == "__main__":
     # Now onto exact samples for reference
     unitInterval = True if "True_unitIntv" in path else False
     isfBm = True if "False_incs" in path else False
-    print(unitInterval, isfBm)
 
     fbn = FractionalBrownianNoise(H=config.hurst, rng=np.random.default_rng())
     true_cov = compute_fBm_cov(fbn,T=config.timeDim, isUnitInterval=unitInterval) if isfBm else compute_fBn_cov(fbn,T=config.timeDim, isUnitInterval=unitInterval)
 
-    S = df.index.levshape[1]
-    exact_samples = []
-    for _ in tqdm(range(S)):
-        tmp = fbn.circulant_simulation(N_samples=config.timeDim, scaleUnitInterval=unitInterval)
-        if isfBm: tmp = tmp.cumsum()
-        exact_samples.append(tmp)
-
-    exact_samples = np.array(exact_samples).reshape((S, config.timeDim))
+    if config.isfBm:
+        exact_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=df.index.levshape[1],
+                                     isUnitInterval=config.isUnitInterval)
+    else:
+        exact_samples = generate_fBn(H=config.hurst, T=config.timeDim, S=df.index.levshape[1],
+                                     isUnitInterval=config.isUnitInterval)
 
     plot_diffCov_heatmap(true_cov=true_cov, gen_cov=np.cov(exact_samples.T), annot=False, image_path="")
     # Synthetic samples
