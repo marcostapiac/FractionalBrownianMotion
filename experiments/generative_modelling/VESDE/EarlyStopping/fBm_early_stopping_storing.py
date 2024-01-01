@@ -1,4 +1,3 @@
-import numpy as np
 import pandas as pd
 import torch
 from ml_collections import ConfigDict
@@ -33,7 +32,10 @@ def run_early_stopping(config: ConfigDict) -> None:
     df = pd.concat([df1, df2], ignore_index=False)
     df.index = pd.MultiIndex.from_product(
         [["Early Stop {}".format(early_stop_idx), "Final Time Samples"], [i for i in range(config.dataSize)]])
-    df.to_csv(config.experiment_path.replace("/results/", "/results/early_stopping/") + "_Samples_EStop{}_Nepochs{}.csv.gzip".format(early_stop_idx,config.max_epochs), compression="gzip")
+    df.to_csv(config.experiment_path.replace("/results/",
+                                             "/results/early_stopping/") + "_EStop{}_Nepochs{}.csv.gzip".format(
+        early_stop_idx, config.max_epochs), compression="gzip")
+
 
 if __name__ == "__main__":
     from configs.VESDE.fBm_T256_H07 import get_config

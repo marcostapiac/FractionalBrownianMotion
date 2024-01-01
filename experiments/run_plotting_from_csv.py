@@ -16,7 +16,8 @@ def plot_fBm_results_from_csv(config: ConfigDict) -> None:
         :param config: ML experiment metrics
         :return: None
     """
-    df = pd.read_csv(config.experiment_path+"_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip", index_col=[0])
+    df = pd.read_csv(config.experiment_path + "_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip",
+                     index_col=[0])
 
     # Mean Abs Difference
     # plot_and_save_boxplot(data=df.loc[config.exp_keys[0]].astype(float).to_numpy(), xlabel="1",

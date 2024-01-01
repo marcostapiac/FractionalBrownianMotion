@@ -48,14 +48,15 @@ def run(perfect_config: ConfigDict) -> None:
 
     ts = np.linspace(0., perfect_config.end_diff_time, num=perfect_config.max_diff_steps)
     folder_path = project_config.ROOT_DIR + "experiments/results/forward_gifs/"
-    gif_path = "{}_incs_{}_unitIntv_fBm_dimPair{}_dimPair{}_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_BetaMax{:.4e}_BetaMin{:.4e}".format(not forward_config.isfBm, forward_config.isUnitInterval,dim_pair[0],
-                                                                                                            dim_pair[1],
-                                                                                                            perfect_config.hurst,
-                                                                                                            perfect_config.timeDim,
-                                                                                                            perfect_config.max_diff_steps,
-                                                                                                            perfect_config.end_diff_time,
-                                                                                                            perfect_config.beta_max,
-                                                                                                            perfect_config.beta_min).replace(
+    gif_path = "{}_incs_{}_unitIntv_fBm_dimPair{}_dimPair{}_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_BetaMax{:.4e}_BetaMin{:.4e}".format(
+        not forward_config.isfBm, forward_config.isUnitInterval, dim_pair[0],
+        dim_pair[1],
+        perfect_config.hurst,
+        perfect_config.timeDim,
+        perfect_config.max_diff_steps,
+        perfect_config.end_diff_time,
+        perfect_config.beta_max,
+        perfect_config.beta_min).replace(
         ".", "")
 
     for i in tqdm(range(perfect_config.max_diff_steps)):

@@ -2,7 +2,6 @@ import numpy as np
 import torch
 from ml_collections import ConfigDict
 
-from configs import project_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
@@ -38,20 +37,21 @@ def run(config: ConfigDict) -> None:
                            config=config, folderPath="", gifPath=gif_path)
     make_gif("", gif_path)
 
+
 if __name__ == "__main__":
     # Data parameters
     from configs.VPSDE.fBm_T256_H07 import get_config
 
     config = get_config()
     assert (0. < config.hurst < 1.)
-    assert(config.early_stop_idx == 0)
+    assert (config.early_stop_idx == 0)
     config.dataSize = 10000
     config.idx_start_save = int(0.0 * config.max_diff_steps)
     config.gif_save_freq = int(max(0.01 * (config.max_diff_steps - config.idx_start_save), 1))
-    config.row_idxs = np.array([0,1,2])
-    config.col_idxs = np.array([0,1,2])
+    config.row_idxs = np.array([0, 1, 2])
+    config.col_idxs = np.array([0, 1, 2])
     run(config)
     config.col_idxs = np.array([253, 254, 255])
     run(config)
-    config.row_idxs = np.array([253,254, 255])
+    config.row_idxs = np.array([253, 254, 255])
     run(config)

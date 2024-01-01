@@ -3,7 +3,6 @@ import pandas as pd
 import torch
 from ml_collections import ConfigDict
 
-from configs import project_config
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
@@ -29,7 +28,8 @@ def run(config: ConfigDict):
                                                                               rng=rng,
                                                                               config=config)
 
-    drift_data_path = config.experiment_path.replace("results/","results/drift_data/" ) + "_DriftErrorsTS_Nepochs{}".format(
+    drift_data_path = config.experiment_path.replace("results/",
+                                                     "results/drift_data/") + "_DriftErrorsTS_Nepochs{}".format(
         config.max_epochs).replace(
         ".", "")
 
@@ -46,6 +46,6 @@ if __name__ == "__main__":
 
     config = get_config()
     assert (0. < config.hurst < 1.)
-    assert(config.early_stop_idx == 0)
+    assert (config.early_stop_idx == 0)
 
     run(config)

@@ -1,11 +1,9 @@
 import numpy as np
-from tqdm import tqdm
+import pandas as pd
 
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from utils.math_functions import compute_fBm_cov, compute_fBn_cov, generate_fBm, generate_fBn
 from utils.plotting_functions import plot_diffCov_heatmap
-import pandas as pd
-
 
 if __name__ == "__main__":
     from configs.VESDE.fBm_T256_H07 import get_config
@@ -31,7 +29,7 @@ if __name__ == "__main__":
     # Synthetic samples
     for type in df.index.get_level_values(level=0).unique():
         this_cov = np.cov(df.loc[type].to_numpy().T)
-        plot_diffCov_heatmap(true_cov=true_cov[:,:], gen_cov=this_cov[:,:], annot=False, image_path="")
+        plot_diffCov_heatmap(true_cov=true_cov[:, :], gen_cov=this_cov[:, :], annot=False, image_path="")
 
     if config.isfBm:
         exact_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=S,

@@ -9,7 +9,7 @@ from utils.plotting_functions import plot_efftimes
 
 def run(perfect_config: ConfigDict) -> None:
     diffusion = VESDEDiffusion(stdMax=perfect_config.std_max, stdMin=perfect_config.std_min)
-    ts  = np.linspace(config.sample_eps, config.end_diff_time, config.max_diff_steps)
+    ts = np.linspace(config.sample_eps, config.end_diff_time, config.max_diff_steps)
     efftimes = diffusion.get_eff_times(torch.Tensor(ts)).numpy()
     plot_efftimes(ts, efftimes)
     plot_efftimes(ts[:10], efftimes[:10])

@@ -1,11 +1,13 @@
+import multiprocessing as mp
+from functools import partial
+
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from ml_collections import ConfigDict
+
 from utils.math_functions import reduce_to_fBn, optimise_whittle, generate_fBm, generate_fBn
 from utils.plotting_functions import plot_histogram
-import multiprocessing as mp
-from functools import partial
 
 
 def one_model_run(fBm_samples: np.ndarray, sample_type: str, config: ConfigDict):
@@ -50,13 +52,15 @@ if __name__ == "__main__":
     config = get_config()
     H = config.hurst
     df = pd.read_csv(config.experiment_path.replace("/results/",
-                                                    "/results/early_stopping/") + "_Samples_EStop{}_Nepochs{}.csv.gzip".format(
-        393, config.max_epochs), compression="gzip", index_col=[0, 1])
+                                                    "/results/early_stopping/") + "_EStop{}_Nepochs{}.csv.gzip".format(
+        1, config.max_epochs), compression="gzip", index_col=[0, 1])
 
     if config.isfBm:
-        exact_samples = generate_fBm(H=config.hurst,T=config.timeDim, S=df.index.levshape[1], isUnitInterval=config.isUnitInterval)
+        exact_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=df.index.levshape[1],
+                                     isUnitInterval=config.isUnitInterval)
     else:
-        exact_samples=generate_fBn(H=config.hurst, T=config.timeDim, S=df.index.levshape[1], isUnitInterval=config.isUnitInterval)
+        exact_samples = generate_fBn(H=config.hurst, T=config.timeDim, S=df.index.levshape[1],
+                                     isUnitInterval=config.isUnitInterval)
     one_model_run(np.array(exact_samples), sample_type="exact", config=config)
     # Synthetic samples
     for type in df.index.get_level_values(level=0).unique():

@@ -24,7 +24,8 @@ def run_experiment(dataSize: int, diffusion: OUSDEDiffusion, scoreModel: Union[N
     except AssertionError:
         raise ValueError("Final time during sampling should be at least as large as final time during training")
 
-    true_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=dataSize, rng=rng, isUnitInterval=config.isUnitInterval)
+    true_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=dataSize, rng=rng,
+                                isUnitInterval=config.isUnitInterval)
     return evaluate_fBm_performance(true_samples, fBm_samples.cpu().numpy(), rng=rng, config=config,
                                     exp_dict=experiment_res)
 
@@ -47,4 +48,3 @@ if __name__ == "__main__":
     cleanup_experiment()
 
     run_fBm_experiment(dataSize=config.dataSize, diffusion=diffusion, scoreModel=scoreModel, rng=rng, config=config)
-

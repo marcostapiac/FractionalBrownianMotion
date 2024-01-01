@@ -35,9 +35,10 @@ def run(config: ConfigDict) -> None:
 
     folder_path = project_config.ROOT_DIR + "experiments/results/backward_gifs/"
 
-    gif_path = config.experiment_path + "{}_interval_{}_unitIntv_fBm_dimPair{}_dimPair{}".format(not config.isfBm, config.isUnitInterval,
-        dim_pair[0],
-        dim_pair[1]).replace(
+    gif_path = config.experiment_path + "{}_interval_{}_unitIntv_fBm_dimPair{}_dimPair{}".format(not config.isfBm,
+                                                                                                 config.isUnitInterval,
+                                                                                                 dim_pair[0],
+                                                                                                 dim_pair[1]).replace(
         ".", "")
 
     run_fBm_score(dataSize=config.dataSize, dim_pair=dim_pair, diffusion=diffusion, scoreModel=scoreModel, rng=rng,
@@ -52,7 +53,7 @@ if __name__ == "__main__":
 
     config = get_config()
     assert (0. < config.hurst < 1.)
-    assert(config.early_stop_idx == 0)
+    assert (config.early_stop_idx == 0)
     config.gif_save_freq = int((0.05 * config.max_diff_steps))
     config.dataSize = 10000
     config.dim1 = 0

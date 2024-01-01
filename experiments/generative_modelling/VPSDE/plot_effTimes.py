@@ -2,6 +2,7 @@ import ml_collections
 import numpy as np
 import torch
 from ml_collections import ConfigDict
+
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from utils.plotting_functions import plot_efftimes
 
@@ -13,14 +14,15 @@ def run(perfect_config: ConfigDict) -> None:
     plot_efftimes(ts, efftimes)
     plot_efftimes(ts[:10], efftimes[:10])
     plot_efftimes(ts[:3], efftimes[:3])
-    print(efftimes[:2])
+    print(efftimes[199])
+
 
 if __name__ == "__main__":
     # Data parameters
     config = ml_collections.ConfigDict()
     config.has_cuda = torch.cuda.is_available()
     config.hurst = 0.7
-    config.timeDim = 256
+    config.timeDim = 1024
     config.max_diff_steps = 10000
     config.end_diff_time = 1
     config.beta_max = 20

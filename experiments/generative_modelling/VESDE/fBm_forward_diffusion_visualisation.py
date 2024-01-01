@@ -23,12 +23,15 @@ def run(forward_config: ConfigDict) -> None:
     diffusion = VESDEDiffusion(stdMax=forward_config.std_max, stdMin=forward_config.std_min)
     dim_pair = torch.Tensor([forward_config.dim1, forward_config.dim2]).to(torch.int32)
 
-
     gen = FractionalBrownianNoise(forward_config.hurst, np.random.default_rng())
     if forward_config.isfBm:
-        data_cov = torch.from_numpy(compute_fBm_cov(gen, T=forward_config.timeDim, isUnitInterval=forward_config.isUnitInterval)).to(torch.float32)
+        data_cov = torch.from_numpy(
+            compute_fBm_cov(gen, T=forward_config.timeDim, isUnitInterval=forward_config.isUnitInterval)).to(
+            torch.float32)
     else:
-        data_cov = torch.from_numpy(compute_fBn_cov(gen, T=forward_config.timeDim, isUnitInterval=forward_config.isUnitInterval)).to(torch.float32)
+        data_cov = torch.from_numpy(
+            compute_fBn_cov(gen, T=forward_config.timeDim, isUnitInterval=forward_config.isUnitInterval)).to(
+            torch.float32)
 
     org_data = []
     for _ in tqdm(range(forward_config.dataSize)):
@@ -42,17 +45,17 @@ def run(forward_config: ConfigDict) -> None:
     org_data = torch.index_select(org_data, dim=1, index=dim_pair)
     data_cov = torch.index_select(torch.index_select(data_cov, dim=0, index=dim_pair), dim=1, index=dim_pair)
 
-
     ts = np.linspace(0., forward_config.end_diff_time, num=forward_config.max_diff_steps)
     folder_path = project_config.ROOT_DIR + "experiments/results/forward_gifs/"
-    gif_path = "{}_incs_{}_unitIntv_fBm_dimPair{}_dimPair{}_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_StdMax{:.4e}_StdMin{:.4e}".format(not forward_config.isfBm, forward_config.isUnitInterval, dim_pair[0],
-                                                                                                          dim_pair[1],
-                                                                                                          forward_config.hurst,
-                                                                                                          forward_config.timeDim,
-                                                                                                          forward_config.max_diff_steps,
-                                                                                                          forward_config.end_diff_time,
-                                                                                                          forward_config.std_max,
-                                                                                                          forward_config.std_min).replace(
+    gif_path = "{}_incs_{}_unitIntv_fBm_dimPair{}_dimPair{}_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_StdMax{:.4e}_StdMin{:.4e}".format(
+        not forward_config.isfBm, forward_config.isUnitInterval, dim_pair[0],
+        dim_pair[1],
+        forward_config.hurst,
+        forward_config.timeDim,
+        forward_config.max_diff_steps,
+        forward_config.end_diff_time,
+        forward_config.std_max,
+        forward_config.std_min).replace(
         ".", "")
 
     for i in tqdm(range(forward_config.max_diff_steps)):

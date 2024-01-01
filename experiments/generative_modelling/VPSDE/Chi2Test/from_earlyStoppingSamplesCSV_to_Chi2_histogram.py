@@ -3,26 +3,26 @@ import numpy as np
 import pandas as pd
 import scipy
 from ml_collections import ConfigDict
-from tqdm import tqdm
 
-from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
-from utils.math_functions import reduce_to_fBn, optimise_whittle, chiSquared_test
+from utils.math_functions import reduce_to_fBn, chiSquared_test
 from utils.plotting_functions import plot_histogram
 
 
-def one_model_run(config:ConfigDict,fBm_samples: np.ndarray, sample_type: str):
+def one_model_run(config: ConfigDict, fBm_samples: np.ndarray, sample_type: str):
     approx_fBn = reduce_to_fBn(fBm_samples, reduce=True)
     if sample_type == "Synthetic": sample_type = "Early Stop 1"
     even_approx_fBn = approx_fBn[:, ::2]  # Every even index
 
     print(sample_type)
     # Compute Hurst parameters
-    low, chi2s, high = chiSquared_test(T=config.timeDim, H=config.hurst,samples=approx_fBn,isUnitInterval=config.unitInterval)
-    low_even, even_chi2s, high_even = chiSquared_test(T=config.timeDim//2, H=config.hurst,samples=even_approx_fBn,isUnitInterval=config.unitInterval)
+    low, chi2s, high = chiSquared_test(T=config.timeDim, H=config.hurst, samples=approx_fBn,
+                                       isUnitInterval=config.unitInterval)
+    low_even, even_chi2s, high_even = chiSquared_test(T=config.timeDim // 2, H=config.hurst, samples=even_approx_fBn,
+                                                      isUnitInterval=config.unitInterval)
     my_chi2s = [np.array(chi2s), np.array(even_chi2s)]
     my_bounds = [(low, high), (low_even, high_even)]
     titles = ["All", "Even"]
-    dfs = [config.timeDim-1, config.timeDim//2 -1]
+    dfs = [config.timeDim - 1, config.timeDim // 2 - 1]
     for i in range(len(my_chi2s)):
         fig, ax = plt.subplots()
         ax.axvline(x=my_bounds[i][0], color="blue", label="Lower Bound")
@@ -34,7 +34,7 @@ def one_model_run(config:ConfigDict,fBm_samples: np.ndarray, sample_type: str):
                        ylabel="density", plotlabel="Chi2 with {} DoF".format(dfs[i]),
                        plottitle="Histogram of {} {} samples' Chi2 Test Statistic".format(titles[i], sample_type),
                        fig=fig, ax=ax)
-        ax.set_xlim(my_bounds[i][0]/10, 10*my_bounds[i][1])
+        ax.set_xlim(my_bounds[i][0] / 10, 10 * my_bounds[i][1])
         plt.show()
 
 
@@ -45,7 +45,7 @@ if __name__ == "__main__":
     H = config.hurst
     df = pd.read_csv(config.experiment_path.replace("/results/",
                                                     "/results/early_stopping/") + "_Samples_EStop{}_Nepochs{}.csv.gzip".format(
-        1,config.max_epochs),
+        1, config.max_epochs),
                      compression="gzip", index_col=[0, 1])
     # Synthetic samples
     for type in df.index.get_level_values(level=0).unique():

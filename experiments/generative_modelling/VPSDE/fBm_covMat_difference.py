@@ -1,21 +1,19 @@
 import numpy as np
-from tqdm import tqdm
+import pandas as pd
 
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from utils.math_functions import compute_fBm_cov, compute_fBn_cov, generate_fBm, generate_fBn
 from utils.plotting_functions import plot_diffCov_heatmap
-import pandas as pd
-
 
 if __name__ == "__main__":
-    from configs.VPSDE.fBm_T256_H07 import get_config
+    from configs.VPSDE.fBm_T1024_H07 import get_config
 
     config = get_config()
     H = config.hurst
 
     path = config.experiment_path.replace("/results/",
-                                                    "/results/early_stopping/") + "_Samples_EStop{}_Nepochs{}.csv.gzip".format(
-        1,config.max_epochs)
+                                          "/results/early_stopping/") + "_Samples_EStop{}_Nepochs{}.csv.gzip".format(
+        1, config.max_epochs)
     df = pd.read_csv(path, compression="gzip", index_col=[0, 1])
 
     # Now onto exact samples for reference
@@ -23,7 +21,9 @@ if __name__ == "__main__":
     isfBm = True if "False_incs" in path else False
 
     fbn = FractionalBrownianNoise(H=config.hurst, rng=np.random.default_rng())
-    true_cov = compute_fBm_cov(fbn,T=config.timeDim, isUnitInterval=unitInterval) if isfBm else compute_fBn_cov(fbn,T=config.timeDim, isUnitInterval=unitInterval)
+    true_cov = compute_fBm_cov(fbn, T=config.timeDim, isUnitInterval=unitInterval) if isfBm else compute_fBn_cov(fbn,
+                                                                                                                 T=config.timeDim,
+                                                                                                                 isUnitInterval=unitInterval)
 
     if config.isfBm:
         exact_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=df.index.levshape[1],

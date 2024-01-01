@@ -28,7 +28,8 @@ def run_backward_drift_error_storing(config: ConfigDict):
                                                                               rng=rng,
                                                                               config=config)
 
-    drift_data_path = config.experiment_path.replace("results/", "results/drift_data/") + "_DriftErrorsTS_Nepochs{}".format(
+    drift_data_path = config.experiment_path.replace("results/",
+                                                     "results/drift_data/") + "_DriftErrorsTS_Nepochs{}".format(
         config.max_epochs).replace(
         ".", "")
 
