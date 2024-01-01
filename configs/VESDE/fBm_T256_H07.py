@@ -18,7 +18,7 @@ def get_config():
         str(config.hurst).replace(".", ""), config.timeDim)
 
     # Training hyperparameters
-    config.train_eps = 1e-5
+    config.train_eps = 1e-4
     config.max_diff_steps = 20000  # 1000*max(int(np.log(config.timeDim-1, 1)))
     config.end_diff_time = 1.
     config.save_freq = 50
@@ -70,7 +70,7 @@ def get_config():
 
     # Sampling hyperparameters
     config.early_stop_idx = 0
-    config.sample_eps = 1e-5
+    config.sample_eps = 1e-4
     if config.hybrid: assert (config.sample_eps == config.train_eps)
     config.max_lang_steps = 0
     config.snr = 0.01
