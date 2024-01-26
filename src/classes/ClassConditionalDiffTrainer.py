@@ -61,6 +61,8 @@ class ConditionalDiffusionModelTrainer:
 
         # Move score network to appropriate device
         if type(self.device_id) == int:
+            print("DDP Setup\n")
+            print(self.device_id)
             self.score_network = DDP(self.score_network.to(self.device_id), device_ids=[self.device_id])
         else:
             self.score_network = self.score_network.to(self.device_id)
