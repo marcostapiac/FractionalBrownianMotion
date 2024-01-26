@@ -130,17 +130,13 @@ def recursive_reverse_sampling(diffusion: VPSDEDiffusion,
     scoreModel.eval()
     h = torch.randn((1 * 2, data_shape[0], 40)).to(device)
     c = torch.randn((1 * 2, data_shape[0], 40)).to(device)
-    samples = torch.randn(size=(data_shape[0], 1, data_shape[-1])).to(device)
+    samples = torch.randn(size=(data_shape[0], 1, data_shape[-1])).to(device)*torch.sqrt(1./config.timeDim)
     paths = []
     for t in range(config.timeDim):
         output, (h, c) = (scoreModel.rnn(samples, (h, c)))
         samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output, early_stop_idx=config.early_stop_idx)
         assert(samples.shape == (data_shape[0], 1, data_shape[-1]))
         paths.append(samples)
-        if t==0:
-            print(samples)
-        if t == 2:
-            print(torch.concat(paths, dim=1), torch.concat(paths, dim=1).shape)
     final_paths = torch.concat(paths)
     assert(final_paths.shape == data_shape)
     early_stop_idx = 0
