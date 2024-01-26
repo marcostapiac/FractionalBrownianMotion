@@ -143,6 +143,10 @@ class ConditionalTimeSeriesScoreMatching(nn.Module):
                                                       diff_hidden_size=diff_hidden_size,
                                                       max_steps=max_diff_steps)  # get_timestep_embedding
 
+        # TODO: What is target_dim and cond_length?
+        self.cond_upsampler = CondUpsampler(
+            target_dim=1, cond_length=40
+        )
         self.residual_layers = nn.ModuleList(
             [
                 ResidualBlock(
@@ -152,10 +156,6 @@ class ConditionalTimeSeriesScoreMatching(nn.Module):
                 )
                 for i in range(residual_layers)
             ]
-        )
-        # TODO: What is target_dim and cond_length?
-        self.cond_upsampler = CondUpsampler(
-            target_dim=1, cond_length=40
         )
         self.skip_projection = nn.Conv1d(residual_channels, residual_channels, 1)
         self.output_projection = nn.Conv1d(residual_channels, 1, 1)
