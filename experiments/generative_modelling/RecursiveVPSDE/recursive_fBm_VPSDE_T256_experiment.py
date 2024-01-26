@@ -4,7 +4,7 @@ from typing import Union
 
 import numpy as np
 import torch
-import torchmetrics
+from torchmetrics.aggregation import MeanMetric
 from ml_collections import ConfigDict
 from torch.distributed.elastic.multiprocessing.errors import record
 from torch.utils.data import DataLoader, DistributedSampler
@@ -69,7 +69,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
     # TODO: When using DDP, set device = rank passed by mp.spawn OR by torchrun
     trainer = ConditionalDiffusionModelTrainer(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                                     checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
-                                    loss_aggregator=torchmetrics.aggregation.MeanMetric,
+                                    loss_aggregator=MeanMetric,
                                     snapshot_path=config.scoreNet_snapshot_path, device=device,
                                     train_eps=train_eps,
                                     end_diff_time=end_diff_time, max_diff_steps=max_diff_steps, to_weight=config.weightings, hybrid_training=config.hybrid)
