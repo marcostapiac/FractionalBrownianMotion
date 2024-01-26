@@ -6,6 +6,8 @@ import torch
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
+    ConditionalTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
@@ -15,7 +17,7 @@ class Predictor(abc.ABC):
     """ Base class for all predictor algorithms during reverse-time sampling """
 
     def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion, OUSDEDiffusion],
-                 score_function: Union[NaiveMLP, TimeSeriesScoreMatching], end_diff_time: float, max_diff_steps: int,
+                 score_function: Union[NaiveMLP, TimeSeriesScoreMatching, ConditionalTimeSeriesScoreMatching], end_diff_time: float, max_diff_steps: int,
                  device: Union[int, torch.device], sample_eps:float):
         super().__init__()
         self.score_network = score_function
@@ -73,6 +75,25 @@ class AncestralSamplingPredictor(Predictor):
     def step(self, x_prev: torch.Tensor, t: torch.Tensor, diff_index: torch.Tensor) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor]:
         score, drift, diffusion = self.diffusion.get_ancestral_sampling(x_prev, t=t, score_network=self.score_network,
+                                                                        diff_index=diff_index,
+                                                                        max_diff_steps=self.max_diff_steps)
+        z = torch.randn_like(x_prev)
+        return drift + diffusion * z, score, z
+
+
+class ConditionalAncestralSamplingPredictor(Predictor):
+    def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion],
+                 score_function: ConditionalTimeSeriesScoreMatching, end_diff_time: float, max_diff_steps: int,
+                 device: Union[int, torch.device], sample_eps:float):
+        try:
+            assert (type(diffusion) != OUSDEDiffusion)
+        except AssertionError:
+            raise NotImplementedError("Ancestral sampling is only valid for VE and VP diffusion models")
+        super().__init__(diffusion, score_function, end_diff_time, max_diff_steps, device, sample_eps)
+
+    def step(self, x_prev: torch.Tensor, feature:torch.Tensor, t: torch.Tensor, diff_index: torch.Tensor) -> Tuple[
+        torch.Tensor, torch.Tensor, torch.Tensor]:
+        score, drift, diffusion = self.diffusion.get_conditional_ancestral_sampling(x_prev, t=t, feature=feature, score_network=self.score_network,
                                                                         diff_index=diff_index,
                                                                         max_diff_steps=self.max_diff_steps)
         z = torch.randn_like(x_prev)
