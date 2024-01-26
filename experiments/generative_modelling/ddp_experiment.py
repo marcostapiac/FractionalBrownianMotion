@@ -18,7 +18,7 @@ def main():
     backend = "nccl" if torch.cuda.is_available() else "gloo"
     print("Backend is ", backend)
     init_process_group(backend)
-    if backend=="nccl":
+    if backend == "nccl":
         print(int(os.environ["LOCAL_RANK"]))
         print("Total number of available GPUs is {}\n".format(torch.cuda.device_count()))
         torch.cuda.set_device(int(os.environ["LOCAL_RANK"]))
@@ -32,10 +32,11 @@ def main2(backend, model):
     print("Number of threads for worker with rank {} is :: {}\n".format(int(os.environ["LOCAL_RANK"]),
                                                                         int(os.environ["OMP_NUM_THREADS"])))
     print("World size for rank {} is {}\n".format(int(os.environ["LOCAL_RANK"]), int(os.environ["WORLD_SIZE"])))
-    if backend=="nccl":
+    if backend == "nccl":
         print("Total number of available GPUs is {}\n".format(torch.cuda.device_count()))
         print("Current process device ID is {}\n".format(torch.cuda.get_device_name()))
         model = DDP(model.to(int(os.environ["LOCAL_RANK"])))
+
 
 if __name__ == "__main__":
     backend = main()

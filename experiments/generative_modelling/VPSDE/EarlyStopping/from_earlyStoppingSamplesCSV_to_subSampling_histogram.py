@@ -53,11 +53,12 @@ if __name__ == "__main__":
     H = config.hurst
     df = pd.read_csv(config.experiment_path.replace("/results/",
                                                     "/results/early_stopping/") + "_EStop{}_Nepochs{}.csv.gzip".format(
-        1, config.max_epochs),
+        199, config.max_epochs),
                      compression="gzip", index_col=[0, 1])
     # Synthetic samples
     for type in df.index.get_level_values(level=0).unique():
-        one_model_run(df.loc[type].to_numpy(), sample_type=type, config=config)
+        if type != "Early Stop 199":
+            one_model_run(df.loc[type].to_numpy(), sample_type=type, config=config)
 
     if config.isfBm:
         exact_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=df.index.levshape[1],
