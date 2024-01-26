@@ -70,6 +70,7 @@ class ConditionalDiffusionModelTrainer:
         if os.path.exists(self.snapshot_path):
             print("Device {} :: Loading snapshot\n".format(self.device_id))
             self._load_snapshot(self.snapshot_path)
+        print("!!Setup Done!!\n")
 
     def _batch_update(self, loss) -> None:
         """
