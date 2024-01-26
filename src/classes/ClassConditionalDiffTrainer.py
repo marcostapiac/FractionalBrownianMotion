@@ -219,7 +219,7 @@ class ConditionalDiffusionModelTrainer:
         # batch shape (N_batches, Time Series Length, Input Size)
         h0 = torch.randn((1*2, batch.shape[0],40)) # (D*NumLayers, N, Hidden Dims), D is 2 if bi-directional, else 1.
         c0 = torch.randn((1*2, batch.shape[0],40)) # (D*NumLayers, N, Hidden Dims), D is 2 if bi-directional, else 1.
-        output, (hn, cn) = (self.score_network.rnn(batch, (h0, c0)))
+        output, (hn, cn) = (self.score_network.module.rnn(batch, (h0, c0)))
         return output
 
 
