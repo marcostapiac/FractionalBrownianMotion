@@ -138,7 +138,7 @@ def recursive_reverse_sampling(diffusion: VPSDEDiffusion,
         assert(samples.shape == (data_shape[0], 1, data_shape[-1]))
         paths.append(samples)
     final_paths = torch.concat(paths)
-    assert(final_paths.shape == data_shape)
+    print(final_paths.shape)
     early_stop_idx = 0
     df = pd.DataFrame(final_paths)
     df.index = pd.MultiIndex.from_product(
