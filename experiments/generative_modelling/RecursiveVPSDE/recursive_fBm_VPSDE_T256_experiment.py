@@ -137,12 +137,12 @@ def recursive_reverse_sampling(diffusion: VPSDEDiffusion,
         samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output, early_stop_idx=config.early_stop_idx)
         assert(samples.shape == (data_shape[0], 1, data_shape[-1]))
         paths.append(samples)
-    final_paths = torch.concat(paths)
+    final_paths = torch.concat(paths, dim=1)
     print(final_paths.shape)
     early_stop_idx = 0
     df = pd.DataFrame(final_paths)
     df.index = pd.MultiIndex.from_product(
-        [["Early Stop {}".format(early_stop_idx), "Final Time Samples"], [i for i in range(config.dataSize)]])
+        [["Final Time Samples"], [i for i in range(config.dataSize)]])
     df.to_csv(config.experiment_path.replace("/results/",
                                              "/results/early_stopping/") + "_EStop{}_Nepochs{}.csv.gzip".format(
         early_stop_idx, config.max_epochs), compression="gzip")
