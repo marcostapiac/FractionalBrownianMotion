@@ -137,7 +137,7 @@ def recursive_reverse_sampling(diffusion: VPSDEDiffusion,
         samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output, early_stop_idx=config.early_stop_idx)
         assert(samples.shape == (data_shape[0], 1, data_shape[-1]))
         paths.append(samples)
-    final_paths = torch.concat(paths, dim=1)
+    final_paths = torch.concat(paths, dim=1).cpu()
     print(final_paths.shape, data_shape)
     early_stop_idx = 0
     df = pd.DataFrame(final_paths)
