@@ -20,6 +20,8 @@ from src.generative_modelling.data_processing import prepare_scoreModel_data
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
     ConditionalTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTransformerTimeSeriesScoreMatching import \
+    ConditionalTransformerTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
@@ -87,7 +89,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
 
 
 @record
-def recursive_reverse_sampling(diffusion: VPSDEDiffusion,
+def recursive_transformer_reverse_sampling(diffusion: VPSDEDiffusion,
                      scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], data_shape: Tuple[int, int, int],
                      config: ConfigDict) -> torch.Tensor:
     """
@@ -120,17 +122,17 @@ def recursive_reverse_sampling(diffusion: VPSDEDiffusion,
 
     scoreModel.eval()
     with torch.no_grad():
-        samples = torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)
-        paths = []
+        paths = torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)
         for t in range(config.timeDim):
             if t == 0:
-                output, (h, c) = scoreModel.rnn(samples, None)
+                output, (h, c) = scoreModel.rnn(paths, None)
             else:
-                output, (h, c) = scoreModel.rnn(samples, (h, c))
+                output, (h, c) = scoreModel.rnn(paths, (h, c))
+                output = torch.unsqueeze(output[:,-1,:], dim=1)
             samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output, early_stop_idx=config.early_stop_idx)
             assert(samples.shape == (data_shape[0], 1, data_shape[-1]))
-            paths.append(samples)
-    final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)
+            paths = torch.concat([paths, samples], dim=1)
+    final_paths = torch.squeeze(paths.cpu(), dim=2)
     early_stop_idx = 0
     df = pd.DataFrame(final_paths)
     df.index = pd.MultiIndex.from_product(
@@ -144,14 +146,14 @@ def recursive_reverse_sampling(diffusion: VPSDEDiffusion,
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.recursive_fBm_T256_H07 import get_config
+    from configs.RecursiveVPSDE.recursive_transformer_fBm_T256_H07 import get_config
 
     config = get_config()
     assert (0 < config.hurst < 1.)
     assert (config.early_stop_idx == 0)
 
     rng = np.random.default_rng()
-    scoreModel = ConditionalTimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
+    scoreModel = ConditionalTransformerTimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
@@ -161,7 +163,7 @@ if __name__ == "__main__":
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
     except FileNotFoundError as e:
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
-        training_size = int(min(2 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000))
+        training_size = int(min(1 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 1000000))
         try:
             data = np.load(config.data_path, allow_pickle=True)
             assert (data.shape[0] >= training_size)
@@ -180,5 +182,5 @@ if __name__ == "__main__":
 
     cleanup_experiment()
 
-    recursive_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
+    recursive_transformer_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                data_shape=(config.dataSize, config.timeDim, 1), config=config)
