@@ -118,12 +118,13 @@ def recursive_reverse_sampling(diffusion: VPSDEDiffusion,
     sampler = ConditionalSDESampler(diffusion=diffusion, sample_eps=config.sample_eps, predictor=predictor, corrector=corrector)
 
     scoreModel.eval()
-    h = None
-    c = None
     samples = torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)
     paths = []
     for t in range(config.timeDim):
-        output, (h, c) = (scoreModel.rnn(samples, (h, c)))
+        if t == 0:
+            output, (h, c) = scoreModel.rnn(samples, None)
+        else:
+            output, (h, c) = scoreModel.rnn(samples, (h, c))
         samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output, early_stop_idx=config.early_stop_idx)
         assert(samples.shape == (data_shape[0], 1, data_shape[-1]))
         paths.append(samples)
@@ -152,7 +153,7 @@ if __name__ == "__main__":
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    #init_experiment(config=config)
+    init_experiment(config=config)
 
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
@@ -175,7 +176,7 @@ if __name__ == "__main__":
         train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
 
-    #cleanup_experiment()
+    cleanup_experiment()
 
     recursive_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                data_shape=(config.dataSize, config.timeDim, 1), config=config)
