@@ -118,16 +118,17 @@ def recursive_reverse_sampling(diffusion: VPSDEDiffusion,
     sampler = ConditionalSDESampler(diffusion=diffusion, sample_eps=config.sample_eps, predictor=predictor, corrector=corrector)
 
     scoreModel.eval()
-    samples = torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)
-    paths = []
-    for t in range(config.timeDim):
-        if t == 0:
-            output, (h, c) = scoreModel.rnn(samples, None)
-        else:
-            output, (h, c) = scoreModel.rnn(samples, (h, c))
-        samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output, early_stop_idx=config.early_stop_idx)
-        assert(samples.shape == (data_shape[0], 1, data_shape[-1]))
-        paths.append(samples)
+    with torch.no_grad():
+        samples = torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)
+        paths = []
+        for t in range(config.timeDim):
+            if t == 0:
+                output, (h, c) = scoreModel.rnn(samples, None)
+            else:
+                output, (h, c) = scoreModel.rnn(samples, (h, c))
+            samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output, early_stop_idx=config.early_stop_idx)
+            assert(samples.shape == (data_shape[0], 1, data_shape[-1]))
+            paths.append(samples)
     final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)
     early_stop_idx = 0
     df = pd.DataFrame(final_paths)
