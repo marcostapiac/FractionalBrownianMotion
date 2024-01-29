@@ -109,6 +109,7 @@ class ConditionalDiffusionModelTrainer:
         """
         self.opt.zero_grad()
         B, T, D = xts.shape
+        # Reshaping concatenates vectors in dim=1
         xts = xts.reshape(B*T, 1, -1)
         features = features.reshape(B*T, 1, -1)
         target_scores = target_scores.reshape(B*T, 1, -1)
@@ -217,10 +218,13 @@ class ConditionalDiffusionModelTrainer:
         """
 
         # batch shape (N_batches, Time Series Length, Input Size)
-        h0 = torch.randn((1*2, batch.shape[0],40)).to(batch.device) # (D*NumLayers, N, Hidden Dims), D is 2 if bi-directional, else 1.
-        c0 = torch.randn((1*2, batch.shape[0],40)).to(batch.device) # (D*NumLayers, N, Hidden Dims), D is 2 if bi-directional, else 1.
-        output, (hn, cn) = (self.score_network.module.rnn(batch, (h0, c0)))
-        return output
+        # hidden states: (D*NumLayers, N, Hidden Dims), D is 2 if bidirectional, else 1.
+        dbatch = torch.cat([torch.zeros((batch.shape[0], 1, batch.shape[-1])).to(batch.device), batch], dim=1)
+        if type(self.device_id) == int:
+            output, (hn, cn) = (self.score_network.module.rnn(dbatch, None))
+        else:
+            output, (hn, cn) = (self.score_network.rnn(dbatch, None))
+        return output[:,:-1,:]
 
 
 

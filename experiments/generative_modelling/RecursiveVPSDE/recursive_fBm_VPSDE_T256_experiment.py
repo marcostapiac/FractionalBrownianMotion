@@ -85,16 +85,6 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
     trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
 
 
-def run_recursive_fBm_experiment(diffusion, scoreModel, rng, config):
-    dataSize = config.dataSize
-    synth_samples = recursive_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
-                                     data_shape=(dataSize, config.timeDim, 1),
-                                     config=config)
-    if config.isfBm:
-        true_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=dataSize, isUnitInterval=config.isUnitInterval)
-    else:
-        true_samples = generate_fBn(H=config.hurst, T=config.timeDim, S=dataSize, isUnitInterval=config.isUnitInterval)
-
 @record
 def recursive_reverse_sampling(diffusion: VPSDEDiffusion,
                      scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], data_shape: Tuple[int, int, int],
@@ -128,9 +118,9 @@ def recursive_reverse_sampling(diffusion: VPSDEDiffusion,
     sampler = ConditionalSDESampler(diffusion=diffusion, sample_eps=config.sample_eps, predictor=predictor, corrector=corrector)
 
     scoreModel.eval()
-    h = torch.randn((1 * 2, data_shape[0], 40)).to(device)
-    c = torch.randn((1 * 2, data_shape[0], 40)).to(device)
-    samples = torch.randn(size=(data_shape[0], 1, data_shape[-1])).to(device)*torch.sqrt(torch.Tensor([1./config.timeDim])).to(device)
+    h = None
+    c = None
+    samples = torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)
     paths = []
     for t in range(config.timeDim):
         output, (h, c) = (scoreModel.rnn(samples, (h, c)))
@@ -138,7 +128,6 @@ def recursive_reverse_sampling(diffusion: VPSDEDiffusion,
         assert(samples.shape == (data_shape[0], 1, data_shape[-1]))
         paths.append(samples)
     final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)
-    print(final_paths.shape, data_shape)
     early_stop_idx = 0
     df = pd.DataFrame(final_paths)
     df.index = pd.MultiIndex.from_product(
@@ -188,4 +177,5 @@ if __name__ == "__main__":
 
     #cleanup_experiment()
 
-    run_recursive_fBm_experiment(diffusion=diffusion, scoreModel=scoreModel, rng=rng, config=config)
+    recursive_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
+                               data_shape=(config.dataSize, config.timeDim, 1), config=config)
