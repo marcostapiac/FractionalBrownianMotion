@@ -37,7 +37,8 @@ def prepare_recursive_scoreModel_data(data: np.ndarray, batch_size: int, config:
         :return: Train, Validation, Test dataloaders
     """
     dataset = torch.utils.data.TensorDataset(torch.from_numpy(data).float())
-    train, _, _ = torch.utils.data.random_split(dataset, [1., 0., 0.])
+    L = data.shape[0]
+    train, _, _ = torch.utils.data.random_split(dataset, [L, 0, 0])
     if config.has_cuda:
         trainLoader = DataLoader(train, batch_size=batch_size, pin_memory=False, shuffle=False,
                                  sampler=DistributedSampler(train))
