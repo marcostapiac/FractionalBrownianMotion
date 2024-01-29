@@ -4,6 +4,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTransformerEncoder import TransformerEncoder
+
 """ NOTE: The model below is an adaptation of the implementation of pytorch-ts """
 
 
@@ -118,7 +120,7 @@ class CondUpsampler(nn.Module):
         return x
 
 
-class ConditionalTimeSeriesScoreMatching(nn.Module):
+class ConditionalTransformerTimeSeriesScoreMatching(nn.Module):
     def __init__(
             self,
             max_diff_steps: int,
@@ -129,13 +131,7 @@ class ConditionalTimeSeriesScoreMatching(nn.Module):
             dilation_cycle_length: int = 10
     ):
         super().__init__()
-        self.rnn = nn.LSTM(
-            input_size=1, # What is the input_size of an LSTM?
-            hidden_size=40,
-            num_layers=2,
-            dropout=0.1,
-            batch_first=True,
-        )
+        self.rnn = TransformerEncoder()
         self.input_projection = nn.Conv1d(
             1, residual_channels, 1
         )
@@ -145,7 +141,7 @@ class ConditionalTimeSeriesScoreMatching(nn.Module):
 
         # TODO: What is target_dim and cond_length?
         self.cond_upsampler = CondUpsampler(
-            target_dim=1, cond_length=40
+            target_dim=1, cond_length=128
         )
         self.residual_layers = nn.ModuleList(
             [
