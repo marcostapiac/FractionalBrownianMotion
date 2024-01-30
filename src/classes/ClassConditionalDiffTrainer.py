@@ -12,6 +12,8 @@ from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
     ConditionalTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTransformerTimeSeriesScoreMatching import \
+    ConditionalTransformerTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
@@ -27,7 +29,7 @@ class ConditionalDiffusionModelTrainer:
 
     def __init__(self,
                  diffusion: Union[VESDEDiffusion, OUSDEDiffusion, VPSDEDiffusion],
-                 score_network: Union[NaiveMLP, ConditionalTimeSeriesScoreMatching],
+                 score_network: Union[ConditionalTimeSeriesScoreMatching, ConditionalTransformerTimeSeriesScoreMatching],
                  train_data_loader: torch.utils.data.dataloader.DataLoader,
                  train_eps: float,
                  end_diff_time: float,
