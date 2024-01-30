@@ -116,5 +116,5 @@ class TransformerEncoder(nn.Module):
     def forward(self, x, h=None, c=None):
         enc_x = self.embedder(x)
         mask = torch.nn.Transformer.generate_square_subsequent_mask(x.shape[1]).to(x.device)
-        out = self.encoder(enc_x, mask=mask)#, is_causal=True)
+        out = self.encoder(enc_x, mask=mask, is_causal=True)
         return out, (None, None)
