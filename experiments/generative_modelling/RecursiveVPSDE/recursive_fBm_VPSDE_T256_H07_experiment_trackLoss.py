@@ -156,7 +156,7 @@ if __name__ == "__main__":
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    #init_experiment(config=config)
+    init_experiment(config=config)
 
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
@@ -179,7 +179,7 @@ if __name__ == "__main__":
         train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
 
-    #cleanup_experiment()
+    cleanup_experiment()
 
     recursive_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                data_shape=(config.dataSize, config.timeDim, 1), config=config)
