@@ -1,4 +1,5 @@
 import os
+import pickle
 import time
 from typing import Union
 
@@ -15,7 +16,6 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
     ConditionalTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTransformerTimeSeriesScoreMatching import \
     ConditionalTransformerTimeSeriesScoreMatching
-import pickle
 
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
@@ -241,7 +241,6 @@ class ConditionalDiffusionModelTrainer(nn.Module):
         with open(filepath.replace("/trained_models/","/training_losses/") +"_loss_Nepochs{}".format(final_epoch), 'wb') as fp:
             pickle.dump(losses, fp)
 
-
     def train(self, max_epochs: int, model_filename: str) -> None:
         """
         Run training for model
@@ -250,7 +249,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             :return: None
         """
         self.score_network.train()
-        all_losses_per_epoch = []
+        all_losses_per_epoch = [] # This will contain synchronised losses
         for epoch in range(self.epochs_run, max_epochs):
             t0 = time.time()
             device_epoch_losses = self._run_epoch(epoch)
@@ -270,10 +269,10 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             print("Device {} :: Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format(self.device_id, (epoch + 1) / max_epochs,
                                                                         float(
                                                                             self.loss_aggregator.compute().item()),float(time.time()-t0)))
-            print("Stored Running Mean {} vs Aggregator Mean {}\n".format(float(torch.mean(torch.tensor(all_losses_per_epoch)).cpu().numpy()),float(
-                                                                            self.loss_aggregator.compute().item()) ))
-            self._save_loss(losses=all_losses_per_epoch, filepath=model_filename, final_epoch=epoch + 1)
             if self.device_id == 0 or type(self.device_id) == torch.device:
+                print("Stored Running Mean {} vs Aggregator Mean {}\n".format(
+                    float(torch.mean(torch.tensor(all_losses_per_epoch)).cpu().numpy()), float(
+                        self.loss_aggregator.compute().item())))
                 if epoch + 1 == max_epochs:
                     self._save_model(filepath=model_filename, final_epoch=epoch+1)
                     self._save_loss(losses=all_losses_per_epoch, filepath=model_filename, final_epoch=epoch+1)
