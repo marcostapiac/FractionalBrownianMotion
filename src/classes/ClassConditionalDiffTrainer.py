@@ -255,13 +255,12 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             t0 = time.time()
             gpu_epoch_losses = self._run_epoch(epoch)
             # Append epoch loss for each GPU
-            self.loss_tracker.append(torch.mean(torch.tensor(gpu_epoch_losses)).item())
             epoch_losses_tensor = torch.tensor(torch.mean(torch.tensor(gpu_epoch_losses)).item()).cuda()
             all_gpus_losses = [torch.zeros_like(epoch_losses_tensor) for _ in range(torch.cuda.device_count())]
             torch.distributed.all_gather(all_gpus_losses, epoch_losses_tensor)
 
             average_loss_per_gpu = torch.mean(torch.stack(all_gpus_losses), dim=0)
-            all_losses_per_gpu.append(average_loss_per_gpu.cpu().numpy())
+            all_losses_per_gpu.append(average_loss_per_gpu.cpu().numpy()[0])
 
             print("Device {}: Loss Tracker {}\n".format(self.device_id, self.loss_tracker))
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
