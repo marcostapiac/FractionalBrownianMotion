@@ -260,7 +260,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             torch.distributed.all_gather(all_gpus_losses, epoch_losses_tensor)
 
             average_loss_per_gpu = torch.mean(torch.stack(all_gpus_losses), dim=0)
-            all_losses_per_gpu.append(average_loss_per_gpu.cpu().numpy()[0])
+            all_losses_per_gpu.append(float(average_loss_per_gpu.cpu().numpy()))
 
             print("Device {}: Loss Tracker {}\n".format(self.device_id, self.loss_tracker))
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
