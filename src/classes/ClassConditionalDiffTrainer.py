@@ -256,7 +256,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             gpu_epoch_losses = self._run_epoch(epoch)
             # Append epoch loss for each GPU
             self.loss_tracker.append(torch.mean(torch.tensor(gpu_epoch_losses)).item())
-            epoch_losses_tensor = torch.tensor(gpu_epoch_losses).cuda()
+            epoch_losses_tensor = torch.tensor(torch.mean(torch.tensor(gpu_epoch_losses)).item()).cuda()
             all_gpus_losses = [torch.zeros_like(epoch_losses_tensor) for _ in range(torch.cuda.device_count())]
             torch.distributed.all_gather(all_gpus_losses, epoch_losses_tensor)
 
