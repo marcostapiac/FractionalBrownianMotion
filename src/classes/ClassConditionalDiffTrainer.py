@@ -46,7 +46,6 @@ class ConditionalDiffusionModelTrainer(nn.Module):
         assert (self.device_id == torch.device("cpu") or self.device_id == int(os.environ["LOCAL_RANK"]))
         self.score_network = score_network
         self.epochs_run = 0
-        self.loss_tracker = []
 
         self.opt = optimiser
         self.save_every = checkpoint_freq  # Specifies how often we choose to save our model during training
@@ -130,7 +129,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             :param epoch: Epoch index
             :return: List of batch Losses
         """
-        gpu_epoch_losses = []
+        device_epoch_losses = []
         b_sz = len(next(iter(self.train_loader))[0])
         print(
             f"[Device {self.device_id}] Epoch {epoch + 1} | Batchsize: {b_sz} | Total Num of Batches: {len(self.train_loader)} \n")
@@ -161,8 +160,8 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             # So target score should be size (NumBatches, Time Series Length, 1)
             # And xts should be size (NumBatches, TimeSeriesLength, NumDimensions)
             batch_loss = self._run_batch(xts=xts, features=features, target_scores=target_scores, diff_times=diff_times, eff_times=eff_times)
-            gpu_epoch_losses.append(batch_loss)
-        return gpu_epoch_losses
+            device_epoch_losses.append(batch_loss)
+        return device_epoch_losses
     def _load_snapshot(self, snapshot_path: str) -> None:
         """
         Load training from most recent snapshot
@@ -231,15 +230,16 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             output, (hn, cn) = (self.score_network.rnn(dbatch, None))
         return output[:,:-1,:]
 
-    def _save_loss(self, filepath:str, final_epoch:int):
+    def _save_loss(self, losses:list, filepath:str, final_epoch:int):
         """
         Save loss tracker
+            :param losses: Epoch losses averaged over GPU and Batches
             :param filepath: Path of file
             :param final_epoch: Epoch on which we save
             :return: None
         """
         with open(filepath.replace("/trained_models/","/training_losses/") +"_loss_Nepochs{}".format(final_epoch), 'wb') as fp:
-            pickle.dump(self.loss_tracker, fp)
+            pickle.dump(losses, fp)
 
 
     def train(self, max_epochs: int, model_filename: str) -> None:
@@ -253,25 +253,26 @@ class ConditionalDiffusionModelTrainer(nn.Module):
         all_losses_per_gpu = []
         for epoch in range(self.epochs_run, max_epochs):
             t0 = time.time()
-            gpu_epoch_losses = self._run_epoch(epoch)
-            # Append epoch loss for each GPU
-            epoch_losses_tensor = torch.tensor(torch.mean(torch.tensor(gpu_epoch_losses)).item()).cuda()
-            all_gpus_losses = [torch.zeros_like(epoch_losses_tensor) for _ in range(torch.cuda.device_count())]
-            torch.distributed.all_gather(all_gpus_losses, epoch_losses_tensor)
-
+            device_epoch_losses = self._run_epoch(epoch)
+            # Average epoch loss for each device over batches
+            epoch_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_losses)).item()).cuda()
+            if type(self.device_id) == int:
+                all_gpus_losses = [torch.zeros_like(epoch_losses_tensor) for _ in range(torch.cuda.device_count())]
+                torch.distributed.all_gather(all_gpus_losses, epoch_losses_tensor)
+            else:
+                all_gpus_losses = epoch_losses_tensor
+            # Obtain epoch loss averaged over devices
             average_loss_per_gpu = torch.mean(torch.stack(all_gpus_losses), dim=0)
             all_losses_per_gpu.append(float(average_loss_per_gpu.cpu().numpy()))
 
-            print("Device {}: Loss Tracker {}\n".format(self.device_id, self.loss_tracker))
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
             # see  https://github.com/Lightning-AI/torchmetrics/issues/626
             print("Device {} :: Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format(self.device_id, (epoch + 1) / max_epochs,
                                                                         float(
                                                                             self.loss_aggregator.compute().item()),float(time.time()-t0)))
-            print("Running Loss Averaged Across GPUs, Epochs, and Batches on Device {}: {}\n".format(self.device_id, all_losses_per_gpu))
             if self.device_id == 0 or type(self.device_id) == torch.device:
                 if epoch + 1 == max_epochs:
                     self._save_model(filepath=model_filename, final_epoch=epoch+1)
-                    self._save_loss(filepath=model_filename, final_epoch=epoch+1)
+                    self._save_loss(losses=all_losses_per_gpu, filepath=model_filename, final_epoch=epoch+1)
                 elif (epoch + 1) % self.save_every == 0:
                     self._save_snapshot(epoch=epoch)
