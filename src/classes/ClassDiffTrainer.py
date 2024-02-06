@@ -6,7 +6,7 @@ import torch
 import torchmetrics
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torchmetrics import MeanMetric
-from tqdm import tqdm
+
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion

@@ -1,9 +1,10 @@
-from configs.project_config import NoneType
 from typing import Union
 
 import numpy as np
 from numpy import abs
 from scipy.special import gamma as gammafnc
+
+from configs.project_config import NoneType
 
 
 class FractionalBrownianNoise:

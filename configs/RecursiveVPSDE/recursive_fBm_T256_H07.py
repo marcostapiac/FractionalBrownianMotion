@@ -30,6 +30,7 @@ def get_config():
     config.isUnitInterval = True
     config.hybrid = True
     config.weightings = False
+    config.tdata_mult = 10
 
     # Diffusion hyperparameters
     config.beta_max = 20.

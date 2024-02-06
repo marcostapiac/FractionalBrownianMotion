@@ -13,7 +13,7 @@ def get_config():
     config.has_cuda = torch.cuda.is_available()
 
     # Data set parameters
-    config.hurst = 0.3
+    config.hurst = 0.7
     config.timeDim = 256
     config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(
         str(config.hurst).replace(".", ""), config.timeDim)
@@ -24,13 +24,13 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = 120
+    config.max_epochs = 480
     config.batch_size = 256
     config.isfBm = True
     config.isUnitInterval = True
     config.hybrid = True
     config.weightings = False
-    config.tdata_mult = 10
+    config.tdata_mult = 2
 
     # Diffusion hyperparameters
     config.beta_max = 20.
@@ -48,14 +48,14 @@ def get_config():
     config.dialation_length = 10
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_recursive_MLP_{}_incs_{}_unitIntv_fBm_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_TembDim{}_EncShapes{}".format(
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_recursive_MLP_{}_incs_{}_unitIntv_fBm_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_TembDim{}_EncShapes{}_tl2".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
         config.timeDim,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
         config.enc_shapes).replace(".", "")
 
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_recursive_TSM_{}_incs_{}_unitIntv_fBm_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Weightings".format(
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_recursive_TSM_{}_incs_{}_unitIntv_fBm_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_DiffEmbSize{}_ResidualLayers{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Weightings_tl2".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
         config.timeDim,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,

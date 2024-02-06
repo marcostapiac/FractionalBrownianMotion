@@ -1,7 +1,8 @@
 import glob
+import multiprocessing as mp
 import numbers
 import os
-from configs.project_config import NoneType
+from functools import partial
 from typing import Union, Optional, Tuple, Mapping
 
 import matplotlib
@@ -10,6 +11,7 @@ import numpy as np
 import seaborn as sns
 import torch
 from PIL import Image
+from ml_collections import ConfigDict
 from scipy import stats
 from scipy.stats import invgamma as sinvgamma
 from scipy.stats import norm as snorm
@@ -17,8 +19,9 @@ from scipy.stats import truncnorm
 from sklearn.manifold import TSNE
 
 from configs import project_config
+from configs.project_config import NoneType
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
-from utils.math_functions import acf
+from utils.math_functions import acf, reduce_to_fBn, optimise_whittle
 
 plt.style.use('ggplot')
 matplotlib.rcParams.update({
@@ -720,3 +723,37 @@ def my_pairplot(samples: torch.Tensor, row_idxs: np.ndarray, col_idxs: np.ndarra
     plt.suptitle(suptitle)
     plt.savefig(image_path)
     plt.close()
+
+
+def hurst_estimation(fBm_samples: np.ndarray, sample_type: str, config: ConfigDict):
+    approx_fBn = reduce_to_fBn(fBm_samples, reduce=config.isfBm)
+    even_approx_fBn = approx_fBn[:, ::2]  # Every even index
+
+    S = approx_fBn.shape[0]
+    with mp.Pool(processes=mp.cpu_count() // 2) as pool:
+        hs = pool.starmap(partial(optimise_whittle, data=approx_fBn), [(fidx,) for fidx in range(S)])
+    with mp.Pool(processes=mp.cpu_count() // 2) as pool:
+        even_hs = pool.starmap(partial(optimise_whittle, data=even_approx_fBn), [(fidx,) for fidx in range(S)])
+
+    my_hs = [np.array(hs), np.array(even_hs)]
+    titles = ["All", "Even"]
+
+    for i in range(len(my_hs)):
+        fig, ax = plt.subplots()
+        ax.axvline(x=config.H, color="blue", label="True Hurst")
+        plot_histogram(my_hs[i], num_bins=150, xlabel="H", ylabel="density",
+                       plottitle="Histogram of {} {} samples' estimated Hurst parameter".format(titles[i], sample_type),
+                       fig=fig, ax=ax)
+        mean, std = my_hs[i].mean(), my_hs[i].std()
+        print(mean)
+        print(std)
+        plt.show()
+        # Repeat with constrained axis
+        fig, ax = plt.subplots()
+        ax.axvline(x=config.H, color="blue", label="True Hurst")
+        plot_histogram(my_hs[i], num_bins=150, xlabel="H", ylabel="density",
+                       plottitle="Constrained hist of {} {} samples' estimated Hurst parameter".format(titles[i],
+                                                                                                       sample_type),
+                       fig=fig, ax=ax)
+        ax.set_xlim(mean - 5 * std, mean + 5 * std)
+        plt.show()

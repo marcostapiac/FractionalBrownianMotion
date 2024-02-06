@@ -6,7 +6,7 @@ import torch
 import torchmetrics
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torchmetrics import MeanMetric
-from tqdm import tqdm
+
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
@@ -14,9 +14,6 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
     ConditionalTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTransformerTimeSeriesScoreMatching import \
     ConditionalTransformerTimeSeriesScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
-    TimeSeriesScoreMatching
 
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
@@ -47,6 +44,7 @@ class ConditionalDiffusionModelTrainer:
         assert (self.device_id == torch.device("cpu") or self.device_id == int(os.environ["LOCAL_RANK"]))
         self.score_network = score_network
         self.epochs_run = 0
+        self.loss_tracker = []
 
         self.opt = optimiser
         self.save_every = checkpoint_freq  # Specifies how often we choose to save our model during training
@@ -84,6 +82,11 @@ class ConditionalDiffusionModelTrainer:
         """
         loss.backward()  # single gpu functionality
         self.opt.step()
+        if self.device_id == 0 or type(self.device_id) == torch.device:
+            print(loss.detach().item())
+            self.loss_tracker.append(loss.detach().item())
+        else:
+            print("Device ID {} Loss {} ".format(self.device_id, loss.detach().item()))
         # Detach returns the loss as a Tensor that does not require gradients, so you can manipulate it
         # independently of the original value, which does require gradients
         # Item is used to return a 1x1 tensor as a standard Python dtype (determined by Tensor dtype)
@@ -228,6 +231,16 @@ class ConditionalDiffusionModelTrainer:
             output, (hn, cn) = (self.score_network.rnn(dbatch, None))
         return output[:,:-1,:]
 
+    def _save_loss(self, filepath:str, final_epoch:int):
+        """
+        Save loss tracker
+            :param filepath: Path of file
+            :param final_epoch: Epoch on which we save
+            :return: None
+        """
+        import pickle
+        with open(filepath.replace("/trained_models/","/training_losses/") +"_loss_Nepochs{}".format(final_epoch), 'wb') as fp:
+            pickle.dump(self.loss_tracker, fp)
 
 
     def train(self, max_epochs: int, model_filename: str) -> None:
@@ -250,5 +263,6 @@ class ConditionalDiffusionModelTrainer:
             if self.device_id == 0 or type(self.device_id) == torch.device:
                 if epoch + 1 == max_epochs:
                     self._save_model(filepath=model_filename, final_epoch=epoch+1)
+                    self._save_loss(filepath=model_filename, final_epoch=epoch+1)
                 elif (epoch + 1) % self.save_every == 0:
                     self._save_snapshot(epoch=epoch)

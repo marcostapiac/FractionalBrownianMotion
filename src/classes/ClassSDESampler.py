@@ -1,9 +1,9 @@
-from configs.project_config import NoneType
 from typing import Union, Tuple
 
 import torch
 from tqdm import tqdm
 
+from configs.project_config import NoneType
 from src.classes.ClassCorrector import Corrector
 from src.classes.ClassPredictor import Predictor
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion

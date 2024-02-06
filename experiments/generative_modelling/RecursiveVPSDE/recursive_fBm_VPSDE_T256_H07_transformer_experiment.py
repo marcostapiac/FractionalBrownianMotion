@@ -5,18 +5,15 @@ from typing import Union, Tuple
 import numpy as np
 import pandas as pd
 import torch
-from torchmetrics.aggregation import MeanMetric
 from ml_collections import ConfigDict
 from torch.distributed.elastic.multiprocessing.errors import record
-from torch.utils.data import DataLoader, DistributedSampler
+from torchmetrics.aggregation import MeanMetric
 
 from src.classes.ClassConditionalDiffTrainer import ConditionalDiffusionModelTrainer
 from src.classes.ClassConditionalSDESampler import ConditionalSDESampler
 from src.classes.ClassCorrector import VESDECorrector, VPSDECorrector
-from src.classes.ClassPredictor import AncestralSamplingPredictor, EulerMaruyamaPredictor, \
-    ConditionalAncestralSamplingPredictor
-from src.classes.ClassSDESampler import SDESampler
-from src.generative_modelling.data_processing import prepare_scoreModel_data
+from src.classes.ClassPredictor import ConditionalAncestralSamplingPredictor
+from src.generative_modelling.data_processing import prepare_recursive_scoreModel_data
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
     ConditionalTimeSeriesScoreMatching
@@ -26,32 +23,11 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP im
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
 from utils.data_processing import init_experiment, cleanup_experiment
-from utils.experiment_evaluations import run_fBm_experiment
-from utils.math_functions import generate_fBn, generate_fBm
+from utils.math_functions import generate_fBn
 
-
-def prepare_recursive_scoreModel_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> DataLoader:
-    """
-    Split data into train, eval, test sets and create DataLoaders for training
-        :param data: Training data
-        :param batch_size: Batch size
-        :param config: ML Collection dictionary
-        :return: Train, Validation, Test dataloaders
-    """
-    dataset = torch.utils.data.TensorDataset(torch.from_numpy(data).float())
-    L = data.shape[0]
-    train, _, _ = torch.utils.data.random_split(dataset, [L, 0, 0])
-    if config.has_cuda:
-        trainLoader = DataLoader(train, batch_size=batch_size, pin_memory=False, shuffle=False,
-                                 sampler=DistributedSampler(train))
-    else:
-        trainLoader = DataLoader(train, batch_size=batch_size, pin_memory=True, shuffle=True,
-                                 num_workers=0)
-    print("Total Number of Datapoints {} :: DataLoader Total Number of Datapoints {}".format(data.shape[0], len(trainLoader.sampler)))
-    return trainLoader
 
 @record
-def train_and_save_recursive_diffusion_model(data: np.ndarray,
+def train_and_save_TF_recursive_diffusion_model(data: np.ndarray,
                                    config: ConfigDict,
                                    diffusion: VPSDEDiffusion,
                                    scoreModel: Union[NaiveMLP, ConditionalTimeSeriesScoreMatching]) -> None:
@@ -177,7 +153,7 @@ if __name__ == "__main__":
             data = data[:training_size, :]
         data = np.atleast_3d(data)
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
-        train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
+        train_and_save_TF_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
 
     cleanup_experiment()

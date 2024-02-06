@@ -1,5 +1,6 @@
+import multiprocessing as mp
+from functools import partial
 from math import gamma
-from configs.project_config import NoneType
 from typing import Union
 
 import numpy as np
@@ -9,11 +10,10 @@ from numpy import broadcast_to, log, exp
 from scipy.stats import chi2, kstest
 from tqdm import tqdm
 
+from configs.project_config import NoneType
 from src.classes import ClassFractionalBrownianNoise
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.classes.ClassFractionalCEV import FractionalCEV
-import multiprocessing as mp
-from functools import partial
 
 
 def logsumexp(w: np.ndarray, x: np.ndarray, h: callable, axis: int = 0, isLog: bool = False):
