@@ -4,6 +4,7 @@ from typing import Union
 
 import torch
 import torchmetrics
+from torch import nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torchmetrics import MeanMetric
 
@@ -22,7 +23,7 @@ import pickle
 # Tutorial: https://www.youtube.com/watch?v=-LAtx9Q6DA8
 
 
-class ConditionalDiffusionModelTrainer:
+class ConditionalDiffusionModelTrainer(nn.Module):
     """ Trainer class for a single GPU on a single machine, reporting aggregate loss over all batches """
 
     def __init__(self,
@@ -40,7 +41,7 @@ class ConditionalDiffusionModelTrainer:
                  hybrid_training:bool,
                  loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
-
+        super().__init__()
         self.device_id = device
         assert (self.device_id == torch.device("cpu") or self.device_id == int(os.environ["LOCAL_RANK"]))
         self.score_network = score_network
@@ -255,7 +256,7 @@ class ConditionalDiffusionModelTrainer:
             gpu_epoch_losses = self._run_epoch(epoch)
             # Append epoch loss for each GPU
             self.loss_tracker.append(torch.mean(torch.tensor(gpu_epoch_losses)).item())
-            all_gpus_losses = torch.distributed.all_gather(torch.tensor(self.loss_tracker).cuda())
+            all_gpus_losses = self.all_gather(torch.tensor(self.loss_tracker).cuda())
             average_loss_per_gpu = torch.mean(all_gpus_losses, dim=0)
             all_losses_per_gpu.append(average_loss_per_gpu.cpu().numpy())
             print("Device {}: Loss Tracker {}\n".format(self.device_id, self.loss_tracker))
