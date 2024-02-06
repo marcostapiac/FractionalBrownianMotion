@@ -270,6 +270,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             print("Device {} :: Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format(self.device_id, (epoch + 1) / max_epochs,
                                                                         float(
                                                                             self.loss_aggregator.compute().item()),float(time.time()-t0)))
+            self._save_loss(losses=all_losses_per_gpu, filepath=model_filename, final_epoch=epoch + 1)
             if self.device_id == 0 or type(self.device_id) == torch.device:
                 if epoch + 1 == max_epochs:
                     self._save_model(filepath=model_filename, final_epoch=epoch+1)
