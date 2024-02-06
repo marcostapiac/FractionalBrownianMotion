@@ -12,6 +12,13 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from utils.data_processing import init_experiment, cleanup_experiment
 from utils.math_functions import generate_fBn
+def repro_weights_init(m):
+    if isinstance(m, torch.nn.LSTM):
+        for name, param in m.named_parameters():
+            if 'weight' in name:
+                torch.nn.init.xavier_normal_(param.data)
+            elif 'bias' in name:
+                param.data.fill_(0)
 
 if __name__ == "__main__":
     seed = 0
@@ -20,6 +27,9 @@ if __name__ == "__main__":
     # Note: CUDA >=10.2 Need to set CUBLAS_WORKSPACE_CONFIG =:4096:2 in command line before torchrun
     # Note: CUDA <=10.1 Need to set CUDA_LAUNCH_BLOCKING=1 in command line before torchrun
     torch.use_deterministic_algorithms(True)
+    torch.cuda.manual_seed(seed)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
 
 
     # Data parameters
@@ -33,6 +43,7 @@ if __name__ == "__main__":
     rng = np.random.default_rng()
     scoreModel = ConditionalTimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
+    scoreModel.apply(repro_weights_init)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
     init_experiment(config=config)
@@ -40,24 +51,8 @@ if __name__ == "__main__":
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
     except FileNotFoundError as e:
-        print("Error {}; no valid trained model found; proceeding to training\n".format(e))
+        assert FileNotFoundError("Error {}; no valid trained model found; proceeding to training\n".format(e))
         training_size = int(min(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 1200000))
-        try:
-            data = np.load(config.data_path, allow_pickle=True)
-            assert (data.shape[0] >= training_size)
-        except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
-            print("Error {}; generating synthetic data\n".format(e))
-            data = generate_fBn(T=config.timeDim, isUnitInterval=config.isUnitInterval, S=training_size, H=config.hurst)
-            np.save(config.data_path, data)
-        if config.isfBm:
-            data = data.cumsum(axis=1)[:training_size, :]
-        else:
-            data = data[:training_size, :]
-        data = np.atleast_3d(data)
-        # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
-        train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
-
     cleanup_experiment()
 
     final_paths = recursive_LSTM_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
