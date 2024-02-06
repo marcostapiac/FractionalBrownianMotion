@@ -123,7 +123,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
         if not self.include_weightings: weights = torch.ones_like(weights)
         return self._batch_loss_compute(outputs= weights*outputs, targets= weights*target_scores)
 
-    def _run_epoch(self, epoch: int) -> list[float]:
+    def _run_epoch(self, epoch: int) -> list:
         """
         Single epoch run
             :param epoch: Epoch index
