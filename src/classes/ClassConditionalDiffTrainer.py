@@ -250,7 +250,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             :return: None
         """
         self.score_network.train()
-        all_losses_per_gpu = []
+        all_losses_per_epoch = []
         for epoch in range(self.epochs_run, max_epochs):
             t0 = time.time()
             device_epoch_losses = self._run_epoch(epoch)
@@ -262,18 +262,20 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             else:
                 all_gpus_losses = epoch_losses_tensor
             # Obtain epoch loss averaged over devices
-            average_loss_per_gpu = torch.mean(torch.stack(all_gpus_losses), dim=0)
-            all_losses_per_gpu.append(float(average_loss_per_gpu.cpu().numpy()))
+            average_loss_per_epoch= torch.mean(torch.stack(all_gpus_losses), dim=0)
+            all_losses_per_epoch.append(float(average_loss_per_epoch.cpu().numpy()))
 
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
             # see  https://github.com/Lightning-AI/torchmetrics/issues/626
             print("Device {} :: Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format(self.device_id, (epoch + 1) / max_epochs,
                                                                         float(
                                                                             self.loss_aggregator.compute().item()),float(time.time()-t0)))
-            self._save_loss(losses=all_losses_per_gpu, filepath=model_filename, final_epoch=epoch + 1)
+            print("Stored Running Mean {} vs Aggregator Mean {}\n".format(float(torch.mean(torch.tensor(all_losses_per_epoch)).cpu().numpy()),float(
+                                                                            self.loss_aggregator.compute().item()) ))
+            self._save_loss(losses=all_losses_per_epoch, filepath=model_filename, final_epoch=epoch + 1)
             if self.device_id == 0 or type(self.device_id) == torch.device:
                 if epoch + 1 == max_epochs:
                     self._save_model(filepath=model_filename, final_epoch=epoch+1)
-                    self._save_loss(losses=all_losses_per_gpu, filepath=model_filename, final_epoch=epoch+1)
+                    self._save_loss(losses=all_losses_per_epoch, filepath=model_filename, final_epoch=epoch+1)
                 elif (epoch + 1) % self.save_every == 0:
                     self._save_snapshot(epoch=epoch)
