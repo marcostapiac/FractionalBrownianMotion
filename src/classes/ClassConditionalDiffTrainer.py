@@ -83,10 +83,10 @@ class ConditionalDiffusionModelTrainer:
         loss.backward()  # single gpu functionality
         self.opt.step()
         if self.device_id == 0 or type(self.device_id) == torch.device:
-            print(loss.detach().item())
+            print("Device ID {} Loss {}\n".format(self.device_id, loss.detach().item()))
             self.loss_tracker.append(loss.detach().item())
         else:
-            print("Device ID {} Loss {} ".format(self.device_id, loss.detach().item()))
+            print("Device ID {} Loss {}\n".format(self.device_id, loss.detach().item()))
         # Detach returns the loss as a Tensor that does not require gradients, so you can manipulate it
         # independently of the original value, which does require gradients
         # Item is used to return a 1x1 tensor as a standard Python dtype (determined by Tensor dtype)
