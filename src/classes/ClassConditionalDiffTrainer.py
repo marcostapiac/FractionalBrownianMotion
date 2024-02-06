@@ -75,11 +75,11 @@ class ConditionalDiffusionModelTrainer:
             self._load_snapshot(self.snapshot_path)
         print("!!Setup Done!!\n")
 
-    def _batch_update(self, loss) -> None:
+    def _batch_update(self, loss) -> float:
         """
         Backward pass and optimiser update step
             :param loss: loss tensor / function output
-            :return: None
+            :return: Batch Loss
         """
         loss.backward()  # single gpu functionality
         self.opt.step()
@@ -89,25 +89,25 @@ class ConditionalDiffusionModelTrainer:
         self.loss_aggregator.update(loss.detach().item())
         return loss.detach().item()
 
-    def _batch_loss_compute(self, outputs: torch.Tensor, targets: torch.Tensor) -> None:
+    def _batch_loss_compute(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
         """
         Computes loss and calls helper function to compute backward pass
             :param outputs: Model forward pass output
             :param targets: Target values to compare against outputs
-            :return: None
+            :return: Batch Loss
         """
         loss = self.loss_fn()(outputs, targets)
         return self._batch_update(loss)
 
     def _run_batch(self, xts: torch.Tensor, features:torch.Tensor, target_scores: torch.Tensor, diff_times: torch.Tensor,
-                   eff_times: torch.Tensor) -> None:
+                   eff_times: torch.Tensor) -> float:
         """
         Compute batch output and loss
             :param xts: Diffused samples
             :param target_scores: Target scores at corresponding diff times
             :param diff_times: Diffusion times
             :param eff_times: Effective diffusion times
-            :return: None
+            :return: Batch Loss
         """
         self.opt.zero_grad()
         B, T, D = xts.shape
@@ -123,11 +123,11 @@ class ConditionalDiffusionModelTrainer:
         if not self.include_weightings: weights = torch.ones_like(weights)
         return self._batch_loss_compute(outputs= weights*outputs, targets= weights*target_scores)
 
-    def _run_epoch(self, epoch: int) -> None:
+    def _run_epoch(self, epoch: int) -> list[float]:
         """
         Single epoch run
             :param epoch: Epoch index
-            :return: None
+            :return: List of batch Losses
         """
         gpu_epoch_losses = []
         b_sz = len(next(iter(self.train_loader))[0])
@@ -159,7 +159,7 @@ class ConditionalDiffusionModelTrainer:
             # For each timeseries "b", at time "t", we want the score p(timeseries_b_attime_t_diffusedTo_efftime|time_series_b_attime_t)
             # So target score should be size (NumBatches, Time Series Length, 1)
             # And xts should be size (NumBatches, TimeSeriesLength, NumDimensions)
-            batch_loss = self._run_batch(xts=xts, features=features, target_scores=target_scores, diff_times=diff_times, eff_times=eff_times, geloss= gpu_epoch_losses)
+            batch_loss = self._run_batch(xts=xts, features=features, target_scores=target_scores, diff_times=diff_times, eff_times=eff_times)
             gpu_epoch_losses.append(batch_loss)
         return gpu_epoch_losses
     def _load_snapshot(self, snapshot_path: str) -> None:
