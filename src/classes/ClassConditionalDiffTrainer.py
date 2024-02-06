@@ -14,6 +14,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
     ConditionalTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTransformerTimeSeriesScoreMatching import \
     ConditionalTransformerTimeSeriesScoreMatching
+import pickle
 
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
@@ -82,15 +83,11 @@ class ConditionalDiffusionModelTrainer:
         """
         loss.backward()  # single gpu functionality
         self.opt.step()
-        if self.device_id == 0 or type(self.device_id) == torch.device:
-            print("Device ID {} Loss {}\n".format(self.device_id, loss.detach().item()))
-            self.loss_tracker.append(loss.detach().item())
-        else:
-            print("Device ID {} Loss {}\n".format(self.device_id, loss.detach().item()))
         # Detach returns the loss as a Tensor that does not require gradients, so you can manipulate it
         # independently of the original value, which does require gradients
         # Item is used to return a 1x1 tensor as a standard Python dtype (determined by Tensor dtype)
         self.loss_aggregator.update(loss.detach().item())
+        return loss.detach().item()
 
     def _batch_loss_compute(self, outputs: torch.Tensor, targets: torch.Tensor) -> None:
         """
@@ -100,7 +97,7 @@ class ConditionalDiffusionModelTrainer:
             :return: None
         """
         loss = self.loss_fn()(outputs, targets)
-        self._batch_update(loss)
+        return self._batch_update(loss)
 
     def _run_batch(self, xts: torch.Tensor, features:torch.Tensor, target_scores: torch.Tensor, diff_times: torch.Tensor,
                    eff_times: torch.Tensor) -> None:
@@ -124,7 +121,7 @@ class ConditionalDiffusionModelTrainer:
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
         if not self.include_weightings: weights = torch.ones_like(weights)
-        self._batch_loss_compute(outputs= weights*outputs, targets= weights*target_scores)
+        return self._batch_loss_compute(outputs= weights*outputs, targets= weights*target_scores)
 
     def _run_epoch(self, epoch: int) -> None:
         """
@@ -132,6 +129,7 @@ class ConditionalDiffusionModelTrainer:
             :param epoch: Epoch index
             :return: None
         """
+        gpu_epoch_losses = []
         b_sz = len(next(iter(self.train_loader))[0])
         print(
             f"[Device {self.device_id}] Epoch {epoch + 1} | Batchsize: {b_sz} | Total Num of Batches: {len(self.train_loader)} \n")
@@ -161,8 +159,9 @@ class ConditionalDiffusionModelTrainer:
             # For each timeseries "b", at time "t", we want the score p(timeseries_b_attime_t_diffusedTo_efftime|time_series_b_attime_t)
             # So target score should be size (NumBatches, Time Series Length, 1)
             # And xts should be size (NumBatches, TimeSeriesLength, NumDimensions)
-            self._run_batch(xts=xts, features=features, target_scores=target_scores, diff_times=diff_times, eff_times=eff_times)
-
+            batch_loss = self._run_batch(xts=xts, features=features, target_scores=target_scores, diff_times=diff_times, eff_times=eff_times, geloss= gpu_epoch_losses)
+            gpu_epoch_losses.append(batch_loss)
+        return gpu_epoch_losses
     def _load_snapshot(self, snapshot_path: str) -> None:
         """
         Load training from most recent snapshot
@@ -238,7 +237,6 @@ class ConditionalDiffusionModelTrainer:
             :param final_epoch: Epoch on which we save
             :return: None
         """
-        import pickle
         with open(filepath.replace("/trained_models/","/training_losses/") +"_loss_Nepochs{}".format(final_epoch), 'wb') as fp:
             pickle.dump(self.loss_tracker, fp)
 
@@ -251,15 +249,17 @@ class ConditionalDiffusionModelTrainer:
             :return: None
         """
         self.score_network.train()
-        # Obtain historical features
         for epoch in range(self.epochs_run, max_epochs):
             t0 = time.time()
-            self._run_epoch(epoch)
+            gpu_epoch_losses = self._run_epoch(epoch)
+            # Append epoch loss for each GPU
+            self.loss_tracker.append(torch.mean(torch.tensor(gpu_epoch_losses)).item())
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
             # see  https://github.com/Lightning-AI/torchmetrics/issues/626
             print("Device {} :: Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format(self.device_id, (epoch + 1) / max_epochs,
                                                                         float(
                                                                             self.loss_aggregator.compute().item()),float(time.time()-t0)))
+            print("Running Loss Averaged Across GPUs, Epochs, and Batches : {}\n".format(torch.mean(torch.tensor(self.loss_tracker)).item()))
             if self.device_id == 0 or type(self.device_id) == torch.device:
                 if epoch + 1 == max_epochs:
                     self._save_model(filepath=model_filename, final_epoch=epoch+1)
