@@ -270,6 +270,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
         """
         self.score_network.train()
         all_losses_per_epoch = self._load_loss_tracker(model_filename)  # This will contain synchronised losses
+        print(all_losses_per_epoch)
         for epoch in range(self.epochs_run, max_epochs):
             t0 = time.time()
             device_epoch_losses = self._run_epoch(epoch)
