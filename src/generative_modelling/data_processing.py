@@ -168,7 +168,8 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
             assert(samples.shape == (data_shape[0], 1, data_shape[-1]))
             paths.append(samples)
     final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)
-    return final_paths
+    return np.atleast_2d(final_paths.numpy())
+
 def prepare_recursive_scoreModel_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> DataLoader:
     """
     Split data into train, eval, test sets and create DataLoaders for training

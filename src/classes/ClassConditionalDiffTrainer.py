@@ -28,7 +28,8 @@ class ConditionalDiffusionModelTrainer(nn.Module):
 
     def __init__(self,
                  diffusion: Union[VESDEDiffusion, OUSDEDiffusion, VPSDEDiffusion],
-                 score_network: Union[ConditionalTimeSeriesScoreMatching, ConditionalTransformerTimeSeriesScoreMatching],
+                 score_network: Union[
+                     ConditionalTimeSeriesScoreMatching, ConditionalTransformerTimeSeriesScoreMatching],
                  train_data_loader: torch.utils.data.dataloader.DataLoader,
                  train_eps: float,
                  end_diff_time: float,
@@ -37,8 +38,8 @@ class ConditionalDiffusionModelTrainer(nn.Module):
                  snapshot_path: str,
                  device: Union[torch.device, int],
                  checkpoint_freq: int,
-                 to_weight:bool,
-                 hybrid_training:bool,
+                 to_weight: bool,
+                 hybrid_training: bool,
                  loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
         super().__init__()
@@ -99,7 +100,8 @@ class ConditionalDiffusionModelTrainer(nn.Module):
         loss = self.loss_fn()(outputs, targets)
         return self._batch_update(loss)
 
-    def _run_batch(self, xts: torch.Tensor, features:torch.Tensor, target_scores: torch.Tensor, diff_times: torch.Tensor,
+    def _run_batch(self, xts: torch.Tensor, features: torch.Tensor, target_scores: torch.Tensor,
+                   diff_times: torch.Tensor,
                    eff_times: torch.Tensor) -> float:
         """
         Compute batch output and loss
@@ -112,16 +114,16 @@ class ConditionalDiffusionModelTrainer(nn.Module):
         self.opt.zero_grad()
         B, T, D = xts.shape
         # Reshaping concatenates vectors in dim=1
-        xts = xts.reshape(B*T, 1, -1)
-        features = features.reshape(B*T, 1, -1)
-        target_scores = target_scores.reshape(B*T, 1, -1)
-        diff_times = diff_times.reshape(B*T)
+        xts = xts.reshape(B * T, 1, -1)
+        features = features.reshape(B * T, 1, -1)
+        target_scores = target_scores.reshape(B * T, 1, -1)
+        diff_times = diff_times.reshape(B * T)
         eff_times = eff_times.reshape(target_scores.shape)
-        outputs = self.score_network.forward(inputs=xts, conditioner=features,times=diff_times)
+        outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times)
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
         if not self.include_weightings: weights = torch.ones_like(weights)
-        return self._batch_loss_compute(outputs= weights*outputs, targets= weights*target_scores)
+        return self._batch_loss_compute(outputs=weights * outputs, targets=weights * target_scores)
 
     def _run_epoch(self, epoch: int) -> list:
         """
@@ -136,7 +138,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
         if type(self.device_id) != torch.device: self.train_loader.sampler.set_epoch(epoch)
         if self.is_hybrid:
             timesteps = torch.linspace(self.train_eps, end=self.end_diff_time,
-                                   steps=self.max_diff_steps)
+                                       steps=self.max_diff_steps)
         for x0s in (iter(self.train_loader)):
             x0s = x0s[0].to(self.device_id)
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
@@ -145,11 +147,12 @@ class ConditionalDiffusionModelTrainer(nn.Module):
                 # We select diffusion time uniformly at random for each sample at each time (i.e., size (NumBatches, TimeSeries Sequence))
                 diff_times = timesteps[torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,
                                                      size=x0s.shape[0:2]).long()].view(x0s.shape[0], x0s.shape[1],
-                                                                                          *([1] * len(x0s.shape[2:]))).to(
+                                                                                       *([1] * len(x0s.shape[2:]))).to(
                     self.device_id)
             else:
-                diff_times = ((self.train_eps - self.end_diff_time) * torch.rand((x0s.shape[0], 1)) + self.end_diff_time).view(x0s.shape[0], x0s.shape[1],
-                                                                                          *([1] * len(x0s.shape[2:]))).to(
+                diff_times = ((self.train_eps - self.end_diff_time) * torch.rand(
+                    (x0s.shape[0], 1)) + self.end_diff_time).view(x0s.shape[0], x0s.shape[1],
+                                                                  *([1] * len(x0s.shape[2:]))).to(
                     self.device_id)
             # Diffusion times shape (Batch Size, Time Series Sequence, 1)
             # so that each (b, t, 1) entry corresponds to the diffusion time for timeseries "b" at time "t"
@@ -159,9 +162,11 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             # For each timeseries "b", at time "t", we want the score p(timeseries_b_attime_t_diffusedTo_efftime|time_series_b_attime_t)
             # So target score should be size (NumBatches, Time Series Length, 1)
             # And xts should be size (NumBatches, TimeSeriesLength, NumDimensions)
-            batch_loss = self._run_batch(xts=xts, features=features, target_scores=target_scores, diff_times=diff_times, eff_times=eff_times)
+            batch_loss = self._run_batch(xts=xts, features=features, target_scores=target_scores, diff_times=diff_times,
+                                         eff_times=eff_times)
             device_epoch_losses.append(batch_loss)
         return device_epoch_losses
+
     def _load_snapshot(self, snapshot_path: str) -> None:
         """
         Load training from most recent snapshot
@@ -177,7 +182,9 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             self.score_network.module.load_state_dict(snapshot["MODEL_STATE"])
         else:
             self.score_network.load_state_dict(snapshot["MODEL_STATE"])
-        print("Device {} :: Resuming training from snapshot at epoch {} and device {}\n".format(self.device_id, self.epochs_run + 1, self.device_id))
+        print("Device {} :: Resuming training from snapshot at epoch {} and device {}\n".format(self.device_id,
+                                                                                                self.epochs_run + 1,
+                                                                                                self.device_id))
 
     def _save_snapshot(self, epoch: int) -> None:
         """
@@ -185,7 +192,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             :param epoch: Current epoch number
             :return: None
         """
-        snapshot = {"EPOCHS_RUN": epoch, "OPTIMISER_STATE": self.opt.state_dict()}
+        snapshot = {"EPOCHS_RUN": epoch+1, "OPTIMISER_STATE": self.opt.state_dict()}
         # self.score_network now points to DDP wrapped object, so we need to access parameters via ".module"
         if type(self.device_id) == int:
             snapshot["MODEL_STATE"] = self.score_network.module.state_dict()
@@ -194,7 +201,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
         torch.save(snapshot, self.snapshot_path)
         print(f"Epoch {epoch + 1} | Training snapshot saved at {self.snapshot_path}\n")
 
-    def _save_model(self, filepath: str, final_epoch:int) -> None:
+    def _save_model(self, filepath: str, final_epoch: int) -> None:
         """
         Save final trained model
             :param filepath: Filepath to save model
@@ -228,18 +235,31 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             output, (hn, cn) = (self.score_network.module.rnn(dbatch, None))
         else:
             output, (hn, cn) = (self.score_network.rnn(dbatch, None))
-        return output[:,:-1,:]
+        return output[:, :-1, :]
 
-    def _save_loss(self, losses:list, filepath:str, final_epoch:int):
+    def _save_loss(self, losses: list, filepath: str):
         """
         Save loss tracker
             :param losses: Epoch losses averaged over GPU and Batches
             :param filepath: Path of file
-            :param final_epoch: Epoch on which we save
             :return: None
         """
-        with open(filepath.replace("/trained_models/","/training_losses/") +"_loss_Nepochs{}".format(final_epoch), 'wb') as fp:
+        with open(filepath.replace("/trained_models/", "/training_losses/") + "_loss",
+                  'wb') as fp:
             pickle.dump(losses, fp)
+
+    def _load_loss_tracker(self, filepath: str) -> list:
+        """
+        Load loss tracking list from stored file (if it exists)
+            :param filepath: Path of file
+            :return: Loss Tracking List
+        """
+        try:
+            with open(filepath.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as fp:
+                l = pickle.load(fp)
+                return l[:self.epochs_run]
+        except FileNotFoundError:
+            return []
 
     def train(self, max_epochs: int, model_filename: str) -> None:
         """
@@ -249,7 +269,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             :return: None
         """
         self.score_network.train()
-        all_losses_per_epoch = [] # This will contain synchronised losses
+        all_losses_per_epoch = self._load_loss_tracker(model_filename)  # This will contain synchronised losses
         for epoch in range(self.epochs_run, max_epochs):
             t0 = time.time()
             device_epoch_losses = self._run_epoch(epoch)
@@ -261,20 +281,22 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             else:
                 all_gpus_losses = epoch_losses_tensor
             # Obtain epoch loss averaged over devices
-            average_loss_per_epoch= torch.mean(torch.stack(all_gpus_losses), dim=0)
+            average_loss_per_epoch = torch.mean(torch.stack(all_gpus_losses), dim=0)
             all_losses_per_epoch.append(float(average_loss_per_epoch.cpu().numpy()))
 
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
             # see  https://github.com/Lightning-AI/torchmetrics/issues/626
-            print("Device {} :: Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format(self.device_id, (epoch + 1) / max_epochs,
-                                                                        float(
-                                                                            self.loss_aggregator.compute().item()),float(time.time()-t0)))
+            print("Device {} :: Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format(
+                self.device_id, (epoch + 1) / max_epochs,
+                float(
+                    self.loss_aggregator.compute().item()), float(time.time() - t0)))
             if self.device_id == 0 or type(self.device_id) == torch.device:
                 print("Stored Running Mean {} vs Aggregator Mean {}\n".format(
-                    float(torch.mean(torch.tensor(all_losses_per_epoch)).cpu().numpy()), float(
+                    float(torch.mean(torch.tensor(all_losses_per_epoch[self.epochs_run:])).cpu().numpy()), float(
                         self.loss_aggregator.compute().item())))
                 if epoch + 1 == max_epochs:
-                    self._save_model(filepath=model_filename, final_epoch=epoch+1)
-                    self._save_loss(losses=all_losses_per_epoch, filepath=model_filename, final_epoch=epoch+1)
+                    self._save_snapshot(epoch=epoch)
+                    self._save_model(filepath=model_filename, final_epoch=epoch + 1)
+                    self._save_loss(losses=all_losses_per_epoch, filepath=model_filename)
                 elif (epoch + 1) % self.save_every == 0:
                     self._save_snapshot(epoch=epoch)
