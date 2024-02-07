@@ -160,6 +160,7 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
         samples = torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)
         paths = []
         for t in range(config.timeDim):
+            print("Sampling at real time {}\n".format(t+1))
             if t == 0:
                 output, (h, c) = scoreModel.rnn(samples, None)
             else:
