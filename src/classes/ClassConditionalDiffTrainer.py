@@ -257,6 +257,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
         try:
             with open(filepath.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as fp:
                 l = pickle.load(fp)
+                print("Loading Loss Tracker at Epoch {} with Length {}\n".format(self.epochs_run, len(l)))
                 assert(len(l) >= self.epochs_run)
                 return l[:self.epochs_run]
         except FileNotFoundError:
