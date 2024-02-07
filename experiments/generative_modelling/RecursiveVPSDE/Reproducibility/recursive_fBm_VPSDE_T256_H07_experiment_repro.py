@@ -57,6 +57,6 @@ if __name__ == "__main__":
                                data_shape=(5, config.timeDim, 1), config=config)
     df = pd.DataFrame(final_paths)
     df.index = pd.MultiIndex.from_product(
-        [["Final Time Samples"], [i for i in range(config.dataSize)]])
+        [["Final Time Samples"], [i for i in range(5)]])
     df.to_csv(config.experiment_path.replace("/results/", "/results/early_stopping/") + "_Nepochs{}_Mseed{}.csv.gzip".format(
         config.max_epochs, seed), compression="gzip")
