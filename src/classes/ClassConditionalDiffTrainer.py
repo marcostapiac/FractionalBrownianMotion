@@ -292,7 +292,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
             # see  https://github.com/Lightning-AI/torchmetrics/issues/626
             print("Device {} :: Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format(
-                self.device_id, (epoch + 1) / max_epochs,
+                self.device_id, (epoch + 1) / end_epoch,
                 float(
                     self.loss_aggregator.compute().item()), float(time.time() - t0)))
             if self.device_id == 0 or type(self.device_id) == torch.device:
