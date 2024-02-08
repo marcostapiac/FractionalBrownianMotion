@@ -15,7 +15,7 @@ if __name__ == "__main__":
     #df = (df.apply(lambda x: [eval(i.replace("(", "").replace(")","").replace("tensor","")) for i in x]))
     # Synthetic samples
     for type in df.index.get_level_values(level=0).unique():
-        hurst_estimation(df.loc[type].to_numpy(), sample_type=type, config=config)
+        hurst_estimation(df.loc[type].to_numpy(), sample_type=type, isfBm=config.isfBm, true_hurst=config.hurst)
 
     if config.isfBm:
         exact_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=df.index.levshape[1],
@@ -24,4 +24,4 @@ if __name__ == "__main__":
         exact_samples = generate_fBn(H=config.hurst, T=config.timeDim, S=df.index.levshape[1],
                                      isUnitInterval=config.isUnitInterval)
 
-    hurst_estimation(exact_samples, sample_type="exact", config=config)
+    hurst_estimation(exact_samples, sample_type="exact", isfBm=True, true_hurst=config.hurst)

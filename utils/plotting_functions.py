@@ -725,14 +725,14 @@ def my_pairplot(samples: torch.Tensor, row_idxs: np.ndarray, col_idxs: np.ndarra
     plt.close()
 
 
-def hurst_estimation(fBm_samples: np.ndarray, sample_type: str, config: ConfigDict):
-    approx_fBn = reduce_to_fBn(fBm_samples, reduce=config.isfBm)
+def hurst_estimation(fBm_samples: np.ndarray, sample_type: str, isfBm:bool, true_hurst:float):
+    approx_fBn = reduce_to_fBn(fBm_samples, reduce=isfBm)
     even_approx_fBn = approx_fBn[:, ::2]  # Every even index
     print(sample_type)
     S = approx_fBn.shape[0]
-    with mp.Pool(processes=mp.cpu_count() // 2) as pool:
+    with mp.Pool(processes=9) as pool:
         hs = pool.starmap(partial(optimise_whittle, data=approx_fBn), [(fidx,) for fidx in range(S)])
-    with mp.Pool(processes=mp.cpu_count() // 2) as pool:
+    with mp.Pool(processes=9) as pool:
         even_hs = pool.starmap(partial(optimise_whittle, data=even_approx_fBn), [(fidx,) for fidx in range(S)])
 
     my_hs = [np.array(hs), np.array(even_hs)]
@@ -740,7 +740,7 @@ def hurst_estimation(fBm_samples: np.ndarray, sample_type: str, config: ConfigDi
 
     for i in range(len(my_hs)):
         fig, ax = plt.subplots()
-        ax.axvline(x=config.hurst, color="blue", label="True Hurst")
+        ax.axvline(x=true_hurst, color="blue", label="True Hurst")
         plot_histogram(my_hs[i], num_bins=150, xlabel="H", ylabel="density",
                        plottitle="Histogram of {} {} samples' estimated Hurst parameter".format(titles[i], sample_type),
                        fig=fig, ax=ax)
@@ -750,7 +750,7 @@ def hurst_estimation(fBm_samples: np.ndarray, sample_type: str, config: ConfigDi
         plt.show()
         # Repeat with constrained axis
         fig, ax = plt.subplots()
-        ax.axvline(x=config.hurst, color="blue", label="True Hurst")
+        ax.axvline(x=true_hurst, color="blue", label="True Hurst")
         plot_histogram(my_hs[i], num_bins=150, xlabel="H", ylabel="density",
                        plottitle="Constrained hist of {} {} samples' estimated Hurst parameter".format(titles[i],
                                                                                                        sample_type),

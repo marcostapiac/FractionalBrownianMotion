@@ -15,7 +15,7 @@ matplotlib.rcParams.update({
     'text.latex.preamble': r"\usepackage{amsmath}"
 })
 if __name__ == "__main__":
-    from configs.RecursiveVPSDE.recursive_fBm_T256_H07_tl_2data import get_config
+    from configs.RecursiveVPSDE.recursive_fBm_T256_H07_tl_10data import get_config
     config = get_config()
     H = config.hurst
     with open(config.scoreNet_trained_path.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as f:
@@ -40,4 +40,4 @@ if __name__ == "__main__":
     df = pd.read_csv(config.experiment_path + "_Nepochs{}.csv.gzip".format(config.max_epochs),compression="gzip", index_col=[0, 1])
     df = df.apply(lambda x: [eval(i.replace("(", "").replace(")","").replace("tensor","")) if type(i) == str else i for i in x])
     print(df)
-    hurst_estimation(df.loc["Final Time Samples"].to_numpy(), sample_type="Final Time Samples", config=config)
+    hurst_estimation(df.loc["Final Time Samples"].to_numpy(), sample_type="Final Time Samples", isfBm=config.isfBm, true_hurst=config.hurst)

@@ -28,9 +28,9 @@ if __name__ == "__main__":
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
     init_experiment(config=config)
-
+    end_epoch = max(config.max_epochs)
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(end_epoch)))
     except FileNotFoundError as e:
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
         training_size = int(min(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 1200000))
@@ -48,14 +48,13 @@ if __name__ == "__main__":
         data = np.atleast_3d(data)
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
         train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
-
     cleanup_experiment()
 
-    final_paths = recursive_LSTM_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
-                                                  data_shape=(config.dataSize, config.timeDim, 1), config=config)
-    df = pd.DataFrame(final_paths)
-    df.index = pd.MultiIndex.from_product(
-        [["Final Time Samples"], [i for i in range(config.dataSize)]])
-    df.to_csv(config.experiment_path + "_Nepochs{}.csv.gzip".format(
-        config.max_epochs), compression="gzip")
+    for train_epoch in config.max_epochs:
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(train_epoch)))
+        final_paths = recursive_LSTM_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
+                                                      data_shape=(config.dataSize, config.timeDim, 1), config=config)
+        df = pd.DataFrame(final_paths)
+        df.index = pd.MultiIndex.from_product(
+            [["Final Time Samples"], [i for i in range(config.dataSize)]])
+        df.to_csv(config.experiment_path + "_Nepochs{}.csv.gzip".format(train_epoch), compression="gzip")

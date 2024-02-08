@@ -5,7 +5,6 @@ from utils.plotting_functions import hurst_estimation
 
 if __name__ == "__main__":
     from configs.RecursiveVPSDE.recursive_fBm_T256_H07 import get_config
-    # _MSeed0
     config = get_config()
     H = config.hurst
     df = pd.read_csv(config.experiment_path + "_Nepochs{}_MSeed0.csv.gzip".format(
@@ -20,4 +19,4 @@ if __name__ == "__main__":
     plt.title("Reproducible Paths with Same Seed")
     plt.show()
 
-    hurst_estimation(df.loc["Final Time Samples"].to_numpy(), sample_type="Final Time Samples", config=config)
+    hurst_estimation(df.loc["Final Time Samples"].to_numpy(), sample_type="Final Time Samples",isfBm=config.isfBm, true_hurst=config.hurst)
