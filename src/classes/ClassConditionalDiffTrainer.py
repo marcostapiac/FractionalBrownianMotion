@@ -263,17 +263,19 @@ class ConditionalDiffusionModelTrainer(nn.Module):
         except FileNotFoundError:
             return []
 
-    def train(self, max_epochs: int, model_filename: str) -> None:
+    def train(self, max_epochs: list, model_filename: str) -> None:
         """
         Run training for model
-            :param max_epochs: Total number of epochs
+            :param max_epochs: List of maximum number of epochs (to allow for iterative training)
             :param model_filename: Filepath to save model
             :return: None
         """
+        max_epochs = sorted(max_epochs)
         self.score_network.train()
         all_losses_per_epoch = self._load_loss_tracker(model_filename)  # This will contain synchronised losses
-        print(len(all_losses_per_epoch))
-        for epoch in range(self.epochs_run, max_epochs):
+        end_epoch = max(max_epochs)
+        print(len(all_losses_per_epoch), end_epoch, max_epochs)
+        for epoch in range(self.epochs_run, end_epoch):
             t0 = time.time()
             device_epoch_losses = self._run_epoch(epoch)
             # Average epoch loss for each device over batches
@@ -297,7 +299,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
                 print("Stored Running Mean {} vs Aggregator Mean {}\n".format(
                     float(torch.mean(torch.tensor(all_losses_per_epoch[self.epochs_run:])).cpu().numpy()), float(
                         self.loss_aggregator.compute().item())))
-                if epoch + 1 == max_epochs:
+                if epoch + 1 in max_epochs:
                     self._save_snapshot(epoch=epoch)
                     self._save_model(filepath=model_filename, final_epoch=epoch + 1)
                     self._save_loss(losses=all_losses_per_epoch, filepath=model_filename)
