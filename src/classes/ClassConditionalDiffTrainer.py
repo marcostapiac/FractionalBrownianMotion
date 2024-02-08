@@ -216,6 +216,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
         filepath = filepath + "_Nepochs{}".format(final_epoch)
         torch.save(ckp, filepath)
         print(f"Trained model saved at {filepath}\n")
+        self.score_network.to(self.device_id) # In the event we continue training after saving
         try:
             pass
             # os.remove(self.snapshot_path)  # Do NOT remove snapshot path yet eventhough training is done
