@@ -96,7 +96,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
     with torch.no_grad():
         samples = torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)
         paths = []
-        true_paths = []
+        true_paths = torch.zeros(size=(data_shape[0], config.timeDim, data_shape[-1])).to(device)
         drift_errors = []
         for t in range(config.timeDim):
             print("Sampling at real time {}\n".format(t + 1))
@@ -109,7 +109,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
                 assert(data_cov[0,0] == curr_var)
             else:
                 output, (h, c) = scoreModel.rnn(samples, (h, c))
-                true_past = torch.concat(true_paths, dim=1).to(device)
+                true_past = true_paths[:,:t,:]#torch.concat(true_paths, dim=1).to(device)
                 curr_time_cov1 = torch.atleast_2d(data_cov[t,:t]@torch.linalg.inv(data_cov[:t,:t])).to(device)
                 curr_time_cov2 = torch.atleast_2d((data_cov[:t,t])).T.to(device)
                 curr_var = torch.atleast_2d(data_cov[t, t]).to(device)
@@ -120,7 +120,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
                                  config=config, ctvar=curr_var, cv1=curr_time_cov1, cv2=curr_time_cov2, true_past=true_past)
             assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
             paths.append(samples)
-            true_paths.append(true_samples)
+            true_paths[:,[t],:] = true_samples
             features.append(output.permute(1,0,2))
             drift_errors.append(per_time_drift_error.unsqueeze(0))
 
@@ -177,8 +177,6 @@ def store_score_and_feature() -> None:
     feature_data_path = config.experiment_path.replace("results/", "results/feature_data/") + "_Nepochs{}".format(
         train_epoch).replace(".", "")
     feature_df = pd.DataFrame(features)
-    feature_df.index = pd.MultiIndex.from_product(
-        [["Final Time Samples"], [i for i in range(config.dataSize)]])
     feature_df.to_csv(feature_data_path, compression="gzip")
 
 
