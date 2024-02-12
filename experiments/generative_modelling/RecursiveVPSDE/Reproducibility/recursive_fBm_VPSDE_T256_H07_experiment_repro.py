@@ -51,8 +51,10 @@ if __name__ == "__main__":
 
     init_experiment(config=config)
 
+    train_epoch = 1920
+    assert(train_epoch in config.max_epochs)
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(train_epoch)))
     except FileNotFoundError as e:
         assert FileNotFoundError("Error {}; no valid trained model found; proceeding to training\n".format(e))
         training_size = int(min(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 1200000))
@@ -65,4 +67,4 @@ if __name__ == "__main__":
     df.index = pd.MultiIndex.from_product(
         [["Final Time Samples"], [i for i in range(numpaths)]])
     df.to_csv(config.experiment_path.replace("/results/", "/results/early_stopping/") + "_Nepochs{}_Mseed{}.csv.gzip".format(
-        config.max_epochs, seed), compression="gzip")
+        train_epoch, seed), compression="gzip")
