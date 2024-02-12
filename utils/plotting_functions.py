@@ -8,6 +8,7 @@ from typing import Union, Optional, Tuple, Mapping
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 import seaborn as sns
 import torch
 from PIL import Image
@@ -725,19 +726,22 @@ def my_pairplot(samples: torch.Tensor, row_idxs: np.ndarray, col_idxs: np.ndarra
     plt.close()
 
 
-def hurst_estimation(fBm_samples: np.ndarray, sample_type: str, isfBm:bool, true_hurst:float):
+def hurst_estimation(fBm_samples: np.ndarray, sample_type: str, isfBm:bool, true_hurst:float) -> pd.DataFrame:
     approx_fBn = reduce_to_fBn(fBm_samples, reduce=isfBm)
-    even_approx_fBn = approx_fBn[:, ::2]  # Every even index
+    #even_approx_fBn = approx_fBn[:, ::2]  # Every even index
     print(sample_type)
     S = approx_fBn.shape[0]
     with mp.Pool(processes=9) as pool:
-        hs = pool.starmap(partial(optimise_whittle, data=approx_fBn), [(fidx,) for fidx in range(S)])
-    with mp.Pool(processes=9) as pool:
-        even_hs = pool.starmap(partial(optimise_whittle, data=even_approx_fBn), [(fidx,) for fidx in range(S)])
-
-    my_hs = [np.array(hs), np.array(even_hs)]
-    titles = ["All", "Even"]
-
+        res = pool.starmap(partial(optimise_whittle, data=approx_fBn), [(fidx,) for fidx in range(S)])
+    print(res)
+    hs = (pd.DataFrame(res, columns=["DF index", "Hurst Estimate"]).set_index("DF index").rename_axis([None], axis=0))
+    print(hs)
+    #with mp.Pool(processes=9) as pool:
+    #   even_hs = pool.starmap(partial(optimise_whittle, data=even_approx_fBn), [(fidx,) for fidx in range(S)])
+    #my_hs = [np.array(hs), np.array(even_hs)]
+    #titles = ["All", "Even"]
+    my_hs = [hs.values]
+    titles = ["All"]
     for i in range(len(my_hs)):
         fig, ax = plt.subplots()
         ax.axvline(x=true_hurst, color="blue", label="True Hurst")
@@ -757,3 +761,4 @@ def hurst_estimation(fBm_samples: np.ndarray, sample_type: str, isfBm:bool, true
                        fig=fig, ax=ax)
         ax.set_xlim(mean - 5 * std, mean + 5 * std)
         plt.show()
+    return hs

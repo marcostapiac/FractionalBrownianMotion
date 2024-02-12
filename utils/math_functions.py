@@ -1,7 +1,7 @@
 import multiprocessing as mp
 from functools import partial
 from math import gamma
-from typing import Union
+from typing import Union, Tuple
 
 import numpy as np
 import scipy.optimize as so
@@ -347,7 +347,7 @@ def whittle_ll(hurst: float, gammah: np.ndarray, nbpoints: int) -> float:
     return 2. * (2. * np.pi / nbpoints) * np.sum((gammah / fBn_spectral_density(hurst, nbpoints)))
 
 
-def optimise_whittle(idx: int, data: np.ndarray) -> float:
+def optimise_whittle(idx: int, data: np.ndarray) -> Tuple[float, float]:
     """
     Function to calculate Whittle estimate for Hurst parameter
     Code taken from https://github.com/JFBazille/ICode/blob/master/ICode/estimators/whittle.py
@@ -361,7 +361,7 @@ def optimise_whittle(idx: int, data: np.ndarray) -> float:
     tmp = np.abs(np.fft.fft(datap))
     gamma_hat = np.exp(2 * np.log(tmp[1:halfN + 1])) / (2 * np.pi * N)
     func = lambda Hurst: whittle_ll(Hurst, gamma_hat, N)
-    return (float(so.fminbound(func, 0., 1.)))
+    return idx, float(so.fminbound(func, 0., 1.))
 
 
 def estimate_hurst(true: np.ndarray, synthetic: np.ndarray, exp_dict: dict, S: int, config: ConfigDict) -> dict:
