@@ -42,7 +42,7 @@ if __name__ == "__main__":
     config = get_config()
     assert (0 < config.hurst < 1.)
     assert (config.early_stop_idx == 0)
-    assert(config.tdata_mult == 10)
+    assert(config.tdata_mult == 5)
 
     scoreModel = ConditionalTimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
