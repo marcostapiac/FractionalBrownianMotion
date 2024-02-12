@@ -1,3 +1,6 @@
+import os
+import random
+
 import numpy as np
 import pandas as pd
 import torch
@@ -22,10 +25,13 @@ if __name__ == "__main__":
     seed = 0
     torch.manual_seed(seed)
     np.random.seed(seed)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)
+    random.seed(seed)
+    os.environ['PYTHONHASHSEED'] = str(seed)
     # Note: CUDA >=10.2 Need to set CUBLAS_WORKSPACE_CONFIG =:4096:2 in command line before torchrun
     # Note: CUDA <=10.1 Need to set CUDA_LAUNCH_BLOCKING=1 in command line before torchrun
     torch.use_deterministic_algorithms(True)
-    torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
@@ -38,7 +44,6 @@ if __name__ == "__main__":
     assert (config.early_stop_idx == 0)
     assert(config.tdata_mult == 10)
 
-    rng = np.random.default_rng()
     scoreModel = ConditionalTimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     scoreModel.apply(repro_weights_init)
@@ -53,10 +58,11 @@ if __name__ == "__main__":
         training_size = int(min(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 1200000))
     cleanup_experiment()
 
+    numpaths = 5
     final_paths = recursive_LSTM_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
-                               data_shape=(5, config.timeDim, 1), config=config)
+                               data_shape=(numpaths, config.timeDim, 1), config=config)
     df = pd.DataFrame(final_paths)
     df.index = pd.MultiIndex.from_product(
-        [["Final Time Samples"], [i for i in range(5)]])
+        [["Final Time Samples"], [i for i in range(numpaths)]])
     df.to_csv(config.experiment_path.replace("/results/", "/results/early_stopping/") + "_Nepochs{}_Mseed{}.csv.gzip".format(
         config.max_epochs, seed), compression="gzip")
