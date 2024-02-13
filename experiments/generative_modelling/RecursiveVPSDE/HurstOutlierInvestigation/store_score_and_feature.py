@@ -164,15 +164,15 @@ def store_score_and_feature() -> None:
     print("Storing Drift Errors\n")
     # Store
     drift_data_path = config.experiment_path.replace("results/",
-                                                     "results/drift_data/") + "_Nepochs{}".format(train_epoch).replace(
-        ".", "")
+                                                     "results/drift_data/") + "_Nepochs{}_SFS".format(train_epoch).replace(
+        ".", "") + ".csv.gzip"
     drift_df = pd.concat([pd.DataFrame(drift_errors[i, :, :]) for i in range(config.timeDim)])
     drift_df.index = pd.MultiIndex.from_product([np.arange(0, config.timeDim), np.arange(0, config.max_diff_steps)]).set_names(["Time", "DiffTime"], inplace=False)
     drift_df.to_csv(drift_data_path, compression="gzip")
     print("Storing Feature Data\n")
 
-    feature_data_path = config.experiment_path.replace("results/", "results/feature_data/") + "_Nepochs{}".format(
-        train_epoch).replace(".", "")
+    feature_data_path = config.experiment_path.replace("results/", "results/feature_data/") + "_Nepochs{}_SFS".format(
+        train_epoch).replace(".", "") + ".csv.gzip"
     feature_df = pd.concat([pd.DataFrame(features[i, :, :]) for i in range(config.timeDim)])
     feature_df.index = pd.MultiIndex.from_product([np.arange(0, config.timeDim), np.arange(0, config.dataSize)]).set_names(["Time", "Sample Id"], inplace=False)
     feature_df.to_csv(feature_data_path, compression="gzip")
