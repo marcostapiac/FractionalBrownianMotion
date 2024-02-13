@@ -168,7 +168,7 @@ def store_score_and_feature() -> None:
     drift_data_path = config.experiment_path.replace("results/",
                                                      "results/drift_data/") + "_Nepochs{}_SFS".format(train_epoch).replace(
         ".", "") + ".csv.gzip"
-    drift_df = pd.concat([pd.DataFrame(drift_errors[i, :, :]) for i in range(config.timeDim) for j in range(10000)])
+    drift_df = pd.concat([pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.timeDim)) for j in range(100000)])
     drift_df.index = pd.MultiIndex.from_product([np.arange(0, config.timeDim), np.arange(0, config.max_diff_steps)]).set_names(["Time", "DiffTime"], inplace=False)
     drift_df.info()
     drift_df.to_csv(drift_data_path, compression="gzip")
@@ -180,6 +180,7 @@ def store_score_and_feature() -> None:
     path_df.index = pd.MultiIndex.from_product(
         [["Final Time Samples"], [i for i in range(config.dataSize)]])
     path_df.to_csv(config.experiment_path + "_Nepochs{}_SFS.csv.gzip".format(train_epoch), compression="gzip")
+    path_df.info()
     del path_df
     print("Done Storing Path Data\n")
 
@@ -188,6 +189,7 @@ def store_score_and_feature() -> None:
         train_epoch).replace(".", "") + ".csv.gzip"
     feature_df = pd.concat([pd.DataFrame(features[i, :, :]) for i in range(config.timeDim)])
     feature_df.index = pd.MultiIndex.from_product([np.arange(0, config.timeDim), np.arange(0, config.dataSize)]).set_names(["Time", "Sample Id"], inplace=False)
+    feature_df.info()
     feature_df.to_csv(feature_data_path, compression="gzip")
     del feature_df
     print("Storing Feature Data\n")
