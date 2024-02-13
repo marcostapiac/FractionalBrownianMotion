@@ -168,7 +168,6 @@ def store_score_and_feature() -> None:
         ".", "") + ".parquet.gzip"
     drift_df = pd.concat({i:pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.timeDim))})
     print(drift_df)
-    drift_df.index = pd.MultiIndex.from_product([np.arange(0, config.timeDim), np.arange(0, config.max_diff_steps)]).set_names(["Time", "DiffTime"], inplace=False)
     drift_df.info()
     drift_df.to_parquet(drift_data_path, compression="gzip")
     del drift_df
@@ -177,6 +176,7 @@ def store_score_and_feature() -> None:
 
     print("Storing Path Data\n")
     path_df = pd.DataFrame(paths)
+    print(path_df)
     path_df_path = config.experiment_path + "_Nepochs{}_SFS.parquet.gzip".format(train_epoch)
     path_df.to_parquet(path_df_path, compression="gzip")
     path_df.info()
@@ -188,7 +188,7 @@ def store_score_and_feature() -> None:
     feature_data_path = config.experiment_path.replace("results/", "results/feature_data/") + "_Nepochs{}_SFS".format(
         train_epoch).replace(".", "") + ".parquet.gzip"
     feature_df = pd.concat({i:pd.DataFrame(features[i, :, :]) for i in tqdm(range(config.timeDim))})
-    feature_df.index = pd.MultiIndex.from_product([np.arange(0, config.timeDim), np.arange(0, config.dataSize)]).set_names(["Time", "Sample Id"], inplace=False)
+    print(feature_df)
     feature_df.info()
     feature_df.to_parquet(feature_data_path, compression="gzip")
     del feature_df
