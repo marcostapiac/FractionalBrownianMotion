@@ -185,6 +185,7 @@ def store_score_and_feature() -> None:
     print("Done Storing Path Data\n")"""
 
     print("Storing Feature Data\n")
+    print(features)
     feature_data_path = config.experiment_path.replace("results/", "results/feature_data/") + "_Nepochs{}_SFS".format(
         train_epoch).replace(".", "") + ".parquet.gzip"
     feature_df = pd.concat({i:pd.DataFrame(features[i, :, :]) for i in tqdm(range(config.timeDim))})
