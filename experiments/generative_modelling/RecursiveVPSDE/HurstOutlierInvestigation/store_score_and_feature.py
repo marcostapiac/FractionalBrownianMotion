@@ -170,6 +170,7 @@ def store_score_and_feature() -> None:
         ".", "") + ".csv.gzip"
     drift_df = pd.concat([pd.DataFrame(drift_errors[i, :, :]) for i in range(config.timeDim) for j in range(10000)])
     drift_df.index = pd.MultiIndex.from_product([np.arange(0, config.timeDim), np.arange(0, config.max_diff_steps)]).set_names(["Time", "DiffTime"], inplace=False)
+    drift_df.info()
     drift_df.to_csv(drift_data_path, compression="gzip")
     del drift_df
     print("Done Storing Drift Errors\n")
