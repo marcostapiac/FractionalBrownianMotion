@@ -32,10 +32,13 @@ def store_score_and_feature_bad_hurst() -> None:
     drift_df = pd.read_parquet(drift_data_path, engine="pyarrow")
     bad_drift_df_1 = drift_df.loc[pd.IndexSlice[:,:],bad_idxs_1]
     bad_drift_df_1.to_parquet(drift_data_path.replace(".parquet.gzip", "_bad1.parquet.gzip"), compression="gzip")
+    print(bad_drift_df_1)
     bad_drift_df_2 = drift_df.loc[pd.IndexSlice[:,:],bad_idxs_2]
     bad_drift_df_2.to_parquet(drift_data_path.replace(".parquet.gzip", "_bad2.parquet.gzip"), compression="gzip")
+    print(bad_drift_df_2)
     good_drift_df = drift_df.loc[pd.IndexSlice[:,:],good_idxs]
     good_drift_df.to_parquet(drift_data_path.replace(".parquet.gzip", "_good.parquet.gzip"), compression="gzip")
+    print(good_drift_df)
     del drift_df
 
     feature_data_path = config.experiment_path.replace("results/", "results/feature_data/") + "_Nepochs{}_SFS".format(
@@ -43,10 +46,13 @@ def store_score_and_feature_bad_hurst() -> None:
     feature_df = pd.read_parquet(feature_data_path, engine="pyarrow")
     bad_feat_df_1 = feature_df.loc[pd.IndexSlice[:,bad_idxs_1],:]
     bad_feat_df_1.to_parquet(feature_data_path.replace(".parquet.gzip", "_bad1.parquet.gzip"), compression="gzip")
+    print(bad_feat_df_1)
     bad_feat_df_2 = feature_df.loc[pd.IndexSlice[:,bad_idxs_2],:]
     bad_feat_df_2.to_parquet(feature_data_path.replace(".parquet.gzip", "_bad2.parquet.gzip"), compression="gzip")
+    print(bad_feat_df_2)
     good_feat_df = feature_df.loc[pd.IndexSlice[:,good_idxs],:]
     good_feat_df.to_parquet(feature_data_path.replace(".parquet.gzip", "_good.parquet.gzip"), compression="gzip")
+    print(good_feat_df)
     del feature_df
 
 if __name__ == "__main__":
