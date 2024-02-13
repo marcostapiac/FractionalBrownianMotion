@@ -146,7 +146,7 @@ def store_score_and_feature() -> None:
 
     init_experiment(config=config)
     config.dataSize = 100000
-    config.max_diff_steps = 10
+    config.max_diff_steps = 100
 
     train_epoch = 1920
     assert (train_epoch in config.max_epochs)
@@ -167,12 +167,12 @@ def store_score_and_feature() -> None:
     # Store
     drift_data_path = config.experiment_path.replace("results/",
                                                      "results/drift_data/") + "_Nepochs{}_SFS".format(train_epoch).replace(
-        ".", "") + ".csv.gzip"
+        ".", "") + ".parquet.gzip"
     drift_df = pd.concat({i:pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.timeDim))})
     print(drift_df)
     drift_df.index = pd.MultiIndex.from_product([np.arange(0, config.timeDim), np.arange(0, config.max_diff_steps)]).set_names(["Time", "DiffTime"], inplace=False)
     drift_df.info()
-    drift_df.to_csv(drift_data_path, compression="gzip")
+    drift_df.to_parquet(drift_data_path, compression="gzip")
     del drift_df
     print("Done Storing Drift Errors\n")
 
