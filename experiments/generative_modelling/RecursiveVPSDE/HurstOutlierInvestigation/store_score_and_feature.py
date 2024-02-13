@@ -166,7 +166,7 @@ def store_score_and_feature() -> None:
     print("Storing Drift Errors\n")
     # Store
     drift_data_path = config.experiment_path.replace("results/",
-                                                     "results/drift_data/") + "_Nepochs{}_SFS".format(train_epoch).replace(
+                                                     "results/drift_data/") + "_NE{}_SFS".format(train_epoch).replace(
         ".", "") + ".parquet.gzip"
     drift_df = pd.concat({i:pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.timeDim))})
     print(drift_df)
