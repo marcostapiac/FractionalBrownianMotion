@@ -143,7 +143,7 @@ def store_score_and_feature() -> None:
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
-    config.dataSize = 100000
+    config.dataSize = 10000
     config.max_diff_steps = 50
     init_experiment(config=config)
     train_epoch = 1920
@@ -171,7 +171,7 @@ def store_score_and_feature() -> None:
     drift_df.info()
     drift_df.to_parquet(drift_data_path, compression="gzip")
     del drift_df
-    print(pd.read_parquet(drift_data_path, compression="gzip", index_col = [0,1], engine="pyarrow"))
+    print(pd.read_parquet(drift_data_path, engine="pyarrow"))
     print("Done Storing Drift Errors\n")
 
     print("Storing Path Data\n")
@@ -181,7 +181,7 @@ def store_score_and_feature() -> None:
     path_df.to_parquet(path_df_path, compression="gzip")
     path_df.info()
     del path_df
-    print(pd.read_parquet(drift_data_path, compression="gzip", index_col = [0], engine="pyarrow"))
+    print(pd.read_parquet(drift_data_path, engine="pyarrow"))
     print("Done Storing Path Data\n")
 
     print("Storing Feature Data\n")
@@ -192,7 +192,7 @@ def store_score_and_feature() -> None:
     feature_df.info()
     feature_df.to_parquet(feature_data_path, compression="gzip")
     del feature_df
-    print(pd.read_parquet(feature_data_path, compression="gzip", index_col = [0,1], engine="pyarrow"))
+    print(pd.read_parquet(feature_data_path, engine="pyarrow"))
     print("Storing Feature Data\n")
 
 if __name__ == "__main__":
