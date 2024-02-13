@@ -36,32 +36,7 @@ if __name__ == "__main__":
     plt.show()
 
     # Now plot Hurst histogram for the generated samples
-    for train_epoch in [1920]:#config.max_epochs:
+    for train_epoch in config.max_epochs:
         df = pd.read_csv(config.experiment_path + "_Nepochs{}.csv.gzip".format(train_epoch),compression="gzip", index_col=[0, 1])
         df = df.apply(lambda x: [eval(i.replace("(", "").replace(")","").replace("tensor","")) if type(i) == str else i for i in x]).loc["Final Time Samples"]
         hs = hurst_estimation(df.to_numpy(), sample_type="Final Time Samples at Train Epoch {}".format(train_epoch), isfBm=config.isfBm, true_hurst=config.hurst)
-        lsp=np.linspace(1, df.shape[1] + 1, df.shape[1])
-        # Under-estimation
-        bad_idxs = hs.lt(0.45).any(axis=1)
-        if bad_idxs.shape[0] > 0:
-            bad_paths = df[bad_idxs]
-            for idx in range(bad_paths.shape[0]):
-                path = bad_paths.iloc[idx, :]
-                plt.plot(lsp, path, label=(bad_paths.index[idx],round(hs.iloc[bad_paths.index[idx],0],2)))
-            plt.title("fBm Bad Hurst Paths")
-            plt.legend()
-            plt.xlabel("Time")
-            plt.show()
-            print(bad_paths)
-        # Over estimation
-        bad_idxs = hs.gt(0.95).any(axis=1)
-        if bad_idxs.shape[0] > 0:
-            bad_paths = df[bad_idxs]
-            for idx in range(bad_paths.shape[0]):
-                path = bad_paths.iloc[idx, :]
-                plt.plot(lsp, path, label=(bad_paths.index[idx],round(hs.iloc[bad_paths.index[idx],0],2)))
-            plt.title("fBm Bad Hurst Paths")
-            plt.legend()
-            plt.xlabel("Time")
-            plt.show()
-            print(bad_paths)
