@@ -145,7 +145,7 @@ def store_score_and_feature() -> None:
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
     init_experiment(config=config)
-    config.dataSize = 1000000
+    config.dataSize = 100000
     config.max_diff_steps = 10
 
     train_epoch = 1920
