@@ -143,11 +143,9 @@ def store_score_and_feature() -> None:
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
-
-    init_experiment(config=config)
     config.dataSize = 100000
-    config.max_diff_steps = 100
-
+    config.max_diff_steps = 50
+    init_experiment(config=config)
     train_epoch = 1920
     assert (train_epoch in config.max_epochs)
     try:
@@ -174,25 +172,27 @@ def store_score_and_feature() -> None:
     drift_df.info()
     drift_df.to_parquet(drift_data_path, compression="gzip")
     del drift_df
+    print(pd.read_parquet(drift_data_path, compression="gzip", index_col = [0,1], engine="pyarrow"))
     print("Done Storing Drift Errors\n")
 
     print("Storing Path Data\n")
     path_df = pd.DataFrame(paths)
-    path_df.index = pd.MultiIndex.from_product(
-        [["Final Time Samples"], [i for i in range(config.dataSize)]])
-    path_df.to_csv(config.experiment_path + "_Nepochs{}_SFS.csv.gzip".format(train_epoch), compression="gzip")
+    path_df_path = config.experiment_path + "_Nepochs{}_SFS.parquet.gzip".format(train_epoch)
+    path_df.to_parquet(path_df_path, compression="gzip")
     path_df.info()
     del path_df
+    print(pd.read_parquet(drift_data_path, compression="gzip", index_col = [0], engine="pyarrow"))
     print("Done Storing Path Data\n")
 
     print("Storing Feature Data\n")
     feature_data_path = config.experiment_path.replace("results/", "results/feature_data/") + "_Nepochs{}_SFS".format(
-        train_epoch).replace(".", "") + ".csv.gzip"
-    feature_df = pd.concat([pd.DataFrame(features[i, :, :]) for i in range(config.timeDim)])
+        train_epoch).replace(".", "") + ".parquet.gzip"
+    feature_df = pd.concat({i:pd.DataFrame(features[i, :, :]) for i in tqdm(range(config.timeDim))})
     feature_df.index = pd.MultiIndex.from_product([np.arange(0, config.timeDim), np.arange(0, config.dataSize)]).set_names(["Time", "Sample Id"], inplace=False)
     feature_df.info()
-    feature_df.to_csv(feature_data_path, compression="gzip")
+    feature_df.to_parquet(feature_data_path, compression="gzip")
     del feature_df
+    print(pd.read_parquet(feature_data_path, compression="gzip", index_col = [0,1], engine="pyarrow"))
     print("Storing Feature Data\n")
 
 if __name__ == "__main__":
