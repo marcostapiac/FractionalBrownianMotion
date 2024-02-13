@@ -144,7 +144,7 @@ def store_score_and_feature() -> None:
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     config.dataSize = 10000
-    config.max_diff_steps = 50
+    config.max_diff_steps = 100
     init_experiment(config=config)
     train_epoch = 1920
     assert (train_epoch in config.max_epochs)
@@ -174,7 +174,7 @@ def store_score_and_feature() -> None:
     print(pd.read_parquet(drift_data_path, engine="pyarrow"))
     print("Done Storing Drift Errors\n")
 
-    print("Storing Path Data\n")
+    """print("Storing Path Data\n")
     path_df = pd.DataFrame(paths)
     print(path_df)
     path_df_path = config.experiment_path + "_Nepochs{}_SFS.parquet.gzip".format(train_epoch)
@@ -182,7 +182,7 @@ def store_score_and_feature() -> None:
     path_df.info()
     del path_df
     print(pd.read_parquet(drift_data_path, engine="pyarrow"))
-    print("Done Storing Path Data\n")
+    print("Done Storing Path Data\n")"""
 
     print("Storing Feature Data\n")
     feature_data_path = config.experiment_path.replace("results/", "results/feature_data/") + "_Nepochs{}_SFS".format(
@@ -193,7 +193,7 @@ def store_score_and_feature() -> None:
     feature_df.to_parquet(feature_data_path, compression="gzip")
     del feature_df
     print(pd.read_parquet(feature_data_path, engine="pyarrow"))
-    print("Storing Feature Data\n")
+    print("Done Storing Feature Data\n")
 
 if __name__ == "__main__":
     store_score_and_feature()
