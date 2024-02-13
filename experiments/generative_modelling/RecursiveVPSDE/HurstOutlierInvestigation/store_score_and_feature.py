@@ -145,8 +145,8 @@ def store_score_and_feature() -> None:
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
     init_experiment(config=config)
-    config.dataSize = 5
-    config.max_diff_steps = 10
+    config.dataSize = 5000000
+    config.max_diff_steps = 5
 
     train_epoch = 1920
     assert (train_epoch in config.max_epochs)
@@ -168,7 +168,8 @@ def store_score_and_feature() -> None:
     drift_data_path = config.experiment_path.replace("results/",
                                                      "results/drift_data/") + "_Nepochs{}_SFS".format(train_epoch).replace(
         ".", "") + ".csv.gzip"
-    drift_df = pd.concat([pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.timeDim)) for j in range(100000)])
+    drift_df = pd.concat({i:pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.timeDim))})
+    print(drift_df)
     drift_df.index = pd.MultiIndex.from_product([np.arange(0, config.timeDim), np.arange(0, config.max_diff_steps)]).set_names(["Time", "DiffTime"], inplace=False)
     drift_df.info()
     drift_df.to_csv(drift_data_path, compression="gzip")
