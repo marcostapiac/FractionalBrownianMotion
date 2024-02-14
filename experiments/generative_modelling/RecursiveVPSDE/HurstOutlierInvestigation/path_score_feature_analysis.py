@@ -24,7 +24,6 @@ def path_score_feature_analysis() -> None:
     config = get_config()
 
     # Now plot Hurst histogram for the generated samples
-    bad_path_times = [] # Times just before a large jump occured
     for train_epoch in [1920]:  # config.max_epochs:
         path_df_path = config.experiment_path + "_Nepochs{}_SFS.parquet.gzip".format(train_epoch)
         path_df = pd.read_parquet(path_df_path, engine="pyarrow")
@@ -44,9 +43,7 @@ def path_score_feature_analysis() -> None:
         good_feat_df = pd.read_parquet(feature_data_path.replace(".parquet.gzip", "_good.parquet.gzip"),engine="pyarrow")
 
         bad_paths_df_1 = path_df.iloc[bad_drift_df_1.columns,:]
-        print(bad_paths_df_1.columns)
         bad_paths_df_2 = path_df.iloc[bad_drift_df_2.columns,:]
-        print(bad_paths_df_2.columns)
         good_paths_df = path_df.iloc[good_drift_df.columns,:]
         bad_hs_1 = hurst_estimation(bad_paths_df_1.to_numpy(), sample_type="Final Time Samples at Train Epoch {}".format(train_epoch),
                               isfBm=config.isfBm, true_hurst=config.hurst)
@@ -59,11 +56,12 @@ def path_score_feature_analysis() -> None:
         good_hs.index = good_paths_df.index
 
         lsp = np.linspace(1, path_df.shape[1] + 1, path_df.shape[1])
+        bad_path_times = {idx: None for idx in bad_paths_df_1.index}
         # Under-estimation
         for idx in bad_paths_df_1.index:
             path = bad_paths_df_1.loc[idx, :]
             bad_time = identify_jump_index(time_series=path, eps=1.1)
-            if bad_time is not None: bad_path_times.append(bad_time)
+            if bad_time is not None: bad_path_times[idx] = bad_time
             plt.plot(lsp, path, label=(idx, round(bad_hs_1.loc[idx][0], 2)))
         plt.title("fBm Low Hurst Paths")
         plt.legend()
