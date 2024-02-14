@@ -17,8 +17,8 @@ def store_score_and_feature_bad_hurst() -> None:
                           isfBm=config.isfBm, true_hurst=config.hurst)
     hs.index = path_df.index
     # Under-estimation
-    lower = 0.55
-    upper = 0.85
+    lower = 0.5
+    upper = 0.9
     bad_idxs_1 = hs.index[hs.lt(lower).any(axis=1)].to_list()  # Path IDs which satisfy condition
     bad_idxs_2 = hs.index[hs.gt(upper).any(axis=1)].to_list()  # Path IDs which satisfy condition
     good_idxs_1 = hs.index[hs.gt(lower).any(axis=1)].to_list()
