@@ -24,7 +24,6 @@ def path_score_feature_analysis() -> None:
     config = get_config()
 
     # Now plot Hurst histogram for the generated samples
-    bad_path_idxs = []
     bad_path_times = [] # Times just before a large jump occured
     for train_epoch in [1920]:  # config.max_epochs:
         path_df_path = config.experiment_path + "_Nepochs{}_SFS.parquet.gzip".format(train_epoch)
@@ -45,7 +44,9 @@ def path_score_feature_analysis() -> None:
         good_feat_df = pd.read_parquet(feature_data_path.replace(".parquet.gzip", "_good.parquet.gzip"),engine="pyarrow")
 
         bad_paths_df_1 = path_df.iloc[bad_drift_df_1.columns,:]
+        print(bad_paths_df_1.columns)
         bad_paths_df_2 = path_df.iloc[bad_drift_df_2.columns,:]
+        print(bad_paths_df_2.columns)
         good_paths_df = path_df.iloc[good_drift_df.columns,:]
         bad_hs_1 = hurst_estimation(bad_paths_df_1.to_numpy(), sample_type="Final Time Samples at Train Epoch {}".format(train_epoch),
                               isfBm=config.isfBm, true_hurst=config.hurst)
