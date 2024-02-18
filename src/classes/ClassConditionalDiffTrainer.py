@@ -303,9 +303,10 @@ class ConditionalDiffusionModelTrainer(nn.Module):
                         self.loss_aggregator.compute().item())))
                 if epoch + 1 in max_epochs:
                     self._save_snapshot(epoch=epoch)
-                    self._save_model(filepath=model_filename, final_epoch=epoch + 1)
                     self._save_loss(losses=all_losses_per_epoch, filepath=model_filename)
+                    self._save_model(filepath=model_filename, final_epoch=epoch + 1)
                 elif (epoch + 1) % self.save_every == 0:
                     self._save_loss(losses=all_losses_per_epoch, filepath=model_filename)
                     self._save_snapshot(epoch=epoch)
+            print("Device {} \n".format(self.device_id), self.score_network.parameters())
             dist.barrier()
