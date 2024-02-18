@@ -32,7 +32,8 @@ matplotlib.rcParams.update({
     'text.latex.preamble': r"\usepackage{amsmath}"
 })
 
-def plot_efftimes(lin_ts:np.ndarray, eff_ts:np.ndarray)->None:
+
+def plot_efftimes(lin_ts: np.ndarray, eff_ts: np.ndarray) -> None:
     """
     Function to visualise effective diffusion times
         :param lin_ts: Linear time series
@@ -43,6 +44,7 @@ def plot_efftimes(lin_ts:np.ndarray, eff_ts:np.ndarray)->None:
     plt.xlabel("Linear Time")
     plt.ylabel("Effective Diffusion Time")
     plt.show()
+
 
 def plot_subplots(time_ax: np.ndarray, data: np.ndarray, label_args: np.ndarray[Union[NoneType, str]],
                   xlabels: np.ndarray[Union[NoneType, str]], ylabels: np.ndarray[Union[NoneType, str]],
@@ -465,7 +467,8 @@ def plot_heatmap(map: np.ndarray, annot: bool, title: str, filepath: str) -> Non
     plt.show()
 
 
-def plot_diffCov_heatmap(true_cov: np.ndarray, gen_cov: np.ndarray, image_path: str, annot: bool = True, title:str = "") -> None:
+def plot_diffCov_heatmap(true_cov: np.ndarray, gen_cov: np.ndarray, image_path: str, annot: bool = True,
+                         title: str = "") -> None:
     """
     Compute and plot difference between expected and sample covariance matrices
         :param true_cov: Theoretical covariance matrix
@@ -477,7 +480,7 @@ def plot_diffCov_heatmap(true_cov: np.ndarray, gen_cov: np.ndarray, image_path: 
     """
     s = 100 * (gen_cov - true_cov) / true_cov
     print("Average absolute percentage error: ", np.mean(np.abs(s)))
-    if title=="": title="Abs Percentage Error in Covariance Matrices"
+    if title == "": title = "Abs Percentage Error in Covariance Matrices"
     plot_heatmap(map=np.abs(s), annot=annot, title=title, filepath=image_path)
 
 
@@ -605,7 +608,7 @@ def plot_errors_ts(diff_time_space: np.ndarray, errors: np.ndarray, plot_title: 
     plt.show()
 
 
-def plot_errors_heatmap(errors: np.ndarray, plot_title: str, path: str, xticks:list, yticks:list) -> None:
+def plot_errors_heatmap(errors: np.ndarray, plot_title: str, path: str, xticks: list, yticks: list) -> None:
     """
     Plot heat map of errors over time and space
         :param errors: Matrix with errors over space and time
@@ -615,7 +618,7 @@ def plot_errors_heatmap(errors: np.ndarray, plot_title: str, path: str, xticks:l
         :param yticks: Correct Reverse-diffusion index (0-indexed)
         :return: None
     """
-    ax =sns.heatmap(errors, annot=False, xticklabels=xticks, yticklabels=yticks, annot_kws={'size': 15})
+    ax = sns.heatmap(errors, annot=False, xticklabels=xticks, yticklabels=yticks, annot_kws={'size': 15})
     ax.set_xlabel("Dimension")
     ax.set_ylabel("Reverse-Time Diffusion Time")
     plt.title(plot_title)
@@ -677,7 +680,7 @@ def plot_and_save_diffused_fBm_snapshot(samples: torch.Tensor, cov: torch.Tensor
 
 
 def my_pairplot(samples: torch.Tensor, row_idxs: np.ndarray, col_idxs: np.ndarray, cov: torch.Tensor, image_path: str,
-             suptitle: str) -> None:
+                suptitle: str) -> None:
     """
     Function to produce correlation matrix pairplots
         :param samples: Data
@@ -726,39 +729,41 @@ def my_pairplot(samples: torch.Tensor, row_idxs: np.ndarray, col_idxs: np.ndarra
     plt.close()
 
 
-def hurst_estimation(fBm_samples: np.ndarray, sample_type: str, isfBm:bool, true_hurst:float) -> pd.DataFrame:
+def hurst_estimation(fBm_samples: np.ndarray, sample_type: str, isfBm: bool, true_hurst: float,
+                     show: bool = True) -> pd.DataFrame:
     approx_fBn = reduce_to_fBn(fBm_samples, reduce=isfBm)
-    #even_approx_fBn = approx_fBn[:, ::2]  # Every even index
-    print(sample_type)
+    # even_approx_fBn = approx_fBn[:, ::2]  # Every even index
     S = approx_fBn.shape[0]
     with mp.Pool(processes=9) as pool:
         res = pool.starmap(partial(optimise_whittle, data=approx_fBn), [(fidx,) for fidx in range(S)])
-    print(res)
     hs = (pd.DataFrame(res, columns=["DF index", "Hurst Estimate"]).set_index("DF index").rename_axis([None], axis=0))
-    print(hs)
-    #with mp.Pool(processes=9) as pool:
+    # with mp.Pool(processes=9) as pool:
     #   even_hs = pool.starmap(partial(optimise_whittle, data=even_approx_fBn), [(fidx,) for fidx in range(S)])
-    #my_hs = [np.array(hs), np.array(even_hs)]
-    #titles = ["All", "Even"]
+    # my_hs = [np.array(hs), np.array(even_hs)]
+    # titles = ["All", "Even"]
     my_hs = [hs.values]
     titles = ["All"]
     for i in range(len(my_hs)):
-        fig, ax = plt.subplots()
-        ax.axvline(x=true_hurst, color="blue", label="True Hurst")
-        plot_histogram(my_hs[i], num_bins=150, xlabel="H", ylabel="density",
-                       plottitle="Histogram of {} {} samples' estimated Hurst parameter".format(titles[i], sample_type),
-                       fig=fig, ax=ax)
         mean, std = my_hs[i].mean(), my_hs[i].std()
         print(mean)
         print(std)
-        plt.show()
-        # Repeat with constrained axis
-        fig, ax = plt.subplots()
-        ax.axvline(x=true_hurst, color="blue", label="True Hurst")
-        plot_histogram(my_hs[i], num_bins=150, xlabel="H", ylabel="density",
-                       plottitle="Constrained hist of {} {} samples' estimated Hurst parameter".format(titles[i],
-                                                                                                       sample_type),
-                       fig=fig, ax=ax)
-        ax.set_xlim(mean - 5 * std, mean + 5 * std)
-        plt.show()
+        if show:
+            fig, ax = plt.subplots()
+            ax.axvline(x=true_hurst, color="blue", label="True Hurst")
+            plot_histogram(my_hs[i], num_bins=150, xlabel="H", ylabel="density",
+                           plottitle="Histogram of {} {} samples' estimated Hurst parameter".format(titles[i],
+                                                                                                    sample_type),
+                           fig=fig, ax=ax)
+            plt.show()
+            plt.close()
+            # Repeat with constrained axis
+            fig, ax = plt.subplots()
+            ax.axvline(x=true_hurst, color="blue", label="True Hurst")
+            plot_histogram(my_hs[i], num_bins=150, xlabel="H", ylabel="density",
+                           plottitle="Constrained hist of {} {} samples' estimated Hurst parameter".format(titles[i],
+                                                                                                           sample_type),
+                           fig=fig, ax=ax)
+            ax.set_xlim(mean - 5 * std, mean + 5 * std)
+            plt.show()
+            plt.close()
     return hs
