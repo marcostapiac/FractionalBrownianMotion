@@ -24,12 +24,12 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = [1920]
+    config.max_epochs = [480, 960, 1440, 1920]
     config.batch_size = 256
     config.isfBm = True
     config.isUnitInterval = True
     config.hybrid = True
-    config.weightings = False
+    config.weightings = True
     config.tdata_mult = 5
 
     # Diffusion hyperparameters
