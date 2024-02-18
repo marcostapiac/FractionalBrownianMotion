@@ -29,7 +29,7 @@ def get_config():
     config.isfBm = True
     config.isUnitInterval = True
     config.hybrid = True
-    config.weightings = True
+    config.weightings = False
     config.tdata_mult = 5
 
     # Diffusion hyperparameters
