@@ -308,4 +308,4 @@ class ConditionalDiffusionModelTrainer(nn.Module):
                 elif (epoch + 1) % self.save_every == 0:
                     self._save_loss(losses=all_losses_per_epoch, filepath=model_filename)
                     self._save_snapshot(epoch=epoch)
-            #dist.barrier()
+            dist.barrier()
