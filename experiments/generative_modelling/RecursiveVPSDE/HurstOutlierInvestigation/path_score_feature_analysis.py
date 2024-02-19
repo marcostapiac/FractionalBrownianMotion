@@ -41,7 +41,9 @@ def path_score_feature_analysis() -> None:
         bad_feat_df_1 = pd.read_parquet(feature_data_path.replace(".parquet.gzip", "_bad1.parquet.gzip"),engine="pyarrow")
         bad_feat_df_2 = pd.read_parquet(feature_data_path.replace(".parquet.gzip", "_bad2.parquet.gzip"),engine="pyarrow")
         good_feat_df = pd.read_parquet(feature_data_path.replace(".parquet.gzip", "_good.parquet.gzip"),engine="pyarrow")
-        exact_feat_df = pd.read_parquet(feature_data_path.replace(".parquet.gzip", "_.parquet.gzip"),engine="pyarrow")
+        exact_feat_df_all = pd.read_parquet(feature_data_path.replace("_SFS.parquet.gzip", "_Exact.parquet.gzip"),engine="pyarrow")
+        exact_feat_df = exact_feat_df_all.groupby(level=0).apply(lambda x:x.droplevel(0).mean(axis=0))
+
         bad_paths_df_1 = path_df.iloc[bad_drift_df_1.columns,:]
         bad_paths_df_2 = path_df.iloc[bad_drift_df_2.columns,:]
         good_paths_df = path_df.iloc[good_drift_df.columns,:]
@@ -112,7 +114,7 @@ def path_score_feature_analysis() -> None:
                 plt.plot(feat_lsp, bad_feat_df_1.loc[pd.IndexSlice[bad_path_times[idx], idx],:].values, label=("At", idx,round(bad_hs_1.loc[idx][0], 2)))
                 plt.plot(feat_lsp, bad_feat_df_1.loc[pd.IndexSlice[bad_path_times[idx]+1, idx],:].values, label=("After", idx, round(bad_hs_1.loc[idx][0], 2)))
                 plt.plot(feat_lsp, bad_feat_df_1.loc[pd.IndexSlice[bad_path_times[idx]+15, idx],:].values, label=("Wrong", idx, round(bad_hs_1.loc[idx][0], 2)))
-                plt.title("Feature Values Near Jump Times")
+                plt.title("Under-estimated Path Feature Values Near Jump Times")
                 plt.legend()
                 plt.xlabel("Feature Dimension")
                 plt.show()
@@ -146,11 +148,24 @@ def path_score_feature_analysis() -> None:
                 plt.plot(feat_lsp, good_feat_df.loc[pd.IndexSlice[bad_path_times[idx]-1, good_idx],:].values, label=("Before", good_idx, round(good_hs.loc[good_idx][0], 2)))
                 plt.plot(feat_lsp, good_feat_df.loc[pd.IndexSlice[bad_path_times[idx], good_idx],:].values, label=("At", good_idx,round(good_hs.loc[good_idx][0], 2)))
                 plt.plot(feat_lsp, good_feat_df.loc[pd.IndexSlice[bad_path_times[idx]+1, good_idx],:].values, label=("After", good_idx, round(good_hs.loc[good_idx][0], 2)))
-                plt.title("Feature Values Near Jump Times")
+                plt.title("Good Path Feature Values Near Jump Times")
                 plt.legend()
                 plt.xlabel("Feature Dimension")
                 plt.show()
                 plt.close()
+                # Plot "exact" feature values at those three times
+                plt.plot(feat_lsp, exact_feat_df.loc[bad_path_times[idx] - 1, :].values,
+                         label="Before")
+                plt.plot(feat_lsp, exact_feat_df.loc[bad_path_times[idx], :].values,
+                         label="At")
+                plt.plot(feat_lsp, exact_feat_df.loc[bad_path_times[idx] + 1, :].values,
+                         label="After")
+                plt.title("Exact Feature Values Near Jump Times")
+                plt.legend()
+                plt.xlabel("Feature Dimension")
+                plt.show()
+                plt.close()
+
         for idx in bad_paths_df_2.index:
             if bad_path_times[idx] != None:
                 drift_error_path = bad_drift_df_2.loc[pd.IndexSlice[bad_path_times[idx], :], [idx]].droplevel(0).iloc[::-1].cumsum()/np.arange(1, config.max_diff_steps+1 ,config.max_diff_steps)
@@ -179,7 +194,7 @@ def path_score_feature_analysis() -> None:
                 plt.plot(feat_lsp, bad_feat_df_2.loc[pd.IndexSlice[bad_path_times[idx], idx],:].values, label=("At", idx,round(bad_hs_2.loc[idx][0], 2)))
                 plt.plot(feat_lsp, bad_feat_df_2.loc[pd.IndexSlice[bad_path_times[idx]+1, idx],:].values, label=("After", idx, round(bad_hs_2.loc[idx][0], 2)))
                 plt.plot(feat_lsp, bad_feat_df_2.loc[pd.IndexSlice[bad_path_times[idx]+15, idx],:].values, label=("Wrong", idx, round(bad_hs_2.loc[idx][0], 2)))
-                plt.title("Feature Values Near Jump Times")
+                plt.title("Over-estimated Path Feature Values Near Jump Times")
                 plt.legend()
                 plt.xlabel("Feature Dimension")
                 plt.show()
@@ -216,7 +231,7 @@ def path_score_feature_analysis() -> None:
                          label=("At", good_idx, round(good_hs.loc[good_idx][0], 2)))
                 plt.plot(feat_lsp, good_feat_df.loc[pd.IndexSlice[bad_path_times[idx] + 1, good_idx], :].values,
                          label=("After", good_idx, round(good_hs.loc[good_idx][0], 2)))
-                plt.title("Feature Values Near Jump Times")
+                plt.title("Good Path Feature Values Near Jump Times")
                 plt.legend()
                 plt.xlabel("Feature Dimension")
                 plt.show()
@@ -228,57 +243,23 @@ def path_score_feature_analysis() -> None:
                          label=("At", good_idx, round(good_hs.loc[good_idx][0], 2)))
                 plt.plot(feat_lsp, good_feat_df.loc[pd.IndexSlice[bad_path_times[idx] + 1, good_idx], :].values,
                          label=("After", good_idx, round(good_hs.loc[good_idx][0], 2)))
-                plt.title("Feature Values Near Jump Times")
+                plt.title("Good Path Feature Values Near Jump Times")
                 plt.legend()
                 plt.xlabel("Feature Dimension")
                 plt.show()
                 plt.close()
-        # Now proceed to plot the feature time series for those paths
-        # TODO: I want to know if the higher overall drift errors at jump times are due to an odd feature...
-        # TODO: Therefore, for the time before and at the jump, I can plot the feature values
-        """bfdf1 = bad_feat_df_1.groupby(level=1).apply(lambda x: x.loc[pd.IndexSlice[bad_path_times[
-                                                                                                    x.index.unique(
-                                                                                                        level=1)[
-                                                                                                        0]] - 1:
-                                                                                                bad_path_times[
-                                                                                                    x.index.unique(
-                                                                                                        level=1)[
-                                                                                                        0]] + 1, :],
-                                                               :].droplevel(1) if bad_path_times[x.index.unique(level=1)[
-            0]] is not None else None)
-        if not bfdf1.empty:
-            sns.boxplot(data=bfdf1)
-            plt.title("fBm Features for Under-estimated Hurst Near Jump Times")
-            plt.legend()
-            plt.xlabel("Feature Dimension")
-            plt.show()
-        good_idxs = np.random.choice(good_paths_df.columns.values,size=bad_paths_df_1.shape[1])
-        gfdf1 = good_feat_df.groupby(level=1).apply(lambda x: x.loc[pd.IndexSlice[bad_path_times[bad_paths_df_1.columns.to_list()] - 1:bad_path_times[bad_paths_df_1.columns.to_list()] + 1, good_idxs],:].droplevel(1))
-        if not gfdf1.empty:
-            sns.boxplot(data=gfdf1)
-            plt.title("fBm feature path for Good Hurst Near Under-estimated Hurst Jump Times")
-            plt.legend()
-            plt.xlabel("Feature Dimension")
-            plt.show()
-
-        bfdf2 = bad_feat_df_2.groupby(level=1).apply(lambda x: x.loc[pd.IndexSlice[bad_path_times[
-                                                                                       x.index.unique(
-                                                                                           level=1)[
-                                                                                           0]] - 1:
-                                                                                   bad_path_times[
-                                                                                       x.index.unique(
-                                                                                           level=1)[
-                                                                                           0]] + 1, :],
-                                                               :].droplevel(1) if bad_path_times[
-                                                                                      x.index.unique(level=1)[
-                                                                                          0]] is not None else None)
-        if not bfdf2.empty:
-            sns.boxplot(data=bfdf2)
-            plt.title("fBm feature path for Over-estimated Hurst Near Jump Times")
-            plt.legend()
-            plt.xlabel("Feature Dimension")
-            plt.show()
-        """
+                # Plot "exact" feature values at those three times
+                plt.plot(feat_lsp, exact_feat_df.loc[bad_path_times[idx] - 1, :].values,
+                         label="Before")
+                plt.plot(feat_lsp, exact_feat_df.loc[bad_path_times[idx], :].values,
+                         label="At")
+                plt.plot(feat_lsp, exact_feat_df.loc[bad_path_times[idx] + 1, :].values,
+                         label="After")
+                plt.title("Exact Feature Values Near Jump Times")
+                plt.legend()
+                plt.xlabel("Feature Dimension")
+                plt.show()
+                plt.close()
 
         # Now proceed to plot feature box plots over paths and times
         sns.boxplot(data=bad_feat_df_1)
@@ -293,6 +274,11 @@ def path_score_feature_analysis() -> None:
         plt.show()
         sns.boxplot(data=good_feat_df)
         plt.title("fBm feature path for correct Hurst")
+        plt.legend()
+        plt.xlabel("Feature Dimension")
+        plt.show()
+        sns.boxplot(data=exact_feat_df_all)
+        plt.title("fBm feature path for exact Hurst")
         plt.legend()
         plt.xlabel("Feature Dimension")
         plt.show()

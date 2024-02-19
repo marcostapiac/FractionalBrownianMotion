@@ -136,6 +136,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
     final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)
     feature_df = torch.concat(features, dim=0).cpu()
     assert (feature_df.shape == (config.timeDim, config.dataSize, 40))
+    print([i.device for i in drift_errors])
     drift_error_df = torch.concat(drift_errors, dim=0).cpu()
     assert (drift_error_df.shape == (config.timeDim, config.max_diff_steps, config.dataSize))
     return np.atleast_2d(final_paths.numpy()), np.atleast_3d(feature_df.numpy()), np.atleast_3d(drift_error_df.numpy())
@@ -148,6 +149,8 @@ def store_score_and_feature() -> None:
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 5)
     config.dataSize = 40000
+    config.max_diff_steps = 3
+    config.weightings = False
     scoreModel = ConditionalTimeSeriesScoreMatching(
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)

@@ -15,7 +15,7 @@ matplotlib.rcParams.update({
     'text.latex.preamble': r"\usepackage{amsmath}"
 })
 if __name__ == "__main__":
-    from configs.RecursiveVPSDE.recursive_fBm_T256_H07_tl_10data import get_config
+    from configs.RecursiveVPSDE.recursive_fBm_T256_H07_tl_5data import get_config
     config = get_config()
     H = config.hurst
     with open(config.scoreNet_trained_path.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as f:
