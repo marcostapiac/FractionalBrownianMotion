@@ -149,7 +149,7 @@ def store_score_and_feature() -> None:
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 5)
     config.dataSize = 40000
-    config.max_diff_steps = 3
+    config.max_diff_steps = 11
     config.weightings = False
     scoreModel = ConditionalTimeSeriesScoreMatching(
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
