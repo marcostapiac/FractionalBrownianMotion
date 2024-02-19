@@ -59,7 +59,7 @@ def recursive_sampling_and_track(data_shape: tuple, torch_device, feature: torch
         x_true = exp_drift + diffusion_param * torch.randn_like(x)
         drift_errors[config.max_diff_steps - 1 - i, :] = torch.pow(
             torch.linalg.norm((pred_drift - exp_drift).squeeze(1).T, ord=2, axis=0),
-            2)
+            2).cpu()
     return x, x_true, drift_errors
 
 
@@ -107,7 +107,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
             output, (h,c) =  scoreModel.rnn(samples[:, [i], :], None)
             features.append(output.permute(1,0,2))
             # Since we do not use score model for generating x1, we set drift errors to 0
-            drift_errors.append(torch.zeros((1, config.max_diff_steps, config.dataSize)).to(device))
+            drift_errors.append(torch.zeros((1, config.max_diff_steps, config.dataSize)))
             true_paths[:,[i],:] = samples[:, [i], :]
         for t in range(t0,config.timeDim):
             print("Sampling at real time {}\n".format(t + 1))
