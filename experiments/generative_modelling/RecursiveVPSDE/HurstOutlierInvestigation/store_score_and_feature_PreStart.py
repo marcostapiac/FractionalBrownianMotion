@@ -59,7 +59,7 @@ def recursive_sampling_and_track(data_shape: tuple, torch_device, feature: torch
         x_true = exp_drift + diffusion_param * torch.randn_like(x)
         drift_errors[config.max_diff_steps - 1 - i, :] = torch.pow(
             torch.linalg.norm((pred_drift - exp_drift).squeeze(1).T, ord=2, axis=0),
-            2).detach().cpu()
+            2)
     return x, x_true, drift_errors
 
 
