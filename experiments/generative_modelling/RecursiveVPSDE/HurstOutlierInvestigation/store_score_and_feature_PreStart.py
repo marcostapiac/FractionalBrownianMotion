@@ -153,6 +153,7 @@ def store_score_and_feature() -> None:
     assert (0 < config.hurst < 1.)
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 5)
+    print(config.scoreNet_trained_path, config.dataSize)
     scoreModel = ConditionalTimeSeriesScoreMatching(
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
