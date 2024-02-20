@@ -102,6 +102,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
         t0 = 8
         fBm = np.load(config.data_path, allow_pickle=True).cumsum(axis=1)[:config.dataSize,:t0]
         samples = torch.from_numpy(fBm).unsqueeze(-1).to(device).to(torch.float32)
+        del fBm
         true_paths = torch.zeros(size=(data_shape[0], config.timeDim, data_shape[-1])).to(device)
         for i in range(t0):
             output, (h,c) =  scoreModel.rnn(samples[:, [i], :], None)
@@ -109,6 +110,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
             # Since we do not use score model for generating x1, we set drift errors to 0
             drift_errors.append(torch.zeros((1, config.max_diff_steps, config.dataSize)))
             true_paths[:,[i],:] = samples[:, [i], :]
+        del samples
         for t in range(t0,config.timeDim):
             print("Sampling at real time {}\n".format(t + 1))
             true_past = true_paths[:, :t, :]
@@ -131,8 +133,11 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
             true_paths[:, [t], :] = true_samples
             features.append(output.permute(1, 0, 2))
             drift_errors.append(per_time_drift_error.unsqueeze(0))
-            output, (h, c) = scoreModel.rnn(samples, (h, c))
-
+            if t < config.timeDim -1:
+                output, (h, c) = scoreModel.rnn(samples, (h, c))
+    print(paths)
+    print(drift_errors)
+    print(features)
     final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)
     feature_df = torch.concat(features, dim=0).cpu()
     assert (feature_df.shape == (config.timeDim, config.dataSize, 40))
