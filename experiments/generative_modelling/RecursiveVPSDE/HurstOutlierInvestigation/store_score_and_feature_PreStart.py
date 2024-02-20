@@ -135,14 +135,15 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
             drift_errors.append(per_time_drift_error.unsqueeze(0))
             if t < config.timeDim -1:
                 output, (h, c) = scoreModel.rnn(samples, (h, c))
+    drift_error_df = torch.concat(drift_errors, dim=0).cpu()
+    assert (drift_error_df.shape == (config.timeDim, config.max_diff_steps, config.dataSize))
+    del drift_errors
     print(paths)
     print(drift_errors)
     print(features)
     final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)
     feature_df = torch.concat(features, dim=0).cpu()
     assert (feature_df.shape == (config.timeDim, config.dataSize, 40))
-    drift_error_df = torch.concat(drift_errors, dim=0).cpu()
-    assert (drift_error_df.shape == (config.timeDim, config.max_diff_steps, config.dataSize))
     return np.atleast_2d(final_paths.numpy()), np.atleast_3d(feature_df.numpy()), np.atleast_3d(drift_error_df.numpy())
 
 
