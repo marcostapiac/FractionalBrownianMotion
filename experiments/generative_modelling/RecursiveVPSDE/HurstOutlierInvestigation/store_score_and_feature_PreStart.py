@@ -129,6 +129,9 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
                                                                                        cv2=curr_time_cov2,
                                                                                        true_past=true_past)
             assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
+            print(paths)
+            print(drift_errors)
+            print(features)
             paths.append(samples)
             true_paths[:, [t], :] = true_samples
             features.append(output.permute(1, 0, 2))
@@ -139,7 +142,6 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
     assert (drift_error_df.shape == (config.timeDim, config.max_diff_steps, config.dataSize))
     del drift_errors
     print(paths)
-    print(drift_errors)
     print(features)
     final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)
     feature_df = torch.concat(features, dim=0).cpu()
