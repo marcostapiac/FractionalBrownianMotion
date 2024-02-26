@@ -37,7 +37,7 @@ def recursive_sampling_and_track(data_shape: tuple, torch_device, feature: torch
         torch_device)  # Move to correct device
     timesteps = torch.linspace(start=config.end_diff_time, end=config.sample_eps,
                                steps=config.max_diff_steps).to(torch_device)
-    drift_errors = torch.zeros(size=(config.max_diff_steps, config.dataSize))
+    drift_errors = torch.zeros(size=(config.max_diff_steps, config.dataSize)).to(torch_device)
     for i in tqdm(iterable=(range(0, config.max_diff_steps)), dynamic_ncols=False, desc="Sampling :: ", position=0):
         diff_index = torch.Tensor([i]).to(torch_device).long()
         t = timesteps[diff_index]
@@ -99,7 +99,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
     with torch.no_grad():
         paths = []
         drift_errors = []
-        t0 = 8
+        t0 = 250
         fBm = np.load(config.data_path, allow_pickle=True).cumsum(axis=1)[:config.dataSize,:t0]
         samples = torch.from_numpy(fBm).unsqueeze(-1).to(device).to(torch.float32)
         del fBm
