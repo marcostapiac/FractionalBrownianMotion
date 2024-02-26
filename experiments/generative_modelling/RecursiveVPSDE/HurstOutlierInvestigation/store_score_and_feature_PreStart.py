@@ -143,6 +143,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
     print(paths)
     print(features)
     final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)
+    assert(final_paths.shape == (config.dataSize, config.timeDim))
     feature_df = torch.concat(features, dim=0).cpu()
     assert (feature_df.shape == (config.timeDim, config.dataSize, 40))
     return np.atleast_2d(final_paths.numpy()), np.atleast_3d(feature_df.numpy()), np.atleast_3d(drift_error_df.numpy())
