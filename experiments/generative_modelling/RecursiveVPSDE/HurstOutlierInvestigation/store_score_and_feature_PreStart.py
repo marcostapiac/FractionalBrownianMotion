@@ -109,6 +109,8 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
             # Since we do not use score model for generating x1, we set drift errors to 0
             drift_errors.append(torch.zeros((1, config.max_diff_steps, config.dataSize)))
             true_paths[:,[i],:] = samples[:, [i], :]
+            assert(samples[:, i, :].shape == (data_shape[0], data_shape[-1]))
+            paths.append(samples[:,i,:])
         del samples
         for t in range(t0,config.timeDim):
             print("Sampling at real time {}\n".format(t + 1))
