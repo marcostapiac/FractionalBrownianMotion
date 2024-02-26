@@ -99,7 +99,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
     with torch.no_grad():
         paths = []
         drift_errors = []
-        t0 = 255
+        t0 = 256
         #fBm = np.load(config.data_path, allow_pickle=True).cumsum(axis=1)[:config.dataSize,:t0]
         samples = torch.from_numpy(np.load(config.data_path, allow_pickle=True).cumsum(axis=1)[:config.dataSize,:t0]).unsqueeze(-1).to(device).to(torch.float32)
         assert(samples.shape == (config.dataSize, t0, 1))
@@ -112,7 +112,6 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
             assert(samples[:, [i], :].shape == (data_shape[0], 1, data_shape[-1]))
             true_paths[:,[i],:] = samples[:, [i], :]
             paths.append(samples[:,[i],:])
-        del samples
         for t in range(t0,config.timeDim):
             print("Sampling at real time {}\n".format(t + 1))
             true_past = true_paths[:, :t, :]
@@ -164,7 +163,7 @@ def store_score_and_feature() -> None:
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    init_experiment(config=config)
+    #init_experiment(config=config)
     train_epoch = 1920
     assert (train_epoch in config.max_epochs)
     try:
@@ -172,7 +171,7 @@ def store_score_and_feature() -> None:
     except FileNotFoundError as e:
         assert FileNotFoundError(
             "Error {}; no valid trained model found; train before initiating experiment\n".format(e))
-    cleanup_experiment()
+    #cleanup_experiment()
     rng = np.random.default_rng()
     paths, features, drift_errors = run_feature_drift_recursive_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                                                          data_shape=(
