@@ -102,6 +102,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
         t0 = 255
         #fBm = np.load(config.data_path, allow_pickle=True).cumsum(axis=1)[:config.dataSize,:t0]
         samples = torch.from_numpy(np.load(config.data_path, allow_pickle=True).cumsum(axis=1)[:config.dataSize,:t0]).unsqueeze(-1).to(device).to(torch.float32)
+        assert(samples.shape == (config.dataSize, t0, 1))
         true_paths = torch.zeros(size=(data_shape[0], config.timeDim, data_shape[-1])).to(device)
         for i in range(t0):
             output, (h,c) =  scoreModel.rnn(samples[:, [i], :], None)
