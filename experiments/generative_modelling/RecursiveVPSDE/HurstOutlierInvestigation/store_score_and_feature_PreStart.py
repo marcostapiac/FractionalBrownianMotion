@@ -99,7 +99,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
     with torch.no_grad():
         paths = []
         drift_errors = []
-        t0 = 256
+        t0 = 255
         #fBm = np.load(config.data_path, allow_pickle=True).cumsum(axis=1)[:config.dataSize,:t0]
         samples = torch.from_numpy(np.load(config.data_path, allow_pickle=True).cumsum(axis=1)[:config.dataSize,:t0]).unsqueeze(-1).to(device).to(torch.float32)
         assert(samples.shape == (config.dataSize, t0, 1))
