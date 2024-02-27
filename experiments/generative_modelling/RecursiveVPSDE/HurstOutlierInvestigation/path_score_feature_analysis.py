@@ -25,8 +25,11 @@ def path_score_feature_analysis() -> None:
 
     # Now plot Hurst histogram for the generated samples
     for train_epoch in [1920]:  # config.max_epochs:
-        path_df_path = config.experiment_path + "_Nepochs{}_SFS.parquet.gzip".format(train_epoch)
+        path_df_path = config.experiment_path + "_Nepochs{}_PS_SFS.parquet.gzip".format(train_epoch)
         path_df = pd.read_parquet(path_df_path, engine="pyarrow")
+        hurst_estimation(path_df.to_numpy(),
+                         sample_type="Final Time Samples at Train Epoch {}".format(train_epoch),
+                         isfBm=config.isfBm, true_hurst=config.hurst, show=True)
         drift_data_path = config.experiment_path.replace("results/",
                                                          "results/drift_data/") + "_Nepochs{}_SFS".format(
             train_epoch).replace(
@@ -48,13 +51,13 @@ def path_score_feature_analysis() -> None:
         bad_paths_df_2 = path_df.iloc[bad_drift_df_2.columns,:]
         good_paths_df = path_df.iloc[good_drift_df.columns,:]
         bad_hs_1 = hurst_estimation(bad_paths_df_1.to_numpy(), sample_type="Final Time Samples at Train Epoch {}".format(train_epoch),
-                              isfBm=config.isfBm, true_hurst=config.hurst, show=False)
+                              isfBm=config.isfBm, true_hurst=config.hurst, show=True)
         bad_hs_1.index = bad_paths_df_1.index
         bad_hs_2 = hurst_estimation(bad_paths_df_2.to_numpy(), sample_type="Final Time Samples at Train Epoch {}".format(train_epoch),
-                              isfBm=config.isfBm, true_hurst=config.hurst, show=False)
+                              isfBm=config.isfBm, true_hurst=config.hurst, show=True)
         bad_hs_2.index = bad_paths_df_2.index
         good_hs = hurst_estimation(good_paths_df.to_numpy(), sample_type="Final Time Samples at Train Epoch {}".format(train_epoch),
-                              isfBm=config.isfBm, true_hurst=config.hurst, show=False)
+                              isfBm=config.isfBm, true_hurst=config.hurst, show=True)
         good_hs.index = good_paths_df.index
 
         lsp = np.arange(1, path_df.shape[1] + 1)
