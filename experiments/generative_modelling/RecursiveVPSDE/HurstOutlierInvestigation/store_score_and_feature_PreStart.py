@@ -211,33 +211,44 @@ def store_score_and_feature() -> None:
     print(drift_df)
     drift_df.info()
 
-    print("Creating Feature Data DF\n")
-    feature_data_path = config.experiment_path.replace("results/",
-                                                       "results/feature_data/") + "_Nepochs{}_PS_SFS".format(
-        train_epoch).replace(".", "") + ".parquet.gzip"
-    feature_df = pd.concat({i: pd.DataFrame(features[i, :, :]) for i in tqdm(range(config.timeDim))})
-    print(feature_df)
-    feature_df.info()
-
-    if len(bad_idxs_1) > 0:
-        bad_drift_df_1 = drift_df.loc[pd.IndexSlice[:, :], bad_idxs_1]
-        bad_drift_df_1.to_parquet(drift_data_path.replace(".parquet.gzip", "_bad1.parquet.gzip"), compression="gzip")
-        print(bad_drift_df_1)
-        bad_feat_df_1 = feature_df.loc[pd.IndexSlice[:, bad_idxs_1], :]
-        bad_feat_df_1.to_parquet(feature_data_path.replace(".parquet.gzip", "_bad1.parquet.gzip"), compression="gzip")
-        print(bad_feat_df_1)
-    else:
-        print("No under-estimated Hurst Paths\n")
-    if len(bad_idxs_2) > 0:
-        bad_drift_df_2 = drift_df.loc[pd.IndexSlice[:, :], bad_idxs_2]
-        bad_drift_df_2.to_parquet(drift_data_path.replace(".parquet.gzip", "_bad2.parquet.gzip"), compression="gzip")
-        print(bad_drift_df_2)
-        bad_feat_df_2 = feature_df.loc[pd.IndexSlice[:, bad_idxs_2], :]
-        bad_feat_df_2.to_parquet(feature_data_path.replace(".parquet.gzip", "_bad2.parquet.gzip"), compression="gzip")
-        print(bad_feat_df_2)
-    else:
-        print("No over-estimated Hurst Paths\n")
     if len(bad_idxs_1) > 0 or len(bad_idxs_2) > 0:
+        print("Creating Drift Errors DF\n")
+        # Store
+        drift_data_path = config.experiment_path.replace("results/",
+                                                         "results/drift_data/") + "_Nepochs{}_PS_SFS".format(
+            train_epoch).replace(
+            ".", "") + ".parquet.gzip"
+        drift_df = pd.concat({i: pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.timeDim))})
+        print(drift_df)
+        drift_df.info()
+        print("Creating Feature Data DF\n")
+        feature_data_path = config.experiment_path.replace("results/",
+                                                           "results/feature_data/") + "_Nepochs{}_PS_SFS".format(
+            train_epoch).replace(".", "") + ".parquet.gzip"
+        feature_df = pd.concat({i: pd.DataFrame(features[i, :, :]) for i in tqdm(range(config.timeDim))})
+        print(feature_df)
+        feature_df.info()
+
+        if len(bad_idxs_1) > 0:
+            bad_drift_df_1 = drift_df.loc[pd.IndexSlice[:, :], bad_idxs_1]
+            bad_drift_df_1.to_parquet(drift_data_path.replace(".parquet.gzip", "_bad1.parquet.gzip"), compression="gzip")
+            print(bad_drift_df_1)
+            bad_feat_df_1 = feature_df.loc[pd.IndexSlice[:, bad_idxs_1], :]
+            bad_feat_df_1.to_parquet(feature_data_path.replace(".parquet.gzip", "_bad1.parquet.gzip"), compression="gzip")
+            print(bad_feat_df_1)
+        else:
+            print("No under-estimated Hurst Paths\n")
+        if len(bad_idxs_2) > 0:
+            bad_drift_df_2 = drift_df.loc[pd.IndexSlice[:, :], bad_idxs_2]
+            bad_drift_df_2.to_parquet(drift_data_path.replace(".parquet.gzip", "_bad2.parquet.gzip"),
+                                      compression="gzip")
+            print(bad_drift_df_2)
+            bad_feat_df_2 = feature_df.loc[pd.IndexSlice[:, bad_idxs_2], :]
+            bad_feat_df_2.to_parquet(feature_data_path.replace(".parquet.gzip", "_bad2.parquet.gzip"),
+                                     compression="gzip")
+            print(bad_feat_df_2)
+        else:
+            print("No over-estimated Hurst Paths\n")
         good_drift_df = drift_df.loc[pd.IndexSlice[:, :], good_idxs]
         good_drift_df.to_parquet(drift_data_path.replace(".parquet.gzip", "_good.parquet.gzip"), compression="gzip")
         print(good_drift_df)
@@ -247,10 +258,6 @@ def store_score_and_feature() -> None:
     else:
         print("Not storing good paths since they are all good!\n")
 
-    del drift_df
-    print("Done Storing Drift Errors\n")
-    del feature_df
-    print("Done Storing Feature Data\n")
 
 
 if __name__ == "__main__":
