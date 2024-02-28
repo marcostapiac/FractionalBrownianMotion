@@ -37,6 +37,7 @@ if __name__ == "__main__":
 
     # Now plot Hurst histogram for the generated samples
     for train_epoch in config.max_epochs:
-        df = pd.read_csv(config.experiment_path + "_Nepochs{}.csv.gzip".format(train_epoch),compression="gzip", index_col=[0, 1])
+        df = pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch),compression="gzip", index_col=[0, 1])
         df = df.apply(lambda x: [eval(i.replace("(", "").replace(")","").replace("tensor","")) if type(i) == str else i for i in x]).loc["Final Time Samples"]
+        print(df.shape[0])
         hs = hurst_estimation(df.to_numpy(), sample_type="Final Time Samples at Train Epoch {}".format(train_epoch), isfBm=config.isfBm, true_hurst=config.hurst)

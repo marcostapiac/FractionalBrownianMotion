@@ -37,7 +37,7 @@ def prepare_sines_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VE
         :return: Trained score network
     """
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(config.max_epochs)))
     except FileNotFoundError as e:
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
         training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
@@ -50,11 +50,11 @@ def prepare_sines_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VE
             np.save(config.data_path, data)
         data = data.cumsum(axis=1)[:training_size, :]
         train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(config.max_epochs)))
 
     if config.test_pred_lstm:
         try:
-            torch.load(config.pred_lstm_trained_path + "_Nepochs" + str(config.pred_lstm_max_epochs))
+            torch.load(config.pred_lstm_trained_path + "_NEp" + str(config.pred_lstm_max_epochs))
         except FileNotFoundError as e:
             print("Error {}; training predictive LSTM\n".format(e))
             pred = PredictiveLSTM(ts_dim=1)
@@ -65,7 +65,7 @@ def prepare_sines_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VE
             train_and_save_predLSTM(data=synthetic.cpu().numpy(), config=config, model=pred)
     if config.test_disc_lstm:
         try:
-            torch.load(config.disc_lstm_trained_path + "_Nepochs" + str(config.disc_lstm_max_epochs))
+            torch.load(config.disc_lstm_trained_path + "_NEp" + str(config.disc_lstm_max_epochs))
         except FileNotFoundError as e:
             print("Error {}; training discriminative LSTM\n".format(e))
             disc = DiscriminativeLSTM(ts_dim=1)
@@ -107,8 +107,8 @@ def run_sines_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDEDi
         agg_dict[j] = exp_dict
     df = pd.DataFrame.from_dict(data=agg_dict)
     df.index = config.exp_keys
-    df.to_csv(config.experiment_path + "_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip", index=True)
-    print(pd.read_csv(config.experiment_path + "_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip",
+    df.to_csv(config.experiment_path + "_NEp{}.csv.gzip".format(config.max_epochs), compression="gzip", index=True)
+    print(pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(config.max_epochs), compression="gzip",
                       index_col=[0]))
 
 
@@ -181,7 +181,7 @@ def prepare_fBm_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESD
         :return: Trained score network
     """
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(config.max_epochs)))
     except FileNotFoundError as e:
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
         training_size = int(min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000))
@@ -197,11 +197,11 @@ def prepare_fBm_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESD
         else:
             data = data[:training_size, :]
         train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(config.max_epochs)))
 
     if config.test_pred_lstm:
         try:
-            torch.load(config.pred_lstm_trained_path + "_Nepochs" + str(config.pred_lstm_max_epochs))
+            torch.load(config.pred_lstm_trained_path + "_NEp" + str(config.pred_lstm_max_epochs))
         except FileNotFoundError as e:
             print("Error {}; training predictive LSTM\n".format(e))
             pred = PredictiveLSTM(ts_dim=1)
@@ -212,7 +212,7 @@ def prepare_fBm_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESD
             train_and_save_predLSTM(data=synthetic.cpu().numpy(), config=config, model=pred)
     if config.test_disc_lstm:
         try:
-            torch.load(config.disc_lstm_trained_path + "_Nepochs" + str(config.disc_lstm_max_epochs))
+            torch.load(config.disc_lstm_trained_path + "_NEp" + str(config.disc_lstm_max_epochs))
         except FileNotFoundError as e:
             print("Error {}; training discriminative LSTM\n".format(e))
             disc = DiscriminativeLSTM(ts_dim=1)
@@ -256,9 +256,9 @@ def run_fBm_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDEDiff
         agg_dict[j] = exp_dict
     df = pd.DataFrame.from_dict(data=agg_dict)
     df.index = config.exp_keys
-    df.to_csv(config.experiment_path + "_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip",
+    df.to_csv(config.experiment_path + "_NEp{}.csv.gzip".format(config.max_epochs), compression="gzip",
               index=True)
-    print(pd.read_csv(config.experiment_path + "_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip",
+    print(pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(config.max_epochs), compression="gzip",
                       index_col=[0]))
 
 
@@ -356,7 +356,7 @@ def prepare_circle_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, V
             :return: Trained score network
         """
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(config.max_epochs)))
     except FileNotFoundError as e:
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
         training_size = min(10 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 2000000)
@@ -368,7 +368,7 @@ def prepare_circle_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, V
             data = generate_circles(S=training_size, noise=config.cnoise)
             np.save(config.data_path, data)  # TODO is this the most efficient way
         train_and_save_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(config.max_epochs)))
     return scoreModel
 
 
@@ -400,8 +400,8 @@ def run_circle_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDED
         agg_dict[j] = exp_dict
     df = pd.DataFrame.from_dict(data=agg_dict)
     df.index = config.exp_keys
-    df.to_csv(config.experiment_path + "_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip", index=True)
-    print(pd.read_csv(config.experiment_path + "_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip",
+    df.to_csv(config.experiment_path + "_NEp{}.csv.gzip".format(config.max_epochs), compression="gzip", index=True)
+    print(pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(config.max_epochs), compression="gzip",
                       index_col=[0]))
 
 

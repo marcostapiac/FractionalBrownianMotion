@@ -12,7 +12,7 @@ if __name__ == "__main__":
     H = config.hurst
 
     path = config.experiment_path.replace("/results/",
-                                          "/results/early_stopping/") + "_Samples_EStop{}_Nepochs{}.csv.gzip".format(
+                                          "/results/early_stopping/") + "_Samples_EStop{}_NEp{}.csv.gzip".format(
         393, config.max_epochs)
     df = pd.read_csv(path, compression="gzip", index_col=[0, 1])
 

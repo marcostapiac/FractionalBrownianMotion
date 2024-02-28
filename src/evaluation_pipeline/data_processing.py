@@ -31,10 +31,10 @@ def prepare_predLSTM_data(data: np.ndarray, config: ConfigDict) -> Tuple[Dataset
     """
     dataset = PredictiveLSTMDataset(data=data, lookback=config.lookback)
     if config.has_cuda:
-        loader = DataLoader(dataset, batch_size=config.lstm_batch_size, pin_memory=True, shuffle=False,
+        loader = DataLoader(dataset, batch_size=config.pd_lstm_batch_size, pin_memory=True, shuffle=False,
                             sampler=DistributedSampler(dataset))
     else:
-        loader = DataLoader(dataset, batch_size=config.lstm_batch_size, pin_memory=True, shuffle=True,
+        loader = DataLoader(dataset, batch_size=config.pd_lstm_batch_size, pin_memory=True, shuffle=True,
                             num_workers=0)
 
     return dataset, loader
@@ -82,7 +82,7 @@ def test_predLSTM(original_data: np.ndarray, synthetic_data: np.ndarray, config:
         :return: MAE losses for original and synthetic datasets
     """
     try:
-        model.load_state_dict(torch.load(config.pred_lstm_trained_path+"_Nepochs{}".format(config.pred_lstm_max_epochs)))
+        model.load_state_dict(torch.load(config.pred_lstm_trained_path+"_NEp{}".format(config.pred_lstm_max_epochs)))
     except FileNotFoundError as e:
         raise RuntimeError("Error {};Please train predictive LSTM before testing\n".format(e))
     else:
@@ -124,10 +124,10 @@ def prepare_discLSTM_data(original: np.ndarray, synthetic: np.ndarray, labels: l
     """
     dataset = DiscriminativeLSTMDataset(org_data=original, synth_data=synthetic, labels=labels)
     if config.has_cuda:
-        loader = DataLoader(dataset, batch_size=config.lstm_batch_size, pin_memory=True, shuffle=False,
+        loader = DataLoader(dataset, batch_size=config.pd_lstm_batch_size, pin_memory=True, shuffle=False,
                             sampler=DistributedSampler(dataset))
     else:
-        loader = DataLoader(dataset, batch_size=config.lstm_batch_size, pin_memory=True, shuffle=True,
+        loader = DataLoader(dataset, batch_size=config.pd_lstm_batch_size, pin_memory=True, shuffle=True,
                             num_workers=0)
 
     return dataset, loader

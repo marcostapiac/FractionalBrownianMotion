@@ -7,7 +7,7 @@ if __name__ == "__main__":
     config = get_config()
     H = config.hurst
     df = pd.read_csv(config.experiment_path.replace("/results/",
-                                                    "/results/early_stopping/") + "_Samples_EStop{}_Nepochs{}.csv.gzip".format(
+                                                    "/results/early_stopping/") + "_Samples_EStop{}_NEp{}.csv.gzip".format(
         1, config.max_epochs), compression="gzip", index_col=[0, 1])
 
     # Synthetic samples

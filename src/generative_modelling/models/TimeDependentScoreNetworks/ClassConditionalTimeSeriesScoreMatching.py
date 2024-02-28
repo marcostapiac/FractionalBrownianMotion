@@ -124,16 +124,20 @@ class ConditionalTimeSeriesScoreMatching(nn.Module):
             max_diff_steps: int,
             diff_embed_size: int,
             diff_hidden_size: int,
+            lstm_hiddendim:int,
+            lstm_numlay:int,
+            lstm_inputdim: int = 1,
+            lstm_dropout:float = 0.1,
             residual_layers: int = 10,
             residual_channels: int = 8,
             dilation_cycle_length: int = 10
     ):
         super().__init__()
         self.rnn = nn.LSTM(
-            input_size=1, # What is the input_size of an LSTM?
-            hidden_size=40,
-            num_layers=2,
-            dropout=0.1,
+            input_size=lstm_inputdim, # What is the input_size of an LSTM?
+            hidden_size=lstm_hiddendim,
+            num_layers=lstm_numlay,
+            dropout=lstm_dropout,
             batch_first=True,
         )
         self.input_projection = nn.Conv1d(

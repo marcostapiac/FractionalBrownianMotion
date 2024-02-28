@@ -16,11 +16,11 @@ def run_backward_drift_error_storing(config: ConfigDict):
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(config.max_epochs)))
     except FileNotFoundError as e:
         raise FileNotFoundError(
             "Error {}; no valid trained model found; train model {} before running experiment\n".format(e,
-                                                                                                        config.scoreNet_trained_path + "_Nepochs" + str(
+                                                                                                        config.scoreNet_trained_path + "_NEp" + str(
                                                                                                             config.max_epochs)))
 
     drift_errors, score_only_drift_errors = run_fBm_backward_drift_experiment(dataSize=10000, diffusion=diffusion,
@@ -29,7 +29,7 @@ def run_backward_drift_error_storing(config: ConfigDict):
                                                                               config=config)
 
     drift_data_path = config.experiment_path.replace("results/",
-                                                     "results/drift_data/") + "_DriftErrorsTS_Nepochs{}".format(
+                                                     "results/drift_data/") + "_DriftErrorsTS_NEp{}".format(
         config.max_epochs).replace(
         ".", "")
 

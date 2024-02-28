@@ -181,7 +181,7 @@ class DiffusionModelTrainer:
             ckp = self.score_network.to(torch.device("cpu")).module.state_dict()  # Save model on CPU
         else:
             ckp = self.score_network.to(torch.device("cpu")).state_dict()  # Save model on CPU
-        filepath = filepath + "_Nepochs{}".format(final_epoch)
+        filepath = filepath + "_NEp{}".format(final_epoch)
         torch.save(ckp, filepath)
         print(f"Trained model saved at {filepath}\n")
         try:

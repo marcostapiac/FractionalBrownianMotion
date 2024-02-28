@@ -37,7 +37,7 @@ def recursive_sampling_and_track(data_shape: tuple, torch_device, feature: torch
         torch_device)  # Move to correct device
     timesteps = torch.linspace(start=config.end_diff_time, end=config.sample_eps,
                                steps=config.max_diff_steps).to(torch_device)
-    drift_errors = torch.zeros(size=(config.max_diff_steps, config.dataSize))
+    drift_errors = torch.zeros(size=(config.max_diff_steps, config.dataSize))#.to(torch_device)
     for i in tqdm(iterable=(range(0, config.max_diff_steps)), dynamic_ncols=False, desc="Sampling :: ", position=0):
         diff_index = torch.Tensor([i]).to(torch_device).long()
         t = timesteps[diff_index]
@@ -99,18 +99,19 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
     with torch.no_grad():
         paths = []
         drift_errors = []
-        t0 = 8
-        fBm = np.load(config.data_path, allow_pickle=True).cumsum(axis=1)[:config.dataSize,:t0]
-        samples = torch.from_numpy(fBm).unsqueeze(-1).to(device).to(torch.float32)
-        del fBm
+        t0 = 255
+        #fBm = np.load(config.data_path, allow_pickle=True).cumsum(axis=1)[:config.dataSize,:t0]
+        samples = torch.from_numpy(np.load(config.data_path, allow_pickle=True).cumsum(axis=1)[:config.dataSize,:t0]).unsqueeze(-1).to(device).to(torch.float32)
+        assert(samples.shape == (config.dataSize, t0, 1))
         true_paths = torch.zeros(size=(data_shape[0], config.timeDim, data_shape[-1])).to(device)
         for i in range(t0):
             output, (h,c) =  scoreModel.rnn(samples[:, [i], :], None)
             features.append(output.permute(1,0,2))
             # Since we do not use score model for generating x1, we set drift errors to 0
             drift_errors.append(torch.zeros((1, config.max_diff_steps, config.dataSize)))
+            assert(samples[:, [i], :].shape == (data_shape[0], 1, data_shape[-1]))
             true_paths[:,[i],:] = samples[:, [i], :]
-        del samples
+            paths.append(samples[:,[i],:])
         for t in range(t0,config.timeDim):
             print("Sampling at real time {}\n".format(t + 1))
             true_past = true_paths[:, :t, :]
@@ -144,6 +145,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
     print(paths)
     print(features)
     final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)
+    assert(final_paths.shape == (config.dataSize, config.timeDim))
     feature_df = torch.concat(features, dim=0).cpu()
     assert (feature_df.shape == (config.timeDim, config.dataSize, 40))
     return np.atleast_2d(final_paths.numpy()), np.atleast_3d(feature_df.numpy()), np.atleast_3d(drift_error_df.numpy())
@@ -161,15 +163,15 @@ def store_score_and_feature() -> None:
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    init_experiment(config=config)
+    #init_experiment(config=config)
     train_epoch = 1920
     assert (train_epoch in config.max_epochs)
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(train_epoch)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
     except FileNotFoundError as e:
         assert FileNotFoundError(
             "Error {}; no valid trained model found; train before initiating experiment\n".format(e))
-    cleanup_experiment()
+    #cleanup_experiment()
     rng = np.random.default_rng()
     paths, features, drift_errors = run_feature_drift_recursive_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                                                          data_shape=(
@@ -182,7 +184,7 @@ def store_score_and_feature() -> None:
     print("Storing Path Data\n")
     path_df = pd.DataFrame(paths)
     print(path_df)
-    path_df_path = config.experiment_path + "_Nepochs{}_PS_SFS.parquet.gzip".format(train_epoch)
+    path_df_path = config.experiment_path + "_NEp{}_PS_SFS.parquet.gzip".format(train_epoch)
     path_df.to_parquet(path_df_path, compression="gzip")
     path_df.info()
     hs = hurst_estimation(path_df.to_numpy(), sample_type="Final Time Samples at Train Epoch {}".format(train_epoch),
@@ -199,48 +201,63 @@ def store_score_and_feature() -> None:
     del path_df
     print("Done Storing Path Data\n")
 
-    print("Storing Drift Errors\n")
+    print("Creating Drift Errors DF\n")
     # Store
     drift_data_path = config.experiment_path.replace("results/",
-                                                     "results/drift_data/") + "_Nepochs{}_PS_SFS".format(
+                                                     "results/drift_data/") + "_NEp{}_PS_SFS".format(
         train_epoch).replace(
         ".", "") + ".parquet.gzip"
     drift_df = pd.concat({i: pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.timeDim))})
     print(drift_df)
     drift_df.info()
 
-    bad_drift_df_1 = drift_df.loc[pd.IndexSlice[:, :], bad_idxs_1]
-    bad_drift_df_1.to_parquet(drift_data_path.replace(".parquet.gzip", "_bad1.parquet.gzip"), compression="gzip")
-    print(bad_drift_df_1)
-    bad_drift_df_2 = drift_df.loc[pd.IndexSlice[:, :], bad_idxs_2]
-    bad_drift_df_2.to_parquet(drift_data_path.replace(".parquet.gzip", "_bad2.parquet.gzip"), compression="gzip")
-    print(bad_drift_df_2)
-    good_drift_df = drift_df.loc[pd.IndexSlice[:, :], good_idxs]
-    good_drift_df.to_parquet(drift_data_path.replace(".parquet.gzip", "_good.parquet.gzip"), compression="gzip")
-    print(good_drift_df)
+    if len(bad_idxs_1) > 0 or len(bad_idxs_2) > 0:
+        print("Creating Drift Errors DF\n")
+        # Store
+        drift_data_path = config.experiment_path.replace("results/",
+                                                         "results/drift_data/") + "_NEp{}_PS_SFS".format(
+            train_epoch).replace(
+            ".", "") + ".parquet.gzip"
+        drift_df = pd.concat({i: pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.timeDim))})
+        print(drift_df)
+        drift_df.info()
+        print("Creating Feature Data DF\n")
+        feature_data_path = config.experiment_path.replace("results/",
+                                                           "results/feature_data/") + "_NEp{}_PS_SFS".format(
+            train_epoch).replace(".", "") + ".parquet.gzip"
+        feature_df = pd.concat({i: pd.DataFrame(features[i, :, :]) for i in tqdm(range(config.timeDim))})
+        print(feature_df)
+        feature_df.info()
 
-    # drift_df.to_parquet(drift_data_path, compression="gzip")
-    del drift_df
-    print("Done Storing Drift Errors\n")
+        if len(bad_idxs_1) > 0:
+            bad_drift_df_1 = drift_df.loc[pd.IndexSlice[:, :], bad_idxs_1]
+            bad_drift_df_1.to_parquet(drift_data_path.replace(".parquet.gzip", "_bad1.parquet.gzip"), compression="gzip")
+            print(bad_drift_df_1)
+            bad_feat_df_1 = feature_df.loc[pd.IndexSlice[:, bad_idxs_1], :]
+            bad_feat_df_1.to_parquet(feature_data_path.replace(".parquet.gzip", "_bad1.parquet.gzip"), compression="gzip")
+            print(bad_feat_df_1)
+        else:
+            print("No under-estimated Hurst Paths\n")
+        if len(bad_idxs_2) > 0:
+            bad_drift_df_2 = drift_df.loc[pd.IndexSlice[:, :], bad_idxs_2]
+            bad_drift_df_2.to_parquet(drift_data_path.replace(".parquet.gzip", "_bad2.parquet.gzip"),
+                                      compression="gzip")
+            print(bad_drift_df_2)
+            bad_feat_df_2 = feature_df.loc[pd.IndexSlice[:, bad_idxs_2], :]
+            bad_feat_df_2.to_parquet(feature_data_path.replace(".parquet.gzip", "_bad2.parquet.gzip"),
+                                     compression="gzip")
+            print(bad_feat_df_2)
+        else:
+            print("No over-estimated Hurst Paths\n")
+        good_drift_df = drift_df.loc[pd.IndexSlice[:, :], good_idxs]
+        good_drift_df.to_parquet(drift_data_path.replace(".parquet.gzip", "_good.parquet.gzip"), compression="gzip")
+        print(good_drift_df)
+        good_feat_df = feature_df.loc[pd.IndexSlice[:, good_idxs], :]
+        good_feat_df.to_parquet(feature_data_path.replace(".parquet.gzip", "_good.parquet.gzip"), compression="gzip")
+        print(good_feat_df)
+    else:
+        print("Not storing good paths since they are all good!\n")
 
-    print("Storing Feature Data\n")
-    feature_data_path = config.experiment_path.replace("results/", "results/feature_data/") + "_Nepochs{}_PS_SFS".format(
-        train_epoch).replace(".", "") + ".parquet.gzip"
-    feature_df = pd.concat({i: pd.DataFrame(features[i, :, :]) for i in tqdm(range(config.timeDim))})
-    print(feature_df)
-    feature_df.info()
-    bad_feat_df_1 = feature_df.loc[pd.IndexSlice[:, bad_idxs_1], :]
-    bad_feat_df_1.to_parquet(feature_data_path.replace(".parquet.gzip", "_bad1.parquet.gzip"), compression="gzip")
-    print(bad_feat_df_1)
-    bad_feat_df_2 = feature_df.loc[pd.IndexSlice[:, bad_idxs_2], :]
-    bad_feat_df_2.to_parquet(feature_data_path.replace(".parquet.gzip", "_bad2.parquet.gzip"), compression="gzip")
-    print(bad_feat_df_2)
-    good_feat_df = feature_df.loc[pd.IndexSlice[:, good_idxs], :]
-    good_feat_df.to_parquet(feature_data_path.replace(".parquet.gzip", "_good.parquet.gzip"), compression="gzip")
-    print(good_feat_df)
-    # feature_df.to_parquet(feature_data_path, compression="gzip")
-    del feature_df
-    print("Done Storing Feature Data\n")
 
 
 if __name__ == "__main__":

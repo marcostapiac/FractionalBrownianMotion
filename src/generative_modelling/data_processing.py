@@ -125,7 +125,7 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
 
 @record
 def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
-                     scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], data_shape: Tuple[int, int, int],
+                     scoreModel: ConditionalTimeSeriesScoreMatching, data_shape: Tuple[int, int, int],
                      config: ConfigDict) -> torch.Tensor:
     """
     Recursive reverse sampling using LSTMs

@@ -3,7 +3,6 @@ import pandas as pd
 import torch
 from tqdm import tqdm
 
-from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
     ConditionalTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
@@ -24,7 +23,7 @@ def exact_fBm_features():
     train_epoch = 1920
     assert (train_epoch in config.max_epochs)
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(train_epoch)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
     except FileNotFoundError as e:
         assert FileNotFoundError(
             "Error {}; no valid trained model found; train before initiating experiment\n".format(e))
@@ -56,7 +55,7 @@ def exact_fBm_features():
     feature_df = torch.concat(features, dim=0).cpu()
     assert (feature_df.shape == (config.timeDim, config.dataSize, 40))
     feature_df = pd.concat({i: pd.DataFrame(feature_df[i, :, :]) for i in tqdm(range(config.timeDim))})
-    feature_data_path = config.experiment_path.replace("results/", "results/feature_data/") + "_Nepochs{}_Exact".format(
+    feature_data_path = config.experiment_path.replace("results/", "results/feature_data/") + "_NEp{}_Exact".format(
         train_epoch).replace(".", "") + ".parquet.gzip"
     feature_df.info()
     print(feature_df)
