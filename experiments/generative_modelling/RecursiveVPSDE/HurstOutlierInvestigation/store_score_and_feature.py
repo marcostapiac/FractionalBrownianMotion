@@ -157,7 +157,7 @@ def store_score_and_feature() -> None:
     train_epoch = 1920
     assert (train_epoch in config.max_epochs)
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(train_epoch)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
     except FileNotFoundError as e:
         assert FileNotFoundError(
             "Error {}; no valid trained model found; train before initiating experiment\n".format(e))
@@ -174,7 +174,7 @@ def store_score_and_feature() -> None:
     print("Storing Path Data\n")
     path_df = pd.DataFrame(paths)
     print(path_df)
-    path_df_path = config.experiment_path + "_Nepochs{}_SFS.parquet.gzip".format(train_epoch)
+    path_df_path = config.experiment_path + "_NEp{}_SFS.parquet.gzip".format(train_epoch)
     path_df.to_parquet(path_df_path, compression="gzip")
     path_df.info()
     hs = hurst_estimation(path_df.to_numpy(), sample_type="Final Time Samples at Train Epoch {}".format(train_epoch),
@@ -194,7 +194,7 @@ def store_score_and_feature() -> None:
     print("Storing Drift Errors\n")
     # Store
     drift_data_path = config.experiment_path.replace("results/",
-                                                     "results/drift_data/") + "_Nepochs{}_SFS".format(
+                                                     "results/drift_data/") + "_NEp{}_SFS".format(
         train_epoch).replace(
         ".", "") + ".parquet.gzip"
     drift_df = pd.concat({i: pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.timeDim))})
@@ -216,7 +216,7 @@ def store_score_and_feature() -> None:
     print("Done Storing Drift Errors\n")
 
     print("Storing Feature Data\n")
-    feature_data_path = config.experiment_path.replace("results/", "results/feature_data/") + "_Nepochs{}_SFS".format(
+    feature_data_path = config.experiment_path.replace("results/", "results/feature_data/") + "_NEp{}_SFS".format(
         train_epoch).replace(".", "") + ".parquet.gzip"
     feature_df = pd.concat({i: pd.DataFrame(features[i, :, :]) for i in tqdm(range(config.timeDim))})
     print(feature_df)

@@ -106,7 +106,7 @@ def get_config():
     config.lookback = 10
     config.pred_lstm_max_epochs = 700
     config.disc_lstm_max_epochs = 5000
-    config.lstm_batch_size = 128
+    config.pd_lstm_batch_size = 128
     config.disc_lstm_trained_path = config.scoreNet_trained_path.replace(
         "src/generative_modelling/trained_models/trained_", "src/evaluation_pipeline/trained_models/trained_discLSTM_")
     config.disc_lstm_snapshot_path = config.disc_lstm_trained_path.replace("trained_models/", "snapshots/")

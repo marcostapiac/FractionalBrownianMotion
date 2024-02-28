@@ -15,7 +15,7 @@ def run_early_stopping(config: ConfigDict) -> None:
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     scoreModel = TimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
-    scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
+    scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(config.max_epochs)))
 
     config.early_stop_idx = 199
     synth_samples = reverse_sampling(data_shape=(config.dataSize, config.timeDim), diffusion=diffusion,
@@ -33,7 +33,7 @@ def run_early_stopping(config: ConfigDict) -> None:
     df.index = pd.MultiIndex.from_product(
         [["Early Stop {}".format(early_stop_idx), "Final Time Samples"], [i for i in range(config.dataSize)]])
     df.to_csv(config.experiment_path.replace("/results/",
-                                             "/results/early_stopping/") + "_EStop{}_Nepochs{}.csv.gzip".format(
+                                             "/results/early_stopping/") + "_EStop{}_NEp{}.csv.gzip".format(
         early_stop_idx, config.max_epochs), compression="gzip")
 
 

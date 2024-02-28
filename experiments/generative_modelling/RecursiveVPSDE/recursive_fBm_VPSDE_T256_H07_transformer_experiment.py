@@ -114,7 +114,7 @@ def recursive_transformer_reverse_sampling(diffusion: VPSDEDiffusion,
     df.index = pd.MultiIndex.from_product(
         [["Final Time Samples"], [i for i in range(config.dataSize)]])
     df.to_csv(config.experiment_path.replace("/results/",
-                                             "/results/early_stopping/") + "_EStop{}_Nepochs{}.csv.gzip".format(
+                                             "/results/early_stopping/") + "_EStop{}_NEp{}.csv.gzip".format(
         early_stop_idx, config.max_epochs), compression="gzip")
     return final_paths
 
@@ -136,7 +136,7 @@ if __name__ == "__main__":
     init_experiment(config=config)
 
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(config.max_epochs)))
     except FileNotFoundError as e:
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
         training_size = int(min(1 * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 1000000))
@@ -154,7 +154,7 @@ if __name__ == "__main__":
         data = np.atleast_3d(data)
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
         train_and_save_TF_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(config.max_epochs)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(config.max_epochs)))
 
     cleanup_experiment()
 

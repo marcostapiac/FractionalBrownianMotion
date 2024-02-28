@@ -31,7 +31,7 @@ if __name__ == "__main__":
 
     end_epoch = max(config.max_epochs)
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(end_epoch)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))
     except FileNotFoundError as e:
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
         training_size = int(
@@ -53,10 +53,10 @@ if __name__ == "__main__":
     cleanup_experiment()
 
     for train_epoch in config.max_epochs:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(train_epoch)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
         final_paths = recursive_LSTM_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                                       data_shape=(config.dataSize, config.timeDim, 1), config=config)
         df = pd.DataFrame(final_paths)
         df.index = pd.MultiIndex.from_product(
             [["Final Time Samples"], [i for i in range(config.dataSize)]])
-        df.to_csv(config.experiment_path + "_Nepochs{}.csv.gzip".format(train_epoch), compression="gzip")
+        df.to_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip")

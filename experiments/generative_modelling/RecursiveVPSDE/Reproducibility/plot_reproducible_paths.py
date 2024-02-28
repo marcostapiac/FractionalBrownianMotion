@@ -7,7 +7,7 @@ if __name__ == "__main__":
     from configs.RecursiveVPSDE.recursive_fBm_T256_H07 import get_config
     config = get_config()
     H = config.hurst
-    df = pd.read_csv(config.experiment_path + "_Nepochs{}_MSeed0.csv.gzip".format(
+    df = pd.read_csv(config.experiment_path + "_NEp{}_MSeed0.csv.gzip".format(
      config.max_epochs),
                      compression="gzip", index_col=[0, 1])
     paths = df.values

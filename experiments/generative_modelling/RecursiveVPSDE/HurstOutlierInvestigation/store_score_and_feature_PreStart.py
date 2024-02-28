@@ -167,7 +167,7 @@ def store_score_and_feature() -> None:
     train_epoch = 1920
     assert (train_epoch in config.max_epochs)
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_Nepochs" + str(train_epoch)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
     except FileNotFoundError as e:
         assert FileNotFoundError(
             "Error {}; no valid trained model found; train before initiating experiment\n".format(e))
@@ -184,7 +184,7 @@ def store_score_and_feature() -> None:
     print("Storing Path Data\n")
     path_df = pd.DataFrame(paths)
     print(path_df)
-    path_df_path = config.experiment_path + "_Nepochs{}_PS_SFS.parquet.gzip".format(train_epoch)
+    path_df_path = config.experiment_path + "_NEp{}_PS_SFS.parquet.gzip".format(train_epoch)
     path_df.to_parquet(path_df_path, compression="gzip")
     path_df.info()
     hs = hurst_estimation(path_df.to_numpy(), sample_type="Final Time Samples at Train Epoch {}".format(train_epoch),
@@ -204,7 +204,7 @@ def store_score_and_feature() -> None:
     print("Creating Drift Errors DF\n")
     # Store
     drift_data_path = config.experiment_path.replace("results/",
-                                                     "results/drift_data/") + "_Nepochs{}_PS_SFS".format(
+                                                     "results/drift_data/") + "_NEp{}_PS_SFS".format(
         train_epoch).replace(
         ".", "") + ".parquet.gzip"
     drift_df = pd.concat({i: pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.timeDim))})
@@ -215,7 +215,7 @@ def store_score_and_feature() -> None:
         print("Creating Drift Errors DF\n")
         # Store
         drift_data_path = config.experiment_path.replace("results/",
-                                                         "results/drift_data/") + "_Nepochs{}_PS_SFS".format(
+                                                         "results/drift_data/") + "_NEp{}_PS_SFS".format(
             train_epoch).replace(
             ".", "") + ".parquet.gzip"
         drift_df = pd.concat({i: pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.timeDim))})
@@ -223,7 +223,7 @@ def store_score_and_feature() -> None:
         drift_df.info()
         print("Creating Feature Data DF\n")
         feature_data_path = config.experiment_path.replace("results/",
-                                                           "results/feature_data/") + "_Nepochs{}_PS_SFS".format(
+                                                           "results/feature_data/") + "_NEp{}_PS_SFS".format(
             train_epoch).replace(".", "") + ".parquet.gzip"
         feature_df = pd.concat({i: pd.DataFrame(features[i, :, :]) for i in tqdm(range(config.timeDim))})
         print(feature_df)

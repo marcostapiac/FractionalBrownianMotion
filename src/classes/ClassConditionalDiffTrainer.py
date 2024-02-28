@@ -214,7 +214,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             ckp = self.score_network.to(torch.device("cpu")).module.state_dict()  # Save model on CPU
         else:
             ckp = self.score_network.to(torch.device("cpu")).state_dict()  # Save model on CPU
-        filepath = filepath + "_Nepochs{}".format(final_epoch)
+        filepath = filepath + "_NEp{}".format(final_epoch)
         torch.save(ckp, filepath)
         print(f"Trained model saved at {filepath}\n")
         self.score_network.to(self.device_id) # In the event we continue training after saving
@@ -281,8 +281,9 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             t0 = time.time()
             device_epoch_losses = self._run_epoch(epoch)
             # Average epoch loss for each device over batches
-            epoch_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_losses)).item()).cuda()
+            epoch_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_losses)).item())
             if type(self.device_id) == int:
+                epoch_losses_tensor = epoch_losses_tensor.cuda()
                 all_gpus_losses = [torch.zeros_like(epoch_losses_tensor) for _ in range(torch.cuda.device_count())]
                 torch.distributed.all_gather(all_gpus_losses, epoch_losses_tensor)
             else:

@@ -9,7 +9,7 @@ if __name__ == "__main__":
     config = get_config()
 
     drift_data_path = config.experiment_path.replace("results/",
-                                                     "results/drift_data/") + "_DriftErrorsTS_Nepochs{}".format(
+                                                     "results/drift_data/") + "_DriftErrorsTS_NEp{}".format(
         config.max_epochs).replace(
         ".", "")
     drift_pic_path = drift_data_path.replace("/drift_data/", "/drift_plots/")

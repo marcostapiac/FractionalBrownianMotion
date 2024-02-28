@@ -25,13 +25,13 @@ def path_score_feature_analysis() -> None:
 
     # Now plot Hurst histogram for the generated samples
     for train_epoch in [1920]:  # config.max_epochs:
-        path_df_path = config.experiment_path + "_Nepochs{}_PS_SFS.parquet.gzip".format(train_epoch)
+        path_df_path = config.experiment_path + "_NEp{}_PS_SFS.parquet.gzip".format(train_epoch)
         path_df = pd.read_parquet(path_df_path, engine="pyarrow")
         #hurst_estimation(path_df.to_numpy(),
         #                 sample_type="Final Time Samples at Train Epoch {}".format(train_epoch),
         #                 isfBm=config.isfBm, true_hurst=config.hurst, show=True)
         drift_data_path = config.experiment_path.replace("results/",
-                                                         "results/drift_data/") + "_Nepochs{}_PS_SFS".format(
+                                                         "results/drift_data/") + "_NEp{}_PS_SFS".format(
             train_epoch).replace(
             ".", "") + ".parquet.gzip"
         try:
@@ -48,7 +48,7 @@ def path_score_feature_analysis() -> None:
             good_drift_df = pd.DataFrame()
 
         feature_data_path = config.experiment_path.replace("results/",
-                                                           "results/feature_data/") + "_Nepochs{}_PS_SFS".format(
+                                                           "results/feature_data/") + "_NEp{}_PS_SFS".format(
             train_epoch).replace(".", "") + ".parquet.gzip"
         try:
             bad_feat_df_1 = pd.read_parquet(feature_data_path.replace(".parquet.gzip", "_bad1.parquet.gzip"),engine="pyarrow")
