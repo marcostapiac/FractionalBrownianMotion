@@ -50,6 +50,7 @@ def get_config():
     config.lstm_numlay = 2
     config.lstm_inputdim = 1
     config.lstm_dropout = 0.1
+    assert((config.lstm_dropout == 0 and config.lstm_numlay == 1) or (config.lstm_dropout > 0 and config.lstm_numlay > 1))
 
     # Model filepath
     mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_MLP_{}_incs_{}_unitIntv_fBm_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_TembDim{}_EncShapes{}_tl2".format(
