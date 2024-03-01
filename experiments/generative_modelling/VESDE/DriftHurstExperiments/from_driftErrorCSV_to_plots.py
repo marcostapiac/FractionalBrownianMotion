@@ -21,29 +21,29 @@ if __name__ == "__main__":
     time_idxs = [i for i in range(start_index, end_index)]
     drift_errors = pd.read_csv(drift_data_path + ".csv.gzip", compression="gzip", index_col=[0])
     drift_hm_path = drift_pic_path.replace("DriftErrorsTS", "DriftErrorsHM")
-    dims = [i for i in range(config.timeDim)]
+    dims = [i for i in range(config.ts_length)]
     time_dim_drift_errors = drift_errors.iloc[:, dims]
     time_dim_drift_errors = time_dim_drift_errors.mean(axis=1).to_numpy().reshape((config.max_diff_steps, 1))
 
     plot_errors_ts(
         time_space[time_idxs],
         time_dim_drift_errors[time_idxs],
-        plot_title="MSE Drift Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst, config.timeDim),
+        plot_title="MSE Drift Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst, config.ts_length),
         path=drift_pic_path)
     time_dim_drift_errors = (time_dim_drift_errors[::-1].cumsum() / np.arange(1, config.max_diff_steps + 1))[::-1]
 
     plot_errors_ts(
         time_space[time_idxs],
         time_dim_drift_errors[time_idxs],
-        plot_title="MSE Drift CumMean Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst, config.timeDim),
+        plot_title="MSE Drift CumMean Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst, config.ts_length),
         path=drift_pic_path)
 
     start_index = 0
     end_index = 10
 
     time_idxs = [i for i in range(start_index, end_index)]
-    dims = [i for i in range(0, config.timeDim)]
+    dims = [i for i in range(0, config.ts_length)]
     plot_errors_heatmap(drift_errors.iloc[time_idxs, dims].to_numpy(),
                         plot_title="MSE Drift Error for VESDE fBm with $(H, T) = ({},{})$".format(config.hurst,
-                                                                                                  config.timeDim),
+                                                                                                  config.ts_length),
                         path=drift_hm_path, xticks=dims, yticks=time_idxs)

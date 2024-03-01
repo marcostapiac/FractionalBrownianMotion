@@ -99,7 +99,7 @@ def recursive_transformer_reverse_sampling(diffusion: VPSDEDiffusion,
     scoreModel.eval()
     with torch.no_grad():
         paths = torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)
-        for t in range(config.timeDim):
+        for t in range(config.ts_length):
             if t == 0:
                 output, (h, c) = scoreModel.rnn(paths, None)
             else:
@@ -145,7 +145,7 @@ if __name__ == "__main__":
             assert (data.shape[0] >= training_size)
         except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
-            data = generate_fBn(T=config.timeDim, isUnitInterval=config.isUnitInterval, S=training_size, H=config.hurst)
+            data = generate_fBn(T=config.ts_length, isUnitInterval=config.isUnitInterval, S=training_size, H=config.hurst)
             np.save(config.data_path, data)
         if config.isfBm:
             data = data.cumsum(axis=1)[:training_size, :]
@@ -159,4 +159,4 @@ if __name__ == "__main__":
     cleanup_experiment()
 
     recursive_transformer_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
-                               data_shape=(config.dataSize, config.timeDim, 1), config=config)
+                               data_shape=(config.dataSize, config.ts_length, 1), config=config)

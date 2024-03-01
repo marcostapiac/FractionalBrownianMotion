@@ -2,6 +2,8 @@ import os
 import pickle
 import time
 from typing import Union
+
+import numpy as np
 import torch.distributed as dist
 
 import torch
@@ -24,7 +26,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 # Tutorial: https://www.youtube.com/watch?v=-LAtx9Q6DA8
 
 
-class ConditionalDiffusionModelTrainer(nn.Module):
+class ConditionalMarkovianDiffusionModelTrainer(nn.Module):
     """ Trainer class for a single GPU on a single machine, reporting aggregate loss over all batches """
 
     def __init__(self,
@@ -41,6 +43,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
                  checkpoint_freq: int,
                  to_weight: bool,
                  hybrid_training: bool,
+                 mkv_blnk:int,
                  loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
         super().__init__()
@@ -61,6 +64,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
         self.end_diff_time = end_diff_time
         self.is_hybrid = hybrid_training
         self.include_weightings = to_weight
+        self.lookback = mkv_blnk
 
         # Move score network to appropriate device
         if type(self.device_id) == int:
@@ -114,9 +118,16 @@ class ConditionalDiffusionModelTrainer(nn.Module):
         """
         self.opt.zero_grad()
         B, T, D = xts.shape
+        assert(features.shape[:2] == (B, T) and features.shape[-1] == D)
+        M = features.shape[2]
         # Reshaping concatenates vectors in dim=1
-        xts = xts.reshape(B * T, 1, -1)
-        features = features.reshape(B * T, 1, -1)
+        xts = xts.reshape(B * T, 1, D)
+        # Features is originally shaped (NumTimeSeries, TimeSeriesLength, LookBackWindow, TimeSeriesDim)
+        # Reshape so that we have (NumTimeSeries*TimeSeriesLength, 1, LookBackWindow, TimeSeriesDim)
+        features = features.reshape(B * T, 1, M, D)
+        # Now reshape again into (NumTimeSeries*TimeSeriesLength, 1, LookBackWindow*TimeSeriesDim)
+        # Note this is for the simplest implementation of CondUpsampler which is simply an MLP
+        features = features.reshape(B * T, 1, M*D, 1).permute((0,1,3,2)).squeeze(2)
         target_scores = target_scores.reshape(B * T, 1, -1)
         diff_times = diff_times.reshape(B * T)
         eff_times = eff_times.reshape(target_scores.shape)
@@ -231,13 +242,19 @@ class ConditionalDiffusionModelTrainer(nn.Module):
         """
 
         # batch shape (N_batches, Time Series Length, Input Size)
-        # hidden states: (D*NumLayers, N, Hidden Dims), D is 2 if bidirectional, else 1.
-        dbatch = torch.cat([torch.zeros((batch.shape[0], 1, batch.shape[-1])).to(batch.device), batch], dim=1)
-        if type(self.device_id) == int:
-            output, (hn, cn) = (self.score_network.module.rnn(dbatch, None))
-        else:
-            output, (hn, cn) = (self.score_network.rnn(dbatch, None))
-        return output[:, :-1, :]
+        # The historical vector for each t in (N_batches, t, Input Size) is (N_batches, t-20:t, Input Size)
+        # Create new tensor of size (N_batches, Time Series Length, Input Size, 20, Input Size) so that each dimension
+        # of the time series has a corresponding past of size (20, 1)
+        m = self.lookback
+        N, T, D = batch.size()
+        # Generate indices for slicing
+        indices = (torch.arange(m)[:, None] + torch.arange(-m,T - m)).T
+        # Use advanced indexing to extract the subarrays
+        result_tensor = batch[:, indices, :]
+        mask = torch.flip(~torch.triu(torch.ones(m, m), diagonal=1).bool(), dims=(0,))
+        result_tensor[:, :m, :][:,mask,:] = 0.
+        # Feature tensor is of size (Num_TimeSeries, TimeSeriesLength, LookbackWindow, TimeSeriesDim)
+        return result_tensor
 
     def _save_loss(self, losses: list, filepath: str):
         """

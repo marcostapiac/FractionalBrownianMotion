@@ -21,8 +21,8 @@ if __name__ == "__main__":
     isfBm = True if "False_incs" in path else False
 
     fbn = FractionalBrownianNoise(H=config.hurst, rng=np.random.default_rng())
-    true_cov = compute_fBm_cov(fbn, T=config.timeDim, isUnitInterval=unitInterval) if isfBm else compute_fBn_cov(fbn,
-                                                                                                                 T=config.timeDim,
+    true_cov = compute_fBm_cov(fbn, T=config.ts_length, isUnitInterval=unitInterval) if isfBm else compute_fBn_cov(fbn,
+                                                                                                                 T=config.ts_length,
                                                                                                                  isUnitInterval=unitInterval)
 
     S = df.index.levshape[1]
@@ -32,10 +32,10 @@ if __name__ == "__main__":
         plot_diffCov_heatmap(true_cov=true_cov[:, :], gen_cov=this_cov[:, :], annot=False, image_path="")
 
     if config.isfBm:
-        exact_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=S,
+        exact_samples = generate_fBm(H=config.hurst, T=config.ts_length, S=S,
                                      isUnitInterval=config.isUnitInterval)
     else:
-        exact_samples = generate_fBn(H=config.hurst, T=config.timeDim, S=S,
+        exact_samples = generate_fBn(H=config.hurst, T=config.ts_length, S=S,
                                      isUnitInterval=config.isUnitInterval)
 
     plot_diffCov_heatmap(true_cov=true_cov, gen_cov=np.cov(exact_samples.T), annot=False, image_path="")

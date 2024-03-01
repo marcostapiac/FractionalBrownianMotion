@@ -4,38 +4,37 @@ import numpy as np
 import pandas as pd
 import torch
 
-from src.generative_modelling.data_processing import train_and_save_recursive_diffusion_model, \
-    recursive_LSTM_reverse_sampling
+from src.classes.ClassConditionalMarkovianDiffTrainer import ConditionalMarkovianDiffusionModelTrainer
+from src.generative_modelling.data_processing import recursive_LSTM_reverse_sampling, \
+    train_and_save_recursive_diffusion_model
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
-    ConditionalTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTimeSeriesScoreMatching import \
+    ConditionalMarkovianTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from utils.data_processing import init_experiment, cleanup_experiment
 from utils.math_functions import generate_fBn
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.recursive_fBm_T256_H07_tl_10data import get_config
+    from configs.RecursiveVPSDE.recursive_Markovian_fBm_T256_H07_tl_5data import get_config
 
     config = get_config()
     assert (0 < config.hurst < 1.)
     assert (config.early_stop_idx == 0)
-    assert(config.tdata_mult == 10)
-
+    assert(config.tdata_mult == 5)
+    print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()
-    scoreModel = ConditionalTimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
+    scoreModel = ConditionalMarkovianTimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
     init_experiment(config=config)
-
     end_epoch = max(config.max_epochs)
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))
     except FileNotFoundError as e:
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
-        training_size = int(
-            min(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 1200000))
+        training_size = int(min(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 1200000))
         try:
             data = np.load(config.data_path, allow_pickle=True)
             assert (data.shape[0] >= training_size)
@@ -48,8 +47,9 @@ if __name__ == "__main__":
         else:
             data = data[:training_size, :]
         data = np.atleast_3d(data)
+        assert(data.shape == (training_size, config.ts_length, config.ts_dims))
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
-        train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
+        train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel, trainClass=ConditionalMarkovianDiffusionModelTrainer)
     cleanup_experiment()
 
     for train_epoch in config.max_epochs:

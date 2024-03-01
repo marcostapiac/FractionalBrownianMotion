@@ -44,17 +44,17 @@ def run(config: ConfigDict):
         np.linspace(config.sample_eps, config.end_diff_time, config.max_diff_steps)[start_index:end_index],
         time_dim_score_errors[start_index:end_index],
         plot_title="MSE Score VPSDE {} {} fBm with $(H, T) = ({},{})$".format(increment, unitInterval, config.hurst,
-                                                                              config.timeDim),
+                                                                              config.ts_length),
         path=pic_path)
 
     pic_path = pic_path.replace("ScoreErrorTS", "ScoreErrorHM")
 
-    dims = [i for i in range(config.timeDim)]
+    dims = [i for i in range(config.ts_length)]
     times = np.linspace(start_index, end_index)
     plot_errors_heatmap(score_errors[start_index:end_index, :],
                         plot_title="MSE Score VPSDE {} {} fBm with $(H, T) = ({},{})$".format(increment, unitInterval,
                                                                                               config.hurst,
-                                                                                              config.timeDim),
+                                                                                              config.ts_length),
                         path=pic_path, xticks=dims, yticks=list(times))
 
 

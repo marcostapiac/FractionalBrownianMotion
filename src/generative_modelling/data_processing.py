@@ -11,6 +11,7 @@ from torch.utils.data.distributed import DistributedSampler
 from torchmetrics import MeanMetric
 
 from src.classes.ClassConditionalDiffTrainer import ConditionalDiffusionModelTrainer
+from src.classes.ClassConditionalMarkovianDiffTrainer import ConditionalMarkovianDiffusionModelTrainer
 from src.classes.ClassConditionalSDESampler import ConditionalSDESampler
 from src.classes.ClassCorrector import VESDECorrector, VPSDECorrector
 from src.classes.ClassDiffTrainer import DiffusionModelTrainer
@@ -43,7 +44,8 @@ def prepare_scoreModel_data(data: np.ndarray, batch_size: int, config: ConfigDic
     else:
         trainLoader = DataLoader(train, batch_size=batch_size, pin_memory=True, shuffle=True,
                                  num_workers=0)
-    print("Total Number of Datapoints {} :: DataLoader Total Number of Datapoints {}".format(data.shape[0], len(trainLoader.sampler)))
+    print("Total Number of Datapoints {} :: DataLoader Total Number of Datapoints {}".format(data.shape[0],
+                                                                                             len(trainLoader.sampler)))
     return trainLoader
 
 
@@ -80,7 +82,8 @@ def train_and_save_diffusion_model(data: np.ndarray,
                                     loss_aggregator=torchmetrics.aggregation.MeanMetric,
                                     snapshot_path=config.scoreNet_snapshot_path, device=device,
                                     train_eps=train_eps,
-                                    end_diff_time=end_diff_time, max_diff_steps=max_diff_steps, to_weight=config.weightings, hybrid_training=config.hybrid)
+                                    end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
+                                    to_weight=config.weightings, hybrid_training=config.hybrid)
 
     # Start training
     trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
@@ -125,8 +128,8 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
 
 @record
 def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
-                     scoreModel: ConditionalTimeSeriesScoreMatching, data_shape: Tuple[int, int, int],
-                     config: ConfigDict) -> torch.Tensor:
+                                    scoreModel: ConditionalTimeSeriesScoreMatching, data_shape: Tuple[int, int, int],
+                                    config: ConfigDict) -> torch.Tensor:
     """
     Recursive reverse sampling using LSTMs
         :param diffusion: Diffusion model
@@ -140,7 +143,7 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
         device = 0
     else:
         device = torch.device("cpu")
-    assert(config.predictor_model == "ancestral")
+    assert (config.predictor_model == "ancestral")
     # Define predictor
     predictor_params = [diffusion, scoreModel, config.end_diff_time, config.max_diff_steps, device, config.sample_eps]
     predictor = ConditionalAncestralSamplingPredictor(*predictor_params)
@@ -153,23 +156,26 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
         corrector = VPSDECorrector(*corrector_params)
     else:
         corrector = None
-    sampler = ConditionalSDESampler(diffusion=diffusion, sample_eps=config.sample_eps, predictor=predictor, corrector=corrector)
+    sampler = ConditionalSDESampler(diffusion=diffusion, sample_eps=config.sample_eps, predictor=predictor,
+                                    corrector=corrector)
 
     scoreModel.eval()
     with torch.no_grad():
         samples = torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)
         paths = []
-        for t in range(config.timeDim):
-            print("Sampling at real time {}\n".format(t+1))
+        for t in range(config.ts_length):
+            print("Sampling at real time {}\n".format(t + 1))
             if t == 0:
                 output, (h, c) = scoreModel.rnn(samples, None)
             else:
                 output, (h, c) = scoreModel.rnn(samples, (h, c))
-            samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output, early_stop_idx=config.early_stop_idx)
-            assert(samples.shape == (data_shape[0], 1, data_shape[-1]))
+            samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output,
+                                     early_stop_idx=config.early_stop_idx)
+            assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
             paths.append(samples)
     final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)
     return np.atleast_2d(final_paths.numpy())
+
 
 def prepare_recursive_scoreModel_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> DataLoader:
     """
@@ -188,21 +194,25 @@ def prepare_recursive_scoreModel_data(data: np.ndarray, batch_size: int, config:
     else:
         trainLoader = DataLoader(train, batch_size=batch_size, pin_memory=True, shuffle=True,
                                  num_workers=0)
-    print("Total Number of Datapoints {} :: DataLoader Total Number of Datapoints {}".format(data.shape[0], len(trainLoader.sampler)))
+    print("Total Number of Datapoints {} :: DataLoader Total Number of Datapoints {}".format(data.shape[0],
+                                                                                             len(trainLoader.sampler)))
     return trainLoader
 
 
 @record
 def train_and_save_recursive_diffusion_model(data: np.ndarray,
-                                   config: ConfigDict,
-                                   diffusion: VPSDEDiffusion,
-                                   scoreModel: Union[NaiveMLP, ConditionalTimeSeriesScoreMatching]) -> None:
+                                             config: ConfigDict,
+                                             diffusion: VPSDEDiffusion,
+                                             scoreModel: Union[NaiveMLP, ConditionalTimeSeriesScoreMatching],
+                                             trainClass: Union[
+                                                 ConditionalDiffusionModelTrainer, ConditionalMarkovianDiffusionModelTrainer, DiffusionModelTrainer]) -> None:
     """
     Helper function to initiate training for recursive diffusion model
         :param data: Dataset
         :param config: Configuration dictionary with relevant parameters
         :param diffusion: SDE model
         :param scoreModel: Score network architecture
+        :param trainClass: Class of diffusion trainer
         :return: None
     """
     if config.has_cuda:
@@ -217,13 +227,23 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
 
     # Define trainer
     train_eps, end_diff_time, max_diff_steps, checkpoint_freq = config.train_eps, config.end_diff_time, config.max_diff_steps, config.save_freq
-
-    trainer = ConditionalDiffusionModelTrainer(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
-                                    checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
-                                    loss_aggregator=MeanMetric,
-                                    snapshot_path=config.scoreNet_snapshot_path, device=device,
-                                    train_eps=train_eps,
-                                    end_diff_time=end_diff_time, max_diff_steps=max_diff_steps, to_weight=config.weightings, hybrid_training=config.hybrid)
+    try:
+        trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
+                             checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
+                             loss_aggregator=MeanMetric,
+                             snapshot_path=config.scoreNet_snapshot_path, device=device,
+                             train_eps=train_eps,
+                             end_diff_time=end_diff_time, max_diff_steps=max_diff_steps, to_weight=config.weightings,
+                             mkv_blnk=config.mkv_blnk,
+                             hybrid_training=config.hybrid)
+    except AttributeError as e:
+        trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
+                             checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
+                             loss_aggregator=MeanMetric,
+                             snapshot_path=config.scoreNet_snapshot_path, device=device,
+                             train_eps=train_eps,
+                             end_diff_time=end_diff_time, max_diff_steps=max_diff_steps, to_weight=config.weightings,
+                             hybrid_training=config.hybrid)
 
     # Start training
     trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)

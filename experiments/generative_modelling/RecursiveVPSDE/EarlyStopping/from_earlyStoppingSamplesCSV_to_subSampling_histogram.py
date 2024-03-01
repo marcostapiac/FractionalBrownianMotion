@@ -18,10 +18,10 @@ if __name__ == "__main__":
         hurst_estimation(df.loc[type].to_numpy(), sample_type=type, isfBm=config.isfBm, true_hurst=config.hurst)
 
     if config.isfBm:
-        exact_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=df.index.levshape[1],
+        exact_samples = generate_fBm(H=config.hurst, T=config.ts_length, S=df.index.levshape[1],
                                      isUnitInterval=config.isUnitInterval)
     else:
-        exact_samples = generate_fBn(H=config.hurst, T=config.timeDim, S=df.index.levshape[1],
+        exact_samples = generate_fBn(H=config.hurst, T=config.ts_length, S=df.index.levshape[1],
                                      isUnitInterval=config.isUnitInterval)
 
     hurst_estimation(exact_samples, sample_type="exact", isfBm=True, true_hurst=config.hurst)

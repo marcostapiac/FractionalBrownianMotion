@@ -62,7 +62,7 @@ if __name__ == "__main__":
 
     numpaths = 5
     final_paths = recursive_LSTM_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
-                               data_shape=(numpaths, config.timeDim, 1), config=config)
+                               data_shape=(numpaths, config.ts_length, 1), config=config)
     df = pd.DataFrame(final_paths)
     df.index = pd.MultiIndex.from_product(
         [["Final Time Samples"], [i for i in range(numpaths)]])

@@ -13,13 +13,13 @@ def get_config():
 
     # Data set parameters
     config.hurst = 0.7
-    config.timeDim = 256
+    config.ts_length = 256
     config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(
-        str(config.hurst).replace(".", ""), config.timeDim)
+        str(config.hurst).replace(".", ""), config.ts_length)
 
     # Training hyperparameters
     config.train_eps = 1e-5
-    config.max_diff_steps = 20000  # 1000*max(int(np.log(config.timeDim-1, 1)))
+    config.max_diff_steps = 20000  # 1000*max(int(np.log(config.ts_length-1, 1)))
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
@@ -47,13 +47,13 @@ def get_config():
     # Model filepath
     mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_{}_incs_{}_unitIntv_fBm_VESDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_StdMax{:.4e}_StdMin{:.4e}_TembDim{}_EncShapes{}".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
-        config.timeDim,
+        config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.std_max, config.std_min, config.temb_dim,
         config.enc_shapes).replace(".", "")
 
     tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_{}_incs_{}_unitIntv_fBm_VESDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_StdMax{:.3e}_StdMin{:.4e}_DiffEmbSize{}_ResLay{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Wghts".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
-        config.timeDim,
+        config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.std_max, config.std_min, config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid,
         config.weightings).replace(".", "")
@@ -62,7 +62,7 @@ def get_config():
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
     config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.residual_layers,
                                config.residual_channels, config.dialation_length] \
-        if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.timeDim, config.enc_shapes,
+        if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.ts_length, config.enc_shapes,
                                               config.dec_shapes]
 
     # Snapshot filepath

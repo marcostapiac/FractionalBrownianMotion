@@ -84,12 +84,12 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
 
     if config.isfBm:
         data_cov = torch.from_numpy(
-            compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim,
+            compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.ts_length,
                             isUnitInterval=config.isUnitInterval)).to(
             torch.float32).to(device)
     else:
         data_cov = torch.from_numpy(
-            compute_fBn_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim,
+            compute_fBn_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.ts_length,
                             isUnitInterval=config.isUnitInterval)).to(
             torch.float32).to(device)
 
@@ -103,7 +103,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
         #fBm = np.load(config.data_path, allow_pickle=True).cumsum(axis=1)[:config.dataSize,:t0]
         samples = torch.from_numpy(np.load(config.data_path, allow_pickle=True).cumsum(axis=1)[:config.dataSize,:t0]).unsqueeze(-1).to(device).to(torch.float32)
         assert(samples.shape == (config.dataSize, t0, 1))
-        true_paths = torch.zeros(size=(data_shape[0], config.timeDim, data_shape[-1])).to(device)
+        true_paths = torch.zeros(size=(data_shape[0], config.ts_length, data_shape[-1])).to(device)
         for i in range(t0):
             output, (h,c) =  scoreModel.rnn(samples[:, [i], :], None)
             features.append(output.permute(1,0,2))
@@ -112,7 +112,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
             assert(samples[:, [i], :].shape == (data_shape[0], 1, data_shape[-1]))
             true_paths[:,[i],:] = samples[:, [i], :]
             paths.append(samples[:,[i],:])
-        for t in range(t0,config.timeDim):
+        for t in range(t0,config.ts_length):
             print("Sampling at real time {}\n".format(t + 1))
             true_past = true_paths[:, :t, :]
             curr_time_cov1 = torch.atleast_2d(data_cov[t, :t] @ torch.linalg.inv(data_cov[:t, :t])).to(device)
@@ -137,17 +137,17 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
             true_paths[:, [t], :] = true_samples
             features.append(output.permute(1, 0, 2))
             drift_errors.append(per_time_drift_error.unsqueeze(0))
-            if t < config.timeDim -1:
+            if t < config.ts_length -1:
                 output, (h, c) = scoreModel.rnn(samples, (h, c))
     drift_error_df = torch.concat(drift_errors, dim=0).cpu()
-    assert (drift_error_df.shape == (config.timeDim, config.max_diff_steps, config.dataSize))
+    assert (drift_error_df.shape == (config.ts_length, config.max_diff_steps, config.dataSize))
     del drift_errors
     print(paths)
     print(features)
     final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)
-    assert(final_paths.shape == (config.dataSize, config.timeDim))
+    assert(final_paths.shape == (config.dataSize, config.ts_length))
     feature_df = torch.concat(features, dim=0).cpu()
-    assert (feature_df.shape == (config.timeDim, config.dataSize, 40))
+    assert (feature_df.shape == (config.ts_length, config.dataSize, 40))
     return np.atleast_2d(final_paths.numpy()), np.atleast_3d(feature_df.numpy()), np.atleast_3d(drift_error_df.numpy())
 
 
@@ -175,11 +175,11 @@ def store_score_and_feature() -> None:
     rng = np.random.default_rng()
     paths, features, drift_errors = run_feature_drift_recursive_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                                                          data_shape=(
-                                                                             config.dataSize, config.timeDim, 1),
+                                                                             config.dataSize, config.ts_length, 1),
                                                                          config=config, rng=rng)
     assert (
-    paths.shape == (config.dataSize, config.timeDim) and features.shape == (config.timeDim, config.dataSize, 40),
-    drift_errors.shape == (config.timeDim, config.max_diff_steps, config.dataSize))
+    paths.shape == (config.dataSize, config.ts_length) and features.shape == (config.ts_length, config.dataSize, 40),
+    drift_errors.shape == (config.ts_length, config.max_diff_steps, config.dataSize))
 
     print("Storing Path Data\n")
     path_df = pd.DataFrame(paths)
@@ -207,7 +207,7 @@ def store_score_and_feature() -> None:
                                                      "results/drift_data/") + "_NEp{}_PS_SFS".format(
         train_epoch).replace(
         ".", "") + ".parquet.gzip"
-    drift_df = pd.concat({i: pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.timeDim))})
+    drift_df = pd.concat({i: pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.ts_length))})
     print(drift_df)
     drift_df.info()
 
@@ -218,14 +218,14 @@ def store_score_and_feature() -> None:
                                                          "results/drift_data/") + "_NEp{}_PS_SFS".format(
             train_epoch).replace(
             ".", "") + ".parquet.gzip"
-        drift_df = pd.concat({i: pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.timeDim))})
+        drift_df = pd.concat({i: pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.ts_length))})
         print(drift_df)
         drift_df.info()
         print("Creating Feature Data DF\n")
         feature_data_path = config.experiment_path.replace("results/",
                                                            "results/feature_data/") + "_NEp{}_PS_SFS".format(
             train_epoch).replace(".", "") + ".parquet.gzip"
-        feature_df = pd.concat({i: pd.DataFrame(features[i, :, :]) for i in tqdm(range(config.timeDim))})
+        feature_df = pd.concat({i: pd.DataFrame(features[i, :, :]) for i in tqdm(range(config.ts_length))})
         print(feature_df)
         feature_df.info()
 

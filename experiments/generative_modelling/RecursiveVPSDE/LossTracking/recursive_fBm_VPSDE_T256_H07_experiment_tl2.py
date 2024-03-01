@@ -41,7 +41,7 @@ if __name__ == "__main__":
             assert (data.shape[0] >= training_size)
         except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
-            data = generate_fBn(T=config.timeDim, isUnitInterval=config.isUnitInterval, S=training_size, H=config.hurst)
+            data = generate_fBn(T=config.ts_length, isUnitInterval=config.isUnitInterval, S=training_size, H=config.hurst)
             np.save(config.data_path, data)
         if config.isfBm:
             data = data.cumsum(axis=1)[:training_size, :]
@@ -55,7 +55,7 @@ if __name__ == "__main__":
     for train_epoch in config.max_epochs:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
         final_paths = recursive_LSTM_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
-                                                      data_shape=(config.dataSize, config.timeDim, 1), config=config)
+                                                      data_shape=(config.dataSize, config.ts_length, 1), config=config)
         df = pd.DataFrame(final_paths)
         df.index = pd.MultiIndex.from_product(
             [["Final Time Samples"], [i for i in range(config.dataSize)]])

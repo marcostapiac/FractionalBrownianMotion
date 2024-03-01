@@ -22,7 +22,7 @@ if __name__ == "__main__":
     config = ml_collections.ConfigDict()
     config.has_cuda = torch.cuda.is_available()
     config.hurst = 0.7
-    config.timeDim = 256
+    config.ts_length = 256
     config.max_diff_steps = 20000
     config.end_diff_time = 1
     config.std_max = 90

@@ -15,8 +15,8 @@ def run(config: ConfigDict) -> None:
     try:
         assert (config.save_freq <= config.max_diff_steps)
         assert (config.save_freq > 0)
-        assert (config.dim1 < config.timeDim)
-        assert (config.dim2 < config.timeDim)
+        assert (config.dim1 < config.ts_length)
+        assert (config.dim2 < config.ts_length)
     except AssertionError as e:
         raise AssertionError("Error {}; check experiment parameters\n".format(e))
     rng = np.random.default_rng()
@@ -61,11 +61,11 @@ if __name__ == "__main__":
     # Run experiment for first dimension pairs
     run(config)
     # Run experiment for last pair of dimensions
-    if config.timeDim == 32:
+    if config.ts_length == 32:
         config.dim1 = 30
         config.dim2 = 31
         run(config)
-    elif config.timeDim == 256:
+    elif config.ts_length == 256:
         config.dim1 = 254
         config.dim2 = 255
         run(config)

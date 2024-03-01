@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 
+from src.classes.ClassConditionalDiffTrainer import ConditionalDiffusionModelTrainer
 from src.generative_modelling.data_processing import recursive_LSTM_reverse_sampling, \
     train_and_save_recursive_diffusion_model
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
@@ -27,7 +28,7 @@ if __name__ == "__main__":
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    #init_experiment(config=config)
+    init_experiment(config=config)
     end_epoch = max(config.max_epochs)
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))
@@ -39,7 +40,7 @@ if __name__ == "__main__":
             assert (data.shape[0] >= training_size)
         except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
-            data = generate_fBn(T=config.timeDim, isUnitInterval=config.isUnitInterval, S=training_size, H=config.hurst)
+            data = generate_fBn(T=config.ts_length, isUnitInterval=config.isUnitInterval, S=training_size, H=config.hurst)
             np.save(config.data_path, data)
         if config.isfBm:
             data = data.cumsum(axis=1)[:training_size, :]
@@ -47,13 +48,13 @@ if __name__ == "__main__":
             data = data[:training_size, :]
         data = np.atleast_3d(data)
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
-        train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
-    #cleanup_experiment()
+        train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel, trainClass=ConditionalDiffusionModelTrainer)
+    cleanup_experiment()
 
     for train_epoch in config.max_epochs:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
         final_paths = recursive_LSTM_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
-                                                      data_shape=(config.dataSize, config.timeDim, 1), config=config)
+                                                      data_shape=(config.dataSize, config.ts_length, 1), config=config)
         df = pd.DataFrame(final_paths)
         df.index = pd.MultiIndex.from_product(
             [["Final Time Samples"], [i for i in range(config.dataSize)]])

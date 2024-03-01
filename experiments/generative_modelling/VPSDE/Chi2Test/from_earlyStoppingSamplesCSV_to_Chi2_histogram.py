@@ -15,14 +15,14 @@ def one_model_run(config: ConfigDict, fBm_samples: np.ndarray, sample_type: str)
 
     print(sample_type)
     # Compute Hurst parameters
-    low, chi2s, high = chiSquared_test(T=config.timeDim, H=config.hurst, samples=approx_fBn,
+    low, chi2s, high = chiSquared_test(T=config.ts_length, H=config.hurst, samples=approx_fBn,
                                        isUnitInterval=config.unitInterval)
-    low_even, even_chi2s, high_even = chiSquared_test(T=config.timeDim // 2, H=config.hurst, samples=even_approx_fBn,
+    low_even, even_chi2s, high_even = chiSquared_test(T=config.ts_length // 2, H=config.hurst, samples=even_approx_fBn,
                                                       isUnitInterval=config.unitInterval)
     my_chi2s = [np.array(chi2s), np.array(even_chi2s)]
     my_bounds = [(low, high), (low_even, high_even)]
     titles = ["All", "Even"]
-    dfs = [config.timeDim - 1, config.timeDim // 2 - 1]
+    dfs = [config.ts_length - 1, config.ts_length // 2 - 1]
     for i in range(len(my_chi2s)):
         fig, ax = plt.subplots()
         ax.axvline(x=my_bounds[i][0], color="blue", label="Lower Bound")

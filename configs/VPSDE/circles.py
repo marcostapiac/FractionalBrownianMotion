@@ -13,7 +13,7 @@ def get_config():
     config.has_cuda = torch.cuda.is_available()
 
     # Data set parameters
-    config.timeDim = 2
+    config.ts_length = 2
     config.cnoise = 0.03
     config.data_path = project_config.ROOT_DIR + "data/noisy_circle_samples.npy"
 
@@ -43,13 +43,13 @@ def get_config():
 
     # Model filepath
     mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_noisy_circle_VPSDE_model_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_TembDim{}_EncShapes{}".format(
-        config.timeDim,
+        config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
         config.enc_shapes).replace(".", "")
 
     tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_noisy_circle_VPSDE_model_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_DiffEmbSize{}_ResLay{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Wghts".format(
-        config.timeDim,
+        config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings).replace(".", "")
@@ -58,7 +58,7 @@ def get_config():
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
     config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.residual_layers,
                                config.residual_channels, config.dialation_length] \
-        if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.timeDim, config.enc_shapes,
+        if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.ts_length, config.enc_shapes,
                                               config.dec_shapes]
 
     # Snapshot filepath

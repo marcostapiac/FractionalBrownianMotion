@@ -19,12 +19,12 @@ def run_experiment(dataSize: int, diffusion: OUSDEDiffusion, scoreModel: Union[N
     try:
         assert (config.train_eps <= config.sample_eps)
         fBm_samples = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
-                                       data_shape=(dataSize, config.timeDim),
+                                       data_shape=(dataSize, config.ts_length),
                                        config=config)
     except AssertionError:
         raise ValueError("Final time during sampling should be at least as large as final time during training")
 
-    true_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=dataSize, rng=rng,
+    true_samples = generate_fBm(H=config.hurst, T=config.ts_length, S=dataSize, rng=rng,
                                 isUnitInterval=config.isUnitInterval)
     return evaluate_fBm_performance(true_samples, fBm_samples.cpu().numpy(), rng=rng, config=config,
                                     exp_dict=experiment_res)

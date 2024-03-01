@@ -84,12 +84,12 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
 
     if config.isfBm:
         data_cov = torch.from_numpy(
-            compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim,
+            compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.ts_length,
                             isUnitInterval=config.isUnitInterval)).to(
             torch.float32).to(device)
     else:
         data_cov = torch.from_numpy(
-            compute_fBn_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.timeDim,
+            compute_fBn_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.ts_length,
                             isUnitInterval=config.isUnitInterval)).to(
             torch.float32).to(device)
 
@@ -99,16 +99,16 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
     with torch.no_grad():
         samples = torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)
         paths = []
-        true_paths = torch.zeros(size=(data_shape[0], config.timeDim, data_shape[-1])).to(device)
+        true_paths = torch.zeros(size=(data_shape[0], config.ts_length, data_shape[-1])).to(device)
         drift_errors = []
-        for t in range(config.timeDim):
+        for t in range(config.ts_length):
             print("Sampling at real time {}\n".format(t + 1))
             if t == 0:
                 output, (h, c) = scoreModel.rnn(samples, None)
                 true_past = torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)
                 curr_time_cov1 = torch.zeros(size=(1, 1)).to(device)
                 curr_time_cov2 = torch.zeros(size=(1, 1)).to(device)
-                curr_var = torch.Tensor([1. / (config.timeDim ** (2 * config.hurst))]).to(device)
+                curr_var = torch.Tensor([1. / (config.ts_length ** (2 * config.hurst))]).to(device)
                 assert (data_cov[0, 0] == curr_var)
             else:
                 output, (h, c) = scoreModel.rnn(samples, (h, c))
@@ -135,9 +135,9 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
 
     final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)
     feature_df = torch.concat(features, dim=0).cpu()
-    assert (feature_df.shape == (config.timeDim, config.dataSize, 40))
+    assert (feature_df.shape == (config.ts_length, config.dataSize, 40))
     drift_error_df = torch.concat(drift_errors, dim=0).cpu()
-    assert (drift_error_df.shape == (config.timeDim, config.max_diff_steps, config.dataSize))
+    assert (drift_error_df.shape == (config.ts_length, config.max_diff_steps, config.dataSize))
     return np.atleast_2d(final_paths.numpy()), np.atleast_3d(feature_df.numpy()), np.atleast_3d(drift_error_df.numpy())
 
 
@@ -165,11 +165,11 @@ def store_score_and_feature() -> None:
     rng = np.random.default_rng()
     paths, features, drift_errors = run_feature_drift_recursive_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                                                          data_shape=(
-                                                                             config.dataSize, config.timeDim, 1),
+                                                                             config.dataSize, config.ts_length, 1),
                                                                          config=config, rng=rng)
     assert (
-    paths.shape == (config.dataSize, config.timeDim) and features.shape == (config.timeDim, config.dataSize, 40),
-    drift_errors.shape == (config.timeDim, config.max_diff_steps, config.dataSize))
+    paths.shape == (config.dataSize, config.ts_length) and features.shape == (config.ts_length, config.dataSize, 40),
+    drift_errors.shape == (config.ts_length, config.max_diff_steps, config.dataSize))
 
     print("Storing Path Data\n")
     path_df = pd.DataFrame(paths)
@@ -197,7 +197,7 @@ def store_score_and_feature() -> None:
                                                      "results/drift_data/") + "_NEp{}_SFS".format(
         train_epoch).replace(
         ".", "") + ".parquet.gzip"
-    drift_df = pd.concat({i: pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.timeDim))})
+    drift_df = pd.concat({i: pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.ts_length))})
     print(drift_df)
     drift_df.info()
 
@@ -218,7 +218,7 @@ def store_score_and_feature() -> None:
     print("Storing Feature Data\n")
     feature_data_path = config.experiment_path.replace("results/", "results/feature_data/") + "_NEp{}_SFS".format(
         train_epoch).replace(".", "") + ".parquet.gzip"
-    feature_df = pd.concat({i: pd.DataFrame(features[i, :, :]) for i in tqdm(range(config.timeDim))})
+    feature_df = pd.concat({i: pd.DataFrame(features[i, :, :]) for i in tqdm(range(config.ts_length))})
     print(feature_df)
     feature_df.info()
     bad_feat_df_1 = feature_df.loc[pd.IndexSlice[:, bad_idxs_1], :]

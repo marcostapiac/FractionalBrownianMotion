@@ -12,12 +12,12 @@ def get_config():
     config.has_cuda = torch.cuda.is_available()
 
     # Data set parameters
-    config.timeDim = 32
-    config.data_path = project_config.ROOT_DIR + "data/sine_samples_T{}.npy".format(config.timeDim)
+    config.ts_length = 32
+    config.data_path = project_config.ROOT_DIR + "data/sine_samples_T{}.npy".format(config.ts_length)
 
     # Training hyperparameters
     config.train_eps = 1e-5
-    config.max_diff_steps = 1000 * max(int(np.log2(config.timeDim) - 1), 1)
+    config.max_diff_steps = 1000 * max(int(np.log2(config.ts_length) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
@@ -43,12 +43,12 @@ def get_config():
 
     # Model filepath
     mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_sines_VESDE_model_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_StdMax{:.4e}_StdMin{:.4e}_TembDim{}_EncShapes{}".format(
-        config.timeDim,
+        config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.std_max, config.std_min, config.temb_dim,
         config.enc_shapes).replace(".", "")
 
     tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_sines_VESDE_model_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_StdMax{:.3e}_StdMin{:.4e}_DiffEmbSize{}_ResLay{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Wghts".format(
-        config.timeDim,
+        config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.std_max, config.std_min, config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings).replace(".", "")
 
@@ -56,7 +56,7 @@ def get_config():
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
     config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.residual_layers,
                                config.residual_channels, config.dialation_length] \
-        if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.timeDim, config.enc_shapes,
+        if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.ts_length, config.enc_shapes,
                                               config.dec_shapes]
 
     # Snapshot filepath

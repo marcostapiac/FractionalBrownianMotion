@@ -34,7 +34,7 @@ def exact_fBm_features():
         device = 0
     else:
         device = torch.device("cpu")
-    data_shape = (config.dataSize, config.timeDim, 1)
+    data_shape = (config.dataSize, config.ts_length, 1)
     fBm = torch.from_numpy(
         np.load("/Users/marcos/GitHubRepos/FractionalBrownianMotion/data/fBn_samples_H07_T256.npy").cumsum(axis=1)[
         :config.dataSize, :])
@@ -45,7 +45,7 @@ def exact_fBm_features():
     features = []
     with torch.no_grad():
         samples = torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)
-        for t in range(config.timeDim):
+        for t in range(config.ts_length):
             print("Sampling at real time {}\n".format(t + 1))
             if t == 0:
                 output, (h, c) = scoreModel.rnn(samples, None)
@@ -53,8 +53,8 @@ def exact_fBm_features():
                 output, (h, c) = scoreModel.rnn(fBm[:, [t - 1], :], (h, c))
             features.append(output.permute(1, 0, 2))
     feature_df = torch.concat(features, dim=0).cpu()
-    assert (feature_df.shape == (config.timeDim, config.dataSize, 40))
-    feature_df = pd.concat({i: pd.DataFrame(feature_df[i, :, :]) for i in tqdm(range(config.timeDim))})
+    assert (feature_df.shape == (config.ts_length, config.dataSize, 40))
+    feature_df = pd.concat({i: pd.DataFrame(feature_df[i, :, :]) for i in tqdm(range(config.ts_length))})
     feature_data_path = config.experiment_path.replace("results/", "results/feature_data/") + "_NEp{}_Exact".format(
         train_epoch).replace(".", "") + ".parquet.gzip"
     feature_df.info()

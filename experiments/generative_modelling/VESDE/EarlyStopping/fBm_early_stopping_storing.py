@@ -10,7 +10,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesS
 
 
 def run_early_stopping(config: ConfigDict) -> None:
-    T = config.timeDim
+    T = config.ts_length
 
     diffusion = VESDEDiffusion(stdMax=config.std_max, stdMin=config.std_min)
     scoreModel = TimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
@@ -18,13 +18,13 @@ def run_early_stopping(config: ConfigDict) -> None:
     scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(config.max_epochs)))
 
     config.early_stop_idx = 393
-    synth_samples = reverse_sampling(data_shape=(config.dataSize, config.timeDim), diffusion=diffusion,
+    synth_samples = reverse_sampling(data_shape=(config.dataSize, config.ts_length), diffusion=diffusion,
                                      scoreModel=scoreModel,
                                      config=config).cpu().numpy().reshape((config.dataSize, T))
     early_stop_idx = config.early_stop_idx
 
     config.early_stop_idx = 0
-    no_stop_synth_samples = reverse_sampling(data_shape=(config.dataSize, config.timeDim), diffusion=diffusion,
+    no_stop_synth_samples = reverse_sampling(data_shape=(config.dataSize, config.ts_length), diffusion=diffusion,
                                              scoreModel=scoreModel,
                                              config=config).cpu().numpy().reshape((config.dataSize, T))
     df1 = pd.DataFrame(synth_samples)

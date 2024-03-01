@@ -56,10 +56,10 @@ if __name__ == "__main__":
         1, config.max_epochs), compression="gzip", index_col=[0, 1])
 
     if config.isfBm:
-        exact_samples = generate_fBm(H=config.hurst, T=config.timeDim, S=df.index.levshape[1],
+        exact_samples = generate_fBm(H=config.hurst, T=config.ts_length, S=df.index.levshape[1],
                                      isUnitInterval=config.isUnitInterval)
     else:
-        exact_samples = generate_fBn(H=config.hurst, T=config.timeDim, S=df.index.levshape[1],
+        exact_samples = generate_fBn(H=config.hurst, T=config.ts_length, S=df.index.levshape[1],
                                      isUnitInterval=config.isUnitInterval)
     one_model_run(np.array(exact_samples), sample_type="exact", config=config)
     # Synthetic samples

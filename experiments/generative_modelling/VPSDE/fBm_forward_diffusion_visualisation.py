@@ -15,8 +15,8 @@ def run(perfect_config: ConfigDict) -> None:
     try:
         assert (perfect_config.gif_save_freq <= perfect_config.max_diff_steps)
         assert (perfect_config.gif_save_freq > 0)
-        assert (perfect_config.dim1 < perfect_config.timeDim)
-        assert (perfect_config.dim2 < perfect_config.timeDim)
+        assert (perfect_config.dim1 < perfect_config.ts_length)
+        assert (perfect_config.dim2 < perfect_config.ts_length)
     except AssertionError as e:
         raise AssertionError("Error {}; check experiment parameters\n".format(e))
     diffusion = VPSDEDiffusion(beta_max=perfect_config.beta_max, beta_min=perfect_config.beta_min)
@@ -27,16 +27,16 @@ def run(perfect_config: ConfigDict) -> None:
     gen = FractionalBrownianNoise(forward_config.hurst, np.random.default_rng())
     if forward_config.isfBm:
         data_cov = torch.from_numpy(
-            compute_fBm_cov(gen, T=forward_config.timeDim, isUnitInterval=forward_config.isUnitInterval)).to(
+            compute_fBm_cov(gen, T=forward_config.ts_length, isUnitInterval=forward_config.isUnitInterval)).to(
             torch.float32)
     else:
         data_cov = torch.from_numpy(
-            compute_fBn_cov(gen, T=forward_config.timeDim, isUnitInterval=forward_config.isUnitInterval)).to(
+            compute_fBn_cov(gen, T=forward_config.ts_length, isUnitInterval=forward_config.isUnitInterval)).to(
             torch.float32)
 
     org_data = []
     for _ in tqdm(range(forward_config.dataSize)):
-        tmp = gen.circulant_simulation(forward_config.timeDim, scaleUnitInterval=forward_config.isUnitInterval)
+        tmp = gen.circulant_simulation(forward_config.ts_length, scaleUnitInterval=forward_config.isUnitInterval)
         if forward_config.isfBm: tmp = tmp.cumsum()
         org_data.append(tmp)
 
@@ -52,7 +52,7 @@ def run(perfect_config: ConfigDict) -> None:
         not forward_config.isfBm, forward_config.isUnitInterval, dim_pair[0],
         dim_pair[1],
         perfect_config.hurst,
-        perfect_config.timeDim,
+        perfect_config.ts_length,
         perfect_config.max_diff_steps,
         perfect_config.end_diff_time,
         perfect_config.beta_max,
@@ -64,7 +64,7 @@ def run(perfect_config: ConfigDict) -> None:
         xts, _ = diffusion.noising_process(org_data, eff_time)
         if i % perfect_config.gif_save_freq == 0 or i == (perfect_config.max_diff_steps - 1):
             save_path = folder_path + gif_path + "_diffIndex_{}.png".format(i + 1)
-            plot_title = "Forward VPSDE Samples with $T={}$ at time {}".format(perfect_config.timeDim,
+            plot_title = "Forward VPSDE Samples with $T={}$ at time {}".format(perfect_config.ts_length,
                                                                                round((
                                                                                              i + 1) / perfect_config.max_diff_steps,
                                                                                      5))
@@ -82,7 +82,7 @@ if __name__ == "__main__":
     forward_config = ml_collections.ConfigDict()
     forward_config.has_cuda = torch.cuda.is_available()
     forward_config.hurst = 0.7
-    forward_config.timeDim = 256
+    forward_config.ts_length = 256
     forward_config.max_diff_steps = 10000
     forward_config.end_diff_time = 1
     forward_config.beta_max = 20

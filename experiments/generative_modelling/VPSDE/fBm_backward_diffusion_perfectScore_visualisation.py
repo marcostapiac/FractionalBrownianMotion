@@ -13,8 +13,8 @@ def run(perfect_config: ConfigDict) -> None:
     try:
         assert (perfect_config.save_freq <= perfect_config.max_diff_steps)
         assert (perfect_config.save_freq > 0)
-        assert (perfect_config.dim1 < perfect_config.timeDim)
-        assert (perfect_config.dim2 < perfect_config.timeDim)
+        assert (perfect_config.dim1 < perfect_config.ts_length)
+        assert (perfect_config.dim2 < perfect_config.ts_length)
     except AssertionError as e:
         raise AssertionError("Error {}; check experiment parameters\n".format(e))
     rng = np.random.default_rng()
@@ -26,7 +26,7 @@ def run(perfect_config: ConfigDict) -> None:
         not perfect_config.isfBm, perfect_config.isUnitInterval, dim_pair[0],
         dim_pair[1],
         perfect_config.hurst,
-        perfect_config.timeDim,
+        perfect_config.ts_length,
         perfect_config.max_diff_steps,
         perfect_config.end_diff_time,
         perfect_config.beta_max,
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     perfect_config.has_cuda = torch.cuda.is_available()
     perfect_config.predictor_model = "ancestral"
     perfect_config.hurst = 0.7
-    perfect_config.timeDim = 256
+    perfect_config.ts_length = 256
     perfect_config.max_diff_steps = 1000
     perfect_config.end_diff_time = 1
     perfect_config.beta_max = 20.
