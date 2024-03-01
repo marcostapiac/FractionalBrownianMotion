@@ -21,6 +21,7 @@ if __name__ == "__main__":
     with open(config.scoreNet_trained_path.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as f:
         losses = np.array(pickle.load(f))
     # Loss file contains losses for same model trained (potentially) sequentially many times
+    print(losses.shape)
     assert(losses.shape[0] >= max(config.max_epochs))
     T = losses.shape[0]
     plt.plot(np.linspace(1, T+1, T), losses)

@@ -22,14 +22,17 @@ def identify_jump_index(time_series, eps):
 def path_score_feature_analysis() -> None:
     from configs.RecursiveVPSDE.recursive_fBm_T256_H07_tl_5data import get_config
     config = get_config()
-
     # Now plot Hurst histogram for the generated samples
     for train_epoch in [1920]:  # config.max_epochs:
         path_df_path = config.experiment_path + "_NEp{}_PS_SFS.parquet.gzip".format(train_epoch)
         path_df = pd.read_parquet(path_df_path, engine="pyarrow")
-        #hurst_estimation(path_df.to_numpy(),
-        #                 sample_type="Final Time Samples at Train Epoch {}".format(train_epoch),
-        #                 isfBm=config.isfBm, true_hurst=config.hurst, show=True)
+        path_df = path_df.iloc[:, :255]
+        assert(path_df.shape == (40000, 255))
+        hurst_estimation(path_df.to_numpy(),
+                         sample_type="Final Time Samples at Train Epoch {}".format(train_epoch),
+                         isfBm=config.isfBm, true_hurst=config.hurst, show=True)
+        config.experiment_path = config.experiment_path.replace("LSTM_H40_Nlay2_", "")
+
         drift_data_path = config.experiment_path.replace("results/",
                                                          "results/drift_data/") + "_NEp{}_PS_SFS".format(
             train_epoch).replace(

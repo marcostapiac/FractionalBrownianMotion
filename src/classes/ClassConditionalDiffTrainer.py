@@ -287,7 +287,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
                 all_gpus_losses = [torch.zeros_like(epoch_losses_tensor) for _ in range(torch.cuda.device_count())]
                 torch.distributed.all_gather(all_gpus_losses, epoch_losses_tensor)
             else:
-                all_gpus_losses = epoch_losses_tensor
+                all_gpus_losses = [epoch_losses_tensor]
             # Obtain epoch loss averaged over devices
             average_loss_per_epoch = torch.mean(torch.stack(all_gpus_losses), dim=0)
             all_losses_per_epoch.append(float(average_loss_per_epoch.cpu().numpy()))

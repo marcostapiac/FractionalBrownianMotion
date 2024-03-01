@@ -27,7 +27,7 @@ if __name__ == "__main__":
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    init_experiment(config=config)
+    #init_experiment(config=config)
     end_epoch = max(config.max_epochs)
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))
@@ -48,7 +48,7 @@ if __name__ == "__main__":
         data = np.atleast_3d(data)
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
         train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
-    cleanup_experiment()
+    #cleanup_experiment()
 
     for train_epoch in config.max_epochs:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
