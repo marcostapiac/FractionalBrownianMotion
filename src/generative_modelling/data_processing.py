@@ -177,6 +177,59 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
     return np.atleast_2d(final_paths.numpy())
 
 
+@record
+def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
+                                    scoreModel: ConditionalTimeSeriesScoreMatching, data_shape: Tuple[int, int, int],
+                                    config: ConfigDict) -> torch.Tensor:
+    """
+    Recursive reverse sampling using Markovian Diffusion Model
+        :param diffusion: Diffusion model
+        :param scoreModel: Trained score network
+        :param data_shape: Desired shape of generated samples
+        :param config: Configuration dictionary for experiment
+        :return: Final reverse-time samples
+    """
+    if config.has_cuda:
+        # Sampling is sequential, so only single-machine, single-GPU/CPU
+        device = 0
+    else:
+        device = torch.device("cpu")
+    assert (config.predictor_model == "ancestral")
+    # Define predictor
+    predictor_params = [diffusion, scoreModel, config.end_diff_time, config.max_diff_steps, device, config.sample_eps]
+    predictor = ConditionalAncestralSamplingPredictor(*predictor_params)
+
+    # Define corrector
+    corrector_params = [config.max_lang_steps, torch.Tensor([config.snr]), device, diffusion]
+    if config.corrector_model == "VE":
+        corrector = VESDECorrector(*corrector_params)
+    elif config.corrector_model == "VP":
+        corrector = VPSDECorrector(*corrector_params)
+    else:
+        corrector = None
+    sampler = ConditionalSDESampler(diffusion=diffusion, sample_eps=config.sample_eps, predictor=predictor,
+                                    corrector=corrector)
+
+    scoreModel.eval()
+    with torch.no_grad():
+        paths = []
+        for t in range(config.ts_length):
+            print("Sampling at real time {}\n".format(t + 1))
+            if t==0:
+                features = torch.zeros(size=(data_shape[0], 1, config.mkv_blnk*config.ts_dims)).to(device)
+            else:
+                past = [torch.zeros_like(paths[0]) for _ in range(max(0, config.mkv_blnk - t))] + paths
+                features = torch.stack(past, dim=2).reshape(
+                    (data_shape[0], 1, config.mkv_blnk * config.ts_dims, 1)).squeeze(-1)
+                print(features)
+            samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=features,
+                                     early_stop_idx=config.early_stop_idx)
+            # Samples are size (BatchSize, 1, TimeSeriesDimension)
+            assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
+            paths.append(samples)
+    final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)
+    return np.atleast_2d(final_paths.numpy())
+
 def prepare_recursive_scoreModel_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> DataLoader:
     """
     Split data into train, eval, test sets and create DataLoaders for training

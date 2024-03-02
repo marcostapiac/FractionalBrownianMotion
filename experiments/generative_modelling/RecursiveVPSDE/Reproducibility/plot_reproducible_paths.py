@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
+
 from utils.plotting_functions import hurst_estimation
 
 if __name__ == "__main__":

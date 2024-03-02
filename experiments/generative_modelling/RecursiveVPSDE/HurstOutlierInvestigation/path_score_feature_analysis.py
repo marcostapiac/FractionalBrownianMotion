@@ -1,9 +1,10 @@
-import seaborn as sns
 import numpy as np
 import pandas as pd
+import seaborn as sns
 from matplotlib import pyplot as plt
 
 from utils.plotting_functions import hurst_estimation
+
 
 def identify_jump_index(time_series, eps):
     # Calculate the differences between consecutive values

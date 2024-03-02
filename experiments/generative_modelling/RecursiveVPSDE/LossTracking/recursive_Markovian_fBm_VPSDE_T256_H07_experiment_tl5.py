@@ -5,8 +5,8 @@ import pandas as pd
 import torch
 
 from src.classes.ClassConditionalMarkovianDiffTrainer import ConditionalMarkovianDiffusionModelTrainer
-from src.generative_modelling.data_processing import recursive_LSTM_reverse_sampling, \
-    train_and_save_recursive_diffusion_model, recursive_markovian_reverse_sampling
+from src.generative_modelling.data_processing import train_and_save_recursive_diffusion_model, \
+    recursive_markovian_reverse_sampling
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTimeSeriesScoreMatching import \
     ConditionalMarkovianTimeSeriesScoreMatching

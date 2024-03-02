@@ -2,9 +2,9 @@ import os
 import pickle
 import time
 from typing import Union
-import torch.distributed as dist
 
 import torch
+import torch.distributed as dist
 import torchmetrics
 from torch import nn
 from torch.nn.parallel import DistributedDataParallel as DDP

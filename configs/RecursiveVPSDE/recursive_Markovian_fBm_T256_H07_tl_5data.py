@@ -1,5 +1,4 @@
 import ml_collections
-import numpy as np
 import torch
 
 from configs import project_config
@@ -24,7 +23,7 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = [151,480]
+    config.max_epochs = [151,480,960]
     config.batch_size = 256
     config.isfBm = True
     config.isUnitInterval = True
