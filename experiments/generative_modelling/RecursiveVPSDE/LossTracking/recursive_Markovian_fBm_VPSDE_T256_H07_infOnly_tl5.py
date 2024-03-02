@@ -6,7 +6,7 @@ import torch
 
 from src.classes.ClassConditionalMarkovianDiffTrainer import ConditionalMarkovianDiffusionModelTrainer
 from src.generative_modelling.data_processing import recursive_LSTM_reverse_sampling, \
-    train_and_save_recursive_diffusion_model
+    train_and_save_recursive_diffusion_model, recursive_markovian_reverse_sampling
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTimeSeriesScoreMatching import \
     ConditionalMarkovianTimeSeriesScoreMatching
@@ -29,11 +29,9 @@ if __name__ == "__main__":
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
     init_experiment(config=config)
-    end_epoch = 151
-    scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))
     for train_epoch in config.max_epochs:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
-        final_paths = recursive_LSTM_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
+        final_paths = recursive_markovian_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                                       data_shape=(config.dataSize, config.ts_length, 1), config=config)
         df = pd.DataFrame(final_paths)
         df.index = pd.MultiIndex.from_product(
