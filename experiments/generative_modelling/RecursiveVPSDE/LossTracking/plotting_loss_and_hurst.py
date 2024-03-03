@@ -15,13 +15,12 @@ matplotlib.rcParams.update({
     'text.latex.preamble': r"\usepackage{amsmath}"
 })
 if __name__ == "__main__":
-    from configs.RecursiveVPSDE.recursive_fBm_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_Markovian_fBm_T256_H07_tl_5data import get_config
     config = get_config()
     H = config.hurst
     with open(config.scoreNet_trained_path.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as f:
         losses = np.array(pickle.load(f))
     # Loss file contains losses for same model trained (potentially) sequentially many times
-    print(losses.shape)
     assert(losses.shape[0] >= max(config.max_epochs))
     T = losses.shape[0]
     plt.plot(np.linspace(1, T+1, T), losses)
@@ -37,7 +36,8 @@ if __name__ == "__main__":
     plt.show()
 
     # Now plot Hurst histogram for the generated samples
-    for train_epoch in config.max_epochs:
+    for train_epoch in [480,960]:
+        print(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch))
         df = pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch),compression="gzip", index_col=[0, 1])
         df = df.apply(lambda x: [eval(i.replace("(", "").replace(")","").replace("tensor","")) if type(i) == str else i for i in x]).loc["Final Time Samples"]
         print(df.shape[0])
