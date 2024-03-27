@@ -188,7 +188,7 @@ def store_score_and_feature() -> None:
     bad_idxs_2 = hs.index[hs.gt(upper).any(axis=1)].to_list()  # Path IDs which satisfy condition
     good_idxs_1 = hs.index[hs.gt(lower).any(axis=1)].to_list()
     good_idxs_2 = hs.index[hs.lt(upper).any(axis=1)].to_list()
-    good_idxs = (list(set(good_idxs_1) & set(good_idxs_2)))[:5]
+    good_idxs = (list(set(good_idxs_1) & set(good_idxs_2)))[:1000]
     del path_df
     print("Done Storing Path Data\n")
 
