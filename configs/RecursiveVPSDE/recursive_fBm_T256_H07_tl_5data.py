@@ -45,8 +45,8 @@ def get_config():
     config.residual_channels = 8
     config.diff_hidden_size = 64
     config.dialation_length = 10
-    config.lstm_hiddendim = 40
-    config.lstm_numlay = 2
+    config.lstm_hiddendim = 20
+    config.lstm_numlay = 1
     config.lstm_inputdim = 1
     config.lstm_dropout = 0.1
     assert((config.lstm_dropout == 0. and config.lstm_numlay == 1) or (config.lstm_dropout > 0 and config.lstm_numlay > 1))
