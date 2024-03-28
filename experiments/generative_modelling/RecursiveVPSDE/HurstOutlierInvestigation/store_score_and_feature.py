@@ -154,7 +154,7 @@ def store_score_and_feature() -> None:
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    #init_experiment(config=config)
+    init_experiment(config=config)
     train_epoch = 1920
     assert (train_epoch in config.max_epochs)
     try:
@@ -162,7 +162,7 @@ def store_score_and_feature() -> None:
     except FileNotFoundError as e:
         assert FileNotFoundError(
             "Error {}; no valid trained model found; train before initiating experiment\n".format(e))
-    #cleanup_experiment()
+    cleanup_experiment()
     rng = np.random.default_rng()
     paths, features, drift_errors = run_feature_drift_recursive_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                                                          data_shape=(
