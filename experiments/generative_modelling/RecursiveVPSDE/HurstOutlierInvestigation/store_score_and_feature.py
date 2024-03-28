@@ -136,7 +136,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
 
     final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)
     feature_df = torch.concat(features, dim=0).cpu()
-    assert (feature_df.shape == (config.ts_length, config.dataSize, 40))
+    assert (feature_df.shape == (config.ts_length, config.dataSize, config.lstm_hiddendim))
     drift_error_df = torch.concat(drift_errors, dim=0).cpu()
     assert (drift_error_df.shape == (config.ts_length, config.max_diff_steps, config.dataSize))
     return np.atleast_2d(final_paths.numpy()), np.atleast_3d(feature_df.numpy()), np.atleast_3d(drift_error_df.numpy())
@@ -154,7 +154,7 @@ def store_score_and_feature() -> None:
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    init_experiment(config=config)
+    #init_experiment(config=config)
     train_epoch = 1920
     assert (train_epoch in config.max_epochs)
     try:
@@ -162,7 +162,7 @@ def store_score_and_feature() -> None:
     except FileNotFoundError as e:
         assert FileNotFoundError(
             "Error {}; no valid trained model found; train before initiating experiment\n".format(e))
-    cleanup_experiment()
+    #cleanup_experiment()
     rng = np.random.default_rng()
     paths, features, drift_errors = run_feature_drift_recursive_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                                                          data_shape=(
