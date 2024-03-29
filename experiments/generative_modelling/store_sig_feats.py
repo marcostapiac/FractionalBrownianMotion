@@ -2,6 +2,8 @@ import numpy as np
 import pandas as pd
 import torch
 from tqdm import tqdm
+import multiprocessing as mp
+from functools import partial
 
 from configs import project_config
 from src.classes.ClassConditionalSignatureDiffTrainer import ConditionalSignatureDiffusionModelTrainer
@@ -12,6 +14,17 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from utils.data_processing import cleanup_experiment, init_experiment
 from utils.math_functions import generate_fBn, compute_sig_size, ts_signature_pipeline
+
+
+def ts_comp(t, batch, sig_trunc, times):
+    N, d = batch.shape[0], batch.shape[-1]
+    if t == 0:
+        return ts_signature_pipeline(
+            data_batch=torch.hstack([torch.zeros(size=(N, 1, d)).to(batch.device), batch[:, [t], :]]),
+            trunc=sig_trunc, times=times)
+    else:
+        return ts_signature_pipeline(data_batch=batch[:, :t, :], trunc=sig_trunc,
+                                     times=times[1:, :])
 
 
 def create_historical_vectors(batch: torch.Tensor, sig_trunc: int):
@@ -26,8 +39,15 @@ def create_historical_vectors(batch: torch.Tensor, sig_trunc: int):
     # of the time series has a corresponding past of size (20, 1)
     N, T, d = batch.shape
     # Now attempt on a rolling basis across time
-    times = (torch.atleast_2d((torch.arange(0, T + 1) / T)).T).to(batch.device)
-    full_feats = torch.zeros(size=(N, T, compute_sig_size(dim=d + 1, trunc=sig_trunc))).to(batch.device)
+    times = torch.atleast_2d((torch.arange(0, T + 1) / T)).T.to(batch.device)
+    nproc = 56
+    with mp.Pool(processes=nproc) as pool:
+        result = pool.map(
+            partial(ts_comp, batch=batch, sig_trunc=sig_trunc,times=times), range(0, T)
+        )
+        pool.close()
+    full_feats = torch.stack([m for m in map(torch.stack,zip(*result))])
+    """
     for t in tqdm(range(T)):
         if t == 0:
             full_feats[:, t, :] = ts_signature_pipeline(
@@ -36,9 +56,10 @@ def create_historical_vectors(batch: torch.Tensor, sig_trunc: int):
         else:
             full_feats[:, t, :] = ts_signature_pipeline(data_batch=batch[:, :t, :], trunc=sig_trunc,
                                                         times=times[1:, :])
-
+    """
     # Feature tensor is of size (Num_TimeSeries, TimeSeriesLength, FeatureDim)
-    # Note first element of features are all the same
+    # Note first element of features are all the same so we exclude them
+    assert(np.all([torch.all(torch.abs(full_feats[i,:,:]-els[i,:,:])<1e-6) for i in range(N)]))
     return full_feats[:, :, 1:]
 
 
@@ -53,5 +74,5 @@ if __name__ == "__main__":
     assert (feats.shape == (
         N, config.ts_length, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc) - 1))
     np.save(project_config.ROOT_DIR + "data/fBm_T{}_SigTrunc{}_SigDim{}.npy".format(T, config.sig_trunc,
-                                                                                           config.sig_dim), feats,
+                                                                                    config.sig_dim), feats,
             allow_pickle=True)
