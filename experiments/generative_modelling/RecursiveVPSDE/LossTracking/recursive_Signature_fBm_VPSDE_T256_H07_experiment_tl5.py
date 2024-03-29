@@ -3,6 +3,7 @@ import pickle
 import numpy as np
 import pandas as pd
 import torch
+from tqdm import tqdm
 
 from src.classes.ClassConditionalSignatureDiffTrainer import ConditionalSignatureDiffusionModelTrainer
 from src.generative_modelling.data_processing import train_and_save_recursive_diffusion_model
@@ -28,7 +29,7 @@ def create_historical_vectors(batch: torch.Tensor, sig_trunc: int):
     # Now attempt on a rolling basis across time
     times = (torch.atleast_2d((torch.arange(0, T + 1) / T)).T).to(batch.device)
     full_feats = torch.zeros(size=(N, T, compute_sig_size(dim=d + 1, trunc=sig_trunc))).to(batch.device)
-    for t in range(T):
+    for t in tqdm(range(T)):
         if t == 0:
             full_feats[:, t, :] = ts_signature_pipeline(
                 data_batch=torch.hstack([torch.zeros(size=(N, 1, d)).to(batch.device), batch[:, [t], :]]),
