@@ -79,7 +79,7 @@ if __name__ == "__main__":
             data = data[:training_size, :]
         data = torch.Tensor(np.atleast_3d(data))
         assert (data.shape == (training_size, config.ts_length, config.ts_dims))
-        feats = create_historical_vectors(batch=data, sig_trunc=config.sig_trunc)
+        feats = torch.Tensor(np.atleast_3d(np.save(config.feats_path, allow_pickle=True)))
         assert (feats.shape == (
         training_size, config.ts_length, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc) - 1))
         datafeats = torch.concat([data, feats], dim=-1).float()

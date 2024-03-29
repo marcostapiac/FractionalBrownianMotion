@@ -48,7 +48,10 @@ def get_config():
     config.sig_trunc = 3
     config.sig_dim = 2  # With time-augmentation, and invisibility transform
     config.feat_hiddendim = int(((config.sig_dim ** (config.sig_trunc + 1) - 1) / (config.sig_dim - 1)) - 1)
-
+    config.feat_path = project_config.ROOT_DIR + "data/fBm_H{}_T{}_SigTrunc{}_SigDim{}.npy".format(config.hurst,
+                                                                                                   config.ts_length,
+                                                                                                   config.sig_trunc,
+                                                                                                   config.sig_dim)
     # Model filepath
     mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_MLP_{}_incs_{}_unitIntv_fBm_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_TembDim{}_EncShapes{}_tl5".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
