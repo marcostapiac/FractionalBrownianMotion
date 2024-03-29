@@ -443,6 +443,7 @@ def compute_signature(sample: torch.Tensor, trunc: int, interval: rhpy.Interval,
     # To work with RoughPy, we first need to first construct a context
     CTX = rhpy.get_context(width=dim, depth=trunc,
                            coeffs=coefftype)  # (Transformed TS dimension, Signature Truncation, TS DataType)
+    print("Ended context\n")
 
     # Given a context, we need to transform our data into a stream of increments
     stream = rhpy.LieIncrementStream.from_increments(data=sample, ctx=CTX)
