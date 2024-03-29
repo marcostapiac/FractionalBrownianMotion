@@ -16,10 +16,11 @@ if __name__ == "__main__":
     config = get_config()
     assert (0 < config.hurst < 1.)
     assert (config.early_stop_idx == 0)
-    assert(config.tdata_mult == 5)
+    assert (config.tdata_mult == 5)
     print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()
-    scoreModel = ConditionalMarkovianTimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
+    scoreModel = ConditionalMarkovianTimeSeriesScoreMatching(
+        *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
@@ -27,7 +28,8 @@ if __name__ == "__main__":
     for train_epoch in config.max_epochs:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
         final_paths = recursive_markovian_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
-                                                      data_shape=(config.dataSize, config.ts_length, 1), config=config)
+                                                           data_shape=(config.dataSize, config.ts_length, 1),
+                                                           config=config)
         df = pd.DataFrame(final_paths)
         df.index = pd.MultiIndex.from_product(
             [["Final Time Samples"], [i for i in range(config.dataSize)]])

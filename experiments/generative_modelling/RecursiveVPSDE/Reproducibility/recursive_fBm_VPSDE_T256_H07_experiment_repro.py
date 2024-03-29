@@ -21,6 +21,7 @@ def repro_weights_init(m):
             elif 'bias' in name:
                 param.data.fill_(0)
 
+
 if __name__ == "__main__":
     seed = 0
     torch.manual_seed(seed)
@@ -35,16 +36,16 @@ if __name__ == "__main__":
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
-
     # Data parameters
     from configs.RecursiveVPSDE.recursive_fBm_T256_H07_tl_5data import get_config
 
     config = get_config()
     assert (0 < config.hurst < 1.)
     assert (config.early_stop_idx == 0)
-    assert(config.tdata_mult == 5)
+    assert (config.tdata_mult == 5)
 
-    scoreModel = ConditionalTimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
+    scoreModel = ConditionalTimeSeriesScoreMatching(
+        *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     scoreModel.apply(repro_weights_init)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
@@ -52,19 +53,21 @@ if __name__ == "__main__":
     init_experiment(config=config)
 
     train_epoch = 1920
-    assert(train_epoch in config.max_epochs)
+    assert (train_epoch in config.max_epochs)
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
     except FileNotFoundError as e:
         assert FileNotFoundError("Error {}; no valid trained model found; proceeding to training\n".format(e))
-        training_size = int(min(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 1200000))
+        training_size = int(
+            min(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 1200000))
     cleanup_experiment()
 
     numpaths = 5
     final_paths = recursive_LSTM_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
-                               data_shape=(numpaths, config.ts_length, 1), config=config)
+                                                  data_shape=(numpaths, config.ts_length, 1), config=config)
     df = pd.DataFrame(final_paths)
     df.index = pd.MultiIndex.from_product(
         [["Final Time Samples"], [i for i in range(numpaths)]])
-    df.to_csv(config.experiment_path.replace("/results/", "/results/early_stopping/") + "_NEp{}_Mseed{}.csv.gzip".format(
-        train_epoch, seed), compression="gzip")
+    df.to_csv(
+        config.experiment_path.replace("/results/", "/results/early_stopping/") + "_NEp{}_Mseed{}.csv.gzip".format(
+            train_epoch, seed), compression="gzip")

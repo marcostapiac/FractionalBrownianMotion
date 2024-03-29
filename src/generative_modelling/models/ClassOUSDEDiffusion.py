@@ -4,6 +4,12 @@ import numpy as np
 import torch
 from torch import nn
 
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTimeSeriesScoreMatching import \
+    ConditionalLSTMTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTimeSeriesScoreMatching import \
+    ConditionalMarkovianTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
+    ConditionalTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
@@ -55,7 +61,8 @@ class OUSDEDiffusion(nn.Module):
         return torch.randn(shape)
 
     @staticmethod
-    def get_reverse_sde(x_prev: torch.Tensor, score_network: Union[NaiveMLP, TimeSeriesScoreMatching],
+    def get_reverse_sde(x_prev: torch.Tensor, score_network: Union[
+        NaiveMLP, TimeSeriesScoreMatching, ConditionalLSTMTimeSeriesScoreMatching, ConditionalTimeSeriesScoreMatching, ConditionalMarkovianTimeSeriesScoreMatching],
                         t: torch.Tensor, dt: float) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """ Euler Maruyama discretisation of reverse-time SDE
             :param x_prev: Current sample
@@ -74,4 +81,3 @@ class OUSDEDiffusion(nn.Module):
             drift = x_prev + (-0.5 * x_prev - predicted_score) * dt
             diffusion = np.sqrt(-dt)
         return predicted_score, drift, diffusion
-

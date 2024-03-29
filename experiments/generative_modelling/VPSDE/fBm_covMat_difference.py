@@ -22,8 +22,8 @@ if __name__ == "__main__":
 
     fbn = FractionalBrownianNoise(H=config.hurst, rng=np.random.default_rng())
     true_cov = compute_fBm_cov(fbn, T=config.ts_length, isUnitInterval=unitInterval) if isfBm else compute_fBn_cov(fbn,
-                                                                                                                 T=config.ts_length,
-                                                                                                                 isUnitInterval=unitInterval)
+                                                                                                                   T=config.ts_length,
+                                                                                                                   isUnitInterval=unitInterval)
 
     if config.isfBm:
         exact_samples = generate_fBm(H=config.hurst, T=config.ts_length, S=df.index.levshape[1],

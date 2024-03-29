@@ -21,7 +21,6 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesS
 
 
 class DiffusionModelTrainer:
-    """ Trainer class for a single GPU on a single machine, reporting aggregate loss over all batches """
 
     def __init__(self,
                  diffusion: Union[VESDEDiffusion, OUSDEDiffusion, VPSDEDiffusion],
@@ -34,8 +33,8 @@ class DiffusionModelTrainer:
                  snapshot_path: str,
                  device: Union[torch.device, int],
                  checkpoint_freq: int,
-                 to_weight:bool,
-                 hybrid_training:bool,
+                 to_weight: bool,
+                 hybrid_training: bool,
                  loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
 
@@ -106,7 +105,7 @@ class DiffusionModelTrainer:
         outputs = self.score_network.forward(inputs=xts, times=diff_times.squeeze(-1)).squeeze(1)
         weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
         if not self.include_weightings: weights = torch.ones_like(weights)
-        self._batch_loss_compute(outputs= weights*outputs, targets= weights*target_scores)
+        self._batch_loss_compute(outputs=weights * outputs, targets=weights * target_scores)
 
     def _run_epoch(self, epoch: int) -> None:
         """
@@ -121,18 +120,20 @@ class DiffusionModelTrainer:
         if type(self.device_id) != torch.device: self.train_loader.sampler.set_epoch(epoch)
         if self.is_hybrid:
             timesteps = torch.linspace(self.train_eps, end=self.end_diff_time,
-                                   steps=self.max_diff_steps)
+                                       steps=self.max_diff_steps)
         for x0s in (iter(self.train_loader)):
             x0s = x0s[0].to(self.device_id)
             if self.is_hybrid:
                 diff_times = timesteps[torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,
                                                      size=(x0s.shape[0], 1)).long()].view(x0s.shape[0],
-                                                                                          *([1] * len(x0s.shape[1:]))).to(
+                                                                                          *([1] * len(
+                                                                                              x0s.shape[1:]))).to(
                     self.device_id)
             else:
-                diff_times = ((self.train_eps - self.end_diff_time) * torch.rand((x0s.shape[0], 1)) + self.end_diff_time).view(x0s.shape[0],
-                                                                                      *([1] * len(x0s.shape[1:]))).to(
-                self.device_id)
+                diff_times = ((self.train_eps - self.end_diff_time) * torch.rand(
+                    (x0s.shape[0], 1)) + self.end_diff_time).view(x0s.shape[0],
+                                                                  *([1] * len(x0s.shape[1:]))).to(
+                    self.device_id)
             eff_times = self.diffusion.get_eff_times(diff_times)
             xts, target_scores = self.diffusion.noising_process(x0s, eff_times)
             self._run_batch(xts=xts, target_scores=target_scores, diff_times=diff_times, eff_times=eff_times)
@@ -152,7 +153,9 @@ class DiffusionModelTrainer:
             self.score_network.module.load_state_dict(snapshot["MODEL_STATE"])
         else:
             self.score_network.load_state_dict(snapshot["MODEL_STATE"])
-        print("Device {} :: Resuming training from snapshot at epoch {} and device {}\n".format(self.device_id, self.epochs_run + 1, self.device_id))
+        print("Device {} :: Resuming training from snapshot at epoch {} and device {}\n".format(self.device_id,
+                                                                                                self.epochs_run + 1,
+                                                                                                self.device_id))
 
     def _save_snapshot(self, epoch: int) -> None:
         """
@@ -169,7 +172,7 @@ class DiffusionModelTrainer:
         torch.save(snapshot, self.snapshot_path)
         print(f"Epoch {epoch + 1} | Training snapshot saved at {self.snapshot_path}\n")
 
-    def _save_model(self, filepath: str, final_epoch:int) -> None:
+    def _save_model(self, filepath: str, final_epoch: int) -> None:
         """
         Save final trained model
             :param filepath: Filepath to save model
@@ -203,11 +206,12 @@ class DiffusionModelTrainer:
             self._run_epoch(epoch)
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
             # see  https://github.com/Lightning-AI/torchmetrics/issues/626
-            print("Device {} :: Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format(self.device_id, (epoch + 1) / max_epochs,
-                                                                        float(
-                                                                            self.loss_aggregator.compute().item()),float(time.time()-t0)))
+            print("Device {} :: Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format(
+                self.device_id, (epoch + 1) / max_epochs,
+                float(
+                    self.loss_aggregator.compute().item()), float(time.time() - t0)))
             if self.device_id == 0 or type(self.device_id) == torch.device:
                 if epoch + 1 == max_epochs:
-                    self._save_model(filepath=model_filename, final_epoch=epoch+1)
+                    self._save_model(filepath=model_filename, final_epoch=epoch + 1)
                 elif (epoch + 1) % self.save_every == 0:
                     self._save_snapshot(epoch=epoch)

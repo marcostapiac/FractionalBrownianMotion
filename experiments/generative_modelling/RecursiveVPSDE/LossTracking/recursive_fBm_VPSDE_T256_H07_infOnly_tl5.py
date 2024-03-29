@@ -16,10 +16,11 @@ if __name__ == "__main__":
     config = get_config()
     assert (0 < config.hurst < 1.)
     assert (config.early_stop_idx == 0)
-    assert(config.tdata_mult == 5)
+    assert (config.tdata_mult == 5)
     print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()
-    scoreModel = ConditionalTimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
+    scoreModel = ConditionalTimeSeriesScoreMatching(
+        *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
@@ -34,4 +35,3 @@ if __name__ == "__main__":
             [["Final Time Samples"], [i for i in range(config.dataSize)]])
         df.to_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip")
     cleanup_experiment()
-

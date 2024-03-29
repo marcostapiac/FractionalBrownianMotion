@@ -10,9 +10,10 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from torchmetrics import MeanMetric
 
-from src.classes.ClassConditionalDiffTrainer import ConditionalDiffusionModelTrainer
+from src.classes.ClassConditionalLSTMDiffTrainer import ConditionalLSTMDiffusionModelTrainer
 from src.classes.ClassConditionalMarkovianDiffTrainer import ConditionalMarkovianDiffusionModelTrainer
 from src.classes.ClassConditionalSDESampler import ConditionalSDESampler
+from src.classes.ClassConditionalSignatureDiffTrainer import ConditionalSignatureDiffusionModelTrainer
 from src.classes.ClassCorrector import VESDECorrector, VPSDECorrector
 from src.classes.ClassDiffTrainer import DiffusionModelTrainer
 from src.classes.ClassPredictor import AncestralSamplingPredictor, EulerMaruyamaPredictor, \
@@ -21,6 +22,8 @@ from src.classes.ClassSDESampler import SDESampler
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTimeSeriesScoreMatching import \
+    ConditionalMarkovianTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
     ConditionalTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
@@ -179,8 +182,9 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
 
 @record
 def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
-                                    scoreModel: ConditionalTimeSeriesScoreMatching, data_shape: Tuple[int, int, int],
-                                    config: ConfigDict) -> torch.Tensor:
+                                         scoreModel: ConditionalTimeSeriesScoreMatching,
+                                         data_shape: Tuple[int, int, int],
+                                         config: ConfigDict) -> torch.Tensor:
     """
     Recursive reverse sampling using Markovian Diffusion Model
         :param diffusion: Diffusion model
@@ -215,10 +219,11 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
         paths = []
         for t in range(config.ts_length):
             print("Sampling at real time {}\n".format(t + 1))
-            if t==0:
-                features = torch.zeros(size=(data_shape[0], 1, config.mkv_blnk*config.ts_dims)).to(device)
+            if t == 0:
+                features = torch.zeros(size=(data_shape[0], 1, config.mkv_blnk * config.ts_dims)).to(device)
             else:
-                past = [torch.zeros_like(paths[0]) for _ in range(max(0, config.mkv_blnk - t))] + paths[-config.mkv_blnk:]
+                past = [torch.zeros_like(paths[0]) for _ in range(max(0, config.mkv_blnk - t))] + paths[
+                                                                                                  -config.mkv_blnk:]
                 print(paths)
                 print(paths[-config.mkv_blnk:])
                 print(past)
@@ -231,6 +236,7 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
             paths.append(samples)
     final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)
     return np.atleast_2d(final_paths.numpy())
+
 
 def prepare_recursive_scoreModel_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> DataLoader:
     """
@@ -258,9 +264,10 @@ def prepare_recursive_scoreModel_data(data: np.ndarray, batch_size: int, config:
 def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                              config: ConfigDict,
                                              diffusion: VPSDEDiffusion,
-                                             scoreModel: Union[NaiveMLP, ConditionalTimeSeriesScoreMatching],
+                                             scoreModel: Union[
+                                                 NaiveMLP, ConditionalTimeSeriesScoreMatching, ConditionalTimeSeriesScoreMatching, ConditionalMarkovianTimeSeriesScoreMatching],
                                              trainClass: Union[
-                                                 ConditionalDiffusionModelTrainer, ConditionalMarkovianDiffusionModelTrainer, DiffusionModelTrainer]) -> None:
+                                                 ConditionalLSTMDiffusionModelTrainer, ConditionalMarkovianDiffusionModelTrainer, ConditionalSignatureDiffusionModelTrainer, DiffusionModelTrainer]) -> None:
     """
     Helper function to initiate training for recursive diffusion model
         :param data: Dataset
@@ -283,6 +290,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
     # Define trainer
     train_eps, end_diff_time, max_diff_steps, checkpoint_freq = config.train_eps, config.end_diff_time, config.max_diff_steps, config.save_freq
     try:
+        # Markovian
         trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                              checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
                              loss_aggregator=MeanMetric,
@@ -292,13 +300,26 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                              mkv_blnk=config.mkv_blnk,
                              hybrid_training=config.hybrid)
     except AttributeError as e:
-        trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
-                             checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
-                             loss_aggregator=MeanMetric,
-                             snapshot_path=config.scoreNet_snapshot_path, device=device,
-                             train_eps=train_eps,
-                             end_diff_time=end_diff_time, max_diff_steps=max_diff_steps, to_weight=config.weightings,
-                             hybrid_training=config.hybrid)
+        try:
+            trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
+                                 checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
+                                 loss_aggregator=MeanMetric,
+                                 snapshot_path=config.scoreNet_snapshot_path, device=device,
+                                 train_eps=train_eps,
+                                 end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
+                                 to_weight=config.weightings,
+                                 sig_trunc=config.sig_trunc,
+                                 hybrid_training=config.hybrid)
+        except AttributeError as e:
+            # LSTM
+            trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
+                                 checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
+                                 loss_aggregator=MeanMetric,
+                                 snapshot_path=config.scoreNet_snapshot_path, device=device,
+                                 train_eps=train_eps,
+                                 end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
+                                 to_weight=config.weightings,
+                                 hybrid_training=config.hybrid)
 
     # Start training
     trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)

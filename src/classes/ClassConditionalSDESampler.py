@@ -23,15 +23,17 @@ class ConditionalSDESampler:
         self.corrector = corrector
         self.sample_eps = sample_eps
 
-    def sample(self, shape: Tuple[int, int], feature:torch.Tensor, torch_device: Union[int, torch.device], early_stop_idx:int=0) -> torch.Tensor:
+    def sample(self, shape: Tuple[int, int], feature: torch.Tensor, torch_device: Union[int, torch.device],
+               early_stop_idx: int = 0) -> torch.Tensor:
         timesteps = torch.linspace(start=self.predictor.end_diff_time, end=self.sample_eps,
                                    steps=self.predictor.max_diff_steps)
         x = self.diffusion.prior_sampling(shape=shape).to(torch_device)  # Move to correct device
         x = x.unsqueeze(1)
-        for i in tqdm(iterable=(range(0, self.predictor.max_diff_steps-early_stop_idx)), dynamic_ncols=False, desc="Sampling :: ",
+        for i in tqdm(iterable=(range(0, self.predictor.max_diff_steps - early_stop_idx)), dynamic_ncols=False,
+                      desc="Sampling :: ",
                       position=0):
             diff_index = torch.Tensor([i]).to(torch_device)
-            t = timesteps[i] * torch.ones((x.shape[0], )).to(torch_device)
+            t = timesteps[i] * torch.ones((x.shape[0],)).to(torch_device)
             x, pred_score, noise = self.predictor.step(x, t=t, diff_index=diff_index, feature=feature)  # device = TODO
 
             if type(self.corrector) != NoneType:

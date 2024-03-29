@@ -17,8 +17,9 @@ class Predictor(abc.ABC):
     """ Base class for all predictor algorithms during reverse-time sampling """
 
     def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion, OUSDEDiffusion],
-                 score_function: Union[NaiveMLP, TimeSeriesScoreMatching, ConditionalTimeSeriesScoreMatching], end_diff_time: float, max_diff_steps: int,
-                 device: Union[int, torch.device], sample_eps:float):
+                 score_function: Union[NaiveMLP, TimeSeriesScoreMatching, ConditionalTimeSeriesScoreMatching],
+                 end_diff_time: float, max_diff_steps: int,
+                 device: Union[int, torch.device], sample_eps: float):
         super().__init__()
         self.score_network = score_function
         self.torch_device = device
@@ -55,7 +56,7 @@ class EulerMaruyamaPredictor(Predictor):
 
     def step(self, x_prev: torch.Tensor, t: torch.Tensor, diff_index: torch.Tensor) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor]:
-        dt = - (self.end_diff_time - self.sample_eps)/ self.max_diff_steps
+        dt = - (self.end_diff_time - self.sample_eps) / self.max_diff_steps
         score, drift, diffusion = self.diffusion.get_reverse_sde(x_prev, score_network=self.score_network, t=t,
                                                                  dt=torch.Tensor([dt]).to(self.torch_device))
         z = torch.randn_like(x_prev)
@@ -65,7 +66,7 @@ class EulerMaruyamaPredictor(Predictor):
 class AncestralSamplingPredictor(Predictor):
     def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion],
                  score_function: Union[NaiveMLP, TimeSeriesScoreMatching], end_diff_time: float, max_diff_steps: int,
-                 device: Union[int, torch.device], sample_eps:float):
+                 device: Union[int, torch.device], sample_eps: float):
         try:
             assert (type(diffusion) != OUSDEDiffusion)
         except AssertionError:
@@ -84,17 +85,18 @@ class AncestralSamplingPredictor(Predictor):
 class ConditionalAncestralSamplingPredictor(Predictor):
     def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion],
                  score_function: ConditionalTimeSeriesScoreMatching, end_diff_time: float, max_diff_steps: int,
-                 device: Union[int, torch.device], sample_eps:float):
+                 device: Union[int, torch.device], sample_eps: float):
         try:
             assert (type(diffusion) != OUSDEDiffusion)
         except AssertionError:
             raise NotImplementedError("Ancestral sampling is only valid for VE and VP diffusion models")
         super().__init__(diffusion, score_function, end_diff_time, max_diff_steps, device, sample_eps)
 
-    def step(self, x_prev: torch.Tensor, feature:torch.Tensor, t: torch.Tensor, diff_index: torch.Tensor) -> Tuple[
+    def step(self, x_prev: torch.Tensor, feature: torch.Tensor, t: torch.Tensor, diff_index: torch.Tensor) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor]:
-        score, drift, diffusion = self.diffusion.get_conditional_ancestral_sampling(x_prev, t=t, feature=feature, score_network=self.score_network,
-                                                                        diff_index=diff_index,
-                                                                        max_diff_steps=self.max_diff_steps)
+        score, drift, diffusion = self.diffusion.get_conditional_ancestral_sampling(x_prev, t=t, feature=feature,
+                                                                                    score_network=self.score_network,
+                                                                                    diff_index=diff_index,
+                                                                                    max_diff_steps=self.max_diff_steps)
         z = torch.randn_like(x_prev)
         return drift + diffusion * z, score, z

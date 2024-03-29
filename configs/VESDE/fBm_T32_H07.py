@@ -1,5 +1,3 @@
-
-
 import ml_collections
 import torch
 
@@ -20,7 +18,7 @@ def get_config():
 
     # Training hyperparameters
     config.train_eps = 1e-5
-    config.max_diff_steps = 4000 #* max(int(np.log2(config.ts_length) - 1), 1)
+    config.max_diff_steps = 4000  # * max(int(np.log2(config.ts_length) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
@@ -64,7 +62,8 @@ def get_config():
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
     config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.residual_layers,
                                config.residual_channels, config.dialation_length] \
-        if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.ts_length, config.enc_shapes,
+        if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.ts_length,
+                                              config.enc_shapes,
                                               config.dec_shapes]
 
     # Snapshot filepath
@@ -73,7 +72,7 @@ def get_config():
     # Sampling hyperparameters
     config.early_stop_idx = 0
     config.sample_eps = 1e-5
-    if config.hybrid: assert(config.sample_eps == config.train_eps)
+    if config.hybrid: assert (config.sample_eps == config.train_eps)
 
     config.max_lang_steps = 1
     config.snr = 0.01

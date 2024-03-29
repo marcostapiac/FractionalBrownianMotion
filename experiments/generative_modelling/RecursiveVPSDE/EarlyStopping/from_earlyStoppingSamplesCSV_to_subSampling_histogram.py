@@ -5,14 +5,15 @@ from utils.plotting_functions import hurst_estimation
 
 if __name__ == "__main__":
     from configs.RecursiveVPSDE.recursive_fBm_T256_H07_tl_2data import get_config
+
     # _MSeed0
     config = get_config()
     H = config.hurst
     df = pd.read_csv(config.experiment_path.replace("/results/",
                                                     "/results/early_stopping/") + "_NEp{}.csv.gzip".format(
-     config.max_epochs),
+        config.max_epochs),
                      compression="gzip", index_col=[0, 1])
-    #df = (df.apply(lambda x: [eval(i.replace("(", "").replace(")","").replace("tensor","")) for i in x]))
+    # df = (df.apply(lambda x: [eval(i.replace("(", "").replace(")","").replace("tensor","")) for i in x]))
     # Synthetic samples
     for type in df.index.get_level_values(level=0).unique():
         hurst_estimation(df.loc[type].to_numpy(), sample_type=type, isfBm=config.isfBm, true_hurst=config.hurst)

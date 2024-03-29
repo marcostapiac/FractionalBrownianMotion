@@ -190,7 +190,8 @@ def prepare_fBm_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESD
             assert (data.shape[0] >= training_size)
         except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
-            data = generate_fBn(T=config.ts_length, isUnitInterval=config.isUnitInterval, S=training_size, H=config.hurst)
+            data = generate_fBn(T=config.ts_length, isUnitInterval=config.isUnitInterval, S=training_size,
+                                H=config.hurst)
             np.save(config.data_path, data)
         if config.isfBm:
             data = data.cumsum(axis=1)[:training_size, :]
@@ -220,7 +221,8 @@ def prepare_fBm_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESD
             synthetic = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                          data_shape=(dataSize, config.ts_length),
                                          config=config)
-            original = generate_fBm(H=config.hurst, T=config.ts_length, S=dataSize, rng=rng, isUnitInterval=config.isUnitInterval)
+            original = generate_fBm(H=config.hurst, T=config.ts_length, S=dataSize, rng=rng,
+                                    isUnitInterval=config.isUnitInterval)
             train_and_save_discLSTM(org_data=original, synth_data=synthetic.cpu().numpy(), config=config, model=disc)
     return scoreModel
 
@@ -243,14 +245,16 @@ def run_fBm_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDEDiff
         try:
             assert (config.train_eps <= config.sample_eps)
             synth_samples = reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
-                                           data_shape=(dataSize, config.ts_length),
-                                           config=config)
+                                             data_shape=(dataSize, config.ts_length),
+                                             config=config)
         except AssertionError:
             raise ValueError("Final time during sampling should be at least as large as final time during training")
         if config.isfBm:
-            true_samples = generate_fBm(H=config.hurst, T=config.ts_length, S=dataSize, isUnitInterval=config.isUnitInterval)
+            true_samples = generate_fBm(H=config.hurst, T=config.ts_length, S=dataSize,
+                                        isUnitInterval=config.isUnitInterval)
         else:
-            true_samples = generate_fBn(H=config.hurst, T=config.ts_length, S=dataSize, isUnitInterval=config.isUnitInterval)
+            true_samples = generate_fBn(H=config.hurst, T=config.ts_length, S=dataSize,
+                                        isUnitInterval=config.isUnitInterval)
         exp_dict = evaluate_fBm_performance(true_samples, synth_samples.cpu().numpy(), rng=rng, config=config,
                                             exp_dict=exp_dict)
         agg_dict[j] = exp_dict
@@ -477,9 +481,11 @@ def run_fBm_score_error_experiment(dataSize: int,
 
     # Compute covariance function to compute exact score afterwards
     data_cov = torch.from_numpy(
-        compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.ts_length, isUnitInterval=config.isUnitInterval)).to(
+        compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.ts_length,
+                        isUnitInterval=config.isUnitInterval)).to(
         torch.float32).to(device) if config.isfBm else torch.from_numpy(
-        compute_fBn_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.ts_length, isUnitInterval=config.isUnitInterval)).to(
+        compute_fBn_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.ts_length,
+                        isUnitInterval=config.isUnitInterval)).to(
         torch.float32).to(device)
 
     # Placeholder
@@ -573,26 +579,31 @@ def run_fBm_backward_drift_experiment(dataSize: int,
         max_diff_steps = torch.Tensor([config.max_diff_steps]).to(device)
 
         # Obtain required diffusion parameters
-        _, pred_drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[diff_index.long()] * torch.ones(
-            (x.shape[0], 1)).to(device), score_network=scoreModel, diff_index=diff_index,
-                                                                                   max_diff_steps=config.max_diff_steps)
+        _, pred_drift, diffusion_param = diffusion.get_ancestral_sampling(x,
+                                                                          t=timesteps[diff_index.long()] * torch.ones(
+                                                                              (x.shape[0], 1)).to(device),
+                                                                          score_network=scoreModel,
+                                                                          diff_index=diff_index,
+                                                                          max_diff_steps=config.max_diff_steps)
         eff_time = diffusion.get_eff_times(diff_times=timesteps[diff_index.long()])
         if isinstance(diffusion, VESDEDiffusion):
             inv_cov = -torch.linalg.inv(eff_time * torch.eye(config.ts_length).to(device) + data_cov)
             score_only_pred_drift = pred_drift - x
-            exp_score_only_drift = (diffusion.get_ancestral_drift_coeff(max_diff_steps=max_diff_steps, diff_index=diff_index)) * (inv_cov @ x.T).T
+            exp_score_only_drift = (diffusion.get_ancestral_drift_coeff(max_diff_steps=max_diff_steps,
+                                                                        diff_index=diff_index)) * (inv_cov @ x.T).T
 
             exp_drift = x + exp_score_only_drift
         else:
             inv_cov = -torch.linalg.inv(
                 (1. - torch.exp(-eff_time)) * torch.eye(config.ts_length).to(device) + torch.exp(-eff_time) * data_cov)
             beta_t = diffusion.get_discretised_beta(max_diff_steps - 1 - diff_index, max_diff_steps)
-            score_only_pred_drift = pred_drift - x*(2.-torch.sqrt(1.-beta_t))
+            score_only_pred_drift = pred_drift - x * (2. - torch.sqrt(1. - beta_t))
             exp_score_only_drift = (beta_t * (inv_cov @ x.T).T)
-            exp_drift = x*(2.-torch.sqrt(1.-beta_t))+ exp_score_only_drift
+            exp_drift = x * (2. - torch.sqrt(1. - beta_t)) + exp_score_only_drift
 
-        drift_errors[config.max_diff_steps - 1 - i, :] = torch.pow(torch.linalg.norm(pred_drift - exp_drift, ord=2, axis=0),
-                                                             2).detach().cpu()
+        drift_errors[config.max_diff_steps - 1 - i, :] = torch.pow(
+            torch.linalg.norm(pred_drift - exp_drift, ord=2, axis=0),
+            2).detach().cpu()
         score_only_errors[config.max_diff_steps - 1 - i, :] = torch.pow(
             torch.linalg.norm(score_only_pred_drift - exp_score_only_drift, ord=2, axis=0),
             2).detach().cpu()
@@ -643,14 +654,14 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
 
     if config.isfBm:
         data_cov = torch.from_numpy(
-            compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.ts_length, isUnitInterval=config.isUnitInterval)).to(
+            compute_fBm_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.ts_length,
+                            isUnitInterval=config.isUnitInterval)).to(
             torch.float32).to(device)
     else:
         data_cov = torch.from_numpy(
             compute_fBn_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.ts_length,
                             isUnitInterval=config.isUnitInterval)).to(
             torch.float32).to(device)
-
 
     timesteps = torch.linspace(start=config.end_diff_time, end=config.sample_eps, steps=config.max_diff_steps).to(
         device)
@@ -677,8 +688,8 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
             xlabel = "fBm Dimension {}".format(dim_pair[0] + 1)
             ylabel = "fBm Dimension {}".format(dim_pair[1] + 1)
             plot_title = "Rev-Time {} samples $T={}$ at time {}".format(diffType, config.ts_length, round((
-                                                                                                                i + 1) / config.max_diff_steps,
-                                                                                                        5))
+                                                                                                                  i + 1) / config.max_diff_steps,
+                                                                                                          5))
             paired_cov = torch.index_select(torch.index_select(cov, dim=0, index=dim_pair), dim=1, index=dim_pair).to(
                 device)
             plot_and_save_diffused_fBm_snapshot(samples=x[:, dim_pair].cpu(), cov=paired_cov.cpu(), save_path=save_path,
@@ -690,8 +701,9 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
 
 
 def run_fBm_scatter_matrix(dataSize: int, scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
-                  diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion], folderPath: str, gifPath: str,
-                  rng: np.random.Generator, config: ConfigDict)->None:
+                           diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion], folderPath: str,
+                           gifPath: str,
+                           rng: np.random.Generator, config: ConfigDict) -> None:
     from utils.plotting_functions import my_pairplot
     """
         Run reverse-time diffusion and plot scatter plot for neighbouring dimensions and compare with theoretical contours
@@ -756,15 +768,13 @@ def run_fBm_scatter_matrix(dataSize: int, scoreModel: Union[NaiveMLP, TimeSeries
             row_vars = config.row_idxs
             col_vars = config.col_idxs
             save_path = folderPath + gifPath + "_dI_{}.png".format(i + 1)
-            title = "Rev-Time {} samples $T={}$ at time {}".format(diffType, config.ts_length, round((i + 1) / config.max_diff_steps,5))
-            my_pairplot(x.cpu(), row_idxs=row_vars, col_idxs=col_vars, cov=cov.cpu(), image_path=save_path, suptitle=title)
+            title = "Rev-Time {} samples $T={}$ at time {}".format(diffType, config.ts_length,
+                                                                   round((i + 1) / config.max_diff_steps, 5))
+            my_pairplot(x.cpu(), row_idxs=row_vars, col_idxs=col_vars, cov=cov.cpu(), image_path=save_path,
+                        suptitle=title)
 
         x = drift + diffusion_param * torch.randn_like(x)
     return x
-
-
-
-
 
 
 def run_fBm_perfect_score(dataSize: int, dim_pair: torch.Tensor,
@@ -818,7 +828,8 @@ def run_fBm_perfect_score(dataSize: int, dim_pair: torch.Tensor,
             cov = eff_time * torch.eye(dim_pair.shape[0]).to(device) + data_cov
         else:
             diffType = "VPSDE"
-            cov = (1. - torch.exp(-eff_time)) * torch.eye(dim_pair.shape[0]).to(device) + torch.exp(-eff_time) * data_cov
+            cov = (1. - torch.exp(-eff_time)) * torch.eye(dim_pair.shape[0]).to(device) + torch.exp(
+                -eff_time) * data_cov
 
         # Compute exact score
         exp_score = (-torch.linalg.inv(cov) @ x.T).T
@@ -833,8 +844,8 @@ def run_fBm_perfect_score(dataSize: int, dim_pair: torch.Tensor,
             xlabel = "fBm Dimension {}".format(dim_pair[0] + 1)
             ylabel = "fBm Dimension {}".format(dim_pair[1] + 1)
             plot_title = "Rev-Time {} samples $T={}$ at time {}".format(diffType, perfect_config.ts_length, round((
-                                                                                                                        i + 1) / perfect_config.max_diff_steps,
-                                                                                                                5))
+                                                                                                                          i + 1) / perfect_config.max_diff_steps,
+                                                                                                                  5))
             plot_and_save_diffused_fBm_snapshot(samples=x.cpu(), cov=cov.cpu(), save_path=save_path, x_label=xlabel,
                                                 y_label=ylabel, plot_title=plot_title)
 

@@ -6,10 +6,10 @@ import numpy as np
 import pandas as pd
 import torch
 from ml_collections import ConfigDict
+from src.classes.ClassConditionalDiffTrainer import ConditionalDiffusionModelTrainer
 from torch.distributed.elastic.multiprocessing.errors import record
 from torchmetrics.aggregation import MeanMetric
 
-from src.classes.ClassConditionalDiffTrainer import ConditionalDiffusionModelTrainer
 from src.classes.ClassConditionalSDESampler import ConditionalSDESampler
 from src.classes.ClassCorrector import VESDECorrector, VPSDECorrector
 from src.classes.ClassPredictor import ConditionalAncestralSamplingPredictor
@@ -28,9 +28,10 @@ from utils.math_functions import generate_fBn
 
 @record
 def train_and_save_TF_recursive_diffusion_model(data: np.ndarray,
-                                   config: ConfigDict,
-                                   diffusion: VPSDEDiffusion,
-                                   scoreModel: Union[NaiveMLP, ConditionalTimeSeriesScoreMatching]) -> None:
+                                                config: ConfigDict,
+                                                diffusion: VPSDEDiffusion,
+                                                scoreModel: Union[
+                                                    NaiveMLP, ConditionalTimeSeriesScoreMatching]) -> None:
     """
     Helper function to initiate training
         :param data: Dataset
@@ -53,12 +54,15 @@ def train_and_save_TF_recursive_diffusion_model(data: np.ndarray,
     train_eps, end_diff_time, max_diff_steps, checkpoint_freq = config.train_eps, config.end_diff_time, config.max_diff_steps, config.save_freq
 
     # TODO: When using DDP, set device = rank passed by mp.spawn OR by torchrun
-    trainer = ConditionalDiffusionModelTrainer(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
-                                    checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
-                                    loss_aggregator=MeanMetric,
-                                    snapshot_path=config.scoreNet_snapshot_path, device=device,
-                                    train_eps=train_eps,
-                                    end_diff_time=end_diff_time, max_diff_steps=max_diff_steps, to_weight=config.weightings, hybrid_training=config.hybrid)
+    trainer = ConditionalDiffusionModelTrainer(diffusion=diffusion, score_network=scoreModel,
+                                               train_data_loader=trainLoader,
+                                               checkpoint_freq=checkpoint_freq, optimiser=optimiser,
+                                               loss_fn=torch.nn.MSELoss,
+                                               loss_aggregator=MeanMetric,
+                                               snapshot_path=config.scoreNet_snapshot_path, device=device,
+                                               train_eps=train_eps,
+                                               end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
+                                               to_weight=config.weightings, hybrid_training=config.hybrid)
 
     # Start training
     trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
@@ -66,8 +70,9 @@ def train_and_save_TF_recursive_diffusion_model(data: np.ndarray,
 
 @record
 def recursive_transformer_reverse_sampling(diffusion: VPSDEDiffusion,
-                     scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], data_shape: Tuple[int, int, int],
-                     config: ConfigDict) -> torch.Tensor:
+                                           scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
+                                           data_shape: Tuple[int, int, int],
+                                           config: ConfigDict) -> torch.Tensor:
     """
     Helper function to initiate sampling
         :param diffusion: Diffusion model
@@ -81,7 +86,7 @@ def recursive_transformer_reverse_sampling(diffusion: VPSDEDiffusion,
         device = 0
     else:
         device = torch.device("cpu")
-    assert(config.predictor_model == "ancestral")
+    assert (config.predictor_model == "ancestral")
     # Define predictor
     predictor_params = [diffusion, scoreModel, config.end_diff_time, config.max_diff_steps, device, config.sample_eps]
     predictor = ConditionalAncestralSamplingPredictor(*predictor_params)
@@ -94,7 +99,8 @@ def recursive_transformer_reverse_sampling(diffusion: VPSDEDiffusion,
         corrector = VPSDECorrector(*corrector_params)
     else:
         corrector = None
-    sampler = ConditionalSDESampler(diffusion=diffusion, sample_eps=config.sample_eps, predictor=predictor, corrector=corrector)
+    sampler = ConditionalSDESampler(diffusion=diffusion, sample_eps=config.sample_eps, predictor=predictor,
+                                    corrector=corrector)
 
     scoreModel.eval()
     with torch.no_grad():
@@ -104,9 +110,10 @@ def recursive_transformer_reverse_sampling(diffusion: VPSDEDiffusion,
                 output, (h, c) = scoreModel.rnn(paths, None)
             else:
                 output, (h, c) = scoreModel.rnn(paths, (h, c))
-                output = torch.unsqueeze(output[:,-1,:], dim=1)
-            samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output, early_stop_idx=config.early_stop_idx)
-            assert(samples.shape == (data_shape[0], 1, data_shape[-1]))
+                output = torch.unsqueeze(output[:, -1, :], dim=1)
+            samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output,
+                                     early_stop_idx=config.early_stop_idx)
+            assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
             paths = torch.concat([paths, samples], dim=1)
     final_paths = torch.squeeze(paths.cpu(), dim=2)
     early_stop_idx = 0
@@ -119,7 +126,6 @@ def recursive_transformer_reverse_sampling(diffusion: VPSDEDiffusion,
     return final_paths
 
 
-
 if __name__ == "__main__":
     # Data parameters
     from configs.RecursiveVPSDE.recursive_transformer_fBm_T256_H07 import get_config
@@ -129,7 +135,8 @@ if __name__ == "__main__":
     assert (config.early_stop_idx == 0)
 
     rng = np.random.default_rng()
-    scoreModel = ConditionalTransformerTimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
+    scoreModel = ConditionalTransformerTimeSeriesScoreMatching(
+        *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
@@ -145,7 +152,8 @@ if __name__ == "__main__":
             assert (data.shape[0] >= training_size)
         except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
-            data = generate_fBn(T=config.ts_length, isUnitInterval=config.isUnitInterval, S=training_size, H=config.hurst)
+            data = generate_fBn(T=config.ts_length, isUnitInterval=config.isUnitInterval, S=training_size,
+                                H=config.hurst)
             np.save(config.data_path, data)
         if config.isfBm:
             data = data.cumsum(axis=1)[:training_size, :]
@@ -153,10 +161,11 @@ if __name__ == "__main__":
             data = data[:training_size, :]
         data = np.atleast_3d(data)
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
-        train_and_save_TF_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel)
+        train_and_save_TF_recursive_diffusion_model(data=data, config=config, diffusion=diffusion,
+                                                    scoreModel=scoreModel)
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(config.max_epochs)))
 
     cleanup_experiment()
 
     recursive_transformer_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
-                               data_shape=(config.dataSize, config.ts_length, 1), config=config)
+                                           data_shape=(config.dataSize, config.ts_length, 1), config=config)

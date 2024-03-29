@@ -61,7 +61,8 @@ class FractionalBrownianNoise:
             c = np.vstack([c, self.covariance(lag=i + 2)])  # No need to tranpose if c is already column
         return self.scale_to_unit_time_interval(N_samples, np.squeeze(samples))
 
-    def circulant_simulation(self, N_samples: int, scaleUnitInterval:bool=True, gaussRvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
+    def circulant_simulation(self, N_samples: int, scaleUnitInterval: bool = True,
+                             gaussRvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
         assert (type(N_samples) == int and (gaussRvs is not None and len(gaussRvs) == 2 * N_samples) or not gaussRvs)
         W = np.atleast_2d([complex(0., 0.)] * (2 * N_samples)).T
         assert (W.shape[1] > 0 and W.shape[0] == 2 * N_samples)

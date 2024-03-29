@@ -12,7 +12,7 @@ def get_config():
 
     # Data set parameters
     config.hurst = 0.7
-    config.ts_length = 2**10
+    config.ts_length = 2 ** 10
     config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(
         str(config.hurst).replace(".", ""), config.ts_length)
 
@@ -61,7 +61,8 @@ def get_config():
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
     config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.residual_layers,
                                config.residual_channels, config.dialation_length] \
-        if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.ts_length, config.enc_shapes,
+        if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.ts_length,
+                                              config.enc_shapes,
                                               config.dec_shapes]
 
     # Snapshot filepath

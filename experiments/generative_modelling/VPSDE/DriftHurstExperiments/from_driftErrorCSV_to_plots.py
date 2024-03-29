@@ -35,7 +35,8 @@ if __name__ == "__main__":
     plot_errors_ts(
         time_space[time_idxs],
         time_dim_drift_errors[time_idxs],
-        plot_title="MSE Drift CumMean Error for VPSDE fBm with $(H, T) = ({},{})$".format(config.hurst, config.ts_length),
+        plot_title="MSE Drift CumMean Error for VPSDE fBm with $(H, T) = ({},{})$".format(config.hurst,
+                                                                                          config.ts_length),
         path=drift_pic_path)
 
     start_index = 8000

@@ -4,6 +4,7 @@ from math import gamma
 from typing import Union, Tuple
 
 import numpy as np
+import roughpy as rhpy
 import scipy.optimize as so
 from ml_collections import ConfigDict
 from numpy import broadcast_to, log, exp
@@ -170,7 +171,7 @@ def generate_fBm(H: float, T: int, S: int, isUnitInterval: bool,
         :param isUnitInterval: Whether to scale samples to unit time interval.
         :return: fBm samples
     """
-    data = generate_fBn(H=H, T=T, S=S,  rvs=rvs, isUnitInterval=isUnitInterval)
+    data = generate_fBn(H=H, T=T, S=S, rvs=rvs, isUnitInterval=isUnitInterval)
     return np.cumsum(data, axis=1)
 
 
@@ -405,3 +406,153 @@ def compute_pvals(forward_samples: np.ndarray, reverse_samples: np.ndarray) -> l
         ps.append(ks_res[1])
         print("KS-test statistic for marginal at time {} :: {}".format(t, ks_res))
     return ps
+
+
+def time_aug(data_samples: np.ndarray, time_ax: np.ndarray) -> np.ndarray:
+    """
+    Augment 1-dimensional time series with a monotonically increasing time dimension
+        :param data_samples: Original 1-dimensional time series
+        :param time_ax: Real time process evolves in
+        :return: Time augmented time series
+    """
+    N, T, d = data_samples.shape
+    assert (time_ax.shape == (T, 1))
+    timeaug = np.atleast_3d([np.column_stack([time_ax, data_samples[i, :, :]]) for i in range(N)])
+    assert (timeaug.shape == (N, T, d + 1))
+    return timeaug
+
+
+def invisibility_reset(timeaug: np.ndarray, ts_dim: int) -> np.ndarray:
+    """
+        Transform time augmented time series with invisibility reset
+        :param timeaug: Time augmented time series
+        :param ts_dim: Original time series dimensions
+        :return: Transformed time series
+    """
+    N, T = timeaug.shape[:2]
+    assert (timeaug.shape[-1] == ts_dim + 1)
+    Wi = np.hstack([timeaug[:, [0], :], np.zeros_like(timeaug[:, [0], :]), np.diff(timeaug, axis=1),
+                    np.zeros_like(timeaug[:, [-1], :]), -timeaug[:, [-1], :]])
+    assert (Wi.shape == (N, T + 3, ts_dim + 1))
+    assert (np.all(np.abs(np.sum(np.sum(Wi, axis=2), axis=1)) < 1e-15))
+    return Wi
+
+
+def compute_signature(sample: np.ndarray, trunc: int, interval: rhpy.Interval, dim: int, coefftype: rhpy.ScalarMeta):
+    # To work with RoughPy, we first need to first construct a context
+    CTX = rhpy.get_context(width=dim, depth=trunc,
+                           coeffs=coefftype)  # (Transformed TS dimension, Signature Truncation, TS DataType)
+
+    # Given a context, we need to transform our data into a stream of increments
+    stream = rhpy.LieIncrementStream.from_increments(data=sample, ctx=CTX)
+
+    # Now compute the signature over the whole time span TODO: HOW DO WE DEAL WITH INVISIBILITY AUGMENTATION IN TIME
+    #  DIMENSION?
+    sig = np.array(stream.signature(interval))  # TODO: What is resolution?
+    if dim > 1:
+        assert (sig.shape[0] == ((np.power(dim, trunc + 1) - 1) / (dim - 1)))
+    else:
+        assert (sig.shape[0] == trunc + 1)
+    return sig
+
+
+def assert_chen_identity(sample: np.ndarray, trunc: int, dim: int, coefftype: rhpy.ScalarMeta) -> None:
+    """
+    Sanity check to ensure Chen's identity is preserved
+    :param sample: Single time series sample
+    :param trunc: Signature truncation level
+    :param dim: Time series dimensionality
+    :param coefftype: Time series data type
+    :return: AssertionError or None
+    """
+    assert (len(sample.shape) == 2)
+    T = sample.shape[0]
+    intv1 = rhpy.RealInterval(0, T // 2)
+    sig1 = compute_signature(sample=sample, trunc=trunc, dim=dim, interval=intv1, coefftype=coefftype)
+    intv2 = rhpy.RealInterval(T // 2, T)
+    sig2 = compute_signature(sample=sample, trunc=trunc, dim=dim, interval=intv2, coefftype=coefftype)
+    intv3 = rhpy.RealInterval(0, T)
+    sig3 = compute_signature(sample=sample, trunc=trunc, dim=dim, interval=intv3, coefftype=coefftype)
+    assert (np.all(sig1.shape == sig2.shape) and np.all(sig2.shape == sig3.shape))
+    assert (np.all(np.abs(sig3 - tensor_algebra_product(sig1=sig1, sig2=sig2, dim=dim, trunc=trunc)) < 1e-6))
+
+
+def ts_signature_pipeline(data_batch: np.ndarray, trunc: int) -> np.ndarray:
+    """
+    Pipeline to compute the signature at each time for each sample of data batch
+        :param data_batch: Data of shape (NumSamples, TSLength, TSDims)
+        :param trunc: Signature truncation level
+        :return: Signature for each time
+    """
+    assert (len(data_batch.shape) == 3)
+    N, T, d = data_batch.shape
+    timeaug = time_aug(data_batch, np.atleast_2d(np.arange(1, T + 1) / T).T)
+    transformed = invisibility_reset(timeaug, ts_dim=d)
+    dims = transformed.shape[-1]
+    feats = np.atleast_2d([compute_signature(sample=transformed[i, :, :], trunc=trunc, interval=rhpy.RealInterval(0, T),
+                                             dim=dims, coefftype=rhpy.DPReal) for i in range(N)])
+    assert (feats.shape == (N, compute_sig_size(dim=dims, trunc=trunc)))
+    return feats
+
+
+def compute_sig_size(dim: int, trunc: int) -> int:
+    """
+    Compute the number of elements for a truncated signature
+        :param dim: Dimension of augmented time series
+        :param trunc: Truncation level of signature
+        :return: Number of elements in the truncated signature
+    """
+    if dim > 1:
+        return int(np.power(dim, trunc + 1) - 1 / (dim - 1))
+    else:
+        return int(trunc + 1)
+
+
+def tensor_algebra_product(sig1: np.ndarray, sig2: np.ndarray, dim: int, trunc: int) -> np.ndarray:
+    """
+    Manually compute Chen's identity over two non-overlapping consecutive intervals
+        :param sig1: Signature over first interval
+        :param sig2: Signature over second interval
+        :param dim: Dimension of augmented time series
+        :param trunc: Signature truncation level
+        :return: Signature of concatenated path
+    """
+    assert (np.all(sig1.shape == sig2.shape) and sig1[0] == sig2[0] == 1 and 1 <= trunc <= 3)
+    product = np.zeros_like(sig1)
+    # For trunc 0: Constant of 1
+    product[0] = sig1[0] * sig2[0]
+    # For trunc 1: Compute outer product
+    product[compute_sig_size(dim=dim, trunc=0):compute_sig_size(dim=dim, trunc=1)] = (
+            sig1[0] * sig2[compute_sig_size(dim=dim, trunc=0):compute_sig_size(dim=dim, trunc=1)] + sig2[0] * sig1[
+                                                                                                              compute_sig_size(
+                                                                                                                  dim=dim,
+                                                                                                                  trunc=0):compute_sig_size(
+                                                                                                                  dim=dim,
+                                                                                                                  trunc=1)]).flatten()
+    if trunc > 1:
+        # For trunc 2: First compute cross terms
+        level2 = np.reshape(np.atleast_2d(
+            sig1[compute_sig_size(dim=dim, trunc=0):compute_sig_size(dim=dim, trunc=1)]).T @ np.atleast_2d(
+            sig2[compute_sig_size(dim=dim, trunc=0):compute_sig_size(dim=dim, trunc=1)]), (dim ** 2,))
+        # For trunc 2: Compute outer products
+        level2 += sig1[0] * sig2[compute_sig_size(dim=dim, trunc=1):compute_sig_size(dim=dim, trunc=2)] + sig2[
+            0] * sig1[
+                 compute_sig_size(dim=dim, trunc=1):compute_sig_size(dim=dim,
+                                                                     trunc=2)]
+        product[compute_sig_size(dim=dim, trunc=1):compute_sig_size(dim=dim, trunc=2)] = level2
+        if trunc > 2:
+            # For trunc 3: First the outer product
+            level3 = sig1[0] * sig2[compute_sig_size(dim=dim, trunc=2):compute_sig_size(dim=dim, trunc=3)] + sig2[
+                0] * sig1[
+                     compute_sig_size(dim=dim, trunc=2):compute_sig_size(dim=dim,
+                                                                         trunc=3)]
+            # For trunc 3: Next the cross terms of 1_i,2_jk
+            level3 += np.reshape(np.atleast_2d(
+                sig1[compute_sig_size(dim=dim, trunc=0):compute_sig_size(dim=dim, trunc=1)]).T @ np.atleast_2d(
+                sig2[compute_sig_size(dim=dim, trunc=1):compute_sig_size(dim=dim, trunc=2)]), (dim ** 3,))
+            # For trunc 3: Next the cross terms of 1_ij,2k (note we work in a non-commutative basis)
+            level3 += np.reshape(np.atleast_2d(
+                sig1[compute_sig_size(dim=dim, trunc=1):compute_sig_size(dim=dim, trunc=2)]).T @ np.atleast_2d(
+                sig2[compute_sig_size(dim=dim, trunc=0):compute_sig_size(dim=dim, trunc=1)]), (dim ** 3,))
+            product[compute_sig_size(dim=dim, trunc=2):compute_sig_size(dim=dim, trunc=3)] = level3
+    return product

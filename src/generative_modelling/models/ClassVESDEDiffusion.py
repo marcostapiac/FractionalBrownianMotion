@@ -3,6 +3,12 @@ from typing import Tuple, Union
 import torch
 from torch import nn
 
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTimeSeriesScoreMatching import \
+    ConditionalLSTMTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTimeSeriesScoreMatching import \
+    ConditionalMarkovianTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
+    ConditionalTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
@@ -23,6 +29,7 @@ class VESDEDiffusion(nn.Module):
     def get_var_min(self) -> torch.Tensor:
         """ Get minimum variance parameter """
         return torch.Tensor([self.stdMin ** 2]).to(torch.float32)
+
     @staticmethod
     def noising_process(dataSamples: torch.Tensor, effTimes: torch.Tensor) -> Tuple[torch.Tensor, torch.Tensor]:
         """
@@ -120,7 +127,8 @@ class VESDEDiffusion(nn.Module):
             noise_diff * next_var / curr_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]).to(device))
 
     def get_ancestral_sampling(self, x: torch.Tensor, t: torch.Tensor,
-                               score_network: Union[NaiveMLP, TimeSeriesScoreMatching],
+                               score_network: Union[
+                                   NaiveMLP, TimeSeriesScoreMatching, ConditionalLSTMTimeSeriesScoreMatching, ConditionalTimeSeriesScoreMatching, ConditionalMarkovianTimeSeriesScoreMatching],
                                diff_index: torch.Tensor, max_diff_steps: int) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor]:
         """

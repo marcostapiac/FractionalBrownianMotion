@@ -95,7 +95,7 @@ class ResidualBlock(nn.Module):
         conditioner = self.conditioner_projection(conditioner)
 
         y = x + diffusion_step
-        y = self.dilated_conv(y)+ conditioner
+        y = self.dilated_conv(y) + conditioner
 
         gate, filter = torch.chunk(y, 2, dim=1)
         y = torch.sigmoid(gate) * torch.tanh(filter)
@@ -109,8 +109,8 @@ class ResidualBlock(nn.Module):
 class CondUpsampler(nn.Module):
     def __init__(self, cond_length, target_dim):
         super().__init__()
-        self.linear1 = nn.Linear(cond_length, int(2*target_dim), bias=False)
-        self.linear2 = nn.Linear(int(2*target_dim), target_dim, bias=False)
+        self.linear1 = nn.Linear(cond_length, int(2 * target_dim), bias=False)
+        self.linear2 = nn.Linear(int(2 * target_dim), target_dim, bias=False)
 
     def forward(self, x):
         x = self.linear1(x)
@@ -161,7 +161,7 @@ class ConditionalTransformerTimeSeriesScoreMatching(nn.Module):
         nn.init.zeros_(self.output_projection.weight)
 
     def forward(self, inputs, times, conditioner):
-        #inputs = inputs.unsqueeze(1)
+        # inputs = inputs.unsqueeze(1)
         x = self.input_projection(inputs)
         x = F.leaky_relu(x, 0.01)
 
@@ -169,7 +169,7 @@ class ConditionalTransformerTimeSeriesScoreMatching(nn.Module):
         cond_up = self.cond_upsampler(conditioner)
         skip = []
         for layer in self.residual_layers:
-            x, skip_connection = layer(x, conditioner=cond_up, diffusion_step= diffusion_step)
+            x, skip_connection = layer(x, conditioner=cond_up, diffusion_step=diffusion_step)
             x = F.leaky_relu(x, 0.01)
             skip.append(skip_connection)
 

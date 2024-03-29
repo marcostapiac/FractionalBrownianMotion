@@ -118,7 +118,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
                 curr_time_cov2 = torch.atleast_2d((data_cov[:t, t])).T.to(device)
                 curr_var = torch.atleast_2d(data_cov[t, t]).to(device)
                 assert (true_past.shape == (config.dataSize, t, 1) and curr_time_cov1.shape == (
-                1, t) and curr_time_cov2.shape == (t, 1))
+                    1, t) and curr_time_cov2.shape == (t, 1))
             samples, true_samples, per_time_drift_error = recursive_sampling_and_track(data_shape=data_shape,
                                                                                        torch_device=device,
                                                                                        feature=output,
@@ -169,8 +169,9 @@ def store_score_and_feature() -> None:
                                                                              config.dataSize, config.ts_length, 1),
                                                                          config=config, rng=rng)
     assert (
-    paths.shape == (config.dataSize, config.ts_length) and features.shape == (config.ts_length, config.dataSize, 40),
-    drift_errors.shape == (config.ts_length, config.max_diff_steps, config.dataSize))
+        paths.shape == (config.dataSize, config.ts_length) and features.shape == (
+        config.ts_length, config.dataSize, 40),
+        drift_errors.shape == (config.ts_length, config.max_diff_steps, config.dataSize))
 
     print("Storing Path Data\n")
     path_df = pd.DataFrame(paths)

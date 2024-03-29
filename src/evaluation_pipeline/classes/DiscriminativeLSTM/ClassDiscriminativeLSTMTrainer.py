@@ -111,7 +111,9 @@ class DiscriminativeLSTMTrainer:
             self.model.module.load_state_dict(snapshot["MODEL_STATE"])
         else:
             self.model.load_state_dict(snapshot["MODEL_STATE"])
-        print("Device {} :: Resuming training from snapshot at epoch {} and device {}\n".format(self.device_id, self.epochs_run + 1, self.device_id))
+        print("Device {} :: Resuming training from snapshot at epoch {} and device {}\n".format(self.device_id,
+                                                                                                self.epochs_run + 1,
+                                                                                                self.device_id))
 
     def _save_snapshot(self, epoch: int) -> None:
         """

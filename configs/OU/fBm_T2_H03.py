@@ -61,15 +61,16 @@ def get_config():
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
     config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.residual_layers,
                                config.residual_channels, config.dialation_length] \
-        if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.ts_length, config.enc_shapes,
+        if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.ts_length,
+                                              config.enc_shapes,
                                               config.dec_shapes]
 
     # Snapshot filepath
     config.scoreNet_snapshot_path = config.scoreNet_trained_path.replace("trained_models/", "snapshots/")
 
     # Sampling hyperparameters
-    config.early_stop_idx = 0 
-    config.sample_eps = 1e-3    
+    config.early_stop_idx = 0
+    config.sample_eps = 1e-3
     config.max_lang_steps = 0
     config.snr = 0.
     config.predictor_model = "euler-maruyama"  # vs "ancestral"

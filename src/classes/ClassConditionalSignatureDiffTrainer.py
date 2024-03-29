@@ -15,8 +15,6 @@ from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
     ConditionalTimeSeriesScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTransformerTimeSeriesScoreMatching import \
-    ConditionalTransformerTimeSeriesScoreMatching
 
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
@@ -24,13 +22,11 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 # Tutorial: https://www.youtube.com/watch?v=-LAtx9Q6DA8
 
 
-class ConditionalDiffusionModelTrainer(nn.Module):
-    """ Trainer class for a single GPU on a single machine, reporting aggregate loss over all batches """
+class ConditionalSignatureDiffusionModelTrainer(nn.Module):
 
     def __init__(self,
                  diffusion: Union[VESDEDiffusion, OUSDEDiffusion, VPSDEDiffusion],
-                 score_network: Union[
-                     ConditionalTimeSeriesScoreMatching, ConditionalTransformerTimeSeriesScoreMatching],
+                 score_network: ConditionalTimeSeriesScoreMatching,
                  train_data_loader: torch.utils.data.dataloader.DataLoader,
                  train_eps: float,
                  end_diff_time: float,
@@ -41,6 +37,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
                  checkpoint_freq: int,
                  to_weight: bool,
                  hybrid_training: bool,
+                 sig_trunc: int,
                  loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
         super().__init__()
@@ -61,6 +58,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
         self.end_diff_time = end_diff_time
         self.is_hybrid = hybrid_training
         self.include_weightings = to_weight
+        self.sig_trunc = sig_trunc
 
         # Move score network to appropriate device
         if type(self.device_id) == int:
@@ -114,9 +112,16 @@ class ConditionalDiffusionModelTrainer(nn.Module):
         """
         self.opt.zero_grad()
         B, T, D = xts.shape
+        assert (features.shape[:2] == (B, T) and features.shape[-1] == D)
+        M = features.shape[2]
         # Reshaping concatenates vectors in dim=1
-        xts = xts.reshape(B * T, 1, -1)
-        features = features.reshape(B * T, 1, -1)
+        xts = xts.reshape(B * T, 1, D)
+        # Features is originally shaped (NumTimeSeries, TimeSeriesLength, LookBackWindow, TimeSeriesDim)
+        # Reshape so that we have (NumTimeSeries*TimeSeriesLength, 1, LookBackWindow, TimeSeriesDim)
+        features = features.reshape(B * T, 1, M, D)
+        # Now reshape again into (NumTimeSeries*TimeSeriesLength, 1, LookBackWindow*TimeSeriesDim)
+        # Note this is for the simplest implementation of CondUpsampler which is simply an MLP
+        features = features.reshape(B * T, 1, M * D, 1).permute((0, 1, 3, 2)).squeeze(2)
         target_scores = target_scores.reshape(B * T, 1, -1)
         diff_times = diff_times.reshape(B * T)
         eff_times = eff_times.reshape(target_scores.shape)
@@ -193,7 +198,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             :param epoch: Current epoch number
             :return: None
         """
-        snapshot = {"EPOCHS_RUN": epoch+1, "OPTIMISER_STATE": self.opt.state_dict()}
+        snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict()}
         # self.score_network now points to DDP wrapped object, so we need to access parameters via ".module"
         if type(self.device_id) == int:
             snapshot["MODEL_STATE"] = self.score_network.module.state_dict()
@@ -217,7 +222,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
         filepath = filepath + "_NEp{}".format(final_epoch)
         torch.save(ckp, filepath)
         print(f"Trained model saved at {filepath}\n")
-        self.score_network.to(self.device_id) # In the event we continue training after saving
+        self.score_network.to(self.device_id)  # In the event we continue training after saving
         try:
             pass
             # os.remove(self.snapshot_path)  # Do NOT remove snapshot path yet eventhough training is done
@@ -231,13 +236,12 @@ class ConditionalDiffusionModelTrainer(nn.Module):
         """
 
         # batch shape (N_batches, Time Series Length, Input Size)
-        # hidden states: (D*NumLayers, N, Hidden Dims), D is 2 if bidirectional, else 1.
-        dbatch = torch.cat([torch.zeros((batch.shape[0], 1, batch.shape[-1])).to(batch.device), batch], dim=1)
-        if type(self.device_id) == int:
-            output, (hn, cn) = (self.score_network.module.rnn(dbatch, None))
-        else:
-            output, (hn, cn) = (self.score_network.rnn(dbatch, None))
-        return output[:, :-1, :]
+        # The historical vector for each t in (N_batches, t, Input Size) is (N_batches, t-20:t, Input Size)
+        # Create new tensor of size (N_batches, Time Series Length, Input Size, 20, Input Size) so that each dimension
+        # of the time series has a corresponding past of size (20, 1)
+        print(batch, batch.shape)
+        # Feature tensor is of size (Num_TimeSeries, TimeSeriesLength, LookbackWindow, TimeSeriesDim)
+        return result_tensor
 
     def _save_loss(self, losses: list, filepath: str):
         """
@@ -260,7 +264,7 @@ class ConditionalDiffusionModelTrainer(nn.Module):
             with open(filepath.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as fp:
                 l = pickle.load(fp)
                 print("Loading Loss Tracker at Epoch {} with Length {}\n".format(self.epochs_run, len(l)))
-                assert(len(l) >= self.epochs_run)
+                assert (len(l) >= self.epochs_run)
                 return l[:self.epochs_run]
         except FileNotFoundError:
             return []
@@ -309,4 +313,4 @@ class ConditionalDiffusionModelTrainer(nn.Module):
                 elif (epoch + 1) % self.save_every == 0:
                     self._save_loss(losses=all_losses_per_epoch, filepath=model_filename)
                     self._save_snapshot(epoch=epoch)
-            if type(self.device_id)==int:dist.barrier()
+            if type(self.device_id) == int: dist.barrier()

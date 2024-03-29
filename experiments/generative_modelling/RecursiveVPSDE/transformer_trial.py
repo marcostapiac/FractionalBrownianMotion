@@ -93,14 +93,14 @@ class DataEmbedding(nn.Module):
 
         self.value_embedding = TokenEmbedding(c_in=c_in, d_model=d_model)
         self.position_embedding = PositionalEmbedding(d_model=d_model)
-        #self.temporal_embedding = TemporalEmbedding(d_model=d_model, embed_type=embed_type,
+        # self.temporal_embedding = TemporalEmbedding(d_model=d_model, embed_type=embed_type,
         #                                            freq=freq) #if embed_type != 'timeF' else TimeFeatureEmbedding(
-            #d_model=d_model, embed_type=embed_type, freq=freq)
+        # d_model=d_model, embed_type=embed_type, freq=freq)
 
         self.dropout = nn.Dropout(p=dropout)
 
     def forward(self, x, x_mark=None):
-        x = self.value_embedding(x) + self.position_embedding(x) #+ self.temporal_embedding(x_mark)
+        x = self.value_embedding(x) + self.position_embedding(x)  # + self.temporal_embedding(x_mark)
 
         return self.dropout(x)
 
@@ -108,7 +108,7 @@ class DataEmbedding(nn.Module):
 # d_model = Number of expected features in the input
 d_data = 1
 d_model = 512
-enc = DataEmbedding(c_in =d_data, d_model=d_model)
+enc = DataEmbedding(c_in=d_data, d_model=d_model)
 layer = torch.nn.TransformerEncoderLayer(d_model=d_model, nhead=8, batch_first=True)
 model = torch.nn.TransformerEncoder(encoder_layer=layer, num_layers=2)
 x = torch.randn(2000, 256, d_data)
@@ -119,6 +119,6 @@ print(mask, mask.shape)
 # 20000 samples of 1-dimensional paths observed 256 times.
 with torch.no_grad():
     unmasked_output = model(x)
-    is_causal_output = model(x,mask=mask, is_causal=True)
+    is_causal_output = model(x, mask=mask, is_causal=True)
     print(unmasked_output, unmasked_output.shape)
     print(is_causal_output, is_causal_output.shape)
