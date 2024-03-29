@@ -10,6 +10,7 @@ from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
     ConditionalTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
+from utils.data_processing import cleanup_experiment, init_experiment
 from utils.math_functions import generate_fBn
 
 if __name__ == "__main__":
@@ -27,7 +28,7 @@ if __name__ == "__main__":
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    # init_experiment(config=config)
+    init_experiment(config=config)
     end_epoch = max(config.max_epochs)
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))
@@ -52,7 +53,7 @@ if __name__ == "__main__":
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
         train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel,
                                                  trainClass=ConditionalSignatureDiffusionModelTrainer)
-    # cleanup_experiment()
+    cleanup_experiment()
 
     for train_epoch in config.max_epochs:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))

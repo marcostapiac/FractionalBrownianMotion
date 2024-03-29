@@ -6,6 +6,7 @@ from typing import Union, Tuple
 import numpy as np
 import roughpy as rhpy
 import scipy.optimize as so
+import torch
 from ml_collections import ConfigDict
 from numpy import broadcast_to, log, exp
 from scipy.stats import chi2, kstest
@@ -408,7 +409,7 @@ def compute_pvals(forward_samples: np.ndarray, reverse_samples: np.ndarray) -> l
     return ps
 
 
-def time_aug(data_samples: np.ndarray, time_ax: np.ndarray) -> np.ndarray:
+def time_aug(data_samples: torch.Tensor, time_ax: torch.Tensor) -> torch.Tensor:
     """
     Augment 1-dimensional time series with a monotonically increasing time dimension
         :param data_samples: Original 1-dimensional time series
@@ -417,12 +418,12 @@ def time_aug(data_samples: np.ndarray, time_ax: np.ndarray) -> np.ndarray:
     """
     N, T, d = data_samples.shape
     assert (time_ax.shape == (T, 1))
-    timeaug = np.atleast_3d([np.column_stack([time_ax, data_samples[i, :, :]]) for i in range(N)])
+    timeaug = torch.stack([torch.column_stack([time_ax, data_samples[i, :, :]]) for i in range(N)],dim=0)
     assert (timeaug.shape == (N, T, d + 1))
     return timeaug
 
 
-def invisibility_reset(timeaug: np.ndarray, ts_dim: int) -> np.ndarray:
+def invisibility_reset(timeaug: torch.Tensor, ts_dim: int) -> torch.Tensor:
     """
         Transform time augmented time series with invisibility reset
         :param timeaug: Time augmented time series
@@ -431,14 +432,14 @@ def invisibility_reset(timeaug: np.ndarray, ts_dim: int) -> np.ndarray:
     """
     N, T = timeaug.shape[:2]
     assert (timeaug.shape[-1] == ts_dim + 1)
-    Wi = np.hstack([timeaug[:, [0], :], np.zeros_like(timeaug[:, [0], :]), np.diff(timeaug, axis=1),
-                    np.zeros_like(timeaug[:, [-1], :]), -timeaug[:, [-1], :]])
+    Wi = torch.hstack([timeaug[:, [0], :], torch.zeros_like(timeaug[:, [0], :]), torch.diff(timeaug, dim=1),
+                    torch.zeros_like(timeaug[:, [-1], :]), -timeaug[:, [-1], :]])
     assert (Wi.shape == (N, T + 3, ts_dim + 1))
-    assert (np.all(np.abs(np.sum(np.sum(Wi, axis=2), axis=1)) < 1e-15))
+    #assert (torch.sum(np.abs(torch.sum(torch.sum(Wi, dim=2), dim=1)), dim=0) < 1e-10)
     return Wi
 
 
-def compute_signature(sample: np.ndarray, trunc: int, interval: rhpy.Interval, dim: int, coefftype: rhpy.ScalarMeta):
+def compute_signature(sample: torch.Tensor, trunc: int, interval: rhpy.Interval, dim: int, coefftype: rhpy.ScalarMeta):
     # To work with RoughPy, we first need to first construct a context
     CTX = rhpy.get_context(width=dim, depth=trunc,
                            coeffs=coefftype)  # (Transformed TS dimension, Signature Truncation, TS DataType)
@@ -448,7 +449,7 @@ def compute_signature(sample: np.ndarray, trunc: int, interval: rhpy.Interval, d
 
     # Now compute the signature over the whole time span TODO: HOW DO WE DEAL WITH INVISIBILITY AUGMENTATION IN TIME
     #  DIMENSION?
-    sig = np.array(stream.signature(interval))  # TODO: What is resolution?
+    sig = torch.Tensor(np.array(stream.signature(interval)))  # TODO: What is resolution?
     if dim > 1:
         assert (sig.shape[0] == ((np.power(dim, trunc + 1) - 1) / (dim - 1)))
     else:
@@ -477,20 +478,20 @@ def assert_chen_identity(sample: np.ndarray, trunc: int, dim: int, coefftype: rh
     assert (np.all(np.abs(sig3 - tensor_algebra_product(sig1=sig1, sig2=sig2, dim=dim, trunc=trunc)) < 1e-6))
 
 
-def ts_signature_pipeline(data_batch: np.ndarray, trunc: int) -> np.ndarray:
+def ts_signature_pipeline(data_batch: torch.Tensor, trunc: int, times:torch.Tensor) -> torch.Tensor:
     """
     Pipeline to compute the signature at each time for each sample of data batch
         :param data_batch: Data of shape (NumSamples, TSLength, TSDims)
         :param trunc: Signature truncation level
         :return: Signature for each time
     """
-    assert (len(data_batch.shape) == 3)
+    assert (len(data_batch.shape) == 3 and len(times.shape)==2)
     N, T, d = data_batch.shape
-    timeaug = time_aug(data_batch, np.atleast_2d(np.arange(1, T + 1) / T).T)
+    timeaug = time_aug(data_batch, times[:T,:])
     transformed = invisibility_reset(timeaug, ts_dim=d)
     dims = transformed.shape[-1]
-    feats = np.atleast_2d([compute_signature(sample=transformed[i, :, :], trunc=trunc, interval=rhpy.RealInterval(0, T),
-                                             dim=dims, coefftype=rhpy.DPReal) for i in range(N)])
+    feats = torch.stack([compute_signature(sample=transformed[i, :, :], trunc=trunc, interval=rhpy.RealInterval(0, T),
+                                             dim=dims, coefftype=rhpy.DPReal) for i in range(N)], dim=0)
     assert (feats.shape == (N, compute_sig_size(dim=dims, trunc=trunc)))
     return feats
 

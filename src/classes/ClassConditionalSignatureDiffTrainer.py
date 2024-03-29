@@ -15,6 +15,7 @@ from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
     ConditionalTimeSeriesScoreMatching
+from utils.math_functions import ts_signature_pipeline, compute_sig_size
 
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
@@ -112,16 +113,8 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
         """
         self.opt.zero_grad()
         B, T, D = xts.shape
-        assert (features.shape[:2] == (B, T) and features.shape[-1] == D)
-        M = features.shape[2]
-        # Reshaping concatenates vectors in dim=1
-        xts = xts.reshape(B * T, 1, D)
-        # Features is originally shaped (NumTimeSeries, TimeSeriesLength, LookBackWindow, TimeSeriesDim)
-        # Reshape so that we have (NumTimeSeries*TimeSeriesLength, 1, LookBackWindow, TimeSeriesDim)
-        features = features.reshape(B * T, 1, M, D)
-        # Now reshape again into (NumTimeSeries*TimeSeriesLength, 1, LookBackWindow*TimeSeriesDim)
-        # Note this is for the simplest implementation of CondUpsampler which is simply an MLP
-        features = features.reshape(B * T, 1, M * D, 1).permute((0, 1, 3, 2)).squeeze(2)
+        xts = xts.reshape(B * T, 1, -1)
+        features = features.reshape(B * T, 1, -1)
         target_scores = target_scores.reshape(B * T, 1, -1)
         diff_times = diff_times.reshape(B * T)
         eff_times = eff_times.reshape(target_scores.shape)
@@ -239,9 +232,20 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
         # The historical vector for each t in (N_batches, t, Input Size) is (N_batches, t-20:t, Input Size)
         # Create new tensor of size (N_batches, Time Series Length, Input Size, 20, Input Size) so that each dimension
         # of the time series has a corresponding past of size (20, 1)
-        print(batch, batch.shape)
-        # Feature tensor is of size (Num_TimeSeries, TimeSeriesLength, LookbackWindow, TimeSeriesDim)
-        return result_tensor
+        N, T, d = batch.shape
+        # Now attempt on a rolling basis across time
+        times = torch.atleast_2d((torch.arange(0, T + 1) / T)).T
+        full_feats = torch.zeros(size=(N, T, compute_sig_size(dim=d + 1, trunc=self.sig_trunc)))
+        for t in range(T):
+            if t == 0:
+                full_feats[:, t, :] = ts_signature_pipeline(
+                    data_batch=torch.hstack([torch.zeros(size=(N, 1, d)), batch[:, [t], :]]), trunc=self.sig_trunc, times=times)
+            else:
+                full_feats[:, t, :] = ts_signature_pipeline(data_batch=batch[:, :t, :], trunc=self.sig_trunc, times=times[1:,:])
+
+        # Feature tensor is of size (Num_TimeSeries, TimeSeriesLength, FeatureDim)
+        # Note first element of features are all the same
+        return full_feats[:,:,1:]
 
     def _save_loss(self, losses: list, filepath: str):
         """
