@@ -446,7 +446,7 @@ def compute_signature(sample: torch.Tensor, trunc: int, interval: rhpy.Interval,
     print("Ended context\n")
 
     # Given a context, we need to transform our data into a stream of increments
-    stream = rhpy.LieIncrementStream.from_increments(data=sample, ctx=CTX)
+    stream = rhpy.LieIncrementStream#.from_increments(data=sample, ctx=CTX)
     print("Ended stream\n")
 
     # Now compute the signature over the whole time span TODO: HOW DO WE DEAL WITH INVISIBILITY AUGMENTATION IN TIME
