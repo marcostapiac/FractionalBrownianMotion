@@ -62,7 +62,7 @@ if __name__ == "__main__":
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))
     except FileNotFoundError as e:
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
-        training_size = 2 + 0 * int(
+        training_size = int(
             min(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 1200000))
         try:
             data = np.load(config.data_path, allow_pickle=True)
