@@ -238,7 +238,7 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
     return np.atleast_2d(final_paths.numpy())
 
 
-def prepare_recursive_scoreModel_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> DataLoader:
+def prepare_recursive_scoreModel_data(data: Union[np.ndarray, torch.Tensor], batch_size: int, config: ConfigDict) -> DataLoader:
     """
     Split data into train, eval, test sets and create DataLoaders for training
         :param data: Training data
@@ -246,7 +246,10 @@ def prepare_recursive_scoreModel_data(data: np.ndarray, batch_size: int, config:
         :param config: ML Collection dictionary
         :return: Train, Validation, Test dataloaders
     """
-    dataset = torch.utils.data.TensorDataset(torch.from_numpy(data).float())
+    try:
+        dataset = torch.utils.data.TensorDataset(torch.from_numpy(data).float())
+    except TypeError as e:
+        dataset = torch.utils.data.TensorDataset(data)
     L = data.shape[0]
     train, _, _ = torch.utils.data.random_split(dataset, [L, 0, 0])
     if config.has_cuda:
@@ -300,6 +303,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                              mkv_blnk=config.mkv_blnk,
                              hybrid_training=config.hybrid)
     except AttributeError as e:
+        # Signature
         try:
             trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                                  checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
@@ -308,7 +312,6 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                  train_eps=train_eps,
                                  end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
                                  to_weight=config.weightings,
-                                 sig_trunc=config.sig_trunc,
                                  hybrid_training=config.hybrid)
         except AttributeError as e:
             # LSTM

@@ -11,7 +11,36 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
     ConditionalTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from utils.data_processing import cleanup_experiment, init_experiment
-from utils.math_functions import generate_fBn
+from utils.math_functions import generate_fBn, compute_sig_size, ts_signature_pipeline
+
+
+def create_historical_vectors(batch: torch.Tensor, sig_trunc: int):
+    """
+    Create feature vectors using path signatures
+        :return: Feature vectors for each timestamp
+    """
+
+    # batch shape (N_batches, Time Series Length, Input Size)
+    # The historical vector for each t in (N_batches, t, Input Size) is (N_batches, t-20:t, Input Size)
+    # Create new tensor of size (N_batches, Time Series Length, Input Size, 20, Input Size) so that each dimension
+    # of the time series has a corresponding past of size (20, 1)
+    N, T, d = batch.shape
+    # Now attempt on a rolling basis across time
+    times = (torch.atleast_2d((torch.arange(0, T + 1) / T)).T).to(batch.device)
+    full_feats = torch.zeros(size=(N, T, compute_sig_size(dim=d + 1, trunc=sig_trunc))).to(batch.device)
+    for t in range(T):
+        if t == 0:
+            full_feats[:, t, :] = ts_signature_pipeline(
+                data_batch=torch.hstack([torch.zeros(size=(N, 1, d)).to(batch.device), batch[:, [t], :]]),
+                trunc=sig_trunc, times=times)
+        else:
+            full_feats[:, t, :] = ts_signature_pipeline(data_batch=batch[:, :t, :], trunc=sig_trunc,
+                                                        times=times[1:, :])
+
+    # Feature tensor is of size (Num_TimeSeries, TimeSeriesLength, FeatureDim)
+    # Note first element of features are all the same
+    return full_feats[:, :, 1:]
+
 
 if __name__ == "__main__":
     # Data parameters
@@ -28,13 +57,12 @@ if __name__ == "__main__":
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    init_experiment(config=config)
     end_epoch = max(config.max_epochs)
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))
     except FileNotFoundError as e:
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
-        training_size = int(
+        training_size = 2 + 0 * int(
             min(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 1200000))
         try:
             data = np.load(config.data_path, allow_pickle=True)
@@ -48,12 +76,18 @@ if __name__ == "__main__":
             data = data.cumsum(axis=1)[:training_size, :]
         else:
             data = data[:training_size, :]
-        data = np.atleast_3d(data)
+        data = torch.Tensor(np.atleast_3d(data))
         assert (data.shape == (training_size, config.ts_length, config.ts_dims))
+        feats = create_historical_vectors(batch=data, sig_trunc=config.sig_trunc)
+        assert (feats.shape == (
+        training_size, config.ts_length, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc) - 1))
+        datafeats = torch.concat([data, feats], dim=-1).float()
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
-        train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel,
+        init_experiment(config=config)
+        train_and_save_recursive_diffusion_model(data=datafeats, config=config, diffusion=diffusion,
+                                                 scoreModel=scoreModel,
                                                  trainClass=ConditionalSignatureDiffusionModelTrainer)
-    cleanup_experiment()
+        cleanup_experiment()
 
     for train_epoch in config.max_epochs:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))

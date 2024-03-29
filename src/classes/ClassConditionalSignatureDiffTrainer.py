@@ -38,7 +38,6 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
                  checkpoint_freq: int,
                  to_weight: bool,
                  hybrid_training: bool,
-                 sig_trunc: int,
                  loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
         super().__init__()
@@ -59,7 +58,6 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
         self.end_diff_time = end_diff_time
         self.is_hybrid = hybrid_training
         self.include_weightings = to_weight
-        self.sig_trunc = sig_trunc
 
         # Move score network to appropriate device
         if type(self.device_id) == int:
@@ -139,25 +137,26 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
             timesteps = torch.linspace(self.train_eps, end=self.end_diff_time,
                                        steps=self.max_diff_steps)
         for x0s in (iter(self.train_loader)):
-            x0s = x0s[0].to(self.device_id)
+            batch = x0s[0].to(self.device_id)
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
-            features = self.create_historical_vectors(x0s)
+            features = batch[:,:,1:]
+            batch = batch[:,:,[0]]
             if self.is_hybrid:
                 # We select diffusion time uniformly at random for each sample at each time (i.e., size (NumBatches, TimeSeries Sequence))
                 diff_times = timesteps[torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,
-                                                     size=x0s.shape[0:2]).long()].view(x0s.shape[0], x0s.shape[1],
-                                                                                       *([1] * len(x0s.shape[2:]))).to(
+                                                     size=batch.shape[0:2]).long()].view(batch.shape[0], batch.shape[1],
+                                                                                       *([1] * len(batch.shape[2:]))).to(
                     self.device_id)
             else:
                 diff_times = ((self.train_eps - self.end_diff_time) * torch.rand(
-                    (x0s.shape[0], 1)) + self.end_diff_time).view(x0s.shape[0], x0s.shape[1],
-                                                                  *([1] * len(x0s.shape[2:]))).to(
+                    (batch.shape[0], 1)) + self.end_diff_time).view(batch.shape[0], batch.shape[1],
+                                                                  *([1] * len(batch.shape[2:]))).to(
                     self.device_id)
             # Diffusion times shape (Batch Size, Time Series Sequence, 1)
             # so that each (b, t, 1) entry corresponds to the diffusion time for timeseries "b" at time "t"
             eff_times = self.diffusion.get_eff_times(diff_times)
             # Each eff time entry corresponds to the effective diffusion time for timeseries "b" at time "t"
-            xts, target_scores = self.diffusion.noising_process(x0s, eff_times)
+            xts, target_scores = self.diffusion.noising_process(batch, eff_times)
             # For each timeseries "b", at time "t", we want the score p(timeseries_b_attime_t_diffusedTo_efftime|time_series_b_attime_t)
             # So target score should be size (NumBatches, Time Series Length, 1)
             # And xts should be size (NumBatches, TimeSeriesLength, NumDimensions)
@@ -221,31 +220,6 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
             # os.remove(self.snapshot_path)  # Do NOT remove snapshot path yet eventhough training is done
         except FileNotFoundError:
             print("Snapshot file does not exist\n")
-
-    def create_historical_vectors(self, batch):
-        """
-        Create history vectors using LSTM architecture
-            :return: History vectors for each timestamp
-        """
-
-        # batch shape (N_batches, Time Series Length, Input Size)
-        # The historical vector for each t in (N_batches, t, Input Size) is (N_batches, t-20:t, Input Size)
-        # Create new tensor of size (N_batches, Time Series Length, Input Size, 20, Input Size) so that each dimension
-        # of the time series has a corresponding past of size (20, 1)
-        N, T, d = batch.shape
-        # Now attempt on a rolling basis across time
-        times = (torch.atleast_2d((torch.arange(0, T + 1) / T)).T).to(self.device_id)
-        full_feats = torch.zeros(size=(N, T, compute_sig_size(dim=d + 1, trunc=self.sig_trunc))).to(self.device_id)
-        for t in range(T):
-            if t == 0:
-                full_feats[:, t, :] = ts_signature_pipeline(
-                    data_batch=torch.hstack([torch.zeros(size=(N, 1, d)).to(self.device_id), batch[:, [t], :]]), trunc=self.sig_trunc, times=times)
-            else:
-                full_feats[:, t, :] = ts_signature_pipeline(data_batch=batch[:, :t, :], trunc=self.sig_trunc, times=times[1:,:])
-
-        # Feature tensor is of size (Num_TimeSeries, TimeSeriesLength, FeatureDim)
-        # Note first element of features are all the same
-        return full_feats[:,:,1:]
 
     def _save_loss(self, losses: list, filepath: str):
         """
