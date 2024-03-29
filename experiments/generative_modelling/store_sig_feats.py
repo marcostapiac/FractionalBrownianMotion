@@ -18,6 +18,7 @@ def ts_comp(t:int, batch:torch.Tensor, sig_trunc:int, times:torch.Tensor)->Tuple
     :param times: Time indices
     :return: Tuple of (time_id, tensor)
     """
+    print(t)
     N, d = batch.shape[0], batch.shape[-1]
     if t == 0:
         return (t,ts_signature_pipeline(
