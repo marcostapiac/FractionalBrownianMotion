@@ -1,3 +1,5 @@
+from typing import Tuple
+
 import numpy as np
 import torch
 import multiprocessing as mp
@@ -7,7 +9,15 @@ from configs import project_config
 from utils.math_functions import compute_sig_size, ts_signature_pipeline
 
 
-def ts_comp(t, batch, sig_trunc, times):
+def ts_comp(t:int, batch:torch.Tensor, sig_trunc:int, times:torch.Tensor)->Tuple[int, torch.Tensor]:
+    """
+    Helper function for parallelised signature computation
+    :param t: Time
+    :param batch: Data
+    :param sig_trunc: Signature truncation
+    :param times: Time indices
+    :return: Tuple of (time_id, tensor)
+    """
     N, d = batch.shape[0], batch.shape[-1]
     if t == 0:
         return (t,ts_signature_pipeline(
@@ -18,7 +28,7 @@ def ts_comp(t, batch, sig_trunc, times):
                                      times=times[1:, :]))
 
 
-def create_historical_vectors(batch: torch.Tensor, sig_trunc: int):
+def create_historical_vectors(batch: torch.Tensor, sig_trunc: int)->torch.Tensor:
     """
     Create feature vectors using path signatures
         :return: Feature vectors for each timestamp
@@ -50,7 +60,7 @@ def create_historical_vectors(batch: torch.Tensor, sig_trunc: int):
             full_feats[:, t, :] = ts_signature_pipeline(data_batch=batch[:, :t, :], trunc=sig_trunc,
                                                         times=times[1:, :])
     """
-    #assert(np.all([torch.all(torch.abs(full_feats[i,:,:]-els[i,:,:])<1e-12) for i in range(N)]))
+    # assert(np.all([torch.all(torch.abs(full_feats[i,:,:]-els[i,:,:])<1e-12) for i in range(N)]))
     # Feature tensor is of size (Num_TimeSeries, TimeSeriesLength, FeatureDim)
     # Note first element of features are all the same so we exclude them
     return full_feats[:, :, 1:]
