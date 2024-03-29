@@ -232,8 +232,6 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
         # The historical vector for each t in (N_batches, t, Input Size) is (N_batches, t-20:t, Input Size)
         # Create new tensor of size (N_batches, Time Series Length, Input Size, 20, Input Size) so that each dimension
         # of the time series has a corresponding past of size (20, 1)
-        n = torch.get_num_threads()
-        torch.set_num_threads(1)
         N, T, d = batch.shape
         # Now attempt on a rolling basis across time
         times = (torch.atleast_2d((torch.arange(0, T + 1) / T)).T).to(self.device_id)
@@ -247,7 +245,6 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
 
         # Feature tensor is of size (Num_TimeSeries, TimeSeriesLength, FeatureDim)
         # Note first element of features are all the same
-        torch.set_num_threads(n)
         return full_feats[:,:,1:]
 
     def _save_loss(self, losses: list, filepath: str):
