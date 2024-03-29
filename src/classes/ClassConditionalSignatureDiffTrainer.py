@@ -234,12 +234,12 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
         # of the time series has a corresponding past of size (20, 1)
         N, T, d = batch.shape
         # Now attempt on a rolling basis across time
-        times = torch.atleast_2d((torch.arange(0, T + 1) / T)).T
-        full_feats = torch.zeros(size=(N, T, compute_sig_size(dim=d + 1, trunc=self.sig_trunc)))
+        times = (torch.atleast_2d((torch.arange(0, T + 1) / T)).T).to(self.device_id)
+        full_feats = torch.zeros(size=(N, T, compute_sig_size(dim=d + 1, trunc=self.sig_trunc))).to(self.device_id)
         for t in range(T):
             if t == 0:
                 full_feats[:, t, :] = ts_signature_pipeline(
-                    data_batch=torch.hstack([torch.zeros(size=(N, 1, d)), batch[:, [t], :]]), trunc=self.sig_trunc, times=times)
+                    data_batch=torch.hstack([torch.zeros(size=(N, 1, d)).to(self.device_id), batch[:, [t], :]]), trunc=self.sig_trunc, times=times)
             else:
                 full_feats[:, t, :] = ts_signature_pipeline(data_batch=batch[:, :t, :], trunc=self.sig_trunc, times=times[1:,:])
 

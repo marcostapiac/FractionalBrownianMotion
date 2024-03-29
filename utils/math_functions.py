@@ -418,7 +418,7 @@ def time_aug(data_samples: torch.Tensor, time_ax: torch.Tensor) -> torch.Tensor:
     """
     N, T, d = data_samples.shape
     assert (time_ax.shape == (T, 1))
-    timeaug = torch.stack([torch.column_stack([time_ax, data_samples[i, :, :]]) for i in range(N)],dim=0)
+    timeaug = torch.stack([torch.column_stack([time_ax, data_samples[i, :, :]]) for i in range(N)],dim=0).to(time_ax.device)
     assert (timeaug.shape == (N, T, d + 1))
     return timeaug
 
@@ -449,7 +449,7 @@ def compute_signature(sample: torch.Tensor, trunc: int, interval: rhpy.Interval,
 
     # Now compute the signature over the whole time span TODO: HOW DO WE DEAL WITH INVISIBILITY AUGMENTATION IN TIME
     #  DIMENSION?
-    sig = torch.Tensor(np.array(stream.signature(interval)))  # TODO: What is resolution?
+    sig = torch.Tensor(np.array(stream.signature(interval))).to(sample.device)  # TODO: What is resolution?
     if dim > 1:
         assert (sig.shape[0] == ((np.power(dim, trunc + 1) - 1) / (dim - 1)))
     else:
