@@ -5,6 +5,8 @@ import torch
 import multiprocessing as mp
 from functools import partial
 
+from tqdm import tqdm
+
 from configs import project_config
 from utils.math_functions import compute_sig_size, ts_signature_pipeline
 
@@ -42,6 +44,7 @@ def create_historical_vectors(batch: torch.Tensor, sig_trunc: int)->torch.Tensor
     N, T, d = batch.shape
     # Now attempt on a rolling basis across time
     times = torch.atleast_2d((torch.arange(0, T + 1) / T)).T.to(batch.device)
+    """
     nproc = 256
     with mp.Pool(processes=nproc) as pool:
         result = pool.map(
@@ -60,7 +63,7 @@ def create_historical_vectors(batch: torch.Tensor, sig_trunc: int)->torch.Tensor
         else:
             full_feats[:, t, :] = ts_signature_pipeline(data_batch=batch[:, :t, :], trunc=sig_trunc,
                                                         times=times[1:, :])
-    """
+
     # assert(np.all([torch.all(torch.abs(full_feats[i,:,:]-els[i,:,:])<1e-12) for i in range(N)]))
     # Feature tensor is of size (Num_TimeSeries, TimeSeriesLength, FeatureDim)
     # Note first element of features are all the same so we exclude them
@@ -72,11 +75,10 @@ if __name__ == "__main__":
 
     config = get_config()
     data = np.load(config.data_path, allow_pickle=True)
-    data = torch.Tensor(np.atleast_3d(data.cumsum(axis=1)))
+    data = torch.Tensor(np.atleast_3d(data.cumsum(axis=1)[:20000,:]))
     N, T = data.shape[:2]
     feats = create_historical_vectors(batch=data, sig_trunc=config.sig_trunc).numpy()
     assert (feats.shape == (
         N, config.ts_length, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc) - 1))
-    np.save(project_config.ROOT_DIR + "data/fBm_T{}_SigTrunc{}_SigDim{}.npy".format(T, config.sig_trunc,
-                                                                                    config.sig_dim), feats,
+    np.save(config.feat_path, feats,
             allow_pickle=True)
