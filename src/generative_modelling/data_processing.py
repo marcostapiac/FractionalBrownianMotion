@@ -140,7 +140,11 @@ def compute_current_sig_feature(ts_time:int,past_feat:torch.Tensor, latest_incre
     :param real_times: Time series time axis
     :return: Concactenated path feature
     """
-    increment = torch.concatenate(latest_increment, dim=1)
+    sigdevice = "cpu"
+    truedevice = past_feat.device
+    increment = torch.concatenate(latest_increment, dim=1).to(sigdevice)
+    real_times = real_times.to(sigdevice)
+    past_feat = past_feat.to(sigdevice)
     N, d = latest_increment[0].shape[0], latest_increment[0].shape[-1]
     if ts_time == 1:
         assert(increment.shape == (N,1,d))
@@ -152,7 +156,7 @@ def compute_current_sig_feature(ts_time:int,past_feat:torch.Tensor, latest_incre
     curr_feat = torch.concatenate([tensor_algebra_product(sig1=past_feat[i,0,:], sig2=increment_signature[i,:],dim=config.sig_dim, trunc=config.sig_trunc) for i in range(N)], dim=0)
     curr_feat = torch.unsqueeze(curr_feat, dim=1)
     assert (curr_feat.shape == past_feat.shape)
-    return curr_feat
+    return curr_feat.to(truedevice)
 
 @record
 def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
