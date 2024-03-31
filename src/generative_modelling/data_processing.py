@@ -150,9 +150,7 @@ def compute_current_sig_feature(ts_time:int,past_feat:torch.Tensor, latest_incre
         assert(increment.shape == (N,1,d))
     else:
         assert(increment.shape == (N,2,d))
-    print("Hi")
     increment_signature = ts_signature_pipeline(data_batch=increment,trunc=config.sig_trunc, times=real_times)
-    print("Done increment sig\n")
     curr_feat = torch.concatenate([tensor_algebra_product(sig1=past_feat[i,0,:], sig2=increment_signature[i,:],dim=config.sig_dim, trunc=config.sig_trunc) for i in range(N)], dim=0)
     curr_feat = torch.unsqueeze(curr_feat, dim=1)
     assert (curr_feat.shape == past_feat.shape)
