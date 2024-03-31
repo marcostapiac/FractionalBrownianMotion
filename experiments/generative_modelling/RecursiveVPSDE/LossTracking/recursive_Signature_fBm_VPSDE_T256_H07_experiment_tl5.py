@@ -6,7 +6,8 @@ import torch
 from tqdm import tqdm
 
 from src.classes.ClassConditionalSignatureDiffTrainer import ConditionalSignatureDiffusionModelTrainer
-from src.generative_modelling.data_processing import train_and_save_recursive_diffusion_model
+from src.generative_modelling.data_processing import train_and_save_recursive_diffusion_model, \
+    recursive_signature_reverse_sampling
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
     ConditionalTimeSeriesScoreMatching
@@ -38,6 +39,7 @@ if __name__ == "__main__":
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
         training_size = int(
             min(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 1200000))
+        print(training_size)
         try:
             data = np.load(config.data_path, allow_pickle=True)
             assert (data.shape[0] >= training_size)
@@ -52,7 +54,7 @@ if __name__ == "__main__":
             data = data[:training_size, :]
         data = torch.Tensor(np.atleast_3d(data))
         assert (data.shape == (training_size, config.ts_length, config.ts_dims))
-        feats = torch.Tensor(np.atleast_3d(np.save(config.feats_path, allow_pickle=True)))
+        feats = torch.Tensor(np.atleast_3d(np.load(config.feats_path, allow_pickle=True)[:training_size,:,:]))
         assert (feats.shape == (
         training_size, config.ts_length, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc) - 1))
         datafeats = torch.concat([data, feats], dim=-1).float()

@@ -29,6 +29,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
+from utils.math_functions import compute_sig_size
 
 
 def prepare_scoreModel_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> DataLoader:
@@ -129,6 +130,64 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
     return final_samples  # TODO Check if need to detach
 
 
+def compute_current_sig_feature(ts_time:int,past_feat:torch.Tensor, latest_increment:list, config:ConfigDict)->torch.Tensor:
+    latest_increment = torch.concatenate(latest_increment)
+    assert(latest_increment.shape == (latest_increment[0].shape[0],2,latest_increment[0].shape[-1]))
+    increment_signature = compute_
+    if ts_time == 0:
+        return torch.zeros(size=(N, 1, compute_sig_size(dim=sig_dim, trunc=sig_trunc)-1)).to()
+    else:
+        output, (h, c) = scoreModel.rnn(samples, (h, c))
+@record
+def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
+                                    scoreModel: ConditionalTimeSeriesScoreMatching, data_shape: Tuple[int, int, int],
+                                    config: ConfigDict) -> torch.Tensor:
+    """
+    Recursive reverse sampling using path signatures
+        :param diffusion: Diffusion model
+        :param scoreModel: Trained score network
+        :param data_shape: Desired shape of generated samples
+        :param config: Configuration dictionary for experiment
+        :return: Final reverse-time samples
+    """
+    if config.has_cuda:
+        # Sampling is sequential, so only single-machine, single-GPU/CPU
+        device = 0
+    else:
+        device = torch.device("cpu")
+    assert (config.predictor_model == "ancestral")
+    # Define predictor
+    predictor_params = [diffusion, scoreModel, config.end_diff_time, config.max_diff_steps, device, config.sample_eps]
+    predictor = ConditionalAncestralSamplingPredictor(*predictor_params)
+
+    # Define corrector
+    corrector_params = [config.max_lang_steps, torch.Tensor([config.snr]), device, diffusion]
+    if config.corrector_model == "VE":
+        corrector = VESDECorrector(*corrector_params)
+    elif config.corrector_model == "VP":
+        corrector = VPSDECorrector(*corrector_params)
+    else:
+        corrector = None
+    sampler = ConditionalSDESampler(diffusion=diffusion, sample_eps=config.sample_eps, predictor=predictor,
+                                    corrector=corrector)
+
+    scoreModel.eval()
+    with torch.no_grad():
+        paths = [torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)]
+        for t in range(config.ts_length):
+            print("Sampling at real time {}\n".format(t + 1))
+            if t==0:
+                output = torch.zeros(size=(data_shape[0], 1, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1)).to(device)
+            else:
+                output = compute_current_sig_feature(past_feat=output, latest_increment=paths[-2:], config=config).to(device)
+            samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output,
+                                     early_stop_idx=config.early_stop_idx)
+            assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
+            paths.append(samples)
+    final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)[:,1:]
+    assert(final_paths.shape == (data_shape[0], data_shape[1]))
+    return np.atleast_2d(final_paths.numpy())
+
 @record
 def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
                                     scoreModel: ConditionalTimeSeriesScoreMatching, data_shape: Tuple[int, int, int],
@@ -178,7 +237,6 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
             paths.append(samples)
     final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)
     return np.atleast_2d(final_paths.numpy())
-
 
 @record
 def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
@@ -302,6 +360,8 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                              end_diff_time=end_diff_time, max_diff_steps=max_diff_steps, to_weight=config.weightings,
                              mkv_blnk=config.mkv_blnk,
                              hybrid_training=config.hybrid)
+        # Start training
+        trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
     except AttributeError as e:
         # Signature
         try:
@@ -313,6 +373,8 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                  end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
                                  to_weight=config.weightings,
                                  hybrid_training=config.hybrid)
+            # Start training
+            trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path, ts_dims=config.ts_dims)
         except AttributeError as e:
             # LSTM
             trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
@@ -324,5 +386,5 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                  to_weight=config.weightings,
                                  hybrid_training=config.hybrid)
 
-    # Start training
-    trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
+            # Start training
+            trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)

@@ -432,9 +432,11 @@ def invisibility_reset(timeaug: torch.Tensor, ts_dim: int) -> torch.Tensor:
     """
     N, T = timeaug.shape[:2]
     assert (timeaug.shape[-1] == ts_dim + 1)
-    Wi = torch.hstack([timeaug[:, [0], :], torch.zeros_like(timeaug[:, [0], :]), torch.diff(timeaug, dim=1),
-                    torch.zeros_like(timeaug[:, [-1], :]), -timeaug[:, [-1], :]])
-    assert (Wi.shape == (N, T + 3, ts_dim + 1))
+    #Wi = torch.hstack([timeaug[:, [0], :], torch.zeros_like(timeaug[:, [0], :]), torch.diff(timeaug, dim=1),
+    #                torch.zeros_like(timeaug[:, [-1], :]), -timeaug[:, [-1], :]])
+    # assert (Wi.shape == (N, T + 3, ts_dim + 1))
+    Wi = torch.hstack([timeaug[:, [0], :], torch.diff(timeaug, dim=1)])
+    assert (Wi.shape == (N, T, ts_dim + 1))
     #assert (torch.sum(np.abs(torch.sum(torch.sum(Wi, dim=2), dim=1)), dim=0) < 1e-10)
     return Wi
 
@@ -478,7 +480,7 @@ def assert_chen_identity(sample: np.ndarray, trunc: int, dim: int, coefftype: rh
     assert (np.all(np.abs(sig3 - tensor_algebra_product(sig1=sig1, sig2=sig2, dim=dim, trunc=trunc)) < 1e-6))
 
 
-def ts_signature_pipeline(data_batch: torch.Tensor, trunc: int, times:torch.Tensor) -> torch.Tensor:
+def ts_signature_pipeline(data_batch: torch.Tensor, trunc: int, times:torch.Tensor, interval=None) -> torch.Tensor:
     """
     Pipeline to compute the signature at each time for each sample of data batch
         :param data_batch: Data of shape (NumSamples, TSLength, TSDims)
@@ -490,7 +492,8 @@ def ts_signature_pipeline(data_batch: torch.Tensor, trunc: int, times:torch.Tens
     timeaug = time_aug(data_batch, times[:T,:])
     transformed = invisibility_reset(timeaug, ts_dim=d)
     dims = transformed.shape[-1]
-    feats = torch.stack([compute_signature(sample=transformed[i, :, :], trunc=trunc, interval=rhpy.RealInterval(0, T),
+    if interval is None: interval = rhpy.RealInterval(0, T)
+    feats = torch.stack([compute_signature(sample=transformed[i, :, :], trunc=trunc, interval=interval,
                                              dim=dims, coefftype=rhpy.DPReal) for i in range(N)], dim=0)
     assert (feats.shape == (N, compute_sig_size(dim=dims, trunc=trunc)))
     return feats

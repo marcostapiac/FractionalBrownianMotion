@@ -122,10 +122,11 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
         if not self.include_weightings: weights = torch.ones_like(weights)
         return self._batch_loss_compute(outputs=weights * outputs, targets=weights * target_scores)
 
-    def _run_epoch(self, epoch: int) -> list:
+    def _run_epoch(self, epoch: int, ts_dims:int) -> list:
         """
         Single epoch run
             :param epoch: Epoch index
+            :param ts_dims: Dimensionality of time series
             :return: List of batch Losses
         """
         device_epoch_losses = []
@@ -139,8 +140,9 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
         for x0s in (iter(self.train_loader)):
             batch = x0s[0].to(self.device_id)
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
-            features = batch[:,:,1:]
-            batch = batch[:,:,[0]]
+            features = batch[:,:,ts_dims:]
+            batch = torch.atleast_3d(batch[:,:,:ts_dims])
+            assert(batch.shape == (x0s[0].shape[0], x0s[1].shape, ts_dims))
             if self.is_hybrid:
                 # We select diffusion time uniformly at random for each sample at each time (i.e., size (NumBatches, TimeSeries Sequence))
                 diff_times = timesteps[torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,
@@ -247,11 +249,12 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
         except FileNotFoundError:
             return []
 
-    def train(self, max_epochs: list, model_filename: str) -> None:
+    def train(self, max_epochs: list, model_filename: str, ts_dims:int) -> None:
         """
         Run training for model
             :param max_epochs: List of maximum number of epochs (to allow for iterative training)
             :param model_filename: Filepath to save model
+            :param ts_dims: Dimensionality of time series
             :return: None
         """
         max_epochs = sorted(max_epochs)
@@ -261,7 +264,7 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
         print(len(all_losses_per_epoch), end_epoch, max_epochs)
         for epoch in range(self.epochs_run, end_epoch):
             t0 = time.time()
-            device_epoch_losses = self._run_epoch(epoch)
+            device_epoch_losses = self._run_epoch(epoch, ts_dims=ts_dims)
             # Average epoch loss for each device over batches
             epoch_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_losses)).item())
             if type(self.device_id) == int:
