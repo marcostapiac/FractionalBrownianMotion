@@ -512,7 +512,7 @@ def compute_sig_size(dim: int, trunc: int) -> int:
         return int(trunc + 1)
 
 
-def tensor_algebra_product(sig1: np.ndarray, sig2: np.ndarray, dim: int, trunc: int) -> np.ndarray:
+def tensor_algebra_product(sig1:  torch.Tensor, sig2:  torch.Tensor, dim: int, trunc: int) -> torch.Tensor:
     """
     Manually compute Chen's identity over two non-overlapping consecutive intervals
         :param sig1: Signature over first interval
@@ -521,8 +521,8 @@ def tensor_algebra_product(sig1: np.ndarray, sig2: np.ndarray, dim: int, trunc: 
         :param trunc: Signature truncation level
         :return: Signature of concatenated path
     """
-    assert (np.all(sig1.shape == sig2.shape) and sig1[0] == sig2[0] == 1 and 1 <= trunc <= 3)
-    product = np.zeros_like(sig1)
+    assert (len(sig1.shape)==len(sig2.shape)==1 and sig1.shape == sig2.shape and sig1[0] == sig2[0] == 1. and 1 <= trunc <= 3)
+    product = torch.zeros_like(sig1)
     # For trunc 0: Constant of 1
     product[0] = sig1[0] * sig2[0]
     # For trunc 1: Compute outer product
@@ -535,8 +535,8 @@ def tensor_algebra_product(sig1: np.ndarray, sig2: np.ndarray, dim: int, trunc: 
                                                                                                                   trunc=1)]).flatten()
     if trunc > 1:
         # For trunc 2: First compute cross terms
-        level2 = np.reshape(np.atleast_2d(
-            sig1[compute_sig_size(dim=dim, trunc=0):compute_sig_size(dim=dim, trunc=1)]).T @ np.atleast_2d(
+        level2 = torch.reshape(torch.atleast_2d(
+            sig1[compute_sig_size(dim=dim, trunc=0):compute_sig_size(dim=dim, trunc=1)]).T @ torch.atleast_2d(
             sig2[compute_sig_size(dim=dim, trunc=0):compute_sig_size(dim=dim, trunc=1)]), (dim ** 2,))
         # For trunc 2: Compute outer products
         level2 += sig1[0] * sig2[compute_sig_size(dim=dim, trunc=1):compute_sig_size(dim=dim, trunc=2)] + sig2[
@@ -551,12 +551,13 @@ def tensor_algebra_product(sig1: np.ndarray, sig2: np.ndarray, dim: int, trunc: 
                      compute_sig_size(dim=dim, trunc=2):compute_sig_size(dim=dim,
                                                                          trunc=3)]
             # For trunc 3: Next the cross terms of 1_i,2_jk
-            level3 += np.reshape(np.atleast_2d(
-                sig1[compute_sig_size(dim=dim, trunc=0):compute_sig_size(dim=dim, trunc=1)]).T @ np.atleast_2d(
+            level3 += torch.reshape(torch.atleast_2d(
+                sig1[compute_sig_size(dim=dim, trunc=0):compute_sig_size(dim=dim, trunc=1)]).T @ torch.atleast_2d(
                 sig2[compute_sig_size(dim=dim, trunc=1):compute_sig_size(dim=dim, trunc=2)]), (dim ** 3,))
             # For trunc 3: Next the cross terms of 1_ij,2k (note we work in a non-commutative basis)
-            level3 += np.reshape(np.atleast_2d(
-                sig1[compute_sig_size(dim=dim, trunc=1):compute_sig_size(dim=dim, trunc=2)]).T @ np.atleast_2d(
+            level3 += torch.reshape(torch.atleast_2d(
+                sig1[compute_sig_size(dim=dim, trunc=1):compute_sig_size(dim=dim, trunc=2)]).T @ torch.atleast_2d(
                 sig2[compute_sig_size(dim=dim, trunc=0):compute_sig_size(dim=dim, trunc=1)]), (dim ** 3,))
             product[compute_sig_size(dim=dim, trunc=2):compute_sig_size(dim=dim, trunc=3)] = level3
-    return product
+    assert(product.shape == (compute_sig_size(dim=dim, trunc=trunc),))
+    return torch.atleast_2d(product)
