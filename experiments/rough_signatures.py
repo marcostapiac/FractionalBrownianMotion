@@ -26,6 +26,7 @@ if __name__ == "__main__":
         device = 0
     else:
         device = torch.device("cpu")
+    fBm_data = fBm_data.to(device)
     init_experiment(config=config)
     cleanup_experiment()
     paths = []

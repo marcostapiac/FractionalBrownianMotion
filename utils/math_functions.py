@@ -522,6 +522,7 @@ def tensor_algebra_product(sig1:  torch.Tensor, sig2:  torch.Tensor, dim: int, t
         :return: Signature of concatenated path
     """
     assert (len(sig1.shape)==len(sig2.shape)==1 and sig1.shape == sig2.shape and sig1[0] == sig2[0] == 1. and 1 <= trunc <= 3)
+    device = sig1.device
     product = torch.zeros_like(sig1)
     # For trunc 0: Constant of 1
     product[0] = sig1[0] * sig2[0]
