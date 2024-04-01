@@ -32,7 +32,7 @@ if __name__ == "__main__":
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    for train_epoch in [200,480]:#config.max_epochs:
+    for train_epoch in config.max_epochs:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
         final_paths = recursive_signature_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                                            data_shape=(config.dataSize, config.ts_length, 1),
