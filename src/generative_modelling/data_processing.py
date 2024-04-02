@@ -149,14 +149,15 @@ def compute_current_sig_feature(ts_time:int,past_feat:torch.Tensor, latest_incre
     past_feat = past_feat.to(sigdevice)
     N, d = latest_increment[0].shape[0], latest_increment[0].shape[-1]
     if ts_time == 1:
-        assert(increment.shape == (N,1,d))
+        assert(increment.shape == (N,2,d))
     else:
         assert(increment.shape == (N,2,d))
+    increment = torch.concat([torch.zeros((N,1,d)),torch.diff(increment, dim =1)], dim = 1)
     increment_signature = ts_signature_pipeline(data_batch=increment,trunc=config.sig_trunc, times=real_times)
     curr_feat = torch.concatenate([tensor_algebra_product(sig1=past_feat[i,0,:], sig2=increment_signature[i,:],dim=config.sig_dim, trunc=config.sig_trunc) for i in range(N)], dim=0)
     curr_feat = torch.unsqueeze(curr_feat, dim=1)
     assert (curr_feat.shape == past_feat.shape)
-    print("Time taken to compute signature at time {} is {}\n".format(ts_time, round(time.time()-t0,5)))
+    print("Time taken to compute signature for past of time {} is {}\n".format(ts_time, round(time.time()-t0,5)))
     return curr_feat.to(truedevice)
 
 @record
@@ -194,8 +195,8 @@ def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
 
     scoreModel.eval()
     with torch.no_grad():
-        paths = []
-        real_times = torch.atleast_2d((torch.arange(1, config.ts_length + 1) / config.ts_length)).T.to(device)
+        paths = [torch.zeros(size=(data_shape[0],1,data_shape[-1])).to(device)] # Initial starting point (can be set to anything)
+        real_times = torch.atleast_2d((torch.arange(0, config.ts_length + 1) / config.ts_length)).T.to(device)
         for t in range(config.ts_length):
             print("Sampling at real time {}\n".format(t + 1))
             if t==0:
@@ -203,11 +204,12 @@ def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
                 output[:, 0, 0] = 1.
             else:
                 output = compute_current_sig_feature(ts_time=t,past_feat=output, latest_increment=paths[-2:], config=config, real_times=real_times).to(device)
+
             samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output[:,:,1:],
                                      early_stop_idx=config.early_stop_idx)
             assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
             paths.append(samples)
-    final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)
+    final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)[:,1:]
     assert(final_paths.shape == (data_shape[0], data_shape[1]))
     return np.atleast_2d(final_paths.numpy())
 
