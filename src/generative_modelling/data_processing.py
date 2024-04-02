@@ -144,7 +144,7 @@ def compute_current_sig_feature(ts_time:int,past_feat:torch.Tensor, latest_incre
     t0 = time.time()
     sigdevice = "cpu"
     truedevice = past_feat.device
-    increment = torch.concatenate(latest_increment, dim=1).to(sigdevice)
+    increment = torch.concat(latest_increment, dim=1).to(sigdevice)
     real_times = real_times.to(sigdevice)
     past_feat = past_feat.to(sigdevice)
     N, d = latest_increment[0].shape[0], latest_increment[0].shape[-1]
@@ -154,7 +154,7 @@ def compute_current_sig_feature(ts_time:int,past_feat:torch.Tensor, latest_incre
         assert(increment.shape == (N,2,d))
     increment = torch.concat([torch.zeros((N,1,d)),torch.diff(increment, dim =1)], dim = 1)
     increment_signature = ts_signature_pipeline(data_batch=increment,trunc=config.sig_trunc, times=real_times)
-    curr_feat = torch.concatenate([tensor_algebra_product(sig1=past_feat[i,0,:], sig2=increment_signature[i,:],dim=config.sig_dim, trunc=config.sig_trunc) for i in range(N)], dim=0)
+    curr_feat = torch.concat([tensor_algebra_product(sig1=past_feat[i,0,:], sig2=increment_signature[i,:],dim=config.sig_dim, trunc=config.sig_trunc) for i in range(N)], dim=0)
     curr_feat = torch.unsqueeze(curr_feat, dim=1)
     assert (curr_feat.shape == past_feat.shape)
     print("Time taken to compute signature for past of time {} is {}\n".format(ts_time, round(time.time()-t0,5)))
