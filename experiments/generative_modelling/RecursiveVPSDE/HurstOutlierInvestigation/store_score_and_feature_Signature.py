@@ -197,9 +197,28 @@ def store_score_and_feature() -> None:
     del path_df
     print("Done Storing Path Data\n")
 
+    print("Storing Feature Data\n")
+    feature_data_path = config.feat_path.replace("data/", "results/feature_data/") + "_NEp{}_SFS".format(
+        train_epoch).replace(".", "") + ".parquet.gzip"
+    feature_df = pd.concat({i: pd.DataFrame(features[i, :, :]) for i in tqdm(range(config.ts_length))})
+    print(feature_df)
+    feature_df.info()
+    bad_feat_df_1 = feature_df.loc[pd.IndexSlice[:, bad_idxs_1], :]
+    bad_feat_df_1.to_parquet(feature_data_path.replace(".npy", "_bad1.parquet.gzip"), compression="gzip")
+    print(bad_feat_df_1)
+    bad_feat_df_2 = feature_df.loc[pd.IndexSlice[:, bad_idxs_2], :]
+    bad_feat_df_2.to_parquet(feature_data_path.replace(".npy", "_bad2.parquet.gzip"), compression="gzip")
+    print(bad_feat_df_2)
+    good_feat_df = feature_df.loc[pd.IndexSlice[:, good_idxs], :]
+    good_feat_df.to_parquet(feature_data_path.replace(".npy", "_good.parquet.gzip"), compression="gzip")
+    print(good_feat_df)
+    # feature_df.to_parquet(feature_data_path, compression="gzip")
+    del feature_df
+    print("Done Storing Feature Data\n")
+
     print("Storing Drift Errors\n")
     # Store
-    drift_data_path = config.experiment_path.replace("results/",
+    drift_data_path = config.feat_path.replace("data/",
                                                      "results/drift_data/") + "_NEp{}_SFS".format(
         train_epoch).replace(
         ".", "") + ".parquet.gzip"
@@ -208,37 +227,18 @@ def store_score_and_feature() -> None:
     drift_df.info()
 
     bad_drift_df_1 = drift_df.loc[pd.IndexSlice[:, :], bad_idxs_1]
-    bad_drift_df_1.to_parquet(drift_data_path.replace(".parquet.gzip", "_bad1.parquet.gzip"), compression="gzip")
+    bad_drift_df_1.to_parquet(drift_data_path.replace(".npy", "_bad1.parquet.gzip"), compression="gzip")
     print(bad_drift_df_1)
     bad_drift_df_2 = drift_df.loc[pd.IndexSlice[:, :], bad_idxs_2]
-    bad_drift_df_2.to_parquet(drift_data_path.replace(".parquet.gzip", "_bad2.parquet.gzip"), compression="gzip")
+    bad_drift_df_2.to_parquet(drift_data_path.replace(".npy", "_bad2.parquet.gzip"), compression="gzip")
     print(bad_drift_df_2)
     good_drift_df = drift_df.loc[pd.IndexSlice[:, :], good_idxs]
-    good_drift_df.to_parquet(drift_data_path.replace(".parquet.gzip", "_good.parquet.gzip"), compression="gzip")
+    good_drift_df.to_parquet(drift_data_path.replace(".npy", "_good.parquet.gzip"), compression="gzip")
     print(good_drift_df)
 
     # drift_df.to_parquet(drift_data_path, compression="gzip")
     del drift_df
     print("Done Storing Drift Errors\n")
-
-    print("Storing Feature Data\n")
-    feature_data_path = config.experiment_path.replace("results/", "results/feature_data/") + "_NEp{}_SFS".format(
-        train_epoch).replace(".", "") + ".parquet.gzip"
-    feature_df = pd.concat({i: pd.DataFrame(features[i, :, :]) for i in tqdm(range(config.ts_length))})
-    print(feature_df)
-    feature_df.info()
-    bad_feat_df_1 = feature_df.loc[pd.IndexSlice[:, bad_idxs_1], :]
-    bad_feat_df_1.to_parquet(feature_data_path.replace(".parquet.gzip", "_bad1.parquet.gzip"), compression="gzip")
-    print(bad_feat_df_1)
-    bad_feat_df_2 = feature_df.loc[pd.IndexSlice[:, bad_idxs_2], :]
-    bad_feat_df_2.to_parquet(feature_data_path.replace(".parquet.gzip", "_bad2.parquet.gzip"), compression="gzip")
-    print(bad_feat_df_2)
-    good_feat_df = feature_df.loc[pd.IndexSlice[:, good_idxs], :]
-    good_feat_df.to_parquet(feature_data_path.replace(".parquet.gzip", "_good.parquet.gzip"), compression="gzip")
-    print(good_feat_df)
-    # feature_df.to_parquet(feature_data_path, compression="gzip")
-    del feature_df
-    print("Done Storing Feature Data\n")
 
 
 if __name__ == "__main__":
