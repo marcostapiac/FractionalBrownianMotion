@@ -198,7 +198,7 @@ def store_score_and_feature() -> None:
     print("Done Storing Path Data\n")
 
     print("Storing Feature Data\n")
-    feature_data_path = config.feat_path.replace("data/", "results/feature_data/") + "_NEp{}_SFS".format(
+    feature_data_path = config.feat_path.replace("data/", "experiments/results/feature_data/") + "_NEp{}_SFS".format(
         train_epoch).replace(".", "") + ".parquet.gzip"
     feature_df = pd.concat({i: pd.DataFrame(features[i, :, :]) for i in tqdm(range(config.ts_length))})
     print(feature_df)
@@ -219,7 +219,7 @@ def store_score_and_feature() -> None:
     print("Storing Drift Errors\n")
     # Store
     drift_data_path = config.feat_path.replace("data/",
-                                                     "results/drift_data/") + "_NEp{}_SFS".format(
+                                                     "experiments/results/drift_data/") + "_NEp{}_SFS".format(
         train_epoch).replace(
         ".", "") + ".parquet.gzip"
     drift_df = pd.concat({i: pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.ts_length))})
