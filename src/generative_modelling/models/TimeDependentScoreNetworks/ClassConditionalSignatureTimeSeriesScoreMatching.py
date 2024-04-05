@@ -4,6 +4,8 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+from utils.math_functions import time_aug
+
 """ NOTE: The model below is an adaptation of the implementation of pytorch-ts """
 
 
@@ -135,9 +137,9 @@ class SigNet(nn.Module):
 
     def forward(self, batch: torch.Tensor) -> torch.Tensor:
         # Batch is of shape (N, T, D)
-        a = self.augment1(batch)
+        a = self.augment(batch)
         # Batch is of shape (N, T, D+1)
-        b = self.conv1d(a.permute(0, 2, 1))
+        b = self.conv1d(a.permute(0, 2, 1)).permute((0,2,1))
         # Batch is now of shape (N, T, D+1)
         c = self.signature(b, basepoint=True)
         # Signatures are now of shape (N, T, NSIGFEATS)
