@@ -133,7 +133,7 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
     return final_samples  # TODO Check if need to detach
 
 
-def compute_current_sig_feature(ts_time:int,past_feat:torch.Tensor,  basepoint:torch.Tensor,latest_path:torch.Tensor, config:ConfigDict, score_network:ConditionalSignatureTimeSeriesScoreMatching)->torch.Tensor:
+def compute_current_sig_feature(ts_time:int,past_feat:torch.Tensor, basepoint:torch.Tensor,latest_path:torch.Tensor, config:ConfigDict, score_network:ConditionalSignatureTimeSeriesScoreMatching)->torch.Tensor:
     """
     Efficient computation of path signature through concatenation
         :param ts_time: Current time series time
@@ -153,7 +153,7 @@ def compute_current_sig_feature(ts_time:int,past_feat:torch.Tensor,  basepoint:t
 
 @record
 def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
-                                    scoreModel: ConditionalTimeSeriesScoreMatching, data_shape: Tuple[int, int, int],
+                                    scoreModel: ConditionalSignatureTimeSeriesScoreMatching, data_shape: Tuple[int, int, int],
                                     config: ConfigDict) -> torch.Tensor:
     """
     Recursive reverse sampling using path signatures
@@ -194,7 +194,7 @@ def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
                 output = torch.zeros(size=(data_shape[0], 1, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc))).to(device)
                 output[:, 0, 0] = 1.
             else:
-                output = compute_current_sig_feature(ts_time=t, past_feat=output, basepoint=paths[-2],latest_increment=paths[-1], config=config)
+                output = compute_current_sig_feature(ts_time=t, past_feat=output, basepoint=paths[-2],latest_path=paths[-1], config=config, score_network=scoreModel)
             samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output[:,:,1:],
                                      early_stop_idx=config.early_stop_idx)
             assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
