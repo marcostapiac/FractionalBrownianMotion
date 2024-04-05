@@ -124,6 +124,7 @@ class CondUpsampler(nn.Module):
 class SigNet(nn.Module):
     def __init__(self, in_dims: int,  out_dims:int, sig_depth: int):
         super(SigNet, self).__init__()
+        sig_depth = 1
         self.augment = time_aug
         self.conv1d = torch.nn.Conv1d(in_channels=in_dims + 1, out_channels=in_dims + 1, padding=0, kernel_size=1,
                                       stride=1)
@@ -144,7 +145,7 @@ class SigNet(nn.Module):
         # Features are delayed path signatures
         # Now pass each feature through a simple feedforward network
         d = self.linear(c)
-        d = torch.nn.functional.tanh(d)
+        d = torch.tanh(d)
         return d
 
 
