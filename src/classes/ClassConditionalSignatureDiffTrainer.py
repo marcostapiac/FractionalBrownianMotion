@@ -144,7 +144,11 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
             batch = x0s[0].to(self.device_id)
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
             batch = torch.atleast_3d(batch)
-            features = self.score_network.signet.forward(batch)
+            if isinstance(self.device_id , int):
+                features = self.score_network.module.signet.forward(batch)
+            else:
+                features = self.score_network.signet.forward(batch)
+
             assert (batch.shape == (x0s[0].shape[0], x0s[0].shape[1], ts_dims))
             if self.is_hybrid:
                 # We select diffusion time uniformly at random for each sample at each time (i.e., size (NumBatches, TimeSeries Sequence))
