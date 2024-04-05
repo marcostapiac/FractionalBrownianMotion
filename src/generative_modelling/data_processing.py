@@ -387,8 +387,9 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                              hybrid_training=config.hybrid)
         # Start training
         trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
-    except AttributeError as e:
+    except (AttributeError, KeyError) as e:
         # Signature
+        print(e)
         try:
             trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                                  checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
@@ -400,7 +401,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                  hybrid_training=config.hybrid)
             # Start training
             trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path, ts_dims=config.ts_dims)
-        except AttributeError as e:
+        except (AttributeError, KeyError) as e:
             # LSTM
             trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                                  checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
