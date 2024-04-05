@@ -136,7 +136,6 @@ class SigNet(nn.Module):
         # Batch is of shape (N, T, D)
         N, T, _ = batch.shape
         a = self.augment(batch, time_ax=time_ax.to(batch.device))
-        print(a, basepoint)
         # Batch is of shape (N, T, D+1)
         b = self.conv1d(a.permute(0, 2, 1)).permute((0,2,1))
         # Batch is now of shape (N, T, D+1)
