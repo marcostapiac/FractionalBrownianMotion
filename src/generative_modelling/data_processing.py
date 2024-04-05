@@ -143,7 +143,7 @@ def compute_current_sig_feature(ts_time:int,past_feat:torch.Tensor, basepoint:to
     :return: Concactenated path feature
     """
     T = config.ts_length
-    assert(len(basepoint.shape)==len(latest_path.shape)==3 and len(past_feat.shape) == 2)
+    assert(len(basepoint.shape)==len(latest_path.shape)==3)
     if isinstance(past_feat.device, int):
         increment_sig = score_network.module.signet.forward(latest_path,time_ax= torch.atleast_2d(torch.Tensor([ts_time-1])/T).T,basepoint=time_aug(basepoint, time_ax= torch.atleast_2d(torch.Tensor([ts_time-2])/T).T.to(basepoint.device)).squeeze(dim=1))
     else:
