@@ -124,12 +124,12 @@ class CondUpsampler(nn.Module):
 class SigNet(nn.Module):
     def __init__(self, in_dims: int,  out_dims:int, sig_depth: int):
         super(SigNet, self).__init__()
-        self.augment = signatory.Augment(in_channels=in_dims,
-                                         layer_sizes=(0),
-                                         kernel_size=1,
-                                         padding=0,
-                                         include_original=False,
-                                         include_time=True)
+        #self.augment = signatory.Augment(in_channels=in_dims,
+        #                                 layer_sizes=(0),
+        #                                 kernel_size=1,
+        #                                 padding=0,
+        #                                 include_original=False,
+        #                                 include_time=True)
         self.conv1d = torch.nn.Conv1d(in_channels=in_dims + 1, out_channels=in_dims + 1, padding=0, kernel_size=1,
                                       stride=1)
         self.signature = signatory.Signature(depth=sig_depth, stream=True)
