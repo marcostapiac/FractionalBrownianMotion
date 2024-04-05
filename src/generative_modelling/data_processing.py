@@ -149,7 +149,8 @@ def compute_current_sig_feature(ts_time:int,past_feat:torch.Tensor, basepoint:to
     else:
         increment_sig = score_network.signet.forward(latest_path, time_ax=torch.atleast_2d(torch.Tensor([ts_time-1])/T).T,basepoint=time_aug(basepoint, time_ax= torch.atleast_2d(torch.Tensor([ts_time-2])/T).T.to(basepoint.device)).squeeze(dim=1))
     print(past_feat.shape, increment_sig.shape)
-    curr_feat = signatory.signature_combine(sigtensor1=past_feat, sigtensor2=increment_sig, input_channels=config.sig_dim, depth=config.sig_trunc)
+    curr_feat = signatory.signature_combine(sigtensor1=past_feat.squeeze(dim=1), sigtensor2=increment_sig.squeeze(dim=1), input_channels=config.sig_dim, depth=config.sig_trunc)
+    curr_feat = curr_feat.unsqueeze(dim=1)
     assert (curr_feat.shape == past_feat.shape)
     return curr_feat
 
@@ -189,15 +190,14 @@ def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
     scoreModel.eval()
     with torch.no_grad():
         paths = [torch.zeros(size=(data_shape[0],1,data_shape[-1])).to(device)] # Initial starting point (can be set to anything)
-        real_times = torch.atleast_2d((torch.arange(0, config.ts_length + 1) / config.ts_length)).T.to(device)
         for t in range(config.ts_length):
             print("Sampling at real time {}\n".format(t + 1))
             if t==0:
-                output = torch.zeros(size=(data_shape[0], 1, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc))).to(device)
+                output = torch.zeros(size=(data_shape[0], 1, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1)).to(device)
                 output[:, 0, 0] = 1.
             else:
                 output = compute_current_sig_feature(ts_time=t, past_feat=output, basepoint=paths[-2],latest_path=paths[-1], config=config, score_network=scoreModel)
-            samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output[:,:,1:],
+            samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output,
                                      early_stop_idx=config.early_stop_idx)
             assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
             paths.append(samples)
