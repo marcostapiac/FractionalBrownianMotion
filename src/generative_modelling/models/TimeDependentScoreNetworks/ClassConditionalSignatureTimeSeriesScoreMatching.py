@@ -130,7 +130,7 @@ class SigNet(nn.Module):
                                          include_time=True)
         self.conv1d = torch.nn.Conv1d(in_channels=in_dims + 1, out_channels=in_dims + 1, padding=0, kernel_size=1,
                                       stride=1)
-        self.signature = signatory.Signature(depth=sig_depth, stream=True, basepoint=True)
+        self.signature = signatory.Signature(depth=sig_depth, stream=True)
         self.linear = torch.nn.Linear(in_features=out_dims, out_features=out_dims)
 
     def forward(self, batch: torch.Tensor) -> torch.Tensor:
