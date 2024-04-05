@@ -1,4 +1,6 @@
 import math
+from typing import Union
+
 import signatory
 import torch
 import torch.nn.functional as F
@@ -130,14 +132,14 @@ class SigNet(nn.Module):
         self.signature = signatory.Signature(depth=sig_depth, stream=True)
         self.linear = torch.nn.Linear(in_features=out_dims, out_features=out_dims)
 
-    def forward(self, batch: torch.Tensor) -> torch.Tensor:
+    def forward(self, batch: torch.Tensor, time_ax:torch.Tensor,basepoint:Union[torch.Tensor, bool]=True) -> torch.Tensor:
         # Batch is of shape (N, T, D)
         N, T, _ = batch.shape
-        a = self.augment(batch, time_ax= torch.atleast_2d((torch.arange(1, T + 1) / T)).T.to(batch.device))
+        a = self.augment(batch, time_ax=time_ax.to(batch.device))
         # Batch is of shape (N, T, D+1)
         b = self.conv1d(a.permute(0, 2, 1)).permute((0,2,1))
         # Batch is now of shape (N, T, D+1)
-        c = self.signature(b, basepoint=True)
+        c = self.signature(b, basepoint=basepoint)
         # Signatures are now of shape (N, T, NSIGFEATS)
         c = torch.concat([torch.zeros(size=(c.shape[0],1, c.shape[-1])).to(batch.device), c[:, :T-1, :]], dim=1)
         # Features are delayed path signatures

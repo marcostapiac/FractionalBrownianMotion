@@ -1,7 +1,7 @@
 import os
 import time
 from typing import Tuple, Union
-
+import signatory
 import numpy as np
 import torch
 import torchmetrics
@@ -25,6 +25,8 @@ from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTimeSeriesScoreMatching import \
     ConditionalMarkovianTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalSignatureTimeSeriesScoreMatching import \
+    ConditionalSignatureTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
     ConditionalTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
@@ -131,34 +133,23 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
     return final_samples  # TODO Check if need to detach
 
 
-def compute_current_sig_feature(ts_time:int,past_feat:torch.Tensor, latest_increment:list, config:ConfigDict, real_times:torch.Tensor)->torch.Tensor:
+def compute_current_sig_feature(ts_time:int,past_feat:torch.Tensor,  basepoint:torch.Tensor,latest_path:torch.Tensor, config:ConfigDict, score_network:ConditionalSignatureTimeSeriesScoreMatching)->torch.Tensor:
     """
     Efficient computation of path signature through concatenation
-    :param ts_time: Current time series time
-    :param past_feat: Last feature
-    :param latest_increment: Last increment
-    :param config: ML experiment configuration file
-    :param real_times: Time series time axis
+        :param ts_time: Current time series time
+        :param past_feat: Last feature
+        :param latest_path: Last path value
+        :param config: ML experiment configuration file
     :return: Concactenated path feature
     """
-    t0 = time.time()
-    sigdevice = "cpu"
-    truedevice = past_feat.device
-    increment = torch.concat(latest_increment, dim=1).to(sigdevice)
-    real_times = real_times.to(sigdevice)
-    past_feat = past_feat.to(sigdevice)
-    N, d = latest_increment[0].shape[0], latest_increment[0].shape[-1]
-    if ts_time == 1:
-        assert(increment.shape == (N,2,d))
+    T = config.ts_length
+    if isinstance(past_feat.device, int):
+        increment_sig = score_network.module.signet.forward(latest_path,time_ax= torch.atleast_2d(torch.Tensor([ts_time-1])/T).T,basepoint=basepoint)
     else:
-        assert(increment.shape == (N,2,d))
-    increment = torch.concat([torch.zeros((N,1,d)),torch.diff(increment, dim =1)], dim = 1)
-    increment_signature = ts_signature_pipeline(data_batch=increment,trunc=config.sig_trunc, times=real_times)
-    curr_feat = torch.concat([tensor_algebra_product(sig1=past_feat[i,0,:], sig2=increment_signature[i,:],dim=config.sig_dim, trunc=config.sig_trunc) for i in range(N)], dim=0)
-    curr_feat = torch.unsqueeze(curr_feat, dim=1)
+        increment_sig = score_network.signet.forward(latest_path, time_ax=torch.atleast_2d(torch.Tensor([ts_time-1])/T).T,basepoint=basepoint)
+    curr_feat = signatory.signature_combine(sig1=past_feat, sig2=increment_sig, input_channels=config.sig_dim, depth=config.sig_trunc)
     assert (curr_feat.shape == past_feat.shape)
-    print("Time taken to compute signature for past of time {} is {}\n".format(ts_time, round(time.time()-t0,5)))
-    return curr_feat.to(truedevice)
+    return curr_feat
 
 @record
 def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
@@ -203,8 +194,7 @@ def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
                 output = torch.zeros(size=(data_shape[0], 1, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc))).to(device)
                 output[:, 0, 0] = 1.
             else:
-                output = compute_current_sig_feature(ts_time=t,past_feat=output, latest_increment=paths[-2:], config=config, real_times=real_times).to(device)
-
+                output = compute_current_sig_feature(ts_time=t, past_feat=output, basepoint=paths[:,[-2],:],latest_increment=paths[:,[-1],:], config=config)
             samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output[:,:,1:],
                                      early_stop_idx=config.early_stop_idx)
             assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
