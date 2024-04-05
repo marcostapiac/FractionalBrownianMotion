@@ -139,7 +139,7 @@ class SigNet(nn.Module):
         # Batch is of shape (N, T, D+1)
         b = self.conv1d(a.permute(0, 2, 1))
         # Batch is now of shape (N, T, D+1)
-        c = self.signature(b)
+        c = self.signature(b, basepoint=True)
         # Signatures are now of shape (N, T, NSIGFEATS)
         c = torch.concat([torch.zeros(size=(c.shape[0], c.shape[-1])), c[:, 1:, :]], dim=1)
         print(batch[0,:,:], a[0,:,:], c[0,:,:])
