@@ -13,9 +13,12 @@ from torchmetrics import MeanMetric
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalSignatureTimeSeriesScoreMatching import \
+    ConditionalSignatureTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
     ConditionalTimeSeriesScoreMatching
 from utils.math_functions import ts_signature_pipeline, compute_sig_size
+import signatory
 
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
@@ -27,7 +30,7 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
 
     def __init__(self,
                  diffusion: Union[VESDEDiffusion, OUSDEDiffusion, VPSDEDiffusion],
-                 score_network: ConditionalTimeSeriesScoreMatching,
+                 score_network: ConditionalSignatureTimeSeriesScoreMatching,
                  train_data_loader: torch.utils.data.dataloader.DataLoader,
                  train_eps: float,
                  end_diff_time: float,
@@ -122,7 +125,7 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
         if not self.include_weightings: weights = torch.ones_like(weights)
         return self._batch_loss_compute(outputs=weights * outputs, targets=weights * target_scores)
 
-    def _run_epoch(self, epoch: int, ts_dims:int) -> list:
+    def _run_epoch(self, epoch: int, ts_dims: int) -> list:
         """
         Single epoch run
             :param epoch: Epoch index
@@ -140,19 +143,20 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
         for x0s in (iter(self.train_loader)):
             batch = x0s[0].to(self.device_id)
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
-            features = batch[:,:,ts_dims:]
-            batch = torch.atleast_3d(batch[:,:,:ts_dims])
-            assert(batch.shape == (x0s[0].shape[0], x0s[0].shape[1], ts_dims))
+            batch = torch.atleast_3d(batch)
+            features = self.score_network.signet.forward(batch)
+            assert (batch.shape == (x0s[0].shape[0], x0s[0].shape[1], ts_dims))
             if self.is_hybrid:
                 # We select diffusion time uniformly at random for each sample at each time (i.e., size (NumBatches, TimeSeries Sequence))
                 diff_times = timesteps[torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,
                                                      size=batch.shape[0:2]).long()].view(batch.shape[0], batch.shape[1],
-                                                                                       *([1] * len(batch.shape[2:]))).to(
+                                                                                         *([1] * len(
+                                                                                             batch.shape[2:]))).to(
                     self.device_id)
             else:
                 diff_times = ((self.train_eps - self.end_diff_time) * torch.rand(
                     (batch.shape[0], 1)) + self.end_diff_time).view(batch.shape[0], batch.shape[1],
-                                                                  *([1] * len(batch.shape[2:]))).to(
+                                                                    *([1] * len(batch.shape[2:]))).to(
                     self.device_id)
             # Diffusion times shape (Batch Size, Time Series Sequence, 1)
             # so that each (b, t, 1) entry corresponds to the diffusion time for timeseries "b" at time "t"
@@ -249,7 +253,7 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
         except FileNotFoundError:
             return []
 
-    def train(self, max_epochs: list, model_filename: str, ts_dims:int) -> None:
+    def train(self, max_epochs: list, model_filename: str, ts_dims: int) -> None:
         """
         Run training for model
             :param max_epochs: List of maximum number of epochs (to allow for iterative training)

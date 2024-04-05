@@ -9,6 +9,8 @@ from src.classes.ClassConditionalSignatureDiffTrainer import ConditionalSignatur
 from src.generative_modelling.data_processing import train_and_save_recursive_diffusion_model, \
     recursive_signature_reverse_sampling
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalSignatureTimeSeriesScoreMatching import \
+    ConditionalSignatureTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
     ConditionalTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
@@ -27,7 +29,7 @@ if __name__ == "__main__":
     assert (config.tdata_mult == 5)
     print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()
-    scoreModel = ConditionalTimeSeriesScoreMatching(
+    scoreModel = ConditionalSignatureTimeSeriesScoreMatching(
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
@@ -54,13 +56,9 @@ if __name__ == "__main__":
             data = data[:training_size, :]
         data = torch.Tensor(np.atleast_3d(data))
         assert (data.shape == (training_size, config.ts_length, config.ts_dims))
-        feats = torch.Tensor(np.atleast_3d(np.load(config.feat_path, allow_pickle=True)[:training_size,:,:]))
-        assert (feats.shape == (
-        training_size, config.ts_length, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc) - 1))
-        datafeats = torch.concat([data, feats], dim=-1).float()
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
         init_experiment(config=config)
-        train_and_save_recursive_diffusion_model(data=datafeats, config=config, diffusion=diffusion,
+        train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion,
                                                  scoreModel=scoreModel,
                                                  trainClass=ConditionalSignatureDiffusionModelTrainer)
         cleanup_experiment()

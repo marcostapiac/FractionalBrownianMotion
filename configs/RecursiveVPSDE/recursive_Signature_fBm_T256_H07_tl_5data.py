@@ -45,9 +45,9 @@ def get_config():
     config.residual_channels = 8
     config.diff_hidden_size = 64
     config.dialation_length = 10
-    config.sig_trunc = 3
+    config.sig_trunc = 5
     config.sig_dim = 2  # With time-augmentation, and invisibility transform
-    config.feat_hiddendim = int(((config.sig_dim ** (config.sig_trunc + 1) - 1) / (config.sig_dim - 1)) - 1)
+    config.feat_hiddendims = int(((config.sig_dim**(config.sig_trunc+1)-1)/(config.sig_dim-1))-1)
     config.feat_path = project_config.ROOT_DIR + "data/fBm_H{}_T{}_SigTrunc{}_SigDim{}.npy".format(str(config.hurst).replace(".", ""),
                                                                                                    config.ts_length,
                                                                                                    config.sig_trunc,
@@ -70,7 +70,7 @@ def get_config():
 
     config.model_choice = "TSM"
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
-    config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.feat_hiddendim,
+    config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.ts_dims, config.sig_trunc, config.feat_hiddendims,
                                config.residual_layers,
                                config.residual_channels, config.dialation_length] \
         if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.ts_length,
