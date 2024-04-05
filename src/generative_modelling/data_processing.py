@@ -145,9 +145,9 @@ def compute_current_sig_feature(ts_time:int,past_feat:torch.Tensor, basepoint:to
     T = config.ts_length
     assert(len(basepoint.shape)==len(latest_path.shape)==3)
     if isinstance(past_feat.device, int):
-        increment_sig = score_network.module.signet.forward(latest_path,time_ax= torch.atleast_2d(torch.Tensor([ts_time-1])/T).T,basepoint=time_aug(basepoint, time_ax= torch.atleast_2d(torch.Tensor([ts_time-2])/T).T.to(basepoint.device)).squeeze(dim=1))
+        increment_sig = score_network.module.signet.forward(latest_path,time_ax= torch.atleast_2d(torch.Tensor([ts_time])/T).T,basepoint=time_aug(basepoint, time_ax= torch.atleast_2d(torch.Tensor([ts_time-1])/T).T.to(basepoint.device)).squeeze(dim=1))
     else:
-        increment_sig = score_network.signet.forward(latest_path, time_ax=torch.atleast_2d(torch.Tensor([ts_time-1])/T).T,basepoint=time_aug(basepoint, time_ax= torch.atleast_2d(torch.Tensor([ts_time-2])/T).T.to(basepoint.device)).squeeze(dim=1))
+        increment_sig = score_network.signet.forward(latest_path, time_ax=torch.atleast_2d(torch.Tensor([ts_time])/T).T,basepoint=time_aug(basepoint, time_ax= torch.atleast_2d(torch.Tensor([ts_time-1])/T).T.to(basepoint.device)).squeeze(dim=1))
     curr_feat = signatory.signature_combine(sigtensor1=past_feat.squeeze(dim=1), sigtensor2=increment_sig.squeeze(dim=1), input_channels=config.sig_dim, depth=config.sig_trunc)
     curr_feat = curr_feat.unsqueeze(dim=1)
     assert (curr_feat.shape == past_feat.shape)
