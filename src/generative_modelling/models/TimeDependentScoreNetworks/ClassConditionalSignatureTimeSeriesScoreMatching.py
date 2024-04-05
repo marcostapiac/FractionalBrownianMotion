@@ -124,12 +124,7 @@ class CondUpsampler(nn.Module):
 class SigNet(nn.Module):
     def __init__(self, in_dims: int,  out_dims:int, sig_depth: int):
         super(SigNet, self).__init__()
-        #self.augment = signatory.Augment(in_channels=in_dims,
-        #                                 layer_sizes=(0),
-        #                                 kernel_size=1,
-        #                                 padding=0,
-        #                                 include_original=False,
-        #                                 include_time=True)
+        self.augment = time_aug
         self.conv1d = torch.nn.Conv1d(in_channels=in_dims + 1, out_channels=in_dims + 1, padding=0, kernel_size=1,
                                       stride=1)
         self.signature = signatory.Signature(depth=sig_depth, stream=True)
@@ -137,7 +132,8 @@ class SigNet(nn.Module):
 
     def forward(self, batch: torch.Tensor) -> torch.Tensor:
         # Batch is of shape (N, T, D)
-        a = self.augment(batch)
+        N, T, _ = batch.shape
+        a = self.augment(batch, time_ax= torch.atleast_2d((torch.arange(1, T + 1) / T)).T.to(batch.device))
         # Batch is of shape (N, T, D+1)
         b = self.conv1d(a.permute(0, 2, 1)).permute((0,2,1))
         # Batch is now of shape (N, T, D+1)
