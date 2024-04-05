@@ -148,7 +148,7 @@ def compute_current_sig_feature(ts_time:int,past_feat:torch.Tensor, basepoint:to
         increment_sig = score_network.module.signet.forward(latest_path,time_ax= torch.atleast_2d(torch.Tensor([ts_time-1])/T).T,basepoint=time_aug(basepoint, time_ax= torch.atleast_2d(torch.Tensor([ts_time-2])/T).T.to(basepoint.device)).squeeze(dim=1))
     else:
         increment_sig = score_network.signet.forward(latest_path, time_ax=torch.atleast_2d(torch.Tensor([ts_time-1])/T).T,basepoint=time_aug(basepoint, time_ax= torch.atleast_2d(torch.Tensor([ts_time-2])/T).T.to(basepoint.device)).squeeze(dim=1))
-    curr_feat = signatory.signature_combine(sig1=past_feat, sig2=increment_sig, input_channels=config.sig_dim, depth=config.sig_trunc)
+    curr_feat = signatory.signature_combine(sigtensor1=past_feat, sigtensor2=increment_sig, input_channels=config.sig_dim, depth=config.sig_trunc)
     assert (curr_feat.shape == past_feat.shape)
     return curr_feat
 
