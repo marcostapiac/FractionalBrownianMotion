@@ -32,7 +32,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
-from utils.math_functions import compute_sig_size, ts_signature_pipeline, tensor_algebra_product
+from utils.math_functions import compute_sig_size, ts_signature_pipeline, tensor_algebra_product, time_aug
 
 
 def prepare_scoreModel_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> DataLoader:
@@ -145,9 +145,9 @@ def compute_current_sig_feature(ts_time:int,past_feat:torch.Tensor, basepoint:to
     T = config.ts_length
     assert(len(basepoint.shape)==len(latest_path.shape)==3)
     if isinstance(past_feat.device, int):
-        increment_sig = score_network.module.signet.forward(latest_path,time_ax= torch.atleast_2d(torch.Tensor([ts_time-1])/T).T,basepoint=basepoint.squeeze(dim=1))
+        increment_sig = score_network.module.signet.forward(latest_path,time_ax= torch.atleast_2d(torch.Tensor([ts_time-1])/T).T,basepoint=time_aug(basepoint, time_ax= torch.atleast_2d(torch.Tensor([ts_time-2])/T).T).squeeze(dim=1))
     else:
-        increment_sig = score_network.signet.forward(latest_path, time_ax=torch.atleast_2d(torch.Tensor([ts_time-1])/T).T,basepoint=basepoint.squeeze(dim=1))
+        increment_sig = score_network.signet.forward(latest_path, time_ax=torch.atleast_2d(torch.Tensor([ts_time-1])/T).T,basepoint=time_aug(basepoint, time_ax= torch.atleast_2d(torch.Tensor([ts_time-2])/T).T).squeeze(dim=1))
     curr_feat = signatory.signature_combine(sig1=past_feat, sig2=increment_sig, input_channels=config.sig_dim, depth=config.sig_trunc)
     assert (curr_feat.shape == past_feat.shape)
     return curr_feat
