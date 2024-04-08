@@ -141,6 +141,10 @@ class SigNet(nn.Module):
         # Batch is now of shape (N, T-1, D+1)
         c = self.signature(b, basepoint=basepoint)
         print("Device {}".format(batch.device),c[0,:,:])
+        c1 = self.signature(b, basepoint=False)
+        print("Device {}".format(batch.device), c1[0, :, :])
+        c2 = self.signature(torch.zeros_like(b[:,[0],:]), basepoint=False)
+        print("Device {}".format(batch.device), c2[0, :, :])
         raise RuntimeError
         # Signatures are now of shape (N, T-1, NSIGFEATS)
         c = torch.concat([torch.zeros(size=(c.shape[0],1, c.shape[-1])).to(batch.device), c], dim=1)
