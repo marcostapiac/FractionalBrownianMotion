@@ -132,7 +132,7 @@ class SigNet(nn.Module):
         self.signature = signatory.Signature(depth=sig_depth, stream=True)
 
     def forward(self, batch: torch.Tensor, time_ax:torch.Tensor, basepoint:Union[torch.Tensor, bool]=True) -> torch.Tensor:
-        # Batch is of shape (N, T-1, D)
+        # Batch is of shape (N, T, D)
         a = self.augment(batch, time_ax=time_ax.to(batch.device))
         if isinstance(basepoint, torch.Tensor):
             assert (basepoint.shape[-1] == 2)
@@ -141,11 +141,11 @@ class SigNet(nn.Module):
             # We assume starting point is (t, X) = (0,0)
             a = torch.concat([torch.zeros_like(a[:, [0], :]), a], dim=1)
         print(a)
-        # Batch is of shape (N, T, D+1)
+        # Batch is of shape (N, T+1, D+1)
         b = self.conv1d(a.permute(0, 2, 1)).permute((0,2,1))
         # Batch is now of shape (N, T-1, D+1)
         c = self.signature(b, basepoint=False)
-        # Features are now delayed path signatures of shape (N, T, D)
+        # Features are now delayed path signatures of shape (N, T+1, D)
         print("C shape {}".format(c.shape))
         return c
 
