@@ -205,7 +205,6 @@ def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
         corrector = None
     sampler = ConditionalSDESampler(diffusion=diffusion, sample_eps=config.sample_eps, predictor=predictor,
                                     corrector=corrector)
-    compute_sig_size(dim=config.sig_dim, trunc=config.sim_trunc)-1
     scoreModel.eval()
     with torch.no_grad():
         paths = [torch.zeros(size=(data_shape[0],1,data_shape[-1])).to(device)] # Initial starting point (can be set to anything)
