@@ -197,6 +197,7 @@ def store_score_and_feature() -> None:
     path_df.info()
     hs = hurst_estimation(path_df.to_numpy(), sample_type="Final Time Samples at Train Epoch {}".format(train_epoch),
                           isfBm=config.isfBm, true_hurst=config.hurst)
+    print(hs)
     hs.index = path_df.index
     # Under-estimation
     lower = 0.45
