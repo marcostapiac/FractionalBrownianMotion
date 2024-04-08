@@ -104,11 +104,11 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
     scoreModel.to(device)
     with torch.no_grad():
         if isinstance(device, int):
-            true_features = scoreModel.signet.forward(torch.Tensor(true_fBm), time_ax=torch.atleast_2d(
-                (torch.arange(1, config.ts_length + 1) / config.ts_length)).T, basepoint=True)
+            true_features = scoreModel.signet.forward(torch.Tensor(true_fBm).to(device), time_ax=torch.atleast_2d(
+                (torch.arange(1, config.ts_length + 1) / config.ts_length)).T.to(device), basepoint=True)
         else:
-            true_features = scoreModel.signet.forward(torch.Tensor(true_fBm),
-                                                         time_ax=torch.atleast_2d((torch.arange(1, config.ts_length + 1) / config.ts_length)).T,
+            true_features = scoreModel.signet.forward(torch.Tensor(true_fBm).to(device),
+                                                         time_ax=torch.atleast_2d((torch.arange(1, config.ts_length + 1) / config.ts_length)).T.to(device),
                                                          basepoint=True)
         paths = [torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(
             device)]
