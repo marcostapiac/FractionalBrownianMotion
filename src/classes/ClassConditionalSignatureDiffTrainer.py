@@ -150,7 +150,7 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
                 ts_time = 3 # We have generated x1, x2 (1-indexed) and want to generate x3
                 past_feat = features[[0],[1],:] # Feature for generating x1 (using x0 only)
                 basepoint = torch.atleast_3d(batch[0,0,:]) # Feature for generating x_2 most recent information is x_1
-                latest_path = torch.atleast_3d(batch[0, 2,:]) # Generated x2
+                latest_path = torch.atleast_3d(batch[0, 1,:]) # Generated x2
 
                 increment_sig = self.score_network.module.signet.forward(latest_path, time_ax=torch.atleast_2d(
                     torch.Tensor([ts_time]) / T).T, basepoint=time_aug(basepoint, time_ax=torch.atleast_2d(
