@@ -147,53 +147,8 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
             T = batch.shape[1]
             if isinstance(self.device_id , int):
                 features = self.score_network.module.signet.forward(batch,  time_ax=torch.atleast_2d((torch.arange(1, T+1) / T)).T, basepoint=True)[:,:-1,:]
-                ts_time = 5 - 1 # We have generated x1, x2 (1-indexed) and want to generate x3
-                ts_time = 1 # We have only generated x1
-                ts_time = 5 - 1 # We have only generated x1, x2, x3, x4 and want to generate x5
-                if ts_time >= 0:
-                    basepoint =  torch.zeros_like(torch.atleast_3d(batch[0,ts_time,:])) if ts_time <=1 else torch.atleast_3d(batch[0,ts_time - 2,:]) # Feature for generating x_2 most recent information is x_1
-                    latest_path = torch.zeros_like(torch.atleast_3d(batch[0,ts_time,:])) if ts_time == 0 else torch.atleast_3d(batch[0, ts_time -1 ,:]) # Generated x2
-                    increment_sig = self.score_network.module.signet.forward(latest_path, time_ax=torch.atleast_2d(
-                        torch.Tensor([ts_time]) / T).T, basepoint=time_aug(basepoint, time_ax=torch.atleast_2d(
-                        torch.Tensor([max(ts_time - 1,0)]) / T).T.to(self.device_id)))
-                    if ts_time >= 1:
-                        past_feat = features[[0],[ts_time - 1],:] # Feature for generating x1 (using x0 only)
-                        print(past_feat.shape,past_feat.squeeze(dim=1).shape)
-                        print(increment_sig.shape,increment_sig.squeeze(dim=1).shape)
-                        curr_feat = signatory.signature_combine(sigtensor1=past_feat.squeeze(dim=1),
-                                                                sigtensor2=increment_sig.squeeze(dim=1),
-                                                                input_channels=2, depth=5)
-                        print(curr_feat)
-                        print(features[[0],[ts_time],:]) # Feature using information from x1,x2,x3 (1-indexed)
-                    else:
-                        print(increment_sig)
-                        print(features[[0], [0], :])
-                """elif ts_time == 0:
-                    # We have nothing generated, want to generate x1 (1-indexed)
-                    basepoint = torch.zeros_like(torch.atleast_3d(batch[0,ts_time,:]))
-                    latest_path = torch.zeros_like(torch.atleast_3d(batch[0,ts_time,:]))
-                    increment_sig = self.score_network.module.signet.forward(latest_path, time_ax=torch.atleast_2d(
-                        torch.Tensor([0]) / T).T, basepoint=time_aug(basepoint, time_ax=torch.atleast_2d(
-                        torch.Tensor([0]) / T).T.to(self.device_id)))
-                    print(increment_sig)
-                    print(features[[0], [0],:])
-                elif ts_time == 1:
-                    # We only have x1 generated, want to generate x2
-                    basepoint = torch.zeros_like(torch.atleast_3d(batch[0,ts_time,:]))
-                    latest_path = torch.atleast_3d(batch[0, ts_time - 1, :])
-                    increment_sig = self.score_network.module.signet.forward(latest_path, time_ax=torch.atleast_2d(
-                        torch.Tensor([ts_time]) / T).T, basepoint=time_aug(basepoint, time_ax=torch.atleast_2d(
-                        torch.Tensor([ts_time-1]) / T).T.to(self.device_id)))
-                    past_feat = torch.zeros_like(features[[0],[ts_time],:]) # Feature used to generate x1
-                    curr_feat = signatory.signature_combine(sigtensor1=past_feat.squeeze(dim=1),
-                                                            sigtensor2=increment_sig.squeeze(dim=1),
-                                                            input_channels=2, depth=5)
-                    print(curr_feat)
-                    print(features[[0], [1],:])"""
-
-                raise RuntimeError
             else:
-                features = self.score_network.signet.forward(batch[:,:-1,:], time_ax=torch.atleast_2d((torch.arange(1, T) / T)).T, basepoint=True)
+                features = self.score_network.signet.forward(batch[:,:-1,:], time_ax=torch.atleast_2d((torch.arange(1, T+1) / T)).T, basepoint=True)[:,:-1,:]
 
             assert (batch.shape == (x0s[0].shape[0], x0s[0].shape[1], ts_dims))
             if self.is_hybrid:
