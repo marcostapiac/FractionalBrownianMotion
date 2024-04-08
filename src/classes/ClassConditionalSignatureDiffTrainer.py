@@ -148,12 +148,14 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
             if isinstance(self.device_id , int):
                 features = self.score_network.module.signet.forward(batch[:,:-1,:],  time_ax=torch.atleast_2d((torch.arange(1, T) / T)).T, basepoint=True)
                 ts_time = 2 # We have generated x1, x2 (1-indexed)
-                past_feat = torch.atleast_3d(features[[0],[1],:]) # Feature for generating x_2
-                basepoint = torch.atleast_3d(batch[[0],[0],:]) # Feature for generating x_2 most recent information is x_(ts_time-1) (1-indexed)
-                latest_path = torch.atleast_3d(batch[[0], [1],:])
+                past_feat = torch.atleast_3d(features[0,1,:]) # Feature for generating x_2
+                basepoint = torch.atleast_3d(batch[0,0,:]) # Feature for generating x_2 most recent information is x_(ts_time-1) (1-indexed)
+                latest_path = torch.atleast_3d(batch[0, 1,:])
+
                 increment_sig = self.score_network.module.signet.forward(latest_path, time_ax=torch.atleast_2d(
                     torch.Tensor([ts_time]) / T).T, basepoint=time_aug(basepoint, time_ax=torch.atleast_2d(
                     torch.Tensor([ts_time - 1]) / T).T.to(self.device_id)).squeeze(dim=1))
+
                 curr_feat = signatory.signature_combine(sigtensor1=past_feat.squeeze(dim=1),
                                                         sigtensor2=increment_sig.squeeze(dim=1),
                                                         input_channels=2, depth=5)
