@@ -1,3 +1,5 @@
+from typing import Union
+
 import numpy as np
 import pandas as pd
 import torch
@@ -8,6 +10,8 @@ from tqdm import tqdm
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.generative_modelling.data_processing import compute_current_sig_feature
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalSignatureTimeSeriesScoreMatching import \
+    ConditionalSignatureTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
     ConditionalTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
@@ -18,7 +22,7 @@ from utils.plotting_functions import hurst_estimation
 
 def recursive_sampling_and_track(data_shape: tuple, torch_device, feature: torch.Tensor,
                                  diffusion: VPSDEDiffusion,
-                                 scoreModel: ConditionalTimeSeriesScoreMatching,
+                                 scoreModel: Union[ConditionalSignatureTimeSeriesScoreMatching,ConditionalTimeSeriesScoreMatching],
                                  config: ConfigDict, ctvar: torch.Tensor, cv1: torch.Tensor, cv2: torch.Tensor,
                                  true_past: torch.Tensor):
     """
@@ -68,7 +72,7 @@ def recursive_sampling_and_track(data_shape: tuple, torch_device, feature: torch
 
 @record
 def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
-                                         scoreModel: ConditionalTimeSeriesScoreMatching, data_shape,
+                                         scoreModel: ConditionalSignatureTimeSeriesScoreMatching, data_shape,
                                          config: ConfigDict, rng: np.random.Generator):
     """
     Recursive reverse sampling using LSTMs and tracking feature and drift values
@@ -99,7 +103,6 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
     features = []
     scoreModel.eval()
     scoreModel.to(device)
-    real_times = torch.atleast_2d((torch.arange(0, config.ts_length + 1) / config.ts_length)).T.to(device)
     with torch.no_grad():
         paths = [torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(
             device)]
@@ -117,8 +120,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
                 curr_var = torch.Tensor([1. / (config.ts_length ** (2 * config.hurst))]).to(device)
                 assert (data_cov[0, 0] == curr_var)
             else:
-                output = compute_current_sig_feature(ts_time=t, past_feat=output, latest_increment=paths[-2:],
-                                                     config=config, real_times=real_times).to(device)
+                output = compute_current_sig_feature(ts_time=t, past_feat=output, basepoint=paths[-2],latest_path=paths[-1], config=config, score_network=scoreModel)
                 true_past = true_paths[:, :t, :]  # torch.concat(true_paths, dim=1).to(device)
                 curr_time_cov1 = torch.atleast_2d(data_cov[t, :t] @ torch.linalg.inv(data_cov[:t, :t])).to(device)
                 curr_time_cov2 = torch.atleast_2d((data_cov[:t, t])).T.to(device)
@@ -127,7 +129,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
                     1, t) and curr_time_cov2.shape == (t, 1))
             samples, true_samples, per_time_drift_error = recursive_sampling_and_track(data_shape=data_shape,
                                                                                        torch_device=device,
-                                                                                       feature=output[:,:,1:],
+                                                                                       feature=output,
                                                                                        diffusion=diffusion,
                                                                                        scoreModel=scoreModel,
                                                                                        config=config, ctvar=curr_var,
@@ -137,7 +139,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
             assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
             paths.append(samples)
             true_paths[:, [t], :] = true_samples
-            features.append(output[:,:,1:].permute(1, 0, 2))
+            features.append(output.permute(1, 0, 2))
             drift_errors.append(per_time_drift_error.unsqueeze(0))
 
     final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)[:,1:]
@@ -154,8 +156,8 @@ def store_score_and_feature() -> None:
     assert (0 < config.hurst < 1.)
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 5)
-    config.dataSize = 2000
-    scoreModel = ConditionalTimeSeriesScoreMatching(
+    config.dataSize = 2
+    scoreModel = ConditionalSignatureTimeSeriesScoreMatching(
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
