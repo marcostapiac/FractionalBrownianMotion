@@ -140,13 +140,11 @@ class SigNet(nn.Module):
         else:
             # We assume starting point is (t, X) = (0,0)
             a = torch.concat([torch.zeros_like(a[:, [0], :]), torch.zeros_like(a[:, [0], :]), a], dim=1)
-        print(a[0,:10,:])
         # Batch is of shape (N, T+2, D+1)
         b = self.conv1d(a.permute(0, 2, 1)).permute((0,2,1))
         # Batch is now of shape (N, T+2, D+1)
         c = self.signature(b, basepoint=False)
-        # Features are now delayed path signatures of shape (N, T+1, D)
-        print("C shape {}".format(c.shape))
+        # Features are now delayed path signatures of shape (N, T+1, D) and we remove last entry in dim=1 in training
         return c
 
 
