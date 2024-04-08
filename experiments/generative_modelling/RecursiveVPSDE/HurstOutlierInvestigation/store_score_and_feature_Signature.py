@@ -104,7 +104,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
     scoreModel.to(device)
     with torch.no_grad():
         if isinstance(device, int):
-            true_features = scoreModel.module.signet.forward(torch.Tensor(true_fBm), time_ax=torch.atleast_2d(
+            true_features = scoreModel.signet.forward(torch.Tensor(true_fBm), time_ax=torch.atleast_2d(
                 (torch.arange(1, config.ts_length + 1) / config.ts_length)).T, basepoint=True)
         else:
             true_features = scoreModel.signet.forward(torch.Tensor(true_fBm),
@@ -163,8 +163,6 @@ def store_score_and_feature() -> None:
     assert (0 < config.hurst < 1.)
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 5)
-    feature_data_path = config.feat_path.replace("data/", "experiments/results/feature_data/") + "_NEp{}_SFS".format(
-        1920).replace(".", "") + ".parquet.gzip"
 
     config.dataSize = 2
     scoreModel = ConditionalSignatureTimeSeriesScoreMatching(
