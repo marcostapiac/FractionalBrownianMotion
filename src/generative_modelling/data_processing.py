@@ -145,9 +145,9 @@ def compute_current_sig_feature(ts_time:int,past_feat:torch.Tensor, basepoint:to
     T = config.ts_length
     assert(len(basepoint.shape)==len(latest_path.shape)==3)
     if isinstance(past_feat.device, int):
-        increment_sig = score_network.module.signet.forward(latest_path,time_ax= torch.atleast_2d(torch.Tensor([ts_time])/T).T,basepoint=time_aug(basepoint, time_ax= torch.atleast_2d(torch.Tensor([ts_time-1])/T).T.to(basepoint.device)).squeeze(dim=1))
+        increment_sig = score_network.module.signet.forward(latest_path,time_ax= torch.atleast_2d(torch.Tensor([ts_time-1])/T).T,basepoint=time_aug(basepoint, time_ax= torch.atleast_2d(torch.Tensor([ts_time-2])/T).T.to(basepoint.device)).squeeze(dim=1))
     else:
-        increment_sig = score_network.signet.forward(latest_path, time_ax=torch.atleast_2d(torch.Tensor([ts_time])/T).T,basepoint=time_aug(basepoint, time_ax= torch.atleast_2d(torch.Tensor([ts_time-1])/T).T.to(basepoint.device)).squeeze(dim=1))
+        increment_sig = score_network.signet.forward(latest_path, time_ax=torch.atleast_2d(torch.Tensor([ts_time-1])/T).T,basepoint=time_aug(basepoint, time_ax= torch.atleast_2d(torch.Tensor([ts_time-2])/T).T.to(basepoint.device)).squeeze(dim=1))
     curr_feat = signatory.signature_combine(sigtensor1=past_feat.squeeze(dim=1), sigtensor2=increment_sig.squeeze(dim=1), input_channels=config.sig_dim, depth=config.sig_trunc)
     curr_feat = curr_feat.unsqueeze(dim=1)
     assert (curr_feat.shape == past_feat.shape)
@@ -191,7 +191,8 @@ def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
         paths = [torch.zeros(size=(data_shape[0],1,data_shape[-1])).to(device)] # Initial starting point (can be set to anything)
         for t in range(config.ts_length):
             print("Sampling at real time {}\n".format(t + 1))
-            if t==0:
+            if t<2:
+                # TODO
                 output = torch.zeros(size=(data_shape[0], 1, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1)).to(device)
             else:
                 output = compute_current_sig_feature(ts_time=t, past_feat=output, basepoint=paths[-2],latest_path=paths[-1], config=config, score_network=scoreModel)
