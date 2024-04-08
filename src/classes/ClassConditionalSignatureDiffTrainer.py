@@ -147,7 +147,7 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
             T = batch.shape[1]
             if isinstance(self.device_id , int):
                 features = self.score_network.module.signet.forward(batch[:,:-1,:],  time_ax=torch.atleast_2d((torch.arange(1, T) / T)).T, basepoint=True)
-                ts_time = 20 # We have generated x1, x2 (1-indexed)
+                ts_time = 2 # We have generated x1, x2 (1-indexed)
                 past_feat = features[[0],[1],:] # Feature using information from x1,x2 (1-indexed)
                 basepoint = torch.atleast_3d(batch[0,1,:]) # Feature for generating x_2 most recent information is x_(ts_time-1) (1-indexed)
                 latest_path = torch.atleast_3d(batch[0, 2,:]) # x3
