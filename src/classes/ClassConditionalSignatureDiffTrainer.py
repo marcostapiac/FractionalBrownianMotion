@@ -146,9 +146,9 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
             batch = torch.atleast_3d(batch)
             T = batch.shape[1]
             if isinstance(self.device_id , int):
-                features = self.score_network.module.signet.forward(batch,  time_ax=torch.atleast_2d((torch.arange(1, T + 1) / T)).T, basepoint=True)
+                features = self.score_network.module.signet.forward(batch[:,:-1,:],  time_ax=torch.atleast_2d((torch.arange(1, T) / T)).T, basepoint=True)
             else:
-                features = self.score_network.signet.forward(batch, time_ax=torch.atleast_2d((torch.arange(1, T + 1) / T)).T, basepoint=True)
+                features = self.score_network.signet.forward(batch[:,:-1,:], time_ax=torch.atleast_2d((torch.arange(1, T) / T)).T, basepoint=True)
 
             assert (batch.shape == (x0s[0].shape[0], x0s[0].shape[1], ts_dims))
             if self.is_hybrid:
