@@ -17,7 +17,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
     ConditionalSignatureTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
     ConditionalTimeSeriesScoreMatching
-from utils.math_functions import ts_signature_pipeline, compute_sig_size
+from utils.math_functions import ts_signature_pipeline, compute_sig_size, time_aug
 import signatory
 
 
@@ -147,6 +147,20 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
             T = batch.shape[1]
             if isinstance(self.device_id , int):
                 features = self.score_network.module.signet.forward(batch[:,:-1,:],  time_ax=torch.atleast_2d((torch.arange(1, T) / T)).T, basepoint=True)
+                ts_time = 2 # We have generated x1, x2 (1-indexed)
+                past_feat = features[[0],[1],:] # Feature for generating x_2
+                basepoint = batch[[0],[0],:] # Feature for generating x_2 most recent information is x_(ts_time-1) (1-indexed)
+                latest_path = batch[[0], [1],:]
+                increment_sig = self.score_network.module.signet.forward(latest_path, time_ax=torch.atleast_2d(
+                    torch.Tensor([ts_time]) / T).T, basepoint=time_aug(basepoint, time_ax=torch.atleast_2d(
+                    torch.Tensor([ts_time - 1]) / T).T.to(self.device_id)).squeeze(dim=1))
+                curr_feat = signatory.signature_combine(sigtensor1=past_feat.squeeze(dim=1),
+                                                        sigtensor2=increment_sig.squeeze(dim=1),
+                                                        input_channels=2, depth=5)
+                print(curr_feat)
+                print(features[[0],[2],:]) # Feature for generating x_3
+
+                raise RuntimeError
             else:
                 features = self.score_network.signet.forward(batch[:,:-1,:], time_ax=torch.atleast_2d((torch.arange(1, T) / T)).T, basepoint=True)
 

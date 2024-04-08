@@ -133,24 +133,18 @@ class SigNet(nn.Module):
 
     def forward(self, batch: torch.Tensor, time_ax:torch.Tensor, basepoint:Union[torch.Tensor, bool]=True) -> torch.Tensor:
         # Batch is of shape (N, T-1, D)
-        print("BATCH Device {}\n".format(batch.device), batch[0,:,:],  batch[0,:,:].shape)
         a = self.augment(batch, time_ax=time_ax.to(batch.device))
-        print("A Device {}\n".format(batch.device), a[0,:,:],a[0,:,:].shape)
         if isinstance(basepoint, torch.Tensor):
             assert (basepoint.shape[-1] == 2)
             a = torch.concat([basepoint, a], dim=1)
         else:
             # We assume starting point is (t, X) = (0,0)
             a = torch.concat([torch.zeros_like(a[:, [0], :]), a], dim=1)
-        print("A Device {}\n".format(batch.device), a[0,:,:],a[0,:,:].shape)
-        # Batch is of shape (N, T-1, D+1)
+        # Batch is of shape (N, T, D+1)
         b = self.conv1d(a.permute(0, 2, 1)).permute((0,2,1))
-        print("B Device {}\n".format(batch.device), b[0,:,:],b[0,:,:].shape)
         # Batch is now of shape (N, T-1, D+1)
         c = self.signature(b, basepoint=False)
-        print("C Device {}\n".format(batch.device),c[0,:,:],c[0,:,:].shape)
         # Features are now delayed path signatures of shape (N, T, D)
-        raise RuntimeError
         return c
 
 
