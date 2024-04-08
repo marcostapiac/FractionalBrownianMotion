@@ -163,10 +163,9 @@ def compute_current_sig_feature(ts_time:int, device:Union[int, str],past_feat:to
         curr_feat = signatory.signature_combine(sigtensor1=past_feat.squeeze(dim=1),
                                                 sigtensor2=increment_sig.squeeze(dim=1),
                                                 input_channels=2, depth=5)
-        print(curr_feat)
+        curr_feat = curr_feat.unsqueeze(dim=1)
     else:
         curr_feat = increment_sig
-    print(curr_feat.shape, past_feat.shape)
     assert (curr_feat.shape == past_feat.shape)
     return curr_feat
 
