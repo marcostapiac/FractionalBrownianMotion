@@ -166,8 +166,7 @@ def store_score_and_feature() -> None:
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 5)
 
-    config.dataSize = 2
-    config.max_diff_steps = 10
+    config.dataSize = 2000
     scoreModel = ConditionalSignatureTimeSeriesScoreMatching(
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
@@ -190,7 +189,7 @@ def store_score_and_feature() -> None:
         config.ts_length, config.dataSize, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1) and
         drift_errors.shape == (config.ts_length, config.max_diff_steps, config.dataSize) and (features.shape==true_features.shape))
 
-    """print("Storing Path Data\n")
+    print("Storing Path Data\n")
     path_df = pd.DataFrame(paths)
     print(path_df)
     path_df_path = config.experiment_path + "_NEp{}_SFS.parquet.gzip".format(train_epoch)
@@ -271,7 +270,7 @@ def store_score_and_feature() -> None:
 
     # drift_df.to_parquet(drift_data_path, compression="gzip")
     del drift_df
-    print("Done Storing Drift Errors\n")"""
+    print("Done Storing Drift Errors\n")
 
 
 if __name__ == "__main__":
