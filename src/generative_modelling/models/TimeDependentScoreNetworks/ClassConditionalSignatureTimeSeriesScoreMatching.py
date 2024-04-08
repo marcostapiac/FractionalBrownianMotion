@@ -139,15 +139,15 @@ class SigNet(nn.Module):
             a = torch.concat([basepoint, a], dim=1)
         else:
             # We assume starting point is (t, X) = (0,0)
-            a = torch.concat([torch.zeros_like(a[:, [0], :]), a], dim=1)
+            a = torch.concat([torch.zeros_like(a[:, [0], :]), torch.zeros_like(a[:, [0], :]), a], dim=1)
         print(a)
-        # Batch is of shape (N, T+1, D+1)
+        # Batch is of shape (N, T+2, D+1)
         b = self.conv1d(a.permute(0, 2, 1)).permute((0,2,1))
-        # Batch is now of shape (N, T-1, D+1)
+        # Batch is now of shape (N, T+2, D+1)
         c = self.signature(b, basepoint=False)
         # Features are now delayed path signatures of shape (N, T+1, D)
         print("C shape {}".format(c.shape))
-        return torch.cat((torch.zeros_like(c[:, [0], :]), c[:, :-1, :]), dim=1)
+        return c
 
 
 class ConditionalSignatureTimeSeriesScoreMatching(nn.Module):
