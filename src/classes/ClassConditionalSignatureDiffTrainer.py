@@ -186,6 +186,7 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
                                                             sigtensor2=increment_sig.squeeze(dim=1),
                                                             input_channels=2, depth=5)
                     print(curr_feat)
+                    print(features[[0], [1],:])
 
                 raise RuntimeError
             else:
