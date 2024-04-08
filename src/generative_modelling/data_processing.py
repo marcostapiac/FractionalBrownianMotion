@@ -167,6 +167,7 @@ def compute_current_sig_feature(ts_time:int, device:Union[int, str],past_feat:to
     else:
         curr_feat = increment_sig
     curr_feat = curr_feat.unsqueeze(dim=1)
+    print(curr_feat.shape, past_feat.shape)
     assert (curr_feat.shape == past_feat.shape)
     return curr_feat
 
