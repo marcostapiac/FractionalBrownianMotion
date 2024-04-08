@@ -149,7 +149,7 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
                 features = self.score_network.module.signet.forward(batch,  time_ax=torch.atleast_2d((torch.arange(1, T+1) / T)).T, basepoint=True)[:,:-1,:]
                 ts_time = 3 - 1 # We have generated x1, x2 (1-indexed) and want to generate x3
                 ts_time = 0 # We have nothing generated
-                ts_time = 1 # We have only generated x1
+                ts_time = 0 # We have only generated x1
                 if ts_time >= 0:
                     basepoint =  torch.zeros_like(torch.atleast_3d(batch[0,ts_time,:])) if ts_time <=1 else torch.atleast_3d(batch[0,ts_time - 2,:]) # Feature for generating x_2 most recent information is x_1
                     latest_path = torch.zeros_like(torch.atleast_3d(batch[0,ts_time,:])) if ts_time == 0 else torch.atleast_3d(batch[0, ts_time -1 ,:]) # Generated x2
