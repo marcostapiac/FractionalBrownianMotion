@@ -133,6 +133,7 @@ class SigNet(nn.Module):
 
     def forward(self, batch: torch.Tensor, time_ax:torch.Tensor,basepoint:Union[torch.Tensor, bool]=True) -> torch.Tensor:
         # Batch is of shape (N, T-1, D)
+        print("Device {}".format(batch.device), batch[0,:,:])
         a = self.augment(batch, time_ax=time_ax.to(batch.device))
         print("Device {}".format(batch.device), a[0,:,:])
         # Batch is of shape (N, T-1, D+1)
@@ -140,6 +141,7 @@ class SigNet(nn.Module):
         # Batch is now of shape (N, T-1, D+1)
         c = self.signature(b, basepoint=basepoint)
         print("Device {}".format(batch.device),c[0,:,:])
+        raise RuntimeError
         # Signatures are now of shape (N, T-1, NSIGFEATS)
         c = torch.concat([torch.zeros(size=(c.shape[0],1, c.shape[-1])).to(batch.device), c], dim=1)
         # Features are now delayed path signatures of shape (N, T, D)
