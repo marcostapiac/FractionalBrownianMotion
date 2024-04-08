@@ -1,4 +1,4 @@
-from typing import Union
+from typing import Union, Tuple
 
 import numpy as np
 import pandas as pd
@@ -15,7 +15,6 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
     ConditionalTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
-from utils.data_processing import cleanup_experiment, init_experiment
 from utils.math_functions import compute_fBm_cov, compute_fBn_cov, compute_sig_size
 from utils.plotting_functions import hurst_estimation
 
@@ -73,7 +72,7 @@ def recursive_sampling_and_track(data_shape: tuple, torch_device, feature: torch
 @record
 def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
                                          scoreModel: ConditionalSignatureTimeSeriesScoreMatching, data_shape,
-                                         config: ConfigDict, rng: np.random.Generator):
+                                         config: ConfigDict, rng: np.random.Generator)->Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
     """
     Recursive reverse sampling using LSTMs and tracking feature and drift values
         :param diffusion: Diffusion model
@@ -99,11 +98,18 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
             compute_fBn_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.ts_length,
                             isUnitInterval=config.isUnitInterval)).to(
             torch.float32).to(device)
-
+    true_fBm = np.array([FractionalBrownianNoise(H=config.hurst, rng=rng).circulant_simulation(N_samples=config.ts_length).cumsum() for _ in range(data_shape[0])]).reshape((data_shape[0], data_shape[1]))[:,:,np.newaxis]
     features = []
     scoreModel.eval()
     scoreModel.to(device)
     with torch.no_grad():
+        if isinstance(device, int):
+            true_features = scoreModel.module.signet.forward(torch.Tensor(true_fBm), time_ax=torch.atleast_2d(
+                (torch.arange(1, config.ts_length + 1) / config.ts_length)).T, basepoint=True)
+        else:
+            true_features = scoreModel.signet.forward(torch.Tensor(true_fBm),
+                                                         time_ax=torch.atleast_2d((torch.arange(1, config.ts_length + 1) / config.ts_length)).T,
+                                                         basepoint=True)
         paths = [torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(
             device)]
         true_paths = torch.zeros(size=(data_shape[0], config.ts_length, data_shape[-1])).to(device)
@@ -143,11 +149,12 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
             drift_errors.append(per_time_drift_error.unsqueeze(0))
 
     final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)[:,1:]
-    feature_df = torch.concat(features, dim=0).cpu()
-    assert (feature_df.shape == (config.ts_length, config.dataSize, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1))
-    drift_error_df = torch.concat(drift_errors, dim=0).cpu()
-    assert (drift_error_df.shape == (config.ts_length, config.max_diff_steps, config.dataSize))
-    return np.atleast_2d(final_paths.numpy()), np.atleast_3d(feature_df.numpy()), np.atleast_3d(drift_error_df.numpy())
+    feature = torch.concat(features, dim=0).cpu()
+    assert (feature.shape == (config.ts_length, config.dataSize, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1))
+    assert(true_features.shape == feature.shape)
+    drift_error = torch.concat(drift_errors, dim=0).cpu()
+    assert (drift_error.shape == (config.ts_length, config.max_diff_steps, config.dataSize))
+    return np.atleast_2d(final_paths.numpy()), np.atleast_3d(feature.numpy()),np.atleast_3d(true_features.numpy()), np.atleast_3d(drift_error.numpy())
 
 
 def store_score_and_feature() -> None:
@@ -156,6 +163,9 @@ def store_score_and_feature() -> None:
     assert (0 < config.hurst < 1.)
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 5)
+    feature_data_path = config.feat_path.replace("data/", "experiments/results/feature_data/") + "_NEp{}_SFS".format(
+        1920).replace(".", "") + ".parquet.gzip"
+
     config.dataSize = 2
     scoreModel = ConditionalSignatureTimeSeriesScoreMatching(
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
@@ -170,14 +180,14 @@ def store_score_and_feature() -> None:
         assert FileNotFoundError(
             "Error {}; no valid trained model found; train before initiating experiment\n".format(e))
     rng = np.random.default_rng()
-    paths, features, drift_errors = run_feature_drift_recursive_sampling(diffusion=diffusion, scoreModel=scoreModel,
+    paths, features, true_features, drift_errors = run_feature_drift_recursive_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                                                          data_shape=(
                                                                              config.dataSize, config.ts_length, 1),
                                                                          config=config, rng=rng)
     assert (
         paths.shape == (config.dataSize, config.ts_length) and features.shape == (
-        config.ts_length, config.dataSize, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1),
-        drift_errors.shape == (config.ts_length, config.max_diff_steps, config.dataSize))
+        config.ts_length, config.dataSize, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1) and
+        drift_errors.shape == (config.ts_length, config.max_diff_steps, config.dataSize) and (features.shape==true_features.shape))
 
     print("Storing Path Data\n")
     path_df = pd.DataFrame(paths)
@@ -206,17 +216,37 @@ def store_score_and_feature() -> None:
     print(feature_df)
     feature_df.info()
     bad_feat_df_1 = feature_df.loc[pd.IndexSlice[:, bad_idxs_1], :]
-    bad_feat_df_1.to_parquet(feature_data_path.replace(".npy", "_bad1.parquet.gzip"), compression="gzip")
+    bad_feat_df_1.to_parquet(feature_data_path.replace(".parquet.gzip", "_bad1.parquet.gzip"), compression="gzip")
     print(bad_feat_df_1)
     bad_feat_df_2 = feature_df.loc[pd.IndexSlice[:, bad_idxs_2], :]
-    bad_feat_df_2.to_parquet(feature_data_path.replace(".npy", "_bad2.parquet.gzip"), compression="gzip")
+    bad_feat_df_2.to_parquet(feature_data_path.replace(".parquet.gzip", "_bad2.parquet.gzip"), compression="gzip")
     print(bad_feat_df_2)
     good_feat_df = feature_df.loc[pd.IndexSlice[:, good_idxs], :]
-    good_feat_df.to_parquet(feature_data_path.replace(".npy", "_good.parquet.gzip"), compression="gzip")
+    good_feat_df.to_parquet(feature_data_path.replace(".parquet.gzip", "_good.parquet.gzip"), compression="gzip")
     print(good_feat_df)
     # feature_df.to_parquet(feature_data_path, compression="gzip")
     del feature_df
+    del feature_data_path
     print("Done Storing Feature Data\n")
+
+    print("Storing True Feature Data\n")
+    true_feature_data_path = config.feat_path.replace("data/", "experiments/results/feature_data/") + "_True_NEp{}_SFS".format(
+        train_epoch).replace(".", "") + ".parquet.gzip"
+    true_feature_df = pd.concat({i: pd.DataFrame(features[i, :, :]) for i in tqdm(range(config.ts_length))})
+    print(true_feature_df)
+    true_feature_df.info()
+    bad_feat_df_1 = true_feature_df.loc[pd.IndexSlice[:, bad_idxs_1], :]
+    bad_feat_df_1.to_parquet(true_feature_data_path.replace(".parquet.gzip", "_bad1.parquet.gzip"), compression="gzip")
+    print(bad_feat_df_1)
+    bad_feat_df_2 = true_feature_df.loc[pd.IndexSlice[:, bad_idxs_2], :]
+    bad_feat_df_2.to_parquet(true_feature_data_path.replace(".parquet.gzip", "_bad2.parquet.gzip"), compression="gzip")
+    print(bad_feat_df_2)
+    good_feat_df = true_feature_df.loc[pd.IndexSlice[:, good_idxs], :]
+    good_feat_df.to_parquet(true_feature_data_path.replace(".parquet.gzip", "_good.parquet.gzip"), compression="gzip")
+    print(good_feat_df)
+    # feature_df.to_parquet(feature_data_path, compression="gzip")
+    del true_feature_df
+    del true_feature_data_path
 
     print("Storing Drift Errors\n")
     # Store
@@ -229,13 +259,13 @@ def store_score_and_feature() -> None:
     drift_df.info()
 
     bad_drift_df_1 = drift_df.loc[pd.IndexSlice[:, :], bad_idxs_1]
-    bad_drift_df_1.to_parquet(drift_data_path.replace(".npy", "_bad1.parquet.gzip"), compression="gzip")
+    bad_drift_df_1.to_parquet(drift_data_path.replace(".parquet.gzip", "_bad1.parquet.gzip"), compression="gzip")
     print(bad_drift_df_1)
     bad_drift_df_2 = drift_df.loc[pd.IndexSlice[:, :], bad_idxs_2]
-    bad_drift_df_2.to_parquet(drift_data_path.replace(".npy", "_bad2.parquet.gzip"), compression="gzip")
+    bad_drift_df_2.to_parquet(drift_data_path.replace(".parquet.gzip", "_bad2.parquet.gzip"), compression="gzip")
     print(bad_drift_df_2)
     good_drift_df = drift_df.loc[pd.IndexSlice[:, :], good_idxs]
-    good_drift_df.to_parquet(drift_data_path.replace(".npy", "_good.parquet.gzip"), compression="gzip")
+    good_drift_df.to_parquet(drift_data_path.replace(".parquet.gzip", "_good.parquet.gzip"), compression="gzip")
     print(good_drift_df)
 
     # drift_df.to_parquet(drift_data_path, compression="gzip")
