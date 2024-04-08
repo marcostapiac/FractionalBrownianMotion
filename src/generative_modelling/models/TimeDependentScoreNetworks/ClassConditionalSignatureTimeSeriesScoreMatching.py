@@ -141,7 +141,7 @@ class SigNet(nn.Module):
             a = torch.concat([basepoint, a], dim=1)
         else:
             # We assume starting point is (t, X) = (0,0)
-            a = torch.concat([torch.zeros_like(a[:, 0, :]), batch], dim=1)
+            a = torch.concat([torch.zeros_like(a[:, [0], :]), batch], dim=1)
         print("A Device {}\n".format(batch.device), a[0,:,:],a[0,:,:].shape)
         # Batch is of shape (N, T-1, D+1)
         b = self.conv1d(a.permute(0, 2, 1)).permute((0,2,1))
