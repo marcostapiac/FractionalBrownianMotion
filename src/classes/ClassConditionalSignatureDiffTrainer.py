@@ -148,6 +148,7 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
             if isinstance(self.device_id , int):
                 features = self.score_network.module.signet.forward(batch,  time_ax=torch.atleast_2d((torch.arange(1, T+1) / T)).T, basepoint=True)[:,:-1,:]
                 ts_time = 3 - 1 # We have generated x1, x2 (1-indexed) and want to generate x3
+                ts_time = 0 # We have nothing generated
                 if ts_time >= 2:
                     past_feat = features[[0],[ts_time - 1],:] # Feature for generating x1 (using x0 only)
                     basepoint = torch.atleast_3d(batch[0,ts_time - 2,:]) # Feature for generating x_2 most recent information is x_1
@@ -163,6 +164,15 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
                                                             input_channels=2, depth=5)
                     print(curr_feat)
                     print(features[[0],[2],:]) # Feature using information from x1,x2,x3 (1-indexed)
+                elif ts_time == 0:
+                    # We have nothing generated, want to generate x1 (1-indexed)
+                    basepoint = torch.zeros_like(batch[0,ts_time,:])
+                    latest_path = torch.zeros_like(batch[0,ts_time,:])
+                    increment_sig = self.score_network.module.signet.forward(latest_path, time_ax=torch.atleast_2d(
+                        torch.Tensor([ts_time]) / T).T, basepoint=time_aug(basepoint, time_ax=torch.atleast_2d(
+                        torch.Tensor([ts_time - 1]) / T).T.to(self.device_id)))
+                    print(increment_sig)
+                    print(features[[0], [0],:])
 
                 raise RuntimeError
             else:
