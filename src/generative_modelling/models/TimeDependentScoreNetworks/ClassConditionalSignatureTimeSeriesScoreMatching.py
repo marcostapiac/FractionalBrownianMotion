@@ -140,7 +140,7 @@ class SigNet(nn.Module):
         else:
             # We assume starting point is (t, X) = (0,0)
             a = torch.concat([torch.zeros_like(a[:, [0], :]), torch.zeros_like(a[:, [0], :]), a], dim=1)
-        print(a)
+        print(a[0,:10,:])
         # Batch is of shape (N, T+2, D+1)
         b = self.conv1d(a.permute(0, 2, 1)).permute((0,2,1))
         # Batch is now of shape (N, T+2, D+1)
