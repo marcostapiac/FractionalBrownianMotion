@@ -211,7 +211,7 @@ def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
         output = torch.zeros((data_shape[0],1, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1)).to(device)
         for t in range(config.ts_length):
             print("Sampling at real time {}\n".format(t + 1))
-            output = compute_current_sig_feature(ts_time=t, device=device,past_feat=output, basepoint=paths[t - 2],latest_path=paths[t - 1], config=config, score_network=scoreModel)
+            output = compute_current_sig_feature(ts_time=t, device=device,past_feat=output, basepoint=paths[max(t - 2,0)],latest_path=paths[max(0,t - 1)], config=config, score_network=scoreModel)
             samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output,
                                      early_stop_idx=config.early_stop_idx)
             assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
