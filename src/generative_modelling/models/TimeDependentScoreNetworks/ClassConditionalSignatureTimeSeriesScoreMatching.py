@@ -145,6 +145,7 @@ class SigNet(nn.Module):
         # Batch is now of shape (N, T-1, D+1)
         c = self.signature(b, basepoint=False)
         # Features are now delayed path signatures of shape (N, T, D)
+        print("C shape {}".format(c.shape))
         return c
 
 
