@@ -166,11 +166,11 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
                     print(features[[0],[2],:]) # Feature using information from x1,x2,x3 (1-indexed)
                 elif ts_time == 0:
                     # We have nothing generated, want to generate x1 (1-indexed)
-                    basepoint = torch.zeros_like(batch[[0],[ts_time],:])
-                    latest_path = torch.zeros_like(batch[[0],[ts_time],:])
+                    basepoint = torch.zeros_like(torch.atleast_3d(batch[0,ts_time,:]))
+                    latest_path = torch.zeros_like(torch.atleast_3d(batch[0,ts_time,:]))
                     increment_sig = self.score_network.module.signet.forward(latest_path, time_ax=torch.atleast_2d(
                         torch.Tensor([ts_time]) / T).T, basepoint=time_aug(basepoint, time_ax=torch.atleast_2d(
-                        torch.Tensor([ts_time - 1]) / T).T.to(self.device_id)))
+                        torch.Tensor([ts_time]) / T).T.to(self.device_id)))
                     print(increment_sig)
                     print(features[[0], [0],:])
 
