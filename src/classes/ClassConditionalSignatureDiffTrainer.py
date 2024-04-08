@@ -153,8 +153,8 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
                 latest_path = torch.atleast_3d(batch[0, 1,:]) # Generated x2
 
                 increment_sig = self.score_network.module.signet.forward(latest_path, time_ax=torch.atleast_2d(
-                    torch.Tensor([ts_time]) / T).T, basepoint=time_aug(basepoint, time_ax=torch.atleast_2d(
-                    torch.Tensor([ts_time - 1]) / T).T.to(self.device_id)))
+                    torch.Tensor([ts_time - 1]) / T).T, basepoint=time_aug(basepoint, time_ax=torch.atleast_2d(
+                    torch.Tensor([ts_time - 2]) / T).T.to(self.device_id)))
                 print(past_feat.shape,past_feat.squeeze(dim=1).shape)
                 print(increment_sig.shape,increment_sig.squeeze(dim=1).shape)
                 curr_feat = signatory.signature_combine(sigtensor1=past_feat.squeeze(dim=1),
