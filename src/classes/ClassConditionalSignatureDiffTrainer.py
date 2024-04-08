@@ -181,7 +181,7 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
                     increment_sig = self.score_network.module.signet.forward(latest_path, time_ax=torch.atleast_2d(
                         torch.Tensor([ts_time]) / T).T, basepoint=time_aug(basepoint, time_ax=torch.atleast_2d(
                         torch.Tensor([ts_time-1]) / T).T.to(self.device_id)))
-                    past_feat = torch.zeros_like(torch.atleast_3d(features[0,ts_time,:])).squeeze(dim=1) # Feature used to generate x1
+                    past_feat = torch.zeros_like(features[0,ts_time,:]) # Feature used to generate x1
                     curr_feat = signatory.signature_combine(sigtensor1=past_feat.squeeze(dim=1),
                                                             sigtensor2=increment_sig.squeeze(dim=1),
                                                             input_channels=2, depth=5)
