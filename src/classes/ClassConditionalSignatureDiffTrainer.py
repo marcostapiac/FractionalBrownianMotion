@@ -146,22 +146,24 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
             batch = torch.atleast_3d(batch)
             T = batch.shape[1]
             if isinstance(self.device_id , int):
-                features = self.score_network.module.signet.forward(batch[:,:-1,:],  time_ax=torch.atleast_2d((torch.arange(1, T) / T)).T, basepoint=True)
-                ts_time = 2 # We have generated x1, x2 (1-indexed)
-                past_feat = features[[0],[1],:] # Feature for generating x_2
-                basepoint = torch.atleast_3d(batch[0,0,:]) # Feature for generating x_2 most recent information is x_(ts_time-1) (1-indexed)
-                latest_path = torch.atleast_3d(batch[0, 1,:])
+                self.score_network.eval()
+                with torch.no_grad():
+                    features = self.score_network.module.signet.forward(batch[:,:-1,:],  time_ax=torch.atleast_2d((torch.arange(1, T) / T)).T, basepoint=True)
+                    ts_time = 2 # We have generated x1, x2 (1-indexed)
+                    past_feat = features[[0],[1],:] # Feature using information from x1,x2 (1-indexed)
+                    basepoint = torch.atleast_3d(batch[0,1,:]) # Feature for generating x_2 most recent information is x_(ts_time-1) (1-indexed)
+                    latest_path = torch.atleast_3d(batch[0, 2,:]) # x3
 
-                increment_sig = self.score_network.module.signet.forward(latest_path, time_ax=torch.atleast_2d(
-                    torch.Tensor([ts_time]) / T).T, basepoint=time_aug(basepoint, time_ax=torch.atleast_2d(
-                    torch.Tensor([ts_time - 1]) / T).T.to(self.device_id)))
-                print(past_feat.shape,past_feat.squeeze(dim=1).shape)
-                print(increment_sig.shape,increment_sig.squeeze(dim=1).shape)
-                curr_feat = signatory.signature_combine(sigtensor1=past_feat.squeeze(dim=1),
-                                                        sigtensor2=increment_sig.squeeze(dim=1),
-                                                        input_channels=2, depth=5)
-                print(curr_feat)
-                print(features[[0],[1],:]) # Feature for generating x_3
+                    increment_sig = self.score_network.module.signet.forward(latest_path, time_ax=torch.atleast_2d(
+                        torch.Tensor([ts_time]) / T).T, basepoint=time_aug(basepoint, time_ax=torch.atleast_2d(
+                        torch.Tensor([ts_time - 1]) / T).T.to(self.device_id)))
+                    print(past_feat.shape,past_feat.squeeze(dim=1).shape)
+                    print(increment_sig.shape,increment_sig.squeeze(dim=1).shape)
+                    curr_feat = signatory.signature_combine(sigtensor1=past_feat.squeeze(dim=1),
+                                                            sigtensor2=increment_sig.squeeze(dim=1),
+                                                            input_channels=2, depth=5)
+                    print(curr_feat)
+                    print(features[[0],[3],:]) # Feature using information from x1,x2,x3 (1-indexed)
 
                 raise RuntimeError
             else:
