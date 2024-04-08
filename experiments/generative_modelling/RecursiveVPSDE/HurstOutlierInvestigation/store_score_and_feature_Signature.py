@@ -119,7 +119,6 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
             if t == 0:
                 output = torch.zeros(
                     size=(data_shape[0], 1, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1)).to(device)
-                output[:, 0, 0] = 1.
                 true_past = torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)
                 curr_time_cov1 = torch.zeros(size=(1, 1)).to(device)
                 curr_time_cov2 = torch.zeros(size=(1, 1)).to(device)
@@ -152,6 +151,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
 
     final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)[:,1:]
     feature = torch.concat(features, dim=0).cpu()
+    true_features = true_features.permute((1,0,2))
     assert (feature.shape == (config.ts_length, config.dataSize, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1))
     assert(true_features.shape == feature.shape)
     drift_error = torch.concat(drift_errors, dim=0).cpu()
