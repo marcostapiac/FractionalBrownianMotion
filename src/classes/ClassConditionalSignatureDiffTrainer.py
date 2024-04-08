@@ -163,7 +163,7 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
                                                             sigtensor2=increment_sig.squeeze(dim=1),
                                                             input_channels=2, depth=5)
                     print(curr_feat)
-                    print(features[[0],[3],:]) # Feature using information from x1,x2,x3 (1-indexed)
+                    print(features[[0],[2],:]) # Feature using information from x1,x2,x3 (1-indexed)
 
                 raise RuntimeError
             else:
