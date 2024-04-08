@@ -133,25 +133,45 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
     return final_samples  # TODO Check if need to detach
 
 
-def compute_current_sig_feature(ts_time:int,past_feat:torch.Tensor, basepoint:torch.Tensor,latest_path:torch.Tensor, config:ConfigDict, score_network:ConditionalSignatureTimeSeriesScoreMatching)->torch.Tensor:
+def compute_current_sig_feature(ts_time:int, device:Union[int, str],past_feat:torch.Tensor, basepoint:torch.Tensor,latest_path:torch.Tensor, config:ConfigDict, score_network:ConditionalSignatureTimeSeriesScoreMatching)->torch.Tensor:
     """
     Efficient computation of path signature through concatenation
         :param ts_time: Current time series time
+        :param device: Device on which tensors are stored
         :param past_feat: Last feature
         :param latest_path: Last path value
         :param config: ML experiment configuration file
     :return: Concactenated path feature
     """
+    # ts_time: we have generated x1:x_tstime and want to generate x_(ts_time+1)
+    # ts_time == 0: we have generated nothing
+    # ts_time == 1: we have generated x1, want to generate x2
     T = config.ts_length
     assert(len(basepoint.shape)==len(latest_path.shape)==3)
+    basepoint = torch.zeros_like(basepoint) if ts_time <= 1  else basepoint
+    latest_path = torch.zeros_like(latest_path) if ts_time == 0  else latest_path
     if isinstance(past_feat.device, int):
-        increment_sig = score_network.module.signet.forward(latest_path,time_ax= torch.atleast_2d(torch.Tensor([ts_time-1])/T).T,basepoint=time_aug(basepoint, time_ax= torch.atleast_2d(torch.Tensor([ts_time-2])/T).T.to(basepoint.device)).squeeze(dim=1))
+        increment_sig = score_network.module.signet.forward(latest_path, time_ax=torch.atleast_2d(
+            torch.Tensor([ts_time]) / T).T, basepoint=time_aug(basepoint, time_ax=torch.atleast_2d(
+            torch.Tensor([max(ts_time - 1, 0)]) / T).T.to(device)))
     else:
-        increment_sig = score_network.signet.forward(latest_path, time_ax=torch.atleast_2d(torch.Tensor([ts_time-1])/T).T,basepoint=time_aug(basepoint, time_ax= torch.atleast_2d(torch.Tensor([ts_time-2])/T).T.to(basepoint.device)).squeeze(dim=1))
-    curr_feat = signatory.signature_combine(sigtensor1=past_feat.squeeze(dim=1), sigtensor2=increment_sig.squeeze(dim=1), input_channels=config.sig_dim, depth=config.sig_trunc)
+        increment_sig = score_network.signet.forward(latest_path, time_ax=torch.atleast_2d(
+            torch.Tensor([ts_time]) / T).T, basepoint=time_aug(basepoint, time_ax=torch.atleast_2d(
+            torch.Tensor([max(ts_time - 1, 0)]) / T).T.to(device)))
+    if ts_time >= 1:
+        # past_feat = features[[0], [ts_time - 1], :]  # Feature for generating x1 (using x0 only)
+        curr_feat = signatory.signature_combine(sigtensor1=past_feat.squeeze(dim=1),
+                                                sigtensor2=increment_sig.squeeze(dim=1),
+                                                input_channels=2, depth=5)
+        print(curr_feat)
+    else:
+        curr_feat = increment_sig
     curr_feat = curr_feat.unsqueeze(dim=1)
     assert (curr_feat.shape == past_feat.shape)
     return curr_feat
+
+
+
 
 @record
 def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
@@ -191,11 +211,7 @@ def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
         paths = [torch.zeros(size=(data_shape[0],1,data_shape[-1])).to(device)] # Initial starting point (can be set to anything)
         for t in range(config.ts_length):
             print("Sampling at real time {}\n".format(t + 1))
-            if t<2:
-                # TODO
-                output = torch.zeros(size=(data_shape[0], 1, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1)).to(device)
-            else:
-                output = compute_current_sig_feature(ts_time=t, past_feat=output, basepoint=paths[-2],latest_path=paths[-1], config=config, score_network=scoreModel)
+            output = compute_current_sig_feature(ts_time=t, device=device,past_feat=output, basepoint=paths[t - 2],latest_path=paths[t - 1], config=config, score_network=scoreModel)
             samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output,
                                      early_stop_idx=config.early_stop_idx)
             assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
@@ -298,9 +314,6 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
             else:
                 past = [torch.zeros_like(paths[0]) for _ in range(max(0, config.mkv_blnk - t))] + paths[
                                                                                                   -config.mkv_blnk:]
-                print(paths)
-                print(paths[-config.mkv_blnk:])
-                print(past)
                 features = torch.stack(past, dim=2).reshape(
                     (data_shape[0], 1, config.mkv_blnk * config.ts_dims, 1)).squeeze(-1)
             samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=features,
