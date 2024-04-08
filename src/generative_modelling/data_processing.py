@@ -209,7 +209,7 @@ def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
     scoreModel.eval()
     with torch.no_grad():
         paths = [torch.zeros(size=(data_shape[0],1,data_shape[-1])).to(device)] # Initial starting point (can be set to anything)
-        output = torch.zeros((data_shape[0],1, compute_sig_size(dim=config.sig_dim, trunc=config.sim_trunc)-1)).to(device)
+        output = torch.zeros((data_shape[0],1, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1)).to(device)
         for t in range(config.ts_length):
             print("Sampling at real time {}\n".format(t + 1))
             output = compute_current_sig_feature(ts_time=t, device=device,past_feat=output, basepoint=paths[t - 2],latest_path=paths[t - 1], config=config, score_network=scoreModel)
