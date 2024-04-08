@@ -147,7 +147,7 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
             T = batch.shape[1]
             if isinstance(self.device_id , int):
                 features = self.score_network.module.signet.forward(batch,  time_ax=torch.atleast_2d((torch.arange(1, T+1) / T)).T, basepoint=True)[:,:-1,:]
-                ts_time = 3 - 1 # We have generated x1, x2 (1-indexed) and want to generate x3
+                ts_time = 5 - 1 # We have generated x1, x2 (1-indexed) and want to generate x3
                 ts_time = 0 # We have nothing generated
                 ts_time = 0 # We have only generated x1
                 if ts_time >= 0:
