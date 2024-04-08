@@ -167,6 +167,7 @@ def store_score_and_feature() -> None:
     assert (config.tdata_mult == 5)
 
     config.dataSize = 2
+    config.max_diff_steps = 10
     scoreModel = ConditionalSignatureTimeSeriesScoreMatching(
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
