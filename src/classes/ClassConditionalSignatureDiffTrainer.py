@@ -150,22 +150,26 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
                 ts_time = 3 - 1 # We have generated x1, x2 (1-indexed) and want to generate x3
                 ts_time = 0 # We have nothing generated
                 ts_time = 1 # We have only generated x1
-                if ts_time >= 2:
-                    past_feat = features[[0],[ts_time - 1],:] # Feature for generating x1 (using x0 only)
-                    basepoint = torch.atleast_3d(batch[0,ts_time - 2,:]) # Feature for generating x_2 most recent information is x_1
-                    latest_path = torch.atleast_3d(batch[0, ts_time -1 ,:]) # Generated x2
+                if ts_time >= 0:
+                    basepoint =  torch.zeros_like(torch.atleast_3d(batch[0,ts_time,:])) if ts_time <=1 else torch.atleast_3d(batch[0,ts_time - 2,:]) # Feature for generating x_2 most recent information is x_1
+                    latest_path = torch.zeros_like(torch.atleast_3d(batch[0,ts_time,:])) if ts_time == 0 else torch.atleast_3d(batch[0, ts_time -1 ,:]) # Generated x2
 
                     increment_sig = self.score_network.module.signet.forward(latest_path, time_ax=torch.atleast_2d(
                         torch.Tensor([ts_time]) / T).T, basepoint=time_aug(basepoint, time_ax=torch.atleast_2d(
                         torch.Tensor([ts_time - 1]) / T).T.to(self.device_id)))
-                    print(past_feat.shape,past_feat.squeeze(dim=1).shape)
-                    print(increment_sig.shape,increment_sig.squeeze(dim=1).shape)
-                    curr_feat = signatory.signature_combine(sigtensor1=past_feat.squeeze(dim=1),
-                                                            sigtensor2=increment_sig.squeeze(dim=1),
-                                                            input_channels=2, depth=5)
-                    print(curr_feat)
-                    print(features[[0],[2],:]) # Feature using information from x1,x2,x3 (1-indexed)
-                elif ts_time == 0:
+                    if ts_time >= 1:
+                        past_feat = features[[0],[ts_time - 1],:] # Feature for generating x1 (using x0 only)
+                        print(past_feat.shape,past_feat.squeeze(dim=1).shape)
+                        print(increment_sig.shape,increment_sig.squeeze(dim=1).shape)
+                        curr_feat = signatory.signature_combine(sigtensor1=past_feat.squeeze(dim=1),
+                                                                sigtensor2=increment_sig.squeeze(dim=1),
+                                                                input_channels=2, depth=5)
+                        print(curr_feat)
+                        print(features[[0],[2],:]) # Feature using information from x1,x2,x3 (1-indexed)
+                    else:
+                        print(increment_sig)
+                        print(features[[0], [0], :])
+                """elif ts_time == 0:
                     # We have nothing generated, want to generate x1 (1-indexed)
                     basepoint = torch.zeros_like(torch.atleast_3d(batch[0,ts_time,:]))
                     latest_path = torch.zeros_like(torch.atleast_3d(batch[0,ts_time,:]))
@@ -186,7 +190,7 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
                                                             sigtensor2=increment_sig.squeeze(dim=1),
                                                             input_channels=2, depth=5)
                     print(curr_feat)
-                    print(features[[0], [1],:])
+                    print(features[[0], [1],:])"""
 
                 raise RuntimeError
             else:
