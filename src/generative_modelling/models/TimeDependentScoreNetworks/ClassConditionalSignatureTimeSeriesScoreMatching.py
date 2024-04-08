@@ -138,6 +138,7 @@ class SigNet(nn.Module):
         print("A Device {}\n".format(batch.device), a[0,:,:],a[0,:,:].shape)
         # Batch is of shape (N, T-1, D+1)
         b = self.conv1d(a.permute(0, 2, 1)).permute((0,2,1))
+        print("B Device {}\n".format(batch.device), b[0,:,:],b[0,:,:].shape)
         # Batch is now of shape (N, T-1, D+1)
         c = self.signature(b, basepoint=basepoint)
         print("C Device {}\n".format(batch.device),c[0,:,:],c[0,:,:].shape)
