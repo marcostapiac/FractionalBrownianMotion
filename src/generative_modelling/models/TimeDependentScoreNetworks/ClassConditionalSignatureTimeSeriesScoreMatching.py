@@ -147,7 +147,7 @@ class SigNet(nn.Module):
         c = self.signature(b, basepoint=False)
         # Features are now delayed path signatures of shape (N, T+1, D)
         print("C shape {}".format(c.shape))
-        return torch.cat((torch.zeros_like(c[:, 0, :]), c[:, :-1, :]), dim=1)
+        return torch.cat((torch.zeros_like(c[:, [0], :]), c[:, :-1, :]), dim=1)
 
 
 class ConditionalSignatureTimeSeriesScoreMatching(nn.Module):
