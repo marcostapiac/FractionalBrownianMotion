@@ -45,10 +45,10 @@ def plot_efftimes(lin_ts: np.ndarray, eff_ts: np.ndarray) -> None:
     plt.show()
 
 
-def plot_subplots(time_ax: np.ndarray, data: np.ndarray, label_args: np.ndarray[Union[NoneType, str]],
-                  xlabels: np.ndarray[Union[NoneType, str]], ylabels: np.ndarray[Union[NoneType, str]],
+def plot_subplots(time_ax: np.ndarray, data: np.ndarray, label_args: np.ndarray,
+                  xlabels: np.ndarray, ylabels: np.ndarray,
                   globalTitle: str, fig: Union[NoneType, matplotlib.figure.Figure] = None,
-                  ax: Union[NoneType, np.ndarray[matplotlib.axes.Axes]] = None, saveTransparent: bool = False):
+                  ax: Union[NoneType, np.ndarray] = None, saveTransparent: bool = False):
     """
     Plotting function ot plot multiple traces in same figure but DIFFERENT axis
     :param time_ax: MCMC timeline
@@ -89,7 +89,7 @@ def plot_subplots(time_ax: np.ndarray, data: np.ndarray, label_args: np.ndarray[
     plt.show()
 
 
-def plot(time_ax, data, label_args: np.ndarray[str], xlabel: str, ylabel: str, title: str,
+def plot(time_ax, data, label_args: np.ndarray, xlabel: str, ylabel: str, title: str,
          fig: matplotlib.figure.Figure = None, ax: matplotlib.axes.Axes = None, saveTransparent: bool = False):
     """
     Plotting function to plot multiple traces in SAME figure and axis object
