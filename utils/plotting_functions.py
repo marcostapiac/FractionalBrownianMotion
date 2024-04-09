@@ -398,7 +398,7 @@ def plot_and_save_loss_epochs(epochs: np.ndarray, train_loss: np.ndarray, val_lo
     plt.show()
 
 
-def plot_tSNE(x: np.ndarray, labels: list[str], image_path: str, y: Union[NoneType, np.ndarray] = None) -> None:
+def plot_tSNE(x: np.ndarray, labels: list, image_path: str, y: Union[NoneType, np.ndarray] = None) -> None:
     """
     Helper function to generate t-SNE plots
     :param x: Data
@@ -484,7 +484,7 @@ def plot_diffCov_heatmap(true_cov: np.ndarray, gen_cov: np.ndarray, image_path: 
 
 
 def plot_dataset(forward_samples: np.ndarray, reverse_samples: np.ndarray, image_path: str,
-                 labels: Optional[Union[list[str], NoneType]] = None) -> None:
+                 labels: Optional[Union[list, NoneType]] = None) -> None:
     """
     Scatter plot of 2 dimensional data (in the context of diffusion models)
         :param forward_samples: Original data
@@ -510,7 +510,7 @@ def plot_dataset(forward_samples: np.ndarray, reverse_samples: np.ndarray, image
     plt.show()
 
 
-def plot_eigenvalues(expec_cov: np.ndarray, generated_cov: np.ndarray, labels: list[str]) -> None:
+def plot_eigenvalues(expec_cov: np.ndarray, generated_cov: np.ndarray, labels: list) -> None:
     """
     Plot eigenvalues of expected and sample covariance matrix
     :param expec_cov: Theoretical covariance matrix
