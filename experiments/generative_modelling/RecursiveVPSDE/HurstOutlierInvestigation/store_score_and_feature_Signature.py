@@ -162,14 +162,13 @@ def store_score_and_feature() -> None:
     assert (0 < config.hurst < 1.)
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 5)
-
     config.dataSize = 2000
     scoreModel = ConditionalSignatureTimeSeriesScoreMatching(
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    train_epoch = 200
+    train_epoch = 960
     assert (train_epoch in config.max_epochs)
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
@@ -208,7 +207,7 @@ def store_score_and_feature() -> None:
     print("Done Storing Path Data\n")
 
     print("Storing Feature Data\n")
-    feature_data_path = config.feat_path.replace("data/", "experiments/results/feature_data/") + "_NEp{}_SFS".format(
+    feature_data_path = config.feat_path + "_NEp{}_SFS".format(
         train_epoch).replace(".", "") + ".parquet.gzip"
     feature_df = pd.concat({i: pd.DataFrame(features[i, :, :]) for i in tqdm(range(config.ts_length))})
     print(feature_df)
@@ -228,7 +227,7 @@ def store_score_and_feature() -> None:
     print("Done Storing Feature Data\n")
 
     print("Storing True Feature Data\n")
-    true_feature_data_path = config.feat_path.replace("data/", "experiments/results/feature_data/") + "_True_NEp{}_SFS".format(
+    true_feature_data_path = config.feat_path + "_True_NEp{}_SFS".format(
         train_epoch).replace(".", "") + ".parquet.gzip"
     true_feature_df = pd.concat({i: pd.DataFrame(features[i, :, :]) for i in tqdm(range(config.ts_length))})
     print(true_feature_df)
@@ -248,8 +247,8 @@ def store_score_and_feature() -> None:
 
     print("Storing Drift Errors\n")
     # Store
-    drift_data_path = config.feat_path.replace("data/",
-                                                     "experiments/results/drift_data/") + "_NEp{}_SFS".format(
+    drift_data_path = config.feat_path.replace("feature_data/",
+                                                     "edrift_data/") + "_NEp{}_SFS".format(
         train_epoch).replace(
         ".", "") + ".parquet.gzip"
     drift_df = pd.concat({i: pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.ts_length))})

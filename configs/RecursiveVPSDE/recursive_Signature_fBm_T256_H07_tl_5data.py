@@ -48,7 +48,7 @@ def get_config():
     config.sig_trunc = 5
     config.sig_dim = 2  # With time-augmentation, and invisibility transform
     config.feat_hiddendims = int(((config.sig_dim**(config.sig_trunc+1)-1)/(config.sig_dim-1))-1)
-    config.feat_path = project_config.ROOT_DIR + "data/fBm_H{}_T{}_SigTrunc{}_SigDim{}.npy".format(str(config.hurst).replace(".", ""),
+    config.feat_path = project_config.ROOT_DIR + "experiments/results/feature_data/fBm_H{}_T{}_SigTrunc{}_SigDim{}".format(str(config.hurst).replace(".", ""),
                                                                                                    config.ts_length,
                                                                                                    config.sig_trunc,
                                                                                                    config.sig_dim)
