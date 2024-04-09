@@ -105,35 +105,32 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
     with torch.no_grad():
         if isinstance(device, int):
             true_features = scoreModel.signet.forward(torch.Tensor(true_fBm).to(device), time_ax=torch.atleast_2d(
-                (torch.arange(1, config.ts_length + 1) / config.ts_length)).T.to(device), basepoint=True)
+                (torch.arange(1, config.ts_length + 1) / config.ts_length)).T.to(device), basepoint=True)[:,:-1,:]
         else:
             true_features = scoreModel.signet.forward(torch.Tensor(true_fBm).to(device),
                                                          time_ax=torch.atleast_2d((torch.arange(1, config.ts_length + 1) / config.ts_length)).T.to(device),
-                                                         basepoint=True)
+                                                         basepoint=True)[:,:-1,:]
         paths = [torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(
             device)]
         true_paths = torch.zeros(size=(data_shape[0], config.ts_length, data_shape[-1])).to(device)
         drift_errors = []
+        output = torch.zeros((data_shape[0],1, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1)).to(device)
         for t in range(config.ts_length):
             print("Sampling at real time {}\n".format(t + 1))
+            output = compute_current_sig_feature(ts_time=t, device=device,past_feat=output, basepoint=paths[max(t - 2,0)],latest_path=paths[max(0,t - 1)], config=config, score_network=scoreModel)
             if t == 0:
-                output = torch.zeros(
-                    size=(data_shape[0], 1, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1)).to(device)
                 true_past = torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)
                 curr_time_cov1 = torch.zeros(size=(1, 1)).to(device)
                 curr_time_cov2 = torch.zeros(size=(1, 1)).to(device)
                 curr_var = torch.Tensor([1. / (config.ts_length ** (2 * config.hurst))]).to(device)
                 assert (data_cov[0, 0] == curr_var)
             else:
-                output = compute_current_sig_feature(ts_time=t, past_feat=output, basepoint=paths[-2],latest_path=paths[-1], config=config, score_network=scoreModel)
                 true_past = true_paths[:, :t, :]  # torch.concat(true_paths, dim=1).to(device)
                 curr_time_cov1 = torch.atleast_2d(data_cov[t, :t] @ torch.linalg.inv(data_cov[:t, :t])).to(device)
                 curr_time_cov2 = torch.atleast_2d((data_cov[:t, t])).T.to(device)
                 curr_var = torch.atleast_2d(data_cov[t, t]).to(device)
                 assert (true_past.shape == (config.dataSize, t, 1) and curr_time_cov1.shape == (
                     1, t) and curr_time_cov2.shape == (t, 1))
-            print(output)
-            print(true_features[:,t,:])
             samples, true_samples, per_time_drift_error = recursive_sampling_and_track(data_shape=data_shape,
                                                                                        torch_device=device,
                                                                                        feature=output,
@@ -172,7 +169,7 @@ def store_score_and_feature() -> None:
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    train_epoch = 1920
+    train_epoch = 200
     assert (train_epoch in config.max_epochs)
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
