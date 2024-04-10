@@ -147,7 +147,7 @@ def compute_current_sig_feature(ts_time:int, device:Union[int, str],past_feat:to
     # ts_time == 0: we have generated nothing
     # ts_time == 1: we have generated x1, want to generate x2
     T = config.ts_length
-    assert(len(basepoint.shape)==len(latest_path.shape)==3)
+    """assert(len(basepoint.shape)==len(latest_path.shape)==3)
     basepoint = torch.zeros_like(basepoint) if ts_time <= 1  else basepoint
     latest_path = torch.zeros_like(latest_path) if ts_time == 0  else latest_path
     if isinstance(past_feat.device, int):
@@ -166,12 +166,12 @@ def compute_current_sig_feature(ts_time:int, device:Union[int, str],past_feat:to
         curr_feat = curr_feat.unsqueeze(dim=1)
     else:
         curr_feat = increment_sig
-    assert (curr_feat.shape == past_feat.shape)
+    assert (curr_feat.shape == past_feat.shape)"""
     if ts_time == 0: full_path = torch.zeros_like(latest_path)
     expectsig = score_network.signet.forward(full_path, time_ax=torch.atleast_2d(
             torch.arange(1*min(1, ts_time), ts_time+1) / T).T, basepoint=True)[:,[-1],:]
-    assert((torch.abs(expectsig-curr_feat).squeeze(1).sum(dim=1).sum(dim=0)) <= 1e-15)
-    return curr_feat
+    #assert((torch.abs(expectsig-curr_feat).squeeze(1).sum(dim=1).sum(dim=0)) <= 1e-15)
+    return expectsig
 
 
 
