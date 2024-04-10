@@ -117,7 +117,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
         output = torch.zeros((data_shape[0],1, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1)).to(device)
         for t in range(config.ts_length):
             print("Sampling at real time {}\n".format(t + 1))
-            output = compute_current_sig_feature(ts_time=t, device=device,past_feat=output, basepoint=paths[max(t - 2,0)],latest_path=paths[max(0,t - 1)], config=config, score_network=scoreModel)
+            output = compute_current_sig_feature(ts_time=t, device=device,past_feat=output, basepoint=paths[max(t - 1,0)],latest_path=paths[max(0,t)], config=config, score_network=scoreModel, full_path=torch.concat(paths[1*min(1,t):], dim=1))
             if t == 0:
                 true_past = torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)
                 curr_time_cov1 = torch.zeros(size=(1, 1)).to(device)
