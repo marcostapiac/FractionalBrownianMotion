@@ -134,6 +134,7 @@ class SigNet(nn.Module):
     def forward(self, batch: torch.Tensor, time_ax:torch.Tensor, basepoint:Union[torch.Tensor, bool]=True) -> torch.Tensor:
         # Batch is of shape (N, T, D)
         a = self.augment(batch, time_ax=time_ax.to(batch.device))
+        print(a)
         if isinstance(basepoint, torch.Tensor):
             assert (basepoint.shape[-1] == 2)
             a = torch.concat([basepoint, a], dim=1)
