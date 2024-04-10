@@ -167,6 +167,7 @@ def compute_current_sig_feature(ts_time:int, device:Union[int, str],past_feat:to
     else:
         curr_feat = increment_sig
     assert (curr_feat.shape == past_feat.shape)
+    if ts_time == 0: full_path = torch.zeros_like(latest_path)
     expectsig = score_network.signet.forward(full_path, time_ax=torch.atleast_2d(
             torch.arange(0, ts_time+1) / T).T, basepoint=True)[:,[-1],:]
     print(expectsig[0,:,:])
@@ -210,7 +211,7 @@ def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
                                     corrector=corrector)
     scoreModel.eval()
     with torch.no_grad():
-        paths = [torch.zeros(size=(data_shape[0],1,data_shape[-1])).to(device)] # Initial starting point (can be set to anything)
+        paths = [] # Initial starting point (can be set to anything)
         output = torch.zeros((data_shape[0],1, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1)).to(device)
         for t in range(config.ts_length):
             print("Sampling at real time {}\n".format(t + 1))
