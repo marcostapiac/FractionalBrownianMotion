@@ -133,7 +133,7 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
     return final_samples  # TODO Check if need to detach
 
 
-def compute_current_sig_feature(ts_time:int, device:Union[int, str],past_feat:torch.Tensor, basepoint:torch.Tensor,latest_path:torch.Tensor, config:ConfigDict, score_network:ConditionalSignatureTimeSeriesScoreMatching)->torch.Tensor:
+def compute_current_sig_feature(ts_time:int, device:Union[int, str],past_feat:torch.Tensor, basepoint:torch.Tensor,latest_path:torch.Tensor, config:ConfigDict, score_network:ConditionalSignatureTimeSeriesScoreMatching, full_path:torch.Tensor)->torch.Tensor:
     """
     Efficient computation of path signature through concatenation
         :param ts_time: Current time series time
@@ -167,6 +167,10 @@ def compute_current_sig_feature(ts_time:int, device:Union[int, str],past_feat:to
     else:
         curr_feat = increment_sig
     assert (curr_feat.shape == past_feat.shape)
+    expectsig = score_network.module.signet.forward(latest_path, time_ax=torch.atleast_2d(
+            torch.arange(0, ts_time+1) / T).T, basepoint=True)[:,[-1],:]
+    print(expectsig[0,:,:])
+    print(curr_feat[0,:,:])
     return curr_feat
 
 
@@ -210,7 +214,7 @@ def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
         output = torch.zeros((data_shape[0],1, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1)).to(device)
         for t in range(config.ts_length):
             print("Sampling at real time {}\n".format(t + 1))
-            output = compute_current_sig_feature(ts_time=t, device=device,past_feat=output, basepoint=paths[max(t - 2,0)],latest_path=paths[max(0,t - 1)], config=config, score_network=scoreModel)
+            output = compute_current_sig_feature(ts_time=t, device=device,past_feat=output, basepoint=paths[max(t - 2,0)],latest_path=paths[max(0,t - 1)], config=config, score_network=scoreModel, full_path=torch.concat(paths, dim=1))
             samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output,
                                      early_stop_idx=config.early_stop_idx)
             assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
