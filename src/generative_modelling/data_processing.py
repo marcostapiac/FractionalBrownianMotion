@@ -169,7 +169,7 @@ def compute_current_sig_feature(ts_time:int, device:Union[int, str],past_feat:to
     assert (curr_feat.shape == past_feat.shape)
     if ts_time == 0: full_path = torch.zeros_like(latest_path)
     expectsig = score_network.signet.forward(full_path, time_ax=torch.atleast_2d(
-            torch.arange(0, ts_time+1) / T).T, basepoint=True)[:,[-1],:]
+            torch.arange(1, ts_time+1) / T).T, basepoint=True)[:,[-1],:]
     print(expectsig[0,:,:])
     print(curr_feat[0,:,:])
     return curr_feat
