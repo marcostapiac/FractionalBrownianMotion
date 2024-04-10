@@ -229,7 +229,7 @@ def store_score_and_feature() -> None:
     print("Storing True Feature Data\n")
     true_feature_data_path = config.feat_path + "_True_NEp{}_SFS".format(
         train_epoch).replace(".", "") + ".parquet.gzip"
-    true_feature_df = pd.concat({i: pd.DataFrame(features[i, :, :]) for i in tqdm(range(config.ts_length))})
+    true_feature_df = pd.concat({i: pd.DataFrame(true_features[i, :, :]) for i in tqdm(range(config.ts_length))})
     print(true_feature_df)
     true_feature_df.info()
     bad_feat_df_1 = true_feature_df.loc[pd.IndexSlice[:, bad_idxs_1], :]
