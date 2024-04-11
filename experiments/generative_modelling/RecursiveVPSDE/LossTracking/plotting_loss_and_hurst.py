@@ -38,7 +38,7 @@ if __name__ == "__main__":
     plt.show()
 
     # Now plot Hurst histogram for the generated samples
-    for train_epoch in [480]:
+    for train_epoch in [960]:
         print(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch))
         df = pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip",
                          index_col=[0, 1])
@@ -46,9 +46,13 @@ if __name__ == "__main__":
             lambda x: [eval(i.replace("(", "").replace(")", "").replace("tensor", "")) if type(i) == str else i for i in
                        x]).loc["Final Time Samples"]
         print(df.shape[0])
-        for i in range(1):
+        for i in range(1000):
             plt.plot(np.linspace(0,1, config.ts_length), df.iloc[i, :])
         plt.show()
+        plt.close()
         fbm = np.atleast_2d([FractionalBrownianNoise(H=config.hurst).circulant_simulation(N_samples=config.ts_length).cumsum() for i in range(1000)]).reshape((1000, config.ts_length))
+        for i in range(1000):
+            plt.plot(np.linspace(0,1, config.ts_length), fbm[i, :])
+        plt.show()
         hs = hurst_estimation(df.to_numpy(), sample_type="Final Time Samples at Train Epoch {}".format(train_epoch),
                               isfBm=config.isfBm, true_hurst=config.hurst)

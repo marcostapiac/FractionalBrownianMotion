@@ -16,6 +16,7 @@ from configs.project_config import NoneType
 from src.classes import ClassFractionalBrownianNoise
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.classes.ClassFractionalCEV import FractionalCEV
+from src.classes.ClassFractionalOU import FractionalOU
 
 
 def logsumexp(w: np.ndarray, x: np.ndarray, h: callable, axis: int = 0, isLog: bool = False):
@@ -174,6 +175,24 @@ def generate_fBm(H: float, T: int, S: int, isUnitInterval: bool,
     """
     data = generate_fBn(H=H, T=T, S=S, rvs=rvs, isUnitInterval=isUnitInterval)
     return np.cumsum(data, axis=1)
+
+
+def generate_fOU(H: float, T: int, S: int, isUnitInterval: bool, mean_rev:float, mean:float, diff:float, initial_state:float,
+                 rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
+    """
+    Function generates samples of fractional Brownian motion
+        :param H: Hurst parameter
+        :param T: Length of each sample
+        :param S: Number of samples
+        :param rvs: Pre-computed Gaussian random variables
+        :param isUnitInterval: Whether to scale samples to unit time interval.
+        :return: fBm samples
+    """
+    deltaT = 1./T if isUnitInterval else 1.
+    fOU = FractionalOU(mean_rev=mean_rev, mean=mean, diff=diff, X0=initial_state)
+    data = np.array([fOU.euler_simulation(H=H, N=T,deltaT=deltaT, X0=None,Ms=None, gaussRvs=rvs) for _ in range(S)]).reshape((S, T))
+    assert(data.shape == (S, T))
+    return data
 
 
 def generate_CEV(H: float, T: int, S: int, alpha: float, sigmaX: float, muU: float, muX: float, X0: float,

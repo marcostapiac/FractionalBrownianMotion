@@ -8,8 +8,6 @@ from matplotlib import pyplot as plt
 
 from configs import project_config
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalSignatureTimeSeriesScoreMatching import \
-    ConditionalSignatureTimeSeriesScoreMatching
 from utils.math_functions import compute_sig_size
 
 if __name__ == "__main__":
@@ -21,9 +19,9 @@ if __name__ == "__main__":
     bm_feats_path = project_config.ROOT_DIR+"/experiments/results/feature_data/true_Bm_features.npy"
     train_epoch = 960
     try:
-        fbm_feats = np.load(fbm_feats_path+"j", allow_pickle=True)
-        bm_feats = np.load(bm_feats_path+"j", allow_pickle=True)
-        sim_feat_df = pd.read_parquet("/Users/marcos/GitHubRepos/FractionalBrownianMotion/experiments/results/feature_data/fBm_H07_T256_SigTrunc5_SigDim2_True_NEp{}_SFS_bad2.parquet.gzip".format(train_epoch), engine="pyarrow")
+        fbm_feats = np.load(fbm_feats_path, allow_pickle=True)
+        bm_feats = np.load(bm_feats_path, allow_pickle=True)
+        sim_feat_df = pd.read_parquet("/Users/marcos/GitHubRepos/FractionalBrownianMotion/experiments/results/feature_data/fBm_H07_T256_SigTrunc5_SigDim2_True_NEp{}_SFS_bad1.parquet.gzip".format(train_epoch), engine="pyarrow")
     except (FileNotFoundError, UnpicklingError) as e:
         data_shape = (5000, config.ts_length, 1)
         true_fBm = np.array([FractionalBrownianNoise(H=config.hurst, rng=rng).circulant_simulation(N_samples=config.ts_length).cumsum() for _ in range(data_shape[0])]).reshape((data_shape[0], data_shape[1]))[:,:,np.newaxis]

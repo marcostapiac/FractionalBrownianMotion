@@ -3,7 +3,6 @@ import torch
 
 from configs import project_config
 
-
 def get_config():
     config = ml_collections.ConfigDict()
 
@@ -12,9 +11,13 @@ def get_config():
 
     # Data set parameters
     config.hurst = 0.7
+    config.mean_rev = 0.8
+    config.diffusion = 1.
+    config.mean = .2
+    config.initState = 0.
     config.ts_length = 256
-    config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(
-        str(config.hurst).replace(".", ""), config.ts_length)
+    config.data_path = project_config.ROOT_DIR + "data/fOU_samples_H{}_T{}_{}Rev_{}Mean_{}Diff_{}Init".format(
+        str(config.hurst), config.ts_length, config.mean_rev, config.mean, config.diffusion, config.initState).replace(".", "")+".npy"
 
     # Training hyperparameters
     config.train_eps = 1e-4
@@ -53,14 +56,14 @@ def get_config():
                 config.lstm_dropout > 0 and config.lstm_numlay > 1))
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_MLP_{}_incs_{}_unitIntv_fBm_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_TembDim{}_EncShapes{}_tl5".format(
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_MLP_{}_incs_{}_unitIntv_fOU_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_TembDim{}_EncShapes{}_tl5".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
         config.enc_shapes).replace(".", "")
 
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_TSM_{}_incs_{}_unitIntv_fBm_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_DiffEmbSize{}_ResLay{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Wghts_LSTM_H{}_Nlay{}_tl5".format(
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_TSM_{}_incs_{}_unitIntv_fOU_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_DiffEmbSize{}_ResLay{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Wghts_LSTM_H{}_Nlay{}_tl5".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
