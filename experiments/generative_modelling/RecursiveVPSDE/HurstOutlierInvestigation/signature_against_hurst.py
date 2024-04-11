@@ -2,11 +2,13 @@ from pickle import UnpicklingError
 
 import numpy as np
 import torch
+from matplotlib import pyplot as plt
 
 from configs import project_config
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalSignatureTimeSeriesScoreMatching import \
     ConditionalSignatureTimeSeriesScoreMatching
+from utils.math_functions import compute_sig_size
 
 if __name__ == "__main__":
     from configs.RecursiveVPSDE.recursive_Signature_fBm_T256_H07_tl_5data import get_config
@@ -41,10 +43,21 @@ if __name__ == "__main__":
                                                              basepoint=True)[:,:-1,:]
                 true_Bm_features = scoreModel.signet.forward(torch.Tensor(true_Bm).to(device), time_ax=torch.atleast_2d(
                     (torch.arange(1, config.ts_length + 1) / config.ts_length)).T.to(device), basepoint=True)[:, :-1, :]
-        np.save(project_config.ROOT_DIR+"/experiments/results/feature_data/true_fBm_features.npy", true_fBm_features)
-        np.save(project_config.ROOT_DIR+"/experiments/results/feature_data/true_Bm_features.npy", true_Bm_features)
+        np.save(project_config.ROOT_DIR+"/experiments/results/feature_data/true_fBm_features.npy", true_fBm_features.cpu().numpy())
+        np.save(project_config.ROOT_DIR+"/experiments/results/feature_data/true_Bm_features.npy", true_Bm_features.cpu().numpy())
         print(true_fBm_features, true_Bm_features.shape)
         print("Done saving\n")
     else:
         avg_fbm_feats = np.mean(fbm_feats, axis=1)
         avg_bm_feats = np.mean(bm_feats, axis=1)
+        feat_dim = compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1
+        dimspace = np.arange(1, feat_dim + 1, dtype=int)
+        for t in range(1, config.ts_length):
+            plt.plot(dimspace, avg_good_feat_df[t, :], label="Good Sim Path Sig Feat")
+            # plt.plot(dimspace,avg_bad_feat_df[t,:], label="Bad Sim Path Sig Feat")
+            # plt.plot(dimspace,avg_true_feat_df[t,:], label="Good True Path Sig Feat")
+            plt.title("Sig Feat for history of TS time {}".format(t))
+            plt.legend()
+            plt.show()
+            plt.close()
+            break
