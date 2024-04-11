@@ -14,7 +14,7 @@ def get_config():
     config.hurst = 0.7
     config.mean_rev = 0.8
     config.diffusion = 1.
-    config.mean = .2
+    config.mean = 1.
     config.initState = 0.
     config.ts_length = 256
     config.data_path = project_config.ROOT_DIR + "data/fOU_samples_H{}_T{}_{}Rev_{}Mean_{}Diff_{}Init".format(
@@ -65,13 +65,13 @@ def get_config():
         config.temb_dim,
         config.enc_shapes).replace(".", "")
 
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_TSM_{}_incs_{}_unitIntv_fOU_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_DiffEmbSize{}_ResLay{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Wghts_LSTM_H{}_Nlay{}_tl5".format(
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_TSM_{}_incs_{}_unitIntv_fOU_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_DiffEmbSize{}_ResLay{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Wghts_LSTM_H{}_Nlay{}_fOU{}_tl5".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings,
-        config.lstm_hiddendim, config.lstm_numlay).replace(".", "")
+        config.lstm_hiddendim, config.lstm_numlay, config.mean).replace(".", "")
 
     config.model_choice = "TSM"
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
