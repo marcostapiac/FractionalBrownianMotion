@@ -396,7 +396,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
         trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
     except (AttributeError, KeyError) as e:
         # Signature
-        print(e)
+        assert(config.sig_trunc)
         try:
             trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                                  checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
