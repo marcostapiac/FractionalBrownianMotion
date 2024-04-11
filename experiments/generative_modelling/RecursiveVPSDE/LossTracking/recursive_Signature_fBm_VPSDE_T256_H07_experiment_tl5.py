@@ -3,7 +3,6 @@ import pickle
 import numpy as np
 import pandas as pd
 import torch
-from tqdm import tqdm
 
 from src.classes.ClassConditionalSignatureDiffTrainer import ConditionalSignatureDiffusionModelTrainer
 from src.generative_modelling.data_processing import train_and_save_recursive_diffusion_model, \
@@ -11,13 +10,9 @@ from src.generative_modelling.data_processing import train_and_save_recursive_di
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalSignatureTimeSeriesScoreMatching import \
     ConditionalSignatureTimeSeriesScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
-    ConditionalTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from utils.data_processing import cleanup_experiment, init_experiment
-from utils.math_functions import generate_fBn, compute_sig_size, ts_signature_pipeline
-
-
+from utils.math_functions import generate_fBn
 
 if __name__ == "__main__":
     # Data parameters

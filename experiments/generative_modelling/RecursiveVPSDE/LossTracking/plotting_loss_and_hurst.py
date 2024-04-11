@@ -23,7 +23,7 @@ if __name__ == "__main__":
     with open(config.scoreNet_trained_path.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as f:
         losses = np.array(pickle.load(f))
     # Loss file contains losses for same model trained (potentially) sequentially many times
-    assert (losses.shape[0] >= 1)#max(config.max_epochs))
+    assert (losses.shape[0] >= 1)  # max(config.max_epochs))
     T = losses.shape[0]
     plt.plot(np.linspace(1, T + 1, T), losses)
     plt.xlabel("Epoch")
@@ -47,12 +47,14 @@ if __name__ == "__main__":
                        x]).loc["Final Time Samples"]
         print(df.shape[0])
         for i in range(1000):
-            plt.plot(np.linspace(0,1, config.ts_length), df.iloc[i, :])
+            plt.plot(np.linspace(0, 1, config.ts_length), df.iloc[i, :])
         plt.show()
         plt.close()
-        fbm = np.atleast_2d([FractionalBrownianNoise(H=config.hurst).circulant_simulation(N_samples=config.ts_length).cumsum() for i in range(1000)]).reshape((1000, config.ts_length))
+        fbm = np.atleast_2d(
+            [FractionalBrownianNoise(H=config.hurst).circulant_simulation(N_samples=config.ts_length).cumsum() for i in
+             range(1000)]).reshape((1000, config.ts_length))
         for i in range(1000):
-            plt.plot(np.linspace(0,1, config.ts_length), fbm[i, :])
+            plt.plot(np.linspace(0, 1, config.ts_length), fbm[i, :])
         plt.show()
         hs = hurst_estimation(df.to_numpy(), sample_type="Final Time Samples at Train Epoch {}".format(train_epoch),
                               isfBm=config.isfBm, true_hurst=config.hurst)

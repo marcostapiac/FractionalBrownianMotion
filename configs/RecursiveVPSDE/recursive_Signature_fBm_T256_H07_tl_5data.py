@@ -22,7 +22,7 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = [200,480, 960, 1440, 1920]
+    config.max_epochs = [200, 480, 960, 1440, 1920]
     config.batch_size = 256
     config.isfBm = True
     config.isUnitInterval = True
@@ -47,11 +47,12 @@ def get_config():
     config.dialation_length = 10
     config.sig_trunc = 5
     config.sig_dim = 2  # With time-augmentation, and invisibility transform
-    config.feat_hiddendims = int(((config.sig_dim**(config.sig_trunc+1)-1)/(config.sig_dim-1))-1)
-    config.feat_path = project_config.ROOT_DIR + "experiments/results/feature_data/fBm_H{}_T{}_SigTrunc{}_SigDim{}".format(str(config.hurst).replace(".", ""),
-                                                                                                   config.ts_length,
-                                                                                                   config.sig_trunc,
-                                                                                                   config.sig_dim)
+    config.feat_hiddendims = int(((config.sig_dim ** (config.sig_trunc + 1) - 1) / (config.sig_dim - 1)) - 1)
+    config.feat_path = project_config.ROOT_DIR + "experiments/results/feature_data/fBm_H{}_T{}_SigTrunc{}_SigDim{}".format(
+        str(config.hurst).replace(".", ""),
+        config.ts_length,
+        config.sig_trunc,
+        config.sig_dim)
     # Model filepath
     mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_MLP_{}_incs_{}_unitIntv_fBm_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_TembDim{}_EncShapes{}_tl5".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
@@ -70,7 +71,8 @@ def get_config():
 
     config.model_choice = "TSM"
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
-    config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.ts_dims, config.sig_trunc, config.feat_hiddendims,
+    config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.ts_dims,
+                               config.sig_trunc, config.feat_hiddendims,
                                config.residual_layers,
                                config.residual_channels, config.dialation_length] \
         if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.ts_length,

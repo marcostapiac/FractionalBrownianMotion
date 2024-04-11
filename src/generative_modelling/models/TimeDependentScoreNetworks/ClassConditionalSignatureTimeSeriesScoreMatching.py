@@ -124,14 +124,15 @@ class CondUpsampler(nn.Module):
 
 
 class SigNet(nn.Module):
-    def __init__(self, in_dims: int,  sig_depth: int):
+    def __init__(self, in_dims: int, sig_depth: int):
         super(SigNet, self).__init__()
         self.augment = time_aug
         self.conv1d = torch.nn.Conv1d(in_channels=in_dims + 1, out_channels=in_dims + 1, padding=0, kernel_size=1,
                                       stride=1)
         self.signature = signatory.Signature(depth=sig_depth, stream=True)
 
-    def forward(self, batch: torch.Tensor, time_ax:torch.Tensor, basepoint:Union[torch.Tensor, bool]=True) -> torch.Tensor:
+    def forward(self, batch: torch.Tensor, time_ax: torch.Tensor,
+                basepoint: Union[torch.Tensor, bool] = True) -> torch.Tensor:
         # Batch is of shape (N, T, D)
         a = self.augment(batch, time_ax=time_ax.to(batch.device))
         if isinstance(basepoint, torch.Tensor):
@@ -141,7 +142,7 @@ class SigNet(nn.Module):
             # We assume starting point is (t, X) = (0,0)
             a = torch.concat([torch.zeros_like(a[:, [0], :]), torch.zeros_like(a[:, [0], :]), a], dim=1)
         # Batch is of shape (N, T+2, D+1)
-        b = self.conv1d(a.permute(0, 2, 1)).permute((0,2,1))
+        b = self.conv1d(a.permute(0, 2, 1)).permute((0, 2, 1))
         # Batch is now of shape (N, T+2, D+1)
         c = self.signature(b, basepoint=False)
         # Features are now delayed path signatures of shape (N, T+1, D) and we remove last entry in dim=1 in training
@@ -155,8 +156,8 @@ class ConditionalSignatureTimeSeriesScoreMatching(nn.Module):
             diff_embed_size: int,
             diff_hidden_size: int,
             ts_dims: int,
-            sig_depth:int,
-            feat_hiddendims:int,
+            sig_depth: int,
+            feat_hiddendims: int,
             residual_layers: int = 10,
             residual_channels: int = 8,
             dilation_cycle_length: int = 10

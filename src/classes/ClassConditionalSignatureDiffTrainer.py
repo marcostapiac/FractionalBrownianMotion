@@ -15,10 +15,6 @@ from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalSignatureTimeSeriesScoreMatching import \
     ConditionalSignatureTimeSeriesScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
-    ConditionalTimeSeriesScoreMatching
-from utils.math_functions import ts_signature_pipeline, compute_sig_size, time_aug
-import signatory
 
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
@@ -145,10 +141,13 @@ class ConditionalSignatureDiffusionModelTrainer(nn.Module):
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
             batch = torch.atleast_3d(batch)
             T = batch.shape[1]
-            if isinstance(self.device_id , int):
-                features = self.score_network.module.signet.forward(batch,  time_ax=torch.atleast_2d((torch.arange(1, T+1) / T)).T, basepoint=True)[:,:-1,:]
+            if isinstance(self.device_id, int):
+                features = self.score_network.module.signet.forward(batch, time_ax=torch.atleast_2d(
+                    (torch.arange(1, T + 1) / T)).T, basepoint=True)[:, :-1, :]
             else:
-                features = self.score_network.signet.forward(batch[:,:-1,:], time_ax=torch.atleast_2d((torch.arange(1, T+1) / T)).T, basepoint=True)[:,:-1,:]
+                features = self.score_network.signet.forward(batch[:, :-1, :],
+                                                             time_ax=torch.atleast_2d((torch.arange(1, T + 1) / T)).T,
+                                                             basepoint=True)[:, :-1, :]
 
             assert (batch.shape == (x0s[0].shape[0], x0s[0].shape[1], ts_dims))
             if self.is_hybrid:

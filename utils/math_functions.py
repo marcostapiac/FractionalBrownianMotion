@@ -177,7 +177,8 @@ def generate_fBm(H: float, T: int, S: int, isUnitInterval: bool,
     return np.cumsum(data, axis=1)
 
 
-def generate_fOU(H: float, T: int, S: int, isUnitInterval: bool, mean_rev:float, mean:float, diff:float, initial_state:float,
+def generate_fOU(H: float, T: int, S: int, isUnitInterval: bool, mean_rev: float, mean: float, diff: float,
+                 initial_state: float,
                  rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
     """
     Function generates samples of fractional Brownian motion
@@ -188,10 +189,12 @@ def generate_fOU(H: float, T: int, S: int, isUnitInterval: bool, mean_rev:float,
         :param isUnitInterval: Whether to scale samples to unit time interval.
         :return: fBm samples
     """
-    deltaT = 1./T if isUnitInterval else 1.
+    deltaT = 1. / T if isUnitInterval else 1.
     fOU = FractionalOU(mean_rev=mean_rev, mean=mean, diff=diff, X0=initial_state)
-    data = np.array([fOU.euler_simulation(H=H, N=T,deltaT=deltaT, X0=None,Ms=None, gaussRvs=rvs) for _ in range(S)]).reshape((S, T))
-    assert(data.shape == (S, T))
+    data = np.array(
+        [fOU.euler_simulation(H=H, N=T, deltaT=deltaT, X0=None, Ms=None, gaussRvs=rvs) for _ in range(S)]).reshape(
+        (S, T))
+    assert (data.shape == (S, T))
     return data
 
 
@@ -437,7 +440,8 @@ def time_aug(data_samples: torch.Tensor, time_ax: torch.Tensor) -> torch.Tensor:
     """
     N, T, d = data_samples.shape
     assert (time_ax.shape == (T, 1))
-    timeaug = torch.stack([torch.column_stack([time_ax, data_samples[i, :, :]]) for i in range(N)],dim=0).to(time_ax.device)
+    timeaug = torch.stack([torch.column_stack([time_ax, data_samples[i, :, :]]) for i in range(N)], dim=0).to(
+        time_ax.device)
     assert (timeaug.shape == (N, T, d + 1))
     return timeaug
 
@@ -451,12 +455,12 @@ def invisibility_reset(timeaug: torch.Tensor, ts_dim: int) -> torch.Tensor:
     """
     N, T = timeaug.shape[:2]
     assert (timeaug.shape[-1] == ts_dim + 1)
-    #Wi = torch.hstack([timeaug[:, [0], :], torch.zeros_like(timeaug[:, [0], :]), torch.diff(timeaug, dim=1),
+    # Wi = torch.hstack([timeaug[:, [0], :], torch.zeros_like(timeaug[:, [0], :]), torch.diff(timeaug, dim=1),
     #                torch.zeros_like(timeaug[:, [-1], :]), -timeaug[:, [-1], :]])
     # assert (Wi.shape == (N, T + 3, ts_dim + 1))
     Wi = torch.hstack([timeaug[:, [0], :], torch.diff(timeaug, dim=1)])
     assert (Wi.shape == (N, T, ts_dim + 1))
-    #assert (torch.sum(np.abs(torch.sum(torch.sum(Wi, dim=2), dim=1)), dim=0) < 1e-10)
+    # assert (torch.sum(np.abs(torch.sum(torch.sum(Wi, dim=2), dim=1)), dim=0) < 1e-10)
     return Wi
 
 
@@ -499,21 +503,21 @@ def assert_chen_identity(sample: np.ndarray, trunc: int, dim: int, coefftype: rh
     assert (np.all(np.abs(sig3 - tensor_algebra_product(sig1=sig1, sig2=sig2, dim=dim, trunc=trunc)) < 1e-6))
 
 
-def ts_signature_pipeline(data_batch: torch.Tensor, trunc: int, times:torch.Tensor, interval=None) -> torch.Tensor:
+def ts_signature_pipeline(data_batch: torch.Tensor, trunc: int, times: torch.Tensor, interval=None) -> torch.Tensor:
     """
     Pipeline to compute the signature at each time for each sample of data batch
         :param data_batch: Data of shape (NumSamples, TSLength, TSDims)
         :param trunc: Signature truncation level
         :return: Signature for each time
     """
-    assert (len(data_batch.shape) == 3 and len(times.shape)==2)
+    assert (len(data_batch.shape) == 3 and len(times.shape) == 2)
     N, T, d = data_batch.shape
-    timeaug = time_aug(data_batch, times[:T,:])
+    timeaug = time_aug(data_batch, times[:T, :])
     transformed = invisibility_reset(timeaug, ts_dim=d)
     dims = transformed.shape[-1]
     if interval is None: interval = rhpy.RealInterval(0, T)
     feats = torch.stack([compute_signature(sample=transformed[i, :, :], trunc=trunc, interval=interval,
-                                             dim=dims, coefftype=rhpy.DPReal) for i in range(N)], dim=0)
+                                           dim=dims, coefftype=rhpy.DPReal) for i in range(N)], dim=0)
     assert (feats.shape == (N, compute_sig_size(dim=dims, trunc=trunc)))
     return feats
 
@@ -531,7 +535,7 @@ def compute_sig_size(dim: int, trunc: int) -> int:
         return int(trunc + 1)
 
 
-def tensor_algebra_product(sig1:  torch.Tensor, sig2:  torch.Tensor, dim: int, trunc: int) -> torch.Tensor:
+def tensor_algebra_product(sig1: torch.Tensor, sig2: torch.Tensor, dim: int, trunc: int) -> torch.Tensor:
     """
     Manually compute Chen's identity over two non-overlapping consecutive intervals
         :param sig1: Signature over first interval
@@ -540,7 +544,8 @@ def tensor_algebra_product(sig1:  torch.Tensor, sig2:  torch.Tensor, dim: int, t
         :param trunc: Signature truncation level
         :return: Signature of concatenated path
     """
-    assert (len(sig1.shape)==len(sig2.shape)==1 and sig1.shape == sig2.shape and sig1[0] == sig2[0] == 1. and 1 <= trunc <= 3)
+    assert (len(sig1.shape) == len(sig2.shape) == 1 and sig1.shape == sig2.shape and sig1[0] == sig2[
+        0] == 1. and 1 <= trunc <= 3)
     device = sig1.device
     product = torch.zeros_like(sig1)
     # For trunc 0: Constant of 1
@@ -579,5 +584,5 @@ def tensor_algebra_product(sig1:  torch.Tensor, sig2:  torch.Tensor, dim: int, t
                 sig1[compute_sig_size(dim=dim, trunc=1):compute_sig_size(dim=dim, trunc=2)]).T @ torch.atleast_2d(
                 sig2[compute_sig_size(dim=dim, trunc=0):compute_sig_size(dim=dim, trunc=1)]), (dim ** 3,))
             product[compute_sig_size(dim=dim, trunc=2):compute_sig_size(dim=dim, trunc=3)] = level3
-    assert(product.shape == (compute_sig_size(dim=dim, trunc=trunc),))
+    assert (product.shape == (compute_sig_size(dim=dim, trunc=trunc),))
     return torch.atleast_2d(product)

@@ -21,7 +21,8 @@ from utils.plotting_functions import hurst_estimation
 
 def recursive_sampling_and_track(data_shape: tuple, torch_device, feature: torch.Tensor,
                                  diffusion: VPSDEDiffusion,
-                                 scoreModel: Union[ConditionalSignatureTimeSeriesScoreMatching,ConditionalTimeSeriesScoreMatching],
+                                 scoreModel: Union[
+                                     ConditionalSignatureTimeSeriesScoreMatching, ConditionalTimeSeriesScoreMatching],
                                  config: ConfigDict, ctvar: torch.Tensor, cv1: torch.Tensor, cv2: torch.Tensor,
                                  true_past: torch.Tensor):
     """
@@ -72,7 +73,8 @@ def recursive_sampling_and_track(data_shape: tuple, torch_device, feature: torch
 @record
 def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
                                          scoreModel: ConditionalSignatureTimeSeriesScoreMatching, data_shape,
-                                         config: ConfigDict, rng: np.random.Generator)->Tuple[np.ndarray,np.ndarray,np.ndarray,np.ndarray]:
+                                         config: ConfigDict, rng: np.random.Generator) -> Tuple[
+    np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
     Recursive reverse sampling using LSTMs and tracking feature and drift values
         :param diffusion: Diffusion model
@@ -98,26 +100,34 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
             compute_fBn_cov(FractionalBrownianNoise(H=config.hurst, rng=rng), T=config.ts_length,
                             isUnitInterval=config.isUnitInterval)).to(
             torch.float32).to(device)
-    true_fBm = np.array([FractionalBrownianNoise(H=config.hurst, rng=rng).circulant_simulation(N_samples=config.ts_length).cumsum() for _ in range(data_shape[0])]).reshape((data_shape[0], data_shape[1]))[:,:,np.newaxis]
+    true_fBm = np.array(
+        [FractionalBrownianNoise(H=config.hurst, rng=rng).circulant_simulation(N_samples=config.ts_length).cumsum() for
+         _ in range(data_shape[0])]).reshape((data_shape[0], data_shape[1]))[:, :, np.newaxis]
     features = []
     scoreModel.eval()
     scoreModel.to(device)
     with torch.no_grad():
         if isinstance(device, int):
             true_features = scoreModel.signet.forward(torch.Tensor(true_fBm).to(device), time_ax=torch.atleast_2d(
-                (torch.arange(1, config.ts_length + 1) / config.ts_length)).T.to(device), basepoint=True)[:,:-1,:]
+                (torch.arange(1, config.ts_length + 1) / config.ts_length)).T.to(device), basepoint=True)[:, :-1, :]
         else:
             true_features = scoreModel.signet.forward(torch.Tensor(true_fBm).to(device),
-                                                         time_ax=torch.atleast_2d((torch.arange(1, config.ts_length + 1) / config.ts_length)).T.to(device),
-                                                         basepoint=True)[:,:-1,:]
+                                                      time_ax=torch.atleast_2d((torch.arange(1,
+                                                                                             config.ts_length + 1) / config.ts_length)).T.to(
+                                                          device),
+                                                      basepoint=True)[:, :-1, :]
         paths = [torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(
             device)]
         true_paths = torch.zeros(size=(data_shape[0], config.ts_length, data_shape[-1])).to(device)
         drift_errors = []
-        output = torch.zeros((data_shape[0],1, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1)).to(device)
+        output = torch.zeros((data_shape[0], 1, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc) - 1)).to(
+            device)
         for t in range(config.ts_length):
             print("Sampling at real time {}\n".format(t + 1))
-            output = compute_current_sig_feature(ts_time=t, device=device,past_feat=output, basepoint=paths[max(t - 1,0)],latest_path=paths[max(0,t)], config=config, score_network=scoreModel, full_path=torch.concat(paths[1*min(1,t):], dim=1))
+            output = compute_current_sig_feature(ts_time=t, device=device, past_feat=output,
+                                                 basepoint=paths[max(t - 1, 0)], latest_path=paths[max(0, t)],
+                                                 config=config, score_network=scoreModel,
+                                                 full_path=torch.concat(paths[1 * min(1, t):], dim=1))
             if t == 0:
                 true_past = torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)
                 curr_time_cov1 = torch.zeros(size=(1, 1)).to(device)
@@ -146,14 +156,16 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
             features.append(output.permute(1, 0, 2))
             drift_errors.append(per_time_drift_error.unsqueeze(0))
 
-    final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)[:,1:]
+    final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)[:, 1:]
     feature = torch.concat(features, dim=0).cpu()
-    true_features = true_features.permute((1,0,2)).cpu()
-    assert (feature.shape == (config.ts_length, config.dataSize, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1))
-    assert(true_features.shape == feature.shape)
+    true_features = true_features.permute((1, 0, 2)).cpu()
+    assert (feature.shape == (
+    config.ts_length, config.dataSize, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc) - 1))
+    assert (true_features.shape == feature.shape)
     drift_error = torch.concat(drift_errors, dim=0).cpu()
     assert (drift_error.shape == (config.ts_length, config.max_diff_steps, config.dataSize))
-    return np.atleast_2d(final_paths.numpy()), np.atleast_3d(feature.numpy()),np.atleast_3d(true_features.numpy()), np.atleast_3d(drift_error.numpy())
+    return np.atleast_2d(final_paths.numpy()), np.atleast_3d(feature.numpy()), np.atleast_3d(
+        true_features.numpy()), np.atleast_3d(drift_error.numpy())
 
 
 def store_score_and_feature() -> None:
@@ -176,14 +188,17 @@ def store_score_and_feature() -> None:
         assert FileNotFoundError(
             "Error {}; no valid trained model found; train before initiating experiment\n".format(e))
     rng = np.random.default_rng()
-    paths, features, true_features, drift_errors = run_feature_drift_recursive_sampling(diffusion=diffusion, scoreModel=scoreModel,
-                                                                         data_shape=(
-                                                                             config.dataSize, config.ts_length, 1),
-                                                                         config=config, rng=rng)
+    paths, features, true_features, drift_errors = run_feature_drift_recursive_sampling(diffusion=diffusion,
+                                                                                        scoreModel=scoreModel,
+                                                                                        data_shape=(
+                                                                                            config.dataSize,
+                                                                                            config.ts_length, 1),
+                                                                                        config=config, rng=rng)
     assert (
-        paths.shape == (config.dataSize, config.ts_length) and features.shape == (
-        config.ts_length, config.dataSize, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1) and
-        drift_errors.shape == (config.ts_length, config.max_diff_steps, config.dataSize) and (features.shape==true_features.shape))
+            paths.shape == (config.dataSize, config.ts_length) and features.shape == (
+        config.ts_length, config.dataSize, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc) - 1) and
+            drift_errors.shape == (config.ts_length, config.max_diff_steps, config.dataSize) and (
+                        features.shape == true_features.shape))
 
     print("Storing Path Data\n")
     path_df = pd.DataFrame(paths)
@@ -240,7 +255,7 @@ def store_score_and_feature() -> None:
     print("Storing Drift Errors\n")
     # Store
     drift_data_path = config.feat_path.replace("feature_data/",
-                                                     "drift_data/") + "_NEp{}_SFS".format(
+                                               "drift_data/") + "_NEp{}_SFS".format(
         train_epoch).replace(
         ".", "") + ".parquet.gzip"
     drift_df = pd.concat({i: pd.DataFrame(drift_errors[i, :, :]) for i in tqdm(range(config.ts_length))})

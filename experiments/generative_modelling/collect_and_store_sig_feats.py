@@ -16,10 +16,10 @@ if __name__ == "__main__":
     sig8 = np.load(config.feat_path.replace(".npy", "_11.npy"))
     sig9 = np.load(config.feat_path.replace(".npy", "_12.npy"))
     sig10 = np.load(config.feat_path.replace(".npy", "_13_14.npy"))
-    sigs = np.concatenate([sig1, sig2,sig3,sig4,sig5,sig6,sig7, sig8, sig9, sig10], axis=0)
-    np.save(project_config.ROOT_DIR + "data/fBm_H{}_T{}_SigTrunc{}_SigDim{}.npy".format(str(config.hurst).replace(".", ""),
-                                                                                                   config.ts_length,
-                                                                                                   config.sig_trunc,
-                                                                                                   config.sig_dim), sigs, allow_pickle=True)
-
-
+    sigs = np.concatenate([sig1, sig2, sig3, sig4, sig5, sig6, sig7, sig8, sig9, sig10], axis=0)
+    np.save(
+        project_config.ROOT_DIR + "data/fBm_H{}_T{}_SigTrunc{}_SigDim{}.npy".format(str(config.hurst).replace(".", ""),
+                                                                                    config.ts_length,
+                                                                                    config.sig_trunc,
+                                                                                    config.sig_dim), sigs,
+        allow_pickle=True)

@@ -170,7 +170,7 @@ def store_score_and_feature() -> None:
                                                                          config=config, rng=rng)
     assert (
         paths.shape == (config.dataSize, config.ts_length) and features.shape == (
-        config.ts_length, config.dataSize, 40),
+            config.ts_length, config.dataSize, 40),
         drift_errors.shape == (config.ts_length, config.max_diff_steps, config.dataSize))
 
     print("Storing Path Data\n")

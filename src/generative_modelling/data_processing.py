@@ -1,7 +1,6 @@
 import os
-import time
 from typing import Tuple, Union
-import signatory
+
 import numpy as np
 import torch
 import torchmetrics
@@ -32,7 +31,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
     TimeSeriesScoreMatching
-from utils.math_functions import compute_sig_size, ts_signature_pipeline, tensor_algebra_product, time_aug
+from utils.math_functions import compute_sig_size
 
 
 def prepare_scoreModel_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> DataLoader:
@@ -133,7 +132,10 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
     return final_samples  # TODO Check if need to detach
 
 
-def compute_current_sig_feature(ts_time:int, device:Union[int, str],past_feat:torch.Tensor, basepoint:torch.Tensor,latest_path:torch.Tensor, config:ConfigDict, score_network:ConditionalSignatureTimeSeriesScoreMatching, full_path:torch.Tensor)->torch.Tensor:
+def compute_current_sig_feature(ts_time: int, device: Union[int, str], past_feat: torch.Tensor, basepoint: torch.Tensor,
+                                latest_path: torch.Tensor, config: ConfigDict,
+                                score_network: ConditionalSignatureTimeSeriesScoreMatching,
+                                full_path: torch.Tensor) -> torch.Tensor:
     """
     Efficient computation of path signature through concatenation
         :param ts_time: Current time series time
@@ -169,17 +171,16 @@ def compute_current_sig_feature(ts_time:int, device:Union[int, str],past_feat:to
     assert (curr_feat.shape == past_feat.shape)"""
     if ts_time == 0: full_path = torch.zeros_like(latest_path)
     expectsig = score_network.signet.forward(full_path, time_ax=torch.atleast_2d(
-            torch.arange(1*min(1, ts_time), ts_time+1) / T).T, basepoint=True)[:,[-1],:]
-    #assert((torch.abs(expectsig-curr_feat).squeeze(1).sum(dim=1).sum(dim=0)) <= 1e-15)
+        torch.arange(1 * min(1, ts_time), ts_time + 1) / T).T, basepoint=True)[:, [-1], :]
+    # assert((torch.abs(expectsig-curr_feat).squeeze(1).sum(dim=1).sum(dim=0)) <= 1e-15)
     return expectsig
-
-
 
 
 @record
 def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
-                                    scoreModel: ConditionalSignatureTimeSeriesScoreMatching, data_shape: Tuple[int, int, int],
-                                    config: ConfigDict) -> torch.Tensor:
+                                         scoreModel: ConditionalSignatureTimeSeriesScoreMatching,
+                                         data_shape: Tuple[int, int, int],
+                                         config: ConfigDict) -> torch.Tensor:
     """
     Recursive reverse sampling using path signatures
         :param diffusion: Diffusion model
@@ -210,18 +211,24 @@ def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
                                     corrector=corrector)
     scoreModel.eval()
     with torch.no_grad():
-        paths = [torch.zeros((data_shape[0],1, data_shape[-1])).to(device)] # Initial starting point (can be set to anything)
-        output = torch.zeros((data_shape[0],1, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1)).to(device)
+        paths = [torch.zeros((data_shape[0], 1, data_shape[-1])).to(
+            device)]  # Initial starting point (can be set to anything)
+        output = torch.zeros((data_shape[0], 1, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc) - 1)).to(
+            device)
         for t in range(config.ts_length):
             print("Sampling at real time {}\n".format(t + 1))
-            output = compute_current_sig_feature(ts_time=t, device=device,past_feat=output, basepoint=paths[max(t - 1,0)],latest_path=paths[max(0,t)], config=config, score_network=scoreModel, full_path=torch.concat(paths[1*min(1,t):], dim=1))
+            output = compute_current_sig_feature(ts_time=t, device=device, past_feat=output,
+                                                 basepoint=paths[max(t - 1, 0)], latest_path=paths[max(0, t)],
+                                                 config=config, score_network=scoreModel,
+                                                 full_path=torch.concat(paths[1 * min(1, t):], dim=1))
             samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output,
                                      early_stop_idx=config.early_stop_idx)
             assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
             paths.append(samples)
-    final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)[:,1:]
-    assert(final_paths.shape == (data_shape[0], data_shape[1]))
+    final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)[:, 1:]
+    assert (final_paths.shape == (data_shape[0], data_shape[1]))
     return np.atleast_2d(final_paths.numpy())
+
 
 @record
 def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
@@ -272,6 +279,7 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
             paths.append(samples)
     final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)
     return np.atleast_2d(final_paths.numpy())
+
 
 @record
 def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
@@ -328,7 +336,8 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
     return np.atleast_2d(final_paths.numpy())
 
 
-def prepare_recursive_scoreModel_data(data: Union[np.ndarray, torch.Tensor], batch_size: int, config: ConfigDict) -> DataLoader:
+def prepare_recursive_scoreModel_data(data: Union[np.ndarray, torch.Tensor], batch_size: int,
+                                      config: ConfigDict) -> DataLoader:
     """
     Split data into train, eval, test sets and create DataLoaders for training
         :param data: Training data
@@ -407,7 +416,8 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                  to_weight=config.weightings,
                                  hybrid_training=config.hybrid)
             # Start training
-            trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path, ts_dims=config.ts_dims)
+            trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path,
+                          ts_dims=config.ts_dims)
         except (AttributeError, KeyError) as e:
             # LSTM
             trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,

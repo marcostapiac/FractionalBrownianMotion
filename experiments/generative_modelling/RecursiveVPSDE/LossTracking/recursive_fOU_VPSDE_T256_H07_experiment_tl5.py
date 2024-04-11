@@ -3,13 +3,13 @@ import pickle
 import numpy as np
 import pandas as pd
 import torch
-from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTimeSeriesScoreMatching import \
-    ConditionalLSTMTimeSeriesScoreMatching
 
 from src.classes.ClassConditionalLSTMDiffTrainer import ConditionalLSTMDiffusionModelTrainer
 from src.generative_modelling.data_processing import recursive_LSTM_reverse_sampling, \
     train_and_save_recursive_diffusion_model
+from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTimeSeriesScoreMatching import \
+    ConditionalLSTMTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from utils.data_processing import init_experiment, cleanup_experiment
 from utils.math_functions import generate_fOU
@@ -44,9 +44,10 @@ if __name__ == "__main__":
         except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
             data = generate_fOU(T=config.ts_length, isUnitInterval=config.isUnitInterval, S=training_size,
-                                H=config.hurst, mean_rev=config.mean_rev, mean=config.mean, diff=config.diffusion, initial_state=config.initState)
+                                H=config.hurst, mean_rev=config.mean_rev, mean=config.mean, diff=config.diffusion,
+                                initial_state=config.initState)
             np.save(config.data_path, data)
-        data =  np.atleast_3d(data[:training_size, :])
+        data = np.atleast_3d(data[:training_size, :])
         assert (data.shape == (training_size, config.ts_length, config.ts_dims))
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
         train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel,

@@ -12,4 +12,9 @@ def exact_hurst():
 
 
 if __name__ == "__main__":
-    exact_hurst()
+    # exact_hurst()
+    H = 0.75
+    l1 = (2 * H - 1) / (2 - 2 * H)
+    l2 = 1. / (4. - 4 * H)
+    alpha = max(l1, max(l2, 1))
+    print(alpha)

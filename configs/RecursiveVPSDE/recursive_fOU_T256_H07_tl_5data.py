@@ -3,6 +3,7 @@ import torch
 
 from configs import project_config
 
+
 def get_config():
     config = ml_collections.ConfigDict()
 
@@ -17,7 +18,8 @@ def get_config():
     config.initState = 0.
     config.ts_length = 256
     config.data_path = project_config.ROOT_DIR + "data/fOU_samples_H{}_T{}_{}Rev_{}Mean_{}Diff_{}Init".format(
-        str(config.hurst), config.ts_length, config.mean_rev, config.mean, config.diffusion, config.initState).replace(".", "")+".npy"
+        str(config.hurst), config.ts_length, config.mean_rev, config.mean, config.diffusion, config.initState).replace(
+        ".", "") + ".npy"
 
     # Training hyperparameters
     config.train_eps = 1e-4
@@ -53,7 +55,7 @@ def get_config():
     config.lstm_inputdim = 1
     config.lstm_dropout = 0.
     assert ((config.lstm_dropout == 0. and config.lstm_numlay == 1) or (
-                config.lstm_dropout > 0 and config.lstm_numlay > 1))
+            config.lstm_dropout > 0 and config.lstm_numlay > 1))
 
     # Model filepath
     mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_MLP_{}_incs_{}_unitIntv_fOU_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_TembDim{}_EncShapes{}_tl5".format(
