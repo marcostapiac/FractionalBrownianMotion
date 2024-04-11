@@ -2,6 +2,7 @@ import time
 from pickle import UnpicklingError
 
 import numpy as np
+import pandas as pd
 import torch
 from matplotlib import pyplot as plt
 
@@ -15,11 +16,14 @@ if __name__ == "__main__":
     from configs.RecursiveVPSDE.recursive_Signature_fBm_T256_H07_tl_5data import get_config
     config = get_config()
     rng = np.random.default_rng()
+    feat_dim = compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc) - 1
     fbm_feats_path = project_config.ROOT_DIR+"/experiments/results/feature_data/true_fBm_features.npy"
     bm_feats_path = project_config.ROOT_DIR+"/experiments/results/feature_data/true_Bm_features.npy"
+    train_epoch = 960
     try:
-        fbm_feats = np.load(fbm_feats_path, allow_pickle=True)
-        bm_feats = np.load(bm_feats_path, allow_pickle=True)
+        fbm_feats = np.load(fbm_feats_path+"j", allow_pickle=True)
+        bm_feats = np.load(bm_feats_path+"j", allow_pickle=True)
+        sim_feat_df = pd.read_parquet("/Users/marcos/GitHubRepos/FractionalBrownianMotion/experiments/results/feature_data/fBm_H07_T256_SigTrunc5_SigDim2_True_NEp{}_SFS_bad2.parquet.gzip".format(train_epoch), engine="pyarrow")
     except (FileNotFoundError, UnpicklingError) as e:
         data_shape = (5000, config.ts_length, 1)
         true_fBm = np.array([FractionalBrownianNoise(H=config.hurst, rng=rng).circulant_simulation(N_samples=config.ts_length).cumsum() for _ in range(data_shape[0])]).reshape((data_shape[0], data_shape[1]))[:,:,np.newaxis]
@@ -30,6 +34,7 @@ if __name__ == "__main__":
         else:
             device = torch.device("cpu")
         scoreModel = ConditionalSignatureTimeSeriesScoreMatching(*config.model_parameters)
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
         scoreModel.eval()
         scoreModel.to(device)
         with torch.no_grad():
@@ -49,14 +54,17 @@ if __name__ == "__main__":
         print(true_fBm_features, true_Bm_features.shape)
         print("Done saving\n")
     else:
-        feat_dim = compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc)-1
         avg_fbm_feats = np.mean(fbm_feats, axis=0)
         avg_bm_feats = np.mean(bm_feats, axis=0)
-        assert(avg_bm_feats.shape == avg_fbm_feats.shape and avg_bm_feats.shape == (config.ts_length, feat_dim))
+        avg_true_feat_df = np.mean(sim_feat_df.to_numpy().reshape((config.ts_length, sim_feat_df.index.levshape[1],feat_dim)), axis=1)
+
+        assert(avg_bm_feats.shape == avg_fbm_feats.shape == avg_true_feat_df.shape and avg_bm_feats.shape == (config.ts_length, feat_dim))
         dimspace = np.arange(1, feat_dim + 1, dtype=int)
         for t in range(1, config.ts_length):
             plt.plot(dimspace, avg_fbm_feats[t, :], label="fBm Sig Feat")
             plt.plot(dimspace, avg_bm_feats[t, :], label="Bm Sig Feat")
+            plt.plot(dimspace, avg_true_feat_df[t, :], label="Sim fBm Sig Feat")
+
             plt.title("Sig Feat for history of TS time {}".format(t))
             plt.legend()
             plt.show()
