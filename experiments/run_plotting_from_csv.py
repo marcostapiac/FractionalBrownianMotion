@@ -16,7 +16,7 @@ def plot_fBm_results_from_csv(config: ConfigDict) -> None:
         :param config: ML experiment metrics
         :return: None
     """
-    df = pd.read_csv(config.experiment_path + "_Nepochs{}.csv.gzip".format(config.max_epochs), compression="gzip",
+    df = pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(config.max_epochs), compression="gzip",
                      index_col=[0])
 
     # Mean Abs Difference
@@ -30,7 +30,7 @@ def plot_fBm_results_from_csv(config: ConfigDict) -> None:
                           dataLabels=[None], toSave=False, saveName="")
 
     # Exact Sample Chi2 Test Statistic Histogram
-    dfs = config.timeDim
+    dfs = config.ts_length
     fig, ax = plt.subplots()
     org_chi2 = df.loc[config.exp_keys[4]].to_list()
     true_chi2 = []
@@ -98,7 +98,7 @@ def plot_fBm_results_from_csv(config: ConfigDict) -> None:
     print(ks_2samp(synth_Hs, true_Hs, alternative="two-sided"))
 
     """pvals = df.loc[config.exp_keys[6]].to_list()
-    for i in range(config.timeDim):
+    for i in range(config.ts_length):
         pval = []
         for j in range(config.num_runs):
             pval_j = ast.literal_eval(pvals[j])

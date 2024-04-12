@@ -192,7 +192,7 @@ def generate_fOU(H: float, T: int, S: int, isUnitInterval: bool, mean_rev: float
     deltaT = 1. / T if isUnitInterval else 1.
     fOU = FractionalOU(mean_rev=mean_rev, mean=mean, diff=diff, X0=initial_state)
     data = np.array(
-        [fOU.euler_simulation(H=H, N=T, deltaT=deltaT, X0=None, Ms=None, gaussRvs=rvs) for _ in range(S)]).reshape(
+        [fOU.euler_simulation(H=H, N=T, deltaT=deltaT, isUnitInterval=isUnitInterval,X0=None, Ms=None, gaussRvs=rvs) for _ in range(S)]).reshape(
         (S, T))
     assert (data.shape == (S, T))
     return data
