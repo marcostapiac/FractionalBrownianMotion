@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 
+from experiments.generative_modelling.estimate_fSDEs import estimate_fSDEs
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from utils.plotting_functions import hurst_estimation
 
@@ -16,7 +17,7 @@ matplotlib.rcParams.update({
     'text.latex.preamble': r"\usepackage{amsmath}"
 })
 if __name__ == "__main__":
-    from configs.RecursiveVPSDE.recursive_Signature_fBm_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_fBm_T256_H07_tl_5data import get_config
 
     config = get_config()
     H = config.hurst
@@ -31,15 +32,16 @@ if __name__ == "__main__":
     plt.title("Per-epoch Training Loss")
     plt.show()
 
-    plt.plot(np.linspace(1, T + 1, T), np.cumsum(losses) / np.arange(1, T + 1))
+    plt.plot(np.linspace(1, T + 1, T), (np.cumsum(losses) / np.arange(1, T + 1)))
     plt.xlabel("Epoch")
     plt.ylabel("Running Training Loss Mean")
     plt.title("Cumulative Mean for Training Loss")
     plt.show()
 
     # Now plot Hurst histogram for the generated samples
-    for train_epoch in [960]:
+    for train_epoch in config.max_epochs:
         print(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch))
+        """
         df = pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip",
                          index_col=[0, 1])
         df = df.apply(
@@ -58,3 +60,5 @@ if __name__ == "__main__":
         plt.show()
         hs = hurst_estimation(df.to_numpy(), sample_type="Final Time Samples at Train Epoch {}".format(train_epoch),
                               isfBm=config.isfBm, true_hurst=config.hurst)
+        """
+        estimate_fSDEs(config=config, train_epoch=train_epoch, path=config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch))

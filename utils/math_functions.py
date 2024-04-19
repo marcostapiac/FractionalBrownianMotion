@@ -17,6 +17,7 @@ from src.classes import ClassFractionalBrownianNoise
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.classes.ClassFractionalCEV import FractionalCEV
 from src.classes.ClassFractionalOU import FractionalOU
+from src.classes.ClassFractionalSin import FractionalSin
 
 
 def logsumexp(w: np.ndarray, x: np.ndarray, h: callable, axis: int = 0, isLog: bool = False):
@@ -193,6 +194,34 @@ def generate_fOU(H: float, T: int, S: int, isUnitInterval: bool, mean_rev: float
     fOU = FractionalOU(mean_rev=mean_rev, mean=mean, diff=diff, X0=initial_state)
     data = np.array(
         [fOU.euler_simulation(H=H, N=T, deltaT=deltaT, isUnitInterval=isUnitInterval,X0=None, Ms=None, gaussRvs=rvs) for _ in range(S)]).reshape(
+        (S, T))
+    assert (data.shape == (S, T))
+    return data
+
+
+def generate_fSin(H: float, T: int, S: int, isUnitInterval: bool, mean_rev: float, diff: float,
+                 initial_state: float,
+                 rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
+    """
+    Function generates samples of fractional Brownian motion
+        :param H: Hurst parameter
+        :param T: Length of each sample
+        :param S: Number of samples
+        :param rvs: Pre-computed Gaussian random variables
+        :param isUnitInterval: Whether to scale samples to unit time interval.
+        :return: fBm samples
+    """
+    if isUnitInterval:
+        deltaT = 1. / T
+        t0 = 0.
+        t1 = 1.
+    else:
+        deltaT = 1.
+        t0 = 0.
+        t1 = T
+    fSin = FractionalSin(mean_rev=mean_rev, diff=diff, X0=initial_state)
+    data = np.array(
+        [fSin.euler_simulation(H=H, N=T, deltaT=deltaT, isUnitInterval=isUnitInterval,X0=None, Ms=None, gaussRvs=rvs, t0=t0, t1=t1) for _ in range(S)]).reshape(
         (S, T))
     assert (data.shape == (S, T))
     return data

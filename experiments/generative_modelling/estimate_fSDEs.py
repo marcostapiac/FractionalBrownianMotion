@@ -37,12 +37,11 @@ def estimate_hurst_from_filter(Ua1: np.ndarray, Ua2: np.ndarray, epoch: int):
     return hs
 
 
-def estimate_fSDEs(config: ConfigDict, path:str,train_epoch: int):
+def estimate_fSDEs(config: ConfigDict, path: str, train_epoch: int):
     try:
         fOU = pd.read_csv(path, compression="gzip", index_col=[0, 1]).to_numpy()
     except BadGzipFile as e:
         fOU = pd.read_parquet(path, engine="pyarrow").to_numpy()
-
     # We want to construct first an estimator for H based on sample paths
     for _ in range(1000):
         idx = np.random.randint(0, fOU.shape[0])
@@ -57,21 +56,29 @@ def estimate_fSDEs(config: ConfigDict, path:str,train_epoch: int):
     hs = estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=train_epoch)
     return hs
 
+
 def estimate_fSDE_from_true(config: ConfigDict):
     fOU = np.load(config.data_path, allow_pickle=True)
+    for _ in range(1000):
+        idx = np.random.randint(0, fOU.shape[0])
+        plt.plot(np.linspace(0, 1, config.ts_length), fOU[idx, :])
+    plt.show()
+    plt.close()
     N, T = fOU.shape
     assert (config.hurst < 0.75)
     U_a1, U_a2 = simple_estimator(paths=fOU, Nsamples=N)
-    estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch="True")
+    estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=0)
     U_a1, U_a2 = second_order_estimator(paths=fOU, Nsamples=N)
-    hs = estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch="True")
+    hs = estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=0)
     return hs
+
 
 def check_hurst_condition_estimator(H: float):
     assert (0 < H < 1)
     l1 = 1. / (4. - 4 * H)
     l2 = (2 * H - 1) / (2. - 2 * H)
     assert (max(l1, l2) <= 1)
+
 
 """
 if __name__ == "__main__":
