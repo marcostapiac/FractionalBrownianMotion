@@ -139,12 +139,11 @@ class VPSDEDiffusion(nn.Module):
                 - Ancestral Sampling Diffusion Coefficient
         """
         score_network.eval()
-        with torch.no_grad():
-            predicted_score = score_network.forward(x, conditioner=feature, times=t)
-            max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
-            drift = self.get_ancestral_drift(x=x, pred_score=predicted_score, diff_index=diff_index,
-                                             max_diff_steps=max_diff_steps)
-            diff_param = self.get_ancestral_diff(diff_index=diff_index, max_diff_steps=max_diff_steps)
+        predicted_score = score_network.forward(x, conditioner=feature, times=t)
+        max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
+        drift = self.get_ancestral_drift(x=x, pred_score=predicted_score, diff_index=diff_index,
+                                         max_diff_steps=max_diff_steps)
+        diff_param = self.get_ancestral_diff(diff_index=diff_index, max_diff_steps=max_diff_steps)
         return predicted_score, drift, diff_param
 
     def get_ancestral_drift(self, x: torch.Tensor, pred_score: torch.Tensor, diff_index: torch.Tensor,

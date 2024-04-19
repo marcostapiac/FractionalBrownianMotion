@@ -1,7 +1,7 @@
 import math
 from typing import Union
 
-import signatory
+#import signatory
 import torch
 import torch.nn.functional as F
 from torch import nn

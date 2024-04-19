@@ -233,14 +233,17 @@ def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
 @record
 def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
                                     scoreModel: ConditionalTimeSeriesScoreMatching, data_shape: Tuple[int, int, int],
-                                    config: ConfigDict) -> torch.Tensor:
+                                    config: ConfigDict) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Recursive reverse sampling using LSTMs
         :param diffusion: Diffusion model
         :param scoreModel: Trained score network
         :param data_shape: Desired shape of generated samples
         :param config: Configuration dictionary for experiment
-        :return: Final reverse-time samples
+        :return:
+            1. Final reverse-time samples
+            2. Conditional means
+            3. Conditional variances
     """
     if config.has_cuda:
         # Sampling is sequential, so only single-machine, single-GPU/CPU
@@ -264,21 +267,28 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
                                     corrector=corrector)
 
     scoreModel.eval()
-    with torch.no_grad():
-        samples = torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)
-        paths = []
-        for t in range(config.ts_length):
-            print("Sampling at real time {}\n".format(t + 1))
-            if t == 0:
-                output, (h, c) = scoreModel.rnn(samples, None)
-            else:
-                output, (h, c) = scoreModel.rnn(samples, (h, c))
-            samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output,
-                                     early_stop_idx=config.early_stop_idx)
-            assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
-            paths.append(samples)
-    final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)
-    return np.atleast_2d(final_paths.numpy())
+    samples = torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)
+    paths = []
+    means = []
+    vars = []
+
+    for t in range(config.ts_length):
+        print("Sampling at real time {}\n".format(t + 1))
+        if t == 0:
+            output, (h, c) = scoreModel.rnn(samples, None)
+        else:
+            output, (h, c) = scoreModel.rnn(samples, (h, c))
+        samples, mean, var = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output,
+                                 early_stop_idx=config.early_stop_idx)
+        assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
+        paths.append(samples)
+        means.append(mean)
+        vars.append(var)
+    final_paths = np.atleast_2d(torch.squeeze(torch.concat(paths, dim=1).detach().cpu(), dim=2).numpy())
+    conditional_means = np.atleast_2d(torch.concat(means, dim=1).detach().cpu().numpy())
+    conditional_vars = np.atleast_2d(torch.concat(vars, dim=1).detach().cpu().numpy())
+    assert(final_paths.shape == conditional_means.shape == conditional_vars.shape)
+    return final_paths, conditional_means, conditional_vars
 
 
 @record

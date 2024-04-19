@@ -11,7 +11,7 @@ from utils.data_processing import init_experiment
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.recursive_fOU_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_fBm_T256_H07_tl_5data import get_config
 
     config = get_config()
     assert (0 < config.hurst < 1.)
@@ -29,9 +29,17 @@ if __name__ == "__main__":
 
     for train_epoch in config.max_epochs:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
-        final_paths = recursive_LSTM_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
+        final_paths,cond_means, cond_vars = recursive_LSTM_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                                       data_shape=(config.dataSize, config.ts_length, 1), config=config)
-        df = pd.DataFrame(final_paths)
-        df.index = pd.MultiIndex.from_product(
+        path_df = pd.DataFrame(final_paths)
+        path_df.index = pd.MultiIndex.from_product(
             [["Final Time Samples"], [i for i in range(config.dataSize)]])
-        df.to_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip")
+        mean_df = pd.DataFrame(final_paths)
+        mean_df.index = pd.MultiIndex.from_product(
+            [["Final Time Means"], [i for i in range(config.dataSize)]])
+        var_df = pd.DataFrame(final_paths)
+        var_df.index = pd.MultiIndex.from_product(
+            [["Final Time Vars"], [i for i in range(config.dataSize)]])
+        path_df.to_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip")
+        mean_df.to_csv((config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch)).replace("fOU", "fOUm"), compression="gzip")
+        var_df.to_csv((config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch)).replace("fOU", "fOUv"), compression="gzip")

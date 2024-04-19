@@ -5,13 +5,12 @@ import numpy as np
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 
 
-class FractionalOU:
+class FractionalSin:
 
-    def __init__(self, mean_rev: float, mean: float, diff: float, X0: float = 0,
+    def __init__(self, mean_rev: float, diff: float, X0: float = 0,
                  rng: np.random.Generator = np.random.default_rng()):
         assert (X0 >= 0.)  # Initial vol cannot be 0
         self.mean_rev = mean_rev
-        self.mean = mean
         self.diff = diff
         self.initialVol = X0
         self.rng = rng
@@ -31,14 +30,16 @@ class FractionalOU:
     def inverse_lamperti(self, Z: np.ndarray):
         return None  # self.initialVol * np.exp(self.volVol * Z)
 
-    def increment_state(self, prev: np.ndarray, deltaT: float, M: int):
+    def increment_state(self, prev: np.ndarray, time:float,deltaT: float, M: int):
         """ Increment volatilities """
-        driftX = -self.mean_rev * (prev - self.mean)
+        driftX = self.mean_rev * np.sin(prev+time)
         diffX = self.diff * M
         return prev + driftX * deltaT + diffX
 
-    def euler_simulation(self, H: float, N: int, isUnitInterval:bool, deltaT: float, X0: float = None, Ms: np.ndarray = None,
+    def euler_simulation(self, H: float, N: int, isUnitInterval:bool, t0:float, t1:float, deltaT: float, X0: float = None, Ms: np.ndarray = None,
                          gaussRvs: np.ndarray = None):
+        assert((isUnitInterval and t0==0. and t1==1.) or ((not isUnitInterval) and t0==0. and t1!=1.))
+        time_ax = np.arange(start=t0, stop=t1+deltaT, step=deltaT)
         if X0 is None:
             Zs = [self.initialVol]  # [self.lamperti(self.initialVol)]
         else:
@@ -50,5 +51,5 @@ class FractionalOU:
         if Ms is None:
             Ms = self.sample_increments(H=H, N=N, gaussRvs=self.gaussIncs, isUnitInterval=isUnitInterval)
         for i in range(1, N + 1):
-            Zs.append(self.increment_state(prev=Zs[i - 1], deltaT=deltaT, M=Ms[i - 1]))
+            Zs.append(self.increment_state(prev=Zs[i - 1], time=time_ax[i-1], deltaT=deltaT, M=Ms[i - 1]))
         return np.array(Zs[1:])

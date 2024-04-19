@@ -10,11 +10,12 @@ def exact_hurst():
     from configs.RecursiveVPSDE.recursive_fOU_T256_H07_tl_5data import get_config
     config = get_config()
     # Check generated paths have correct Hurst
-    estimate_fSDE_from_true(config=config)
+    #estimate_fSDE_from_true(config=config)
     # Check histogram for each time
     data = np.load(config.data_path, allow_pickle=True)
     time_space = np.linspace(0,1.+(1./config.ts_length),num=config.ts_length+1)[1:]
-    for tidx in range(config.ts_length):
+    sidx = config.ts_length
+    for tidx in range(sidx,config.ts_length):
         t = time_space[tidx]
         expmeanrev = np.exp(-config.mean_rev*t)
         exp_mean = config.mean*(1.-expmeanrev)
@@ -30,10 +31,18 @@ def exact_hurst():
         plt.legend()
         plt.show()
         plt.close()
-        time.sleep(.1)
-
-
-
+    # Construct estimator for mean reversion
+    augdata = np.concatenate([np.zeros(shape=(data.shape[0],1)), data], axis=1)
+    denom = np.sum(np.power(augdata[:,:-1],2), axis=1)*(1./config.ts_length)
+    diffs = np.diff(augdata, n=1, axis=1)
+    num = np.sum(augdata[:,:-1]*diffs, axis=1)
+    estimators =-num/denom
+    plt.hist(estimators,bins=150, density=True)
+    plt.vlines(x=config.mean_rev,ymin=0, ymax=0.25, label="", color='b')
+    plt.title("Estimator")
+    plt.legend()
+    plt.show()
+    plt.close()
 
 
 if __name__ == "__main__":
