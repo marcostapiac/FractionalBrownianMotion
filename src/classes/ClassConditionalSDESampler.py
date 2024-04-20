@@ -34,7 +34,6 @@ class ConditionalSDESampler:
                       position=0):
             diff_index = torch.Tensor([i]).to(torch_device)
             t = timesteps[i] * torch.ones((x.shape[0],)).to(torch_device)
-            print(t, self.sample_eps, diff_index)
             x, pred_score, noise, mean_est, var_est = self.predictor.step(x, t=t, diff_index=diff_index, feature=feature)
             if type(self.corrector) != NoneType:
                 x = self.corrector.sample(x, pred_score, noise, diff_index, self.predictor.max_diff_steps)
