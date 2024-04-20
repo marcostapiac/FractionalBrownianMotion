@@ -100,11 +100,13 @@ class ConditionalAncestralSamplingPredictor(Predictor):
                                                                                     max_diff_steps=self.max_diff_steps)
         mean_est = None
         var_est = None
+        z = torch.randn_like(x_prev)
+        x_new = drift + diffusion * z
         if diff_index == torch.Tensor([self.max_diff_steps - 1]).to(diff_index.device):
             # Zero out gradients to avoid accumulation
             self.score_network.zero_grad()
             # Compute gradients of output with respect to input_data
-            grad_score = torch.autograd.grad(outputs=score, inputs=x_prev, grad_outputs=torch.ones_like(score),
+            grad_score = torch.autograd.grad(outputs=score, inputs=x_new, grad_outputs=torch.ones_like(score),
                                            retain_graph=True)[0]
             diffusion_mean2 = torch.atleast_2d(torch.exp(-self.diffusion.get_eff_times(diff_times=t))).T
             diffusion_var = 1.-diffusion_mean2
@@ -113,6 +115,4 @@ class ConditionalAncestralSamplingPredictor(Predictor):
             mean_est = (torch.pow(grad_score.squeeze(dim=-1), -1)*score.squeeze(dim=-1))-x_prev.squeeze(dim=-1)
             mean_est *= torch.pow(diffusion_mean2, -0.5)
             assert(var_est.shape == (x_prev.shape[0],1) and mean_est.shape == (x_prev.shape[0],1))
-        z = torch.randn_like(x_prev)
-        x_new = drift + diffusion * z
         return x_new, score, z, mean_est, var_est
