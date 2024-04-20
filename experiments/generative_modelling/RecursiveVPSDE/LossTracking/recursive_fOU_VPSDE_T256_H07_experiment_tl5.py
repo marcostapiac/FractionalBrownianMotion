@@ -29,7 +29,7 @@ if __name__ == "__main__":
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    init_experiment(config=config)
+    #init_experiment(config=config)
     end_epoch = max(config.max_epochs)
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))
@@ -47,6 +47,7 @@ if __name__ == "__main__":
                                 H=config.hurst, mean_rev=config.mean_rev, mean=config.mean, diff=config.diffusion,
                                 initial_state=config.initState)
             np.save(config.data_path, data)
+        data = np.concatenate([data[:,[0]], np.diff(data, axis=1)], axis=1)
         data = np.atleast_3d(data[:training_size, :])
         assert (data.shape == (training_size, config.ts_length, config.ts_dims))
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)

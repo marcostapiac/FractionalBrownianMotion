@@ -108,7 +108,6 @@ class ConditionalAncestralSamplingPredictor(Predictor):
             # Compute gradients of output with respect to input_data
             grad_score = torch.autograd.grad(outputs=score, inputs=x_prev, grad_outputs=torch.ones_like(score),
                                            retain_graph=True)[0]
-            print(grad_score)
             diffusion_mean2 = torch.atleast_2d(torch.exp(-self.diffusion.get_eff_times(diff_times=t))).T
             diffusion_var = 1.-diffusion_mean2
             # TODO: element wise multiplication along dim=1 (0-indexed) without squeezing
