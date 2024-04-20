@@ -100,9 +100,10 @@ class ConditionalAncestralSamplingPredictor(Predictor):
                                                                                     max_diff_steps=self.max_diff_steps)
         mean_est = None
         var_est = None
-        z = torch.randn_like(x_prev)
+        z = torch.randn_like(drift)
         x_new = drift + diffusion * z
         if diff_index == torch.Tensor([self.max_diff_steps - 1]).to(diff_index.device):
+            print(x_new.requires_grad, score.requires_grad)
             # Zero out gradients to avoid accumulation
             self.score_network.zero_grad()
             # Compute gradients of output with respect to input_data
