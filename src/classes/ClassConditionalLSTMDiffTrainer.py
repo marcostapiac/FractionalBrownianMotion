@@ -9,7 +9,7 @@ import torchmetrics
 from torch import nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torchmetrics import MeanMetric
-
+import numpy as np
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
@@ -274,6 +274,7 @@ class ConditionalLSTMDiffusionModelTrainer(nn.Module):
         all_losses_per_epoch = self._load_loss_tracker(model_filename)  # This will contain synchronised losses
         end_epoch = max(max_epochs)
         print(len(all_losses_per_epoch), end_epoch, max_epochs)
+        curvsave = False
         for epoch in range(self.epochs_run, end_epoch):
             t0 = time.time()
             device_epoch_losses = self._run_epoch(epoch)
@@ -295,8 +296,8 @@ class ConditionalLSTMDiffusionModelTrainer(nn.Module):
                 float(
                     self.loss_aggregator.compute().item()), float(time.time() - t0)))
             if self.device_id == 0 or type(self.device_id) == torch.device:
-                import numpy as np
-                print(np.diff(all_losses_per_epoch, n=1)[-2:], np.diff(np.diff(all_losses_per_epoch, n=1), n=1)[-2:])
+                if curvsave is False:
+                    print(all_losses_per_epoch[-4:],np.diff(all_losses_per_epoch, n=1)[-2:], np.diff(np.diff(all_losses_per_epoch, n=1), n=1)[-2:])
                 print("Stored Running Mean {} vs Aggregator Mean {}\n".format(
                     float(torch.mean(torch.tensor(all_losses_per_epoch[self.epochs_run:])).cpu().numpy()), float(
                         self.loss_aggregator.compute().item())))
