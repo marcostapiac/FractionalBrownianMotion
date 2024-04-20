@@ -288,8 +288,6 @@ class ConditionalLSTMDiffusionModelTrainer(nn.Module):
             # Obtain epoch loss averaged over devices
             average_loss_per_epoch = torch.mean(torch.stack(all_gpus_losses), dim=0)
             all_losses_per_epoch.append(float(average_loss_per_epoch.cpu().numpy()))
-            import numpy as np
-            print(np.diff(all_losses_per_epoch, n=1)[-2:],np.diff(np.diff(all_losses_per_epoch, n=1), n=1)[-2:])
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
             # see  https://github.com/Lightning-AI/torchmetrics/issues/626
             print("Device {} :: Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format(
@@ -297,6 +295,8 @@ class ConditionalLSTMDiffusionModelTrainer(nn.Module):
                 float(
                     self.loss_aggregator.compute().item()), float(time.time() - t0)))
             if self.device_id == 0 or type(self.device_id) == torch.device:
+                import numpy as np
+                print(np.diff(all_losses_per_epoch, n=1)[-2:], np.diff(np.diff(all_losses_per_epoch, n=1), n=1)[-2:])
                 print("Stored Running Mean {} vs Aggregator Mean {}\n".format(
                     float(torch.mean(torch.tensor(all_losses_per_epoch[self.epochs_run:])).cpu().numpy()), float(
                         self.loss_aggregator.compute().item())))
