@@ -93,13 +93,13 @@ class ConditionalAncestralSamplingPredictor(Predictor):
         super().__init__(diffusion, score_function, end_diff_time, max_diff_steps, device, sample_eps)
 
     def step(self, x_prev: torch.Tensor, feature: torch.Tensor, t: torch.Tensor, diff_index: torch.Tensor) -> Tuple[
-        torch.Tensor, torch.Tensor, torch.Tensor, torch.Tensor,torch.Tensor]:
+        torch.Tensor, torch.Tensor, torch.Tensor, Union[None,torch.Tensor],Union[None,torch.Tensor]]:
         score, drift, diffusion = self.diffusion.get_conditional_ancestral_sampling(x=x_prev, t=t, feature=feature,
                                                                                     score_network=self.score_network,
                                                                                     diff_index=diff_index,
                                                                                     max_diff_steps=self.max_diff_steps)
-        mean_est = torch.zeros(size=(x_prev.shape[0], 1))
-        var_est = torch.zeros(size=(x_prev.shape[0],1))
+        mean_est = None
+        var_est = None
         if diff_index == torch.Tensor([self.max_diff_steps - 1]).to(diff_index.device):
             # Zero out gradients to avoid accumulation
             self.score_network.zero_grad()

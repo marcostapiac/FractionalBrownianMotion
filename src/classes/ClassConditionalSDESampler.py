@@ -29,8 +29,6 @@ class ConditionalSDESampler:
                                    steps=self.predictor.max_diff_steps)
         x = self.diffusion.prior_sampling(shape=shape).to(torch_device)  # Move to correct device
         x = x.unsqueeze(1)
-        mean_est = torch.zeros(size=shape).to(torch_device)
-        var_est = torch.zeros(size=shape).to(torch_device)
         for i in tqdm(iterable=(range(0, self.predictor.max_diff_steps - early_stop_idx)), dynamic_ncols=False,
                       desc="Sampling :: ",
                       position=0):
