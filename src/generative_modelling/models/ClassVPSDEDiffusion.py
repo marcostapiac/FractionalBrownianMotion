@@ -140,15 +140,13 @@ class VPSDEDiffusion(nn.Module):
         """
         score_network.eval()
         score_network.zero_grad()
-        if diff_index == torch.Tensor([max_diff_steps - 1]).to(diff_index.device):
-            print(x.requires_grad, diff_index)
+        if diff_index >= torch.Tensor([max_diff_steps - 2]).to(diff_index.device):
             with torch.enable_grad():
                 predicted_score = score_network.forward(x, conditioner=feature, times=t)
                 max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
                 drift = self.get_ancestral_drift(x=x, pred_score=predicted_score, diff_index=diff_index,
                                                  max_diff_steps=max_diff_steps)
                 diff_param = self.get_ancestral_diff(diff_index=diff_index, max_diff_steps=max_diff_steps)
-            print(predicted_score.requires_grad, drift.requires_grad)
         else:
             with torch.no_grad():
                 predicted_score = score_network.forward(x, conditioner=feature, times=t)
