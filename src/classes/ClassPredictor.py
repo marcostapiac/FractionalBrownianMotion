@@ -106,6 +106,7 @@ class ConditionalAncestralSamplingPredictor(Predictor):
             # Zero out gradients to avoid accumulation
             self.score_network.zero_grad()
             # Compute gradients of output with respect to input_data
+            print(score.shape, torch.ones_like(score).shape, x_prev.shape)
             grad_score = torch.autograd.grad(outputs=score, inputs=x_prev, grad_outputs=torch.ones_like(score),
                                            retain_graph=True,is_grads_batched=True)
             print(grad_score, grad_score[0].shape)
