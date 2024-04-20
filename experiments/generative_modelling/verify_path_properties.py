@@ -2,6 +2,7 @@ import time
 
 import matplotlib.pyplot as plt
 import numpy as np
+import pandas as pd
 
 from experiments.generative_modelling.estimate_fSDEs import estimate_fSDEs, estimate_fSDE_from_true
 
@@ -10,11 +11,12 @@ def exact_hurst():
     from configs.RecursiveVPSDE.recursive_fOU_T256_H07_tl_5data import get_config
     config = get_config()
     # Check generated paths have correct Hurst
-    #estimate_fSDE_from_true(config=config)
+    estimate_fSDE_from_true(config=config)
     # Check histogram for each time
     data = np.load(config.data_path, allow_pickle=True)
+    data = pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(480), compression="gzip", index_col=[0,1]).to_numpy()
     time_space = np.linspace(0,1.+(1./config.ts_length),num=config.ts_length+1)[1:]
-    sidx = config.ts_length
+    sidx = 250
     for tidx in range(sidx,config.ts_length):
         t = time_space[tidx]
         expmeanrev = np.exp(-config.mean_rev*t)
