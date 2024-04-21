@@ -330,21 +330,20 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
     paths = []
     means = []
     vars = []
-    with torch.no_grad():
-        for t in range(config.ts_length):
-            print("Sampling at real time {}\n".format(t + 1))
-            if t == 0:
-                features = torch.zeros(size=(data_shape[0], 1, config.mkv_blnk * config.ts_dims)).to(device)
-            else:
-                past = [torch.zeros_like(paths[0]) for _ in range(max(0, config.mkv_blnk - t))] + paths[
-                                                                                                  -config.mkv_blnk:]
-                features = torch.stack(past, dim=2).reshape(
-                    (data_shape[0], 1, config.mkv_blnk * config.ts_dims, 1)).squeeze(-1)
-            samples, mean, var = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=features,
-                                     early_stop_idx=config.early_stop_idx)
-            # Samples are size (BatchSize, 1, TimeSeriesDimension)
-            assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
-            paths.append(samples)
+    for t in range(config.ts_length):
+        print("Sampling at real time {}\n".format(t + 1))
+        if t == 0:
+            features = torch.zeros(size=(data_shape[0], 1, config.mkv_blnk * config.ts_dims)).to(device)
+        else:
+            past = [torch.zeros_like(paths[0]) for _ in range(max(0, config.mkv_blnk - t))] + paths[
+                                                                                              -config.mkv_blnk:]
+            features = torch.stack(past, dim=2).reshape(
+                (data_shape[0], 1, config.mkv_blnk * config.ts_dims, 1)).squeeze(-1)
+        samples, mean, var = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=features,
+                                 early_stop_idx=config.early_stop_idx)
+        # Samples are size (BatchSize, 1, TimeSeriesDimension)
+        assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
+        paths.append(samples)
     final_paths = np.atleast_2d(torch.squeeze(torch.concat(paths, dim=1).detach().cpu(), dim=2).numpy())
     conditional_means = np.atleast_2d(torch.concat(means, dim=1).detach().cpu().numpy())
     conditional_vars = np.atleast_2d(torch.concat(vars, dim=1).detach().cpu().numpy())
