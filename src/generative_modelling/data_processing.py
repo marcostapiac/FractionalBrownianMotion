@@ -281,7 +281,7 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
         samples, mean, var = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output,
                                  early_stop_idx=config.early_stop_idx)
         assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
-        print(torch.mean(var))
+        print(torch.mean(var),torch.std(var))
         paths.append(samples)
         means.append(mean)
         vars.append(var)
