@@ -343,7 +343,7 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
                                  early_stop_idx=config.early_stop_idx)
         # Samples are size (BatchSize, 1, TimeSeriesDimension)
         assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
-        print(torch.mean(var))
+        print(torch.mean(var),torch.std(var))
         paths.append(samples)
         means.append(mean)
         vars.append(var)
