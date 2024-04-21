@@ -7,6 +7,8 @@ from src.generative_modelling.data_processing import recursive_LSTM_reverse_samp
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTimeSeriesScoreMatching import \
     ConditionalLSTMTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTimeSeriesScoreMatching import \
+    ConditionalMarkovianTimeSeriesScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from utils.data_processing import init_experiment
 
@@ -20,7 +22,7 @@ if __name__ == "__main__":
     assert (config.tdata_mult == 5)
     print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()
-    scoreModel = ConditionalLSTMTimeSeriesScoreMatching(
+    scoreModel = ConditionalMarkovianTimeSeriesScoreMatching(
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
