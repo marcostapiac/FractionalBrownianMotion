@@ -29,6 +29,7 @@ if __name__ == "__main__":
     end_epoch = max(config.max_epochs)
 
     for train_epoch in config.max_epochs:
+        print(train_epoch)
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
         final_paths,cond_means, cond_vars = recursive_markovian_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                                       data_shape=(config.dataSize, config.ts_length, 1), config=config)
