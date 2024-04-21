@@ -2,7 +2,8 @@ import numpy as np
 import pandas as pd
 import torch
 
-from src.generative_modelling.data_processing import recursive_LSTM_reverse_sampling
+from src.generative_modelling.data_processing import recursive_LSTM_reverse_sampling, \
+    recursive_markovian_reverse_sampling
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTimeSeriesScoreMatching import \
     ConditionalLSTMTimeSeriesScoreMatching
@@ -11,7 +12,7 @@ from utils.data_processing import init_experiment
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.recursive_fOU_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_Markovian_fOU_T256_H07_tl_5data import get_config
 
     config = get_config()
     assert (0 < config.hurst < 1.)
