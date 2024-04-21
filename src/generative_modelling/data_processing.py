@@ -271,7 +271,6 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
     paths = []
     means = []
     vars = []
-
     for t in range(config.ts_length):
         print("Sampling at real time {}\n".format(t + 1))
         if t == 0:
@@ -282,12 +281,12 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
                                  early_stop_idx=config.early_stop_idx)
         assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
         print(torch.mean(var),torch.std(var))
-        paths.append(samples)
-        means.append(mean)
-        vars.append(var)
-    final_paths = np.atleast_2d(torch.squeeze(torch.concat(paths, dim=1).detach().cpu(), dim=2).numpy())
-    conditional_means = np.atleast_2d(torch.concat(means, dim=1).detach().cpu().numpy())
-    conditional_vars = np.atleast_2d(torch.concat(vars, dim=1).detach().cpu().numpy())
+        paths.append(samples.detach().cpu())
+        means.append(mean.detach().cpu())
+        vars.append(var.detach().cpu())
+    final_paths = np.atleast_2d(torch.squeeze(torch.concat(paths, dim=1), dim=2).numpy())
+    conditional_means = np.atleast_2d(torch.concat(means, dim=1).numpy())
+    conditional_vars = np.atleast_2d(torch.concat(vars, dim=1).numpy())
     assert(final_paths.shape == conditional_means.shape == conditional_vars.shape)
     return final_paths, conditional_means, conditional_vars
 
@@ -344,12 +343,12 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
         # Samples are size (BatchSize, 1, TimeSeriesDimension)
         assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
         print(torch.mean(var),torch.std(var))
-        paths.append(samples)
-        means.append(mean)
-        vars.append(var)
-    final_paths = np.atleast_2d(torch.squeeze(torch.concat(paths, dim=1).detach().cpu(), dim=2).numpy())
-    conditional_means = np.atleast_2d(torch.concat(means, dim=1).detach().cpu().numpy())
-    conditional_vars = np.atleast_2d(torch.concat(vars, dim=1).detach().cpu().numpy())
+        paths.append(samples.detach().cpu())
+        means.append(mean.detach().cpu())
+        vars.append(var.detach().cpu())
+    final_paths = np.atleast_2d(torch.squeeze(torch.concat(paths, dim=1), dim=2).numpy())
+    conditional_means = np.atleast_2d(torch.concat(means, dim=1).numpy())
+    conditional_vars = np.atleast_2d(torch.concat(vars, dim=1).numpy())
     assert (final_paths.shape == conditional_means.shape == conditional_vars.shape)
     return final_paths, conditional_means, conditional_vars
 
