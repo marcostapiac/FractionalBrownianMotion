@@ -34,10 +34,10 @@ if __name__ == "__main__":
         path_df = pd.DataFrame(final_paths)
         path_df.index = pd.MultiIndex.from_product(
             [["Final Time Samples"], [i for i in range(config.dataSize)]])
-        mean_df = pd.DataFrame(final_paths)
+        mean_df = pd.DataFrame(cond_means)
         mean_df.index = pd.MultiIndex.from_product(
             [["Final Time Means"], [i for i in range(config.dataSize)]])
-        var_df = pd.DataFrame(final_paths)
+        var_df = pd.DataFrame(cond_vars)
         var_df.index = pd.MultiIndex.from_product(
             [["Final Time Vars"], [i for i in range(config.dataSize)]])
         path_df.to_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip")
