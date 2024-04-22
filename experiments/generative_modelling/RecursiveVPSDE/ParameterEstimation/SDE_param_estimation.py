@@ -4,6 +4,8 @@ import pandas as pd
 import numpy as np
 from ml_collections import ConfigDict
 import matplotlib.pyplot as plt
+from tqdm import tqdm
+
 from experiments.generative_modelling.estimate_fSDEs import estimate_fSDE_from_true, second_order_estimator, \
     estimate_hurst_from_filter
 
@@ -11,14 +13,44 @@ from experiments.generative_modelling.estimate_fSDEs import estimate_fSDE_from_t
 def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
     incs = pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip",
                        index_col=[0, 1]).to_numpy()
-    means = pd.read_csv((config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch)).replace("fOU", "fOUm"),
+    means = -1*pd.read_csv((config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch)).replace("fOU", "fOUm"),
                         compression="gzip", index_col=[0, 1]).to_numpy()
     vars = pd.read_csv((config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch)).replace("fOU", "fOUv"), compression="gzip",
                        index_col=[0, 1]).to_numpy()
     paths = incs.cumsum(axis=1)
+    # Now use EM approximation to compute the instantaneous parameters at every point in time and space
+    vars *= config.ts_length
+    means *= config.ts_length
+    # Construct estimator for mean reversion
+    augdata = np.concatenate([np.zeros(shape=(paths.shape[0], 1)), paths], axis=1)
+    denom = np.sum(np.power(augdata[:, :-1], 2), axis=1) * (1. / config.ts_length)
+    diffs = np.diff(augdata, n=1, axis=1)
+    num = np.sum(augdata[:, :-1] * diffs, axis=1)
+    mean_revs = -num / denom
+    plt.hist(mean_revs, bins=150, density=True)
+    plt.vlines(x=config.mean_rev, ymin=0, ymax=0.25, label="", color='b')
+    plt.title("Mean Reversion estimator for synthetic paths")
+    plt.legend()
+    plt.show()
+    plt.close()
+    print(np.mean(mean_revs), np.std(mean_revs))
+    print(np.mean(vars), np.std(vars))
+    # Construct estimator for mean reversion using true paths
+    true_data = np.load(config.data_path, allow_pickle=True)
+    augdata = np.concatenate([np.zeros(shape=(true_data.shape[0], 1)), true_data], axis=1)
+    denom = np.sum(np.power(augdata[:, :-1], 2), axis=1) * (1. / config.ts_length)
+    diffs = np.diff(augdata, n=1, axis=1)
+    num = np.sum(augdata[:, :-1] * diffs, axis=1)
+    mean_revs = -num / denom
+    plt.hist(mean_revs, bins=150, density=True)
+    plt.vlines(x=config.mean_rev, ymin=0, ymax=0.25, label="", color='b')
+    plt.title("Mean Reversion estimator for true paths")
+    plt.legend()
+    plt.show()
+    plt.close()
     # Compare marginal distributions
-    time_space = np.linspace(0, 1. + (1. / config.ts_length), num=config.ts_length)[1:]
-    sidx = 254
+    time_space = np.linspace((1. / config.ts_length), 1., num=config.ts_length)
+    sidx = 253
     for tidx in range(sidx, config.ts_length):
         t = time_space[tidx]
         expmeanrev = np.exp(-config.mean_rev * t)
@@ -28,7 +60,7 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
         exp_var /= (2 * config.mean_rev)
         exp_var *= 1. - np.power(expmeanrev, 2)
         exp_rvs = np.random.normal(loc=exp_mean, scale=np.sqrt(exp_var), size=paths.shape[0])
-        pathst = paths[:, tidx]
+        pathst = paths[:, tidx] # Paths[:, 0] corresponds to X_{t_{1}} NOT X_{t_{0}}
         plt.hist(pathst, bins=150, density=True, label="True")
         plt.hist(exp_rvs, bins=150, density=True, label="Expected")
         plt.title("Marginal Distributions at time {}".format(t))
@@ -37,44 +69,17 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
         plt.close()
     # Estimate Hurst indices from paths
     U_a1, U_a2 = second_order_estimator(paths=paths, Nsamples=paths.shape[0])
-    path_hs = estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=train_epoch).flatten()
+    estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=train_epoch).flatten()
     for _ in range(1000):
         idx = np.random.randint(0, paths.shape[0])
         plt.plot(np.linspace(0, 1, config.ts_length), paths[idx, :])
     plt.show()
     plt.close()
     # Estimate Hurst indices from true
-    true_hs = estimate_fSDE_from_true(config=config).flatten()
-    # Remove any path with hurst index outside of range
-    # delidx = np.array([(min(true_hs) <= path_hs[i] <= max(true_hs)) for i in range(path_hs.shape[0])])
-    # paths = paths.to_numpy()[delidx,:]
-    # means = means.to_numpy()[delidx,:]
-    # vars = vars.to_numpy()[delidx,:]
-    # Now use EM approximation to compute the instantaneous parameters at every point in time and space
-    vars *= config.ts_length
-    means *= config.ts_length
-    ys = means.flatten().reshape((means.shape[0] * means.shape[1], 1))
-    designmat = incs.flatten().reshape((incs.shape[0] * incs.shape[1], 1))
-    meanrev = -np.linalg.solve(designmat.T @ designmat, designmat.T @ ys)
-    print(meanrev)
-    print(np.mean(vars), np.std(vars))
+    estimate_fSDE_from_true(config=config).flatten()
     # Now plot histograms across time and space of estimates
-    for t in range(254, config.ts_length):
-        meant = means[:, t]
+    for t in range(1, config.ts_length):
         varst = vars[:, t]
-        pathst = paths[:, t]
-        plt.plot(pathst, meant)
-        plt.title(f"Drift Function at time {t + 1} against state value")
-        plt.show()
-        plt.close()
-        plt.hist(meant, bins=150, density=True)
-        plt.title(f"Instantaneous Drift Estimates at time {t + 1}")
-        plt.show()
-        plt.close()
-        plt.plot(pathst, varst)
-        plt.title(f"Diffusion Function at time {t + 1} against state value")
-        plt.show()
-        plt.close()
         plt.hist(varst, bins=150, density=True)
         plt.title(f"Instantaneous Volatility Estimate at time {t + 1}")
         plt.show()
@@ -88,6 +93,6 @@ if __name__ == "__main__":
 
     config = get_config()
     for train_epoch in config.max_epochs:
+        train_epoch = 303
         print(train_epoch)
-        train_epoch = 2920
         estimate_SDEs(config=config, train_epoch=train_epoch)

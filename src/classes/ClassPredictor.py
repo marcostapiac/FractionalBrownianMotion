@@ -119,6 +119,6 @@ class ConditionalAncestralSamplingPredictor(Predictor):
                 # TODO: element wise multiplication along dim=1 (0-indexed) without squeezing
                 var_est = -torch.pow(diffusion_mean2, -1)*(torch.pow(grad_score.squeeze(dim=-1), -1)+diffusion_var)
                 mean_est = (torch.pow(grad_score.squeeze(dim=-1), -1)*score.squeeze(dim=-1))-x_prev.squeeze(dim=-1)
-                mean_est *= torch.pow(diffusion_mean2, -0.5)
+                mean_est *= -torch.pow(diffusion_mean2, -0.5)
                 assert(var_est.shape == (x_prev.shape[0],1) and mean_est.shape == (x_prev.shape[0],1))
         return x_new, score, z, mean_est, var_est

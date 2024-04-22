@@ -66,8 +66,8 @@ def estimate_fSDE_from_true(config: ConfigDict):
     plt.close()
     N, T = fOU.shape
     assert (config.hurst < 0.75)
-    U_a1, U_a2 = simple_estimator(paths=fOU, Nsamples=N)
-    estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=0)
+    #U_a1, U_a2 = simple_estimator(paths=fOU, Nsamples=N)
+    #estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=0)
     U_a1, U_a2 = second_order_estimator(paths=fOU, Nsamples=N)
     hs = estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=0)
     return hs

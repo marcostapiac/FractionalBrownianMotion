@@ -14,9 +14,9 @@ def exact_hurst():
     estimate_fSDE_from_true(config=config)
     # Check histogram for each time
     data = np.load(config.data_path, allow_pickle=True)
-    data = pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(480), compression="gzip", index_col=[0,1]).to_numpy()
+    #data = pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(480), compression="gzip", index_col=[0,1]).to_numpy()
     time_space = np.linspace(0,1.+(1./config.ts_length),num=config.ts_length+1)[1:]
-    sidx = 250
+    sidx = 254
     for tidx in range(sidx,config.ts_length):
         t = time_space[tidx]
         expmeanrev = np.exp(-config.mean_rev*t)
