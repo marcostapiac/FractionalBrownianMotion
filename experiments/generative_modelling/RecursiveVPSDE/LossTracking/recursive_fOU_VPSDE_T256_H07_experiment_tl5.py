@@ -50,6 +50,7 @@ if __name__ == "__main__":
         data = np.concatenate([data[:,[0]], np.diff(data, axis=1)], axis=1)
         data = np.atleast_3d(data[:training_size, :])
         assert (data.shape == (training_size, config.ts_length, config.ts_dims))
+        print(config.hurst)
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
         train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel,
                                                  trainClass=ConditionalLSTMDiffusionModelTrainer)
