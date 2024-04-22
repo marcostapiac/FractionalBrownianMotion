@@ -38,6 +38,7 @@ class ConditionalMarkovianDiffusionModelTrainer(nn.Module):
                  to_weight: bool,
                  hybrid_training: bool,
                  mkv_blnk: int,
+                 ts_data: str,
                  loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
         super().__init__()
@@ -59,6 +60,8 @@ class ConditionalMarkovianDiffusionModelTrainer(nn.Module):
         self.is_hybrid = hybrid_training
         self.include_weightings = to_weight
         self.lookback = mkv_blnk
+        self.ts_data = ts_data
+        assert(self.ts_data == "fOU" or self.ts_data == "fBm")
 
         # Move score network to appropriate device
         if type(self.device_id) == int:
@@ -240,11 +243,16 @@ class ConditionalMarkovianDiffusionModelTrainer(nn.Module):
         # Create new tensor of size (N_batches, Time Series Length, Input Size, 20, Input Size) so that each dimension
         # of the time series has a corresponding past of size (20, 1)
         m = self.lookback
+        # TODO: Only if fOU else no cumsum
+        if self.ts_data:
+            bbatch = batch.cumsum(dim=1)
+        else:
+            bbatch = batch
         N, T, D = batch.size()
         # Generate indices for slicing
         indices = (torch.arange(m)[:, None] + torch.arange(-m, T - m)).T
         # Use advanced indexing to extract the subarrays
-        result_tensor = batch[:, indices, :]
+        result_tensor = bbatch[:, indices, :]
         mask = torch.flip(~torch.triu(torch.ones(m, m), diagonal=1).bool(), dims=(0,))
         result_tensor[:, :m, :][:, mask, :] = 0.
         # Feature tensor is of size (Num_TimeSeries, TimeSeriesLength, LookbackWindow, TimeSeriesDim)

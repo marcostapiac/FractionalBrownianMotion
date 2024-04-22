@@ -334,10 +334,19 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
         if t == 0:
             features = torch.zeros(size=(data_shape[0], 1, config.mkv_blnk * config.ts_dims)).to(device)
         else:
-            past = [torch.zeros_like(paths[0]) for _ in range(max(0, config.mkv_blnk - t))] + paths[
-                                                                                              -config.mkv_blnk:]
-            features = torch.stack(past, dim=2).reshape(
-                (data_shape[0], 1, config.mkv_blnk * config.ts_dims, 1)).squeeze(-1)
+            if "fOU" in config.data_path:
+                past = [torch.zeros_like(paths[0]) for _ in range(max(0, config.mkv_blnk - t))] + paths
+                past = torch.stack(past, dim=2)
+                past = past.cumsum(dim=1)
+                print(past.shape)
+                assert(past.shape == (data_shape[0], 1, config.mkv_blnk * config.ts_dims, 1))
+                features = past[:,-config.mkv_blnk:,:]
+                assert(features.shape == (data_shape[0], 1, config.mkv_blnk * config.ts_dims, 1))
+            else:
+                past = [torch.zeros_like(paths[0]) for _ in range(max(0, config.mkv_blnk - t))] + paths[
+                                                                                                  -config.mkv_blnk:]
+                features = torch.stack(past, dim=2).reshape(
+                    (data_shape[0], 1, config.mkv_blnk * config.ts_dims, 1)).squeeze(-1)
         samples, mean, var = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=features,
                                  early_stop_idx=config.early_stop_idx)
         # Samples are size (BatchSize, 1, TimeSeriesDimension)
@@ -410,13 +419,14 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
     train_eps, end_diff_time, max_diff_steps, checkpoint_freq = config.train_eps, config.end_diff_time, config.max_diff_steps, config.save_freq
     try:
         # Markovian
+        ts_type = "fOU" if "fOU" in config.data_path else "fBm"
         trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                              checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
                              loss_aggregator=MeanMetric,
                              snapshot_path=config.scoreNet_snapshot_path, device=device,
                              train_eps=train_eps,
                              end_diff_time=end_diff_time, max_diff_steps=max_diff_steps, to_weight=config.weightings,
-                             mkv_blnk=config.mkv_blnk,
+                             mkv_blnk=config.mkv_blnk, ts_data=ts_type,
                              hybrid_training=config.hybrid)
         # Start training
         trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)

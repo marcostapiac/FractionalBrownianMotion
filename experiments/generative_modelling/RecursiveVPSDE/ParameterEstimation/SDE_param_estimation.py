@@ -13,42 +13,42 @@ from experiments.generative_modelling.estimate_fSDEs import estimate_fSDE_from_t
 def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
     incs = pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip",
                        index_col=[0, 1]).to_numpy()
-    means = -1*pd.read_csv((config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch)).replace("fOU", "fOUm"),
+    # TODO: Note -1 because of bug in original code (only for H0U5 case)
+    means = pd.read_csv((config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch)).replace("fOU", "fOUm"),
                         compression="gzip", index_col=[0, 1]).to_numpy()
     vars = pd.read_csv((config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch)).replace("fOU", "fOUv"), compression="gzip",
                        index_col=[0, 1]).to_numpy()
     paths = incs.cumsum(axis=1)
+    for _ in range(paths.shape[0]):
+        plt.plot(np.linspace(0, 1, config.ts_length), paths[_, :])
+    plt.show()
+    plt.close()
+    # Estimate Hurst indices from paths
+    U_a1, U_a2 = second_order_estimator(paths=paths, Nsamples=paths.shape[0])
+    hs = estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=train_epoch).flatten()
+    # Estimate Hurst indices from true
+    true_hs = estimate_fSDE_from_true(config=config).flatten()
     # Now use EM approximation to compute the instantaneous parameters at every point in time and space
-    vars *= config.ts_length
-    means *= config.ts_length
-    # Construct estimator for mean reversion
-    augdata = np.concatenate([np.zeros(shape=(paths.shape[0], 1)), paths], axis=1)
-    denom = np.sum(np.power(augdata[:, :-1], 2), axis=1) * (1. / config.ts_length)
-    diffs = np.diff(augdata, n=1, axis=1)
-    num = np.sum(augdata[:, :-1] * diffs, axis=1)
-    mean_revs = -num / denom
+    vars /= (1/(config.ts_length**(2*config.hurst)))
+    M = means.shape[0]
+    N = means.shape[1]-1
+    mean_revs = []
+    means = means[:,1:] * config.ts_length
+    for pathidx in tqdm(range(M)):
+        ys = means[pathidx, :].flatten().reshape((N, 1))
+        designmat = paths[pathidx, :-1].flatten().reshape((N, 1))
+        meanrev = -np.linalg.solve(designmat.T @ designmat, designmat.T @ ys)
+        mean_revs.append(float(meanrev))
     plt.hist(mean_revs, bins=150, density=True)
-    plt.vlines(x=config.mean_rev, ymin=0, ymax=0.25, label="", color='b')
-    plt.title("Mean Reversion estimator for synthetic paths")
-    plt.legend()
+    plt.vlines(x=config.mean_rev, ymin=0, ymax=0.4, color="blue")
+    plt.xlim((-20, 20))
+    plt.title("Mean Reversion Linear Regression Estimates")
     plt.show()
     plt.close()
-    print(np.mean(mean_revs), np.std(mean_revs))
-    print(np.mean(vars), np.std(vars))
-    # Construct estimator for mean reversion using true paths
-    true_data = np.load(config.data_path, allow_pickle=True)
-    augdata = np.concatenate([np.zeros(shape=(true_data.shape[0], 1)), true_data], axis=1)
-    denom = np.sum(np.power(augdata[:, :-1], 2), axis=1) * (1. / config.ts_length)
-    diffs = np.diff(augdata, n=1, axis=1)
-    num = np.sum(augdata[:, :-1] * diffs, axis=1)
-    mean_revs = -num / denom
-    plt.hist(mean_revs, bins=150, density=True)
-    plt.vlines(x=config.mean_rev, ymin=0, ymax=0.25, label="", color='b')
-    plt.title("Mean Reversion estimator for true paths")
-    plt.legend()
+    plt.hist(vars, bins=150, density=True)
+    plt.title("Instantaneous Vol Estimates")
     plt.show()
-    plt.close()
-    # Compare marginal distributions
+    plt.close()    # Compare marginal distributions
     time_space = np.linspace((1. / config.ts_length), 1., num=config.ts_length)
     sidx = 253
     for tidx in range(sidx, config.ts_length):
@@ -67,19 +67,25 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
         plt.legend()
         plt.show()
         plt.close()
-    # Estimate Hurst indices from paths
-    U_a1, U_a2 = second_order_estimator(paths=paths, Nsamples=paths.shape[0])
-    estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=train_epoch).flatten()
-    for _ in range(1000):
-        idx = np.random.randint(0, paths.shape[0])
-        plt.plot(np.linspace(0, 1, config.ts_length), paths[idx, :])
-    plt.show()
-    plt.close()
-    # Estimate Hurst indices from true
-    estimate_fSDE_from_true(config=config).flatten()
     # Now plot histograms across time and space of estimates
     for t in range(1, config.ts_length):
+        meant = means[:, t]
         varst = vars[:, t]
+        pathst = paths[:, t-1]
+        plt.scatter(pathst, meant)
+        plt.title(f"Drift Function at time {t + 1} against state value")
+        plt.show()
+        plt.close()
+        time.sleep(0.5)
+        plt.hist(meant, bins=150, density=True)
+        plt.title(f"Instantaneous Drift Estimates at time {t + 1}")
+        plt.show()
+        plt.close()
+        time.sleep(0.5)
+        plt.scatter(pathst, varst)
+        plt.title(f"Diffusion Function at time {t + 1} against state value")
+        plt.show()
+        plt.close()
         plt.hist(varst, bins=150, density=True)
         plt.title(f"Instantaneous Volatility Estimate at time {t + 1}")
         plt.show()
@@ -90,9 +96,7 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
 
 if __name__ == "__main__":
     from configs.RecursiveVPSDE.recursive_fOU_T256_H07_tl_5data import get_config
-
     config = get_config()
     for train_epoch in config.max_epochs:
-        train_epoch = 303
         print(train_epoch)
         estimate_SDEs(config=config, train_epoch=train_epoch)
