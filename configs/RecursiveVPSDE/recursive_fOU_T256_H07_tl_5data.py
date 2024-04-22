@@ -11,7 +11,7 @@ def get_config():
     config.has_cuda = torch.cuda.is_available()
 
     # Data set parameters
-    config.hurst = 0.5
+    config.hurst = 0.7
     config.mean_rev = 0.8
     config.diffusion = 1.
     config.mean = 0.
