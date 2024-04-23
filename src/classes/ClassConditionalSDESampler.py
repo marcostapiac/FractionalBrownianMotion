@@ -29,12 +29,17 @@ class ConditionalSDESampler:
                                    steps=self.predictor.max_diff_steps)
         x = self.diffusion.prior_sampling(shape=shape).to(torch_device)  # Move to correct device
         x = x.unsqueeze(1)
+        mean_est = None
+        var_est = None
         for i in tqdm(iterable=(range(0, self.predictor.max_diff_steps - early_stop_idx)), dynamic_ncols=False,
                       desc="Sampling :: ",
                       position=0):
             diff_index = torch.Tensor([i]).to(torch_device)
             t = timesteps[i] * torch.ones((x.shape[0],)).to(torch_device)
-            x, pred_score, noise, mean_est, var_est = self.predictor.step(x, t=t, diff_index=diff_index, feature=feature, ts_step=ts_step, param_est_time=param_time)
+            x, pred_score, noise, curr_mean, curr_var = self.predictor.step(x, t=t, diff_index=diff_index, feature=feature, ts_step=ts_step, param_est_time=param_time)
+            if isinstance(curr_mean, torch.Tensor) and isinstance((curr_var, torch.Tensor)):
+                mean_est = curr_mean
+                var_est = curr_var
             if type(self.corrector) != NoneType:
                 x = self.corrector.sample(x, pred_score, noise, diff_index, self.predictor.max_diff_steps)
         assert(mean_est.shape == shape and var_est.shape == shape)
