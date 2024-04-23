@@ -23,7 +23,7 @@ class ConditionalSDESampler:
         self.corrector = corrector
         self.sample_eps = sample_eps
 
-    def sample(self, shape: Tuple[int, int], feature: torch.Tensor, torch_device: Union[int, torch.device],
+    def sample(self, shape: Tuple[int, int], feature: torch.Tensor, torch_device: Union[int, torch.device], ts_step:float, param_time:float,
                early_stop_idx: int = 0) -> Tuple[torch.Tensor,torch.Tensor,torch.Tensor]:
         timesteps = torch.linspace(start=self.predictor.end_diff_time, end=self.sample_eps,
                                    steps=self.predictor.max_diff_steps)
@@ -34,7 +34,7 @@ class ConditionalSDESampler:
                       position=0):
             diff_index = torch.Tensor([i]).to(torch_device)
             t = timesteps[i] * torch.ones((x.shape[0],)).to(torch_device)
-            x, pred_score, noise, mean_est, var_est = self.predictor.step(x, t=t, diff_index=diff_index, feature=feature)
+            x, pred_score, noise, mean_est, var_est = self.predictor.step(x, t=t, diff_index=diff_index, feature=feature, ts_step=ts_step, param_est_time=param_time)
             if type(self.corrector) != NoneType:
                 x = self.corrector.sample(x, pred_score, noise, diff_index, self.predictor.max_diff_steps)
         assert(mean_est.shape == shape and var_est.shape == shape)

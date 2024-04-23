@@ -88,6 +88,7 @@ def get_config():
     config.snr = 0.
     config.predictor_model = "ancestral"  # vs "euler-maryuama"
     config.corrector_model = "VP"  # vs "VE" vs "OUSDE"
+    config.param_time = config.max_diff_steps - 1
 
     # Experiment evaluation parameters
     config.dataSize = 40000

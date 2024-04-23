@@ -11,7 +11,7 @@ def get_config():
     config.has_cuda = torch.cuda.is_available()
 
     # Data set parameters
-    config.hurst = 0.7
+    config.hurst = 0.5
     config.mean_rev = 0.8
     config.diffusion = 1.
     config.mean = 0.
@@ -93,6 +93,7 @@ def get_config():
     config.snr = 0.
     config.predictor_model = "ancestral"  # vs "euler-maryuama"
     config.corrector_model = "VP"  # vs "VE" vs "OUSDE"
+    config.param_time = config.max_diff_steps - 1
 
     # Experiment evaluation parameters
     config.dataSize = 40000

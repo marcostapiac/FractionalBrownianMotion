@@ -54,13 +54,33 @@ if __name__ == "__main__":
         train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel,
                                                  trainClass=ConditionalMarkovianDiffusionModelTrainer)
     cleanup_experiment()
-
+    es = []
     for train_epoch in config.max_epochs:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
-        final_paths = recursive_markovian_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
-                                                           data_shape=(config.dataSize, config.ts_length, 1),
-                                                           config=config)
-        df = pd.DataFrame(final_paths)
-        df.index = pd.MultiIndex.from_product(
-            [["Final Time Samples"], [i for i in range(config.dataSize)]])
-        df.to_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip")
+        try:
+            scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
+            final_paths,cond_means, cond_vars = recursive_markovian_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
+                                                               data_shape=(config.dataSize, config.ts_length, 1),
+                                                               config=config)
+            path_df = pd.DataFrame(final_paths)
+            path_df.index = pd.MultiIndex.from_product(
+                [["Final Time Samples"], [i for i in range(config.dataSize)]])
+            mean_df = pd.DataFrame(cond_means)
+            mean_df.index = pd.MultiIndex.from_product(
+                [["Final Time Means"], [i for i in range(config.dataSize)]])
+            var_df = pd.DataFrame(cond_vars)
+            var_df.index = pd.MultiIndex.from_product(
+                [["Final Time Vars"], [i for i in range(config.dataSize)]])
+            PT = 0 if config.param_time == config.max_diff_steps - 1 else 1
+            path_df.to_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip")
+            mean_df.to_csv(
+                (config.experiment_path + "_NEp{}_PT{}.csv.gzip".format(train_epoch, PT)).replace("fOU", "fOUm"),
+                compression="gzip")
+            var_df.to_csv(
+                (config.experiment_path + "_NEp{}_PT{}.csv.gzip".format(train_epoch, PT)).replace("fOU", "fOUv"),
+                compression="gzip")
+        except FileNotFoundError as e:
+            es.append(e)
+            print(e)
+    for e in es:
+        raise RuntimeError(e)
+

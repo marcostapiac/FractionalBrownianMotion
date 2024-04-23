@@ -278,9 +278,9 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
         else:
             output, (h, c) = scoreModel.rnn(samples, (h, c))
         samples, mean, var = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output,
-                                 early_stop_idx=config.early_stop_idx)
+                                 early_stop_idx=config.early_stop_idx, ts_step=1./config.ts_length, param_time=config.param_time)
         assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
-        print(torch.mean(var),torch.std(var))
+        print(torch.mean(mean),torch.std(mean))
         paths.append(samples.detach())
         means.append(mean.detach())
         vars.append(var.detach())
@@ -348,7 +348,7 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
                 features = torch.stack(past, dim=1).reshape(
                     (data_shape[0], 1, config.mkv_blnk * config.ts_dims, 1)).squeeze(-1)
         samples, mean, var = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=features,
-                                 early_stop_idx=config.early_stop_idx)
+                                 early_stop_idx=config.early_stop_idx, ts_step=1./config.ts_length, param_time=config.param_time)
         # Samples are size (BatchSize, 1, TimeSeriesDimension)
         assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
         print(torch.mean(var),torch.std(var))

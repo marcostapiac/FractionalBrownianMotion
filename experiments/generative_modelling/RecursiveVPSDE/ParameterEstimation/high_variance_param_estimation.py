@@ -24,14 +24,8 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
         plt.plot(np.linspace(0, 1, config.ts_length), paths[_, :])
     plt.show()
     plt.close()
-    # Estimate Hurst indices from paths
-    U_a1, U_a2 = second_order_estimator(paths=paths, Nsamples=paths.shape[0])
-    hs = estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=train_epoch).flatten()
-    # Estimate Hurst indices from true
-    true_hs = estimate_fSDE_from_true(config=config).flatten()
-    # Now use EM approximation to compute the instantaneous parameters at every point in time and space
-    vars *= (config.ts_length**(2*config.hurst))
-    means *= (config.ts_length**(2*config.hurst))
+    vars *= config.ts_length
+    means *= config.ts_length
     M = means.shape[0]
     N = means.shape[1] - 1
     mean_revs = []
@@ -44,65 +38,42 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
     plt.hist(mean_revs, bins=150, density=True)
     plt.vlines(x=config.mean_rev, ymin=0, ymax=0.4, color="blue")
     plt.xlim((-20, 20))
-    plt.title(f"Mean Reversion Linear Regression Estimates for epoch {train_epoch}")
+    plt.title("Mean Reversion Linear Regression Estimates")
     plt.show()
     plt.close()
-    plt.hist(vars.flatten(), bins=150, density=True)
-    plt.vlines(x=config.diffusion, ymin=0, ymax=0.4, color="blue")
-    plt.xlim((-2, 50))
-    plt.title(f"Instantaneous Vol Estimates for epoch {train_epoch}")
-    plt.show()
-    plt.close()    # Compare marginal distributions
+    path_ids = np.arange(paths.shape[0])[np.abs(np.array(mean_revs))>10]
+    faulty_paths = paths[np.abs(np.array(mean_revs))>10, :]
     time_space = np.linspace((1. / config.ts_length), 1., num=config.ts_length)
-    sidx = 254
-    for tidx in range(sidx, config.ts_length):
-        t = time_space[tidx]
-        expmeanrev = np.exp(-config.mean_rev * t)
-        exp_mean = config.mean * (1. - expmeanrev)
-        exp_mean += config.initState * expmeanrev
-        exp_var = np.power(config.diffusion, 2)
-        exp_var /= (2 * config.mean_rev)
-        exp_var *= 1. - np.power(expmeanrev, 2)
-        exp_rvs = np.random.normal(loc=exp_mean, scale=np.sqrt(exp_var), size=paths.shape[0])
-        pathst = paths[:, tidx] # Paths[:, 0] corresponds to X_{t_{1}} NOT X_{t_{0}}
-        plt.hist(pathst, bins=150, density=True, label="True")
-        plt.hist(exp_rvs, bins=150, density=True, label="Expected")
-        plt.title(f"Marginal Distributions at time {t+1} for epoch {train_epoch}")
-        plt.legend()
-        plt.show()
-        plt.close()
-
+    for _ in range(faulty_paths.shape[0]):
+        plt.plot(time_space, faulty_paths)
+    plt.show()
+    plt.close()
     # Now plot histograms across time and space of estimates
     for i in range(3):
-        t = np.random.randint(low=1, high=config.ts_length-1)
+        t = np.random.randint(low=1, high=config.ts_length)
         meant = means[:, t]
         varst = vars[:, t]
         pathst = paths[:, t - 1]
         plt.scatter(pathst, meant)
         plt.plot(pathst, -config.mean_rev*pathst, color="blue")
         plt.ylim((-config.mean_rev*max(pathst), -config.mean_rev*min(pathst)))
-        plt.title(f"Drift Function at time index {t+1} against state value for epoch {train_epoch}")
-        plt.close()
-        time.sleep(0.5)
-        plt.scatter(pathst, meant)
-        plt.plot(pathst, -config.mean_rev * pathst, color="blue")
-        plt.title(f"Drift Function at time index {t + 1} against state value for epoch {train_epoch}")
+        plt.title(f"Drift Function at time {t + 1} against state value")
         plt.show()
         plt.close()
         time.sleep(0.5)
-        plt.scatter(pathst, varst, s=0.1)
+        plt.scatter(pathst, varst)
         plt.plot(pathst, [config.diffusion]*len(pathst), color="blue")
         plt.ylim((-1, 2))
-        plt.title(f"Diffusion Function at time index {t + 1} against state value for epoch {train_epoch}")
+        plt.title(f"Diffusion Function at time {t + 1} against state value")
         plt.show()
         plt.close()
         time.sleep(0.5)
-        plt.scatter(pathst, varst, s=0.1)
-        plt.plot(pathst, [config.diffusion] * len(pathst), color="blue")
-        plt.title(f"Diffusion Function at time index {t + 1} against state value for epoch {train_epoch}")
-        plt.show()
-        plt.close()
-        time.sleep(0.5)
+    plt.hist(vars.flatten(), bins=150, density=True)
+    plt.vlines(x=config.diffusion, ymin=0, ymax=0.4, color="blue")
+    plt.xlim((-2, 50))
+    plt.title("Instantaneous Vol Estimates")
+    plt.show()
+    plt.close()  # Compare marginal distributions
 
 
 if __name__ == "__main__":
@@ -114,8 +85,7 @@ if __name__ == "__main__":
             pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip",
                         index_col=[0, 1]).to_numpy()
             print(train_epoch)
-            train_epochs = 2920
+            train_epoch = 2920
             estimate_SDEs(config=config, train_epoch=train_epoch)
-        except FileNotFoundError as e:
-            print(e)
+        except FileNotFoundError:
             continue
