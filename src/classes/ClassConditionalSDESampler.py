@@ -37,7 +37,7 @@ class ConditionalSDESampler:
             diff_index = torch.Tensor([i]).to(torch_device)
             t = timesteps[i] * torch.ones((x.shape[0],)).to(torch_device)
             x, pred_score, noise, curr_mean, curr_var = self.predictor.step(x, t=t, diff_index=diff_index, feature=feature, ts_step=ts_step, param_est_time=param_time)
-            if isinstance(curr_mean, torch.Tensor) and isinstance((curr_var, torch.Tensor)):
+            if isinstance(curr_mean, torch.Tensor) and isinstance(curr_var, torch.Tensor):
                 mean_est = curr_mean
                 var_est = curr_var
             if type(self.corrector) != NoneType:
