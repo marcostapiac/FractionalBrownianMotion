@@ -26,6 +26,7 @@ if __name__ == "__main__":
     init_experiment(config=config)
     es = []
     for train_epoch in config.max_epochs:
+        print(train_epoch)
         try:
             scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
             final_paths,cond_means, cond_vars = recursive_LSTM_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
