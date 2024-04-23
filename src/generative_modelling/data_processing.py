@@ -341,7 +341,7 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
                 assert(past.shape == (data_shape[0], 1, config.mkv_blnk * config.ts_dims, 1))
                 features = past[:,-config.mkv_blnk:,:].reshape(
                     (data_shape[0], 1, config.mkv_blnk * config.ts_dims, 1)).squeeze(-1)
-                assert(features.shape == (data_shape[0], 1, config.mkv_blnk * config.ts_dims, 1))
+                assert(features.shape == (data_shape[0], 1, config.mkv_blnk * config.ts_dims))
             else:
                 past = [torch.zeros_like(paths[0]) for _ in range(max(0, config.mkv_blnk - t))] + paths[
                                                                                                   -config.mkv_blnk:]
