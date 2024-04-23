@@ -311,6 +311,7 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
         device = torch.device("cpu")
     assert (config.predictor_model == "ancestral")
     # Define predictor
+    config.max_diff_steps = 22
     predictor_params = [diffusion, scoreModel, config.end_diff_time, config.max_diff_steps, device, config.sample_eps]
     predictor = ConditionalAncestralSamplingPredictor(*predictor_params)
 
@@ -338,7 +339,7 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
                 past = [torch.zeros_like(paths[0]) for _ in range(max(0, config.mkv_blnk - t))] + paths
                 past = torch.stack(past, dim=2)
                 past = past.cumsum(dim=1)
-                assert(past.shape == (data_shape[0], 1, config.mkv_blnk * config.ts_dims, 1))
+                assert(past.shape == (data_shape[0], max(1,t), config.ts_dims))
                 features = past[:,-config.mkv_blnk:,:].reshape(
                     (data_shape[0], 1, config.mkv_blnk * config.ts_dims, 1)).squeeze(-1)
                 assert(features.shape == (data_shape[0], 1, config.mkv_blnk * config.ts_dims))
