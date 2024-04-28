@@ -14,23 +14,24 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
     incs = pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip",
                        index_col=[0, 1]).to_numpy()
     # TODO: Note -1 because of bug in original code (only for H0U5 case)
-    means = -1 * pd.read_csv((config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch)).replace("fOU", "fOUm"),
+    PT = 0 if config.param_time == config.max_diff_steps - 1 else 1
+    means = pd.read_csv((config.experiment_path + "_NEp{}_PT{}.csv.gzip".format(train_epoch, PT)).replace("fOU", "fOUm"),
                              compression="gzip", index_col=[0, 1]).to_numpy()
-    vars = pd.read_csv((config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch)).replace("fOU", "fOUv"),
+    vars = pd.read_csv((config.experiment_path + "_NEp{}_PT{}.csv.gzip".format(train_epoch, PT)).replace("fOU", "fOUv"),
                        compression="gzip",
                        index_col=[0, 1]).to_numpy()
     paths = incs.cumsum(axis=1)
-    for _ in range(paths.shape[0]):
-        plt.plot(np.linspace(0, 1, config.ts_length), paths[_, :])
-    plt.show()
-    plt.close()
+    #for _ in range(paths.shape[0]):
+    #    plt.plot(np.linspace(0, 1, config.ts_length), paths[_, :])
+    #plt.show()
+    #plt.close()
     # Estimate Hurst indices from paths
-    U_a1, U_a2 = second_order_estimator(paths=paths, Nsamples=paths.shape[0])
-    hs = estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=train_epoch).flatten()
+    #U_a1, U_a2 = second_order_estimator(paths=paths, Nsamples=paths.shape[0])
+    #estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=train_epoch).flatten()
     # Estimate Hurst indices from true
-    true_hs = estimate_fSDE_from_true(config=config).flatten()
+    #estimate_fSDE_from_true(config=config).flatten()
     # Now use EM approximation to compute the instantaneous parameters at every point in time and space
-    vars *= (config.ts_length**(2*config.hurst))
+    #vars *= (config.ts_length**(2*config.hurst))
     means *= (config.ts_length**(2*config.hurst))
     M = means.shape[0]
     N = means.shape[1] - 1
@@ -72,6 +73,14 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
         plt.show()
         plt.close()
 
+    for idx in range(paths.shape[0]):
+        path = paths[idx, :-1]
+        meanp = means[idx, :]
+        plt.scatter(path, meanp)
+        plt.plot(path, -config.mean_rev*path, color="blue")
+        plt.show()
+        plt.close()
+        time.sleep(1)
     # Now plot histograms across time and space of estimates
     for i in range(3):
         t = np.random.randint(low=1, high=config.ts_length-1)
@@ -113,8 +122,10 @@ if __name__ == "__main__":
         try:
             pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip",
                         index_col=[0, 1]).to_numpy()
+            train_epoch = 2920
             print(train_epoch)
-            train_epochs = 2920
+            print(config.param_time)
+            config.param_time = 100
             estimate_SDEs(config=config, train_epoch=train_epoch)
         except FileNotFoundError as e:
             print(e)

@@ -25,7 +25,7 @@ if __name__ == "__main__":
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     init_experiment(config=config)
     es = []
-    for train_epoch in config.max_epochs:
+    for train_epoch in [2920]:#config.max_epochs:
         print(train_epoch)
         try:
             scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
@@ -41,9 +41,9 @@ if __name__ == "__main__":
             var_df.index = pd.MultiIndex.from_product(
                 [["Final Time Vars"], [i for i in range(config.dataSize)]])
             PT = 0 if config.param_time == config.max_diff_steps -1 else 1
-            path_df.to_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip")
-            mean_df.to_csv((config.experiment_path + "_NEp{}_PT{}.csv.gzip".format(train_epoch, PT)).replace("fOU", "fOUm"), compression="gzip")
-            var_df.to_csv((config.experiment_path + "_NEp{}_PT{}.csv.gzip".format(train_epoch, PT)).replace("fOU", "fOUv"), compression="gzip")
+            path_df.to_csv(config.experiment_path + "_rdNEp{}.csv.gzip".format(train_epoch), compression="gzip")
+            mean_df.to_csv((config.experiment_path + "_rdNEp{}_PT{}.csv.gzip".format(train_epoch, PT)).replace("fOU", "fOUm"), compression="gzip")
+            var_df.to_csv((config.experiment_path + "_rdNEp{}_PT{}.csv.gzip".format(train_epoch, PT)).replace("fOU", "fOUv"), compression="gzip")
         except FileNotFoundError as e:
             print(e)
             es.append(e)

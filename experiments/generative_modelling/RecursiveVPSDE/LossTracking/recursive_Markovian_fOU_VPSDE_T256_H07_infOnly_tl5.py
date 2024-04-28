@@ -46,10 +46,10 @@ if __name__ == "__main__":
             PT = 0 if config.param_time == config.max_diff_steps - 1 else 1
             path_df.to_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip")
             mean_df.to_csv(
-                (config.experiment_path + "_NEp{}_PT{}k.csv.gzip".format(train_epoch, PT)).replace("fOU", "fOUm"),
+                (config.experiment_path + "_NEp{}_PT{}.csv.gzip".format(train_epoch, PT)).replace("fOU", "fOUm"),
                 compression="gzip")
             var_df.to_csv(
-                (config.experiment_path + "_NEp{}_PT{}k.csv.gzip".format(train_epoch, PT)).replace("fOU", "fOUv"),
+                (config.experiment_path + "_NEp{}_PT{}.csv.gzip".format(train_epoch, PT)).replace("fOU", "fOUv"),
                 compression="gzip")
         except FileNotFoundError as e:
             es.append(e)
