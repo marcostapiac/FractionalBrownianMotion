@@ -137,7 +137,7 @@ if __name__ == "__main__":
             train_epoch = 2920
             print(train_epoch)
             print(config.param_time)
-            config.param_time = 100
+            config.param_time = 9999
             estimate_SDEs(config=config, train_epoch=train_epoch)
         except FileNotFoundError as e:
             print(e)
