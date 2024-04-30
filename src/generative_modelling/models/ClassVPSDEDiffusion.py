@@ -140,11 +140,9 @@ class VPSDEDiffusion(nn.Module):
         with torch.no_grad():
             predicted_score = score_network.forward(x, conditioner=feature, times=t)
             max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
-            print(t.squeeze()[0],t.squeeze()[1])
             discrete_beta = torch.exp(-0.5*self.get_eff_times(diff_times=t.squeeze()[0]))*(1/max_diff_steps)
             drift = x + 0.5 * discrete_beta * x + discrete_beta * predicted_score
             diff_param = torch.sqrt(discrete_beta)
-            print(drift.shape)
         return predicted_score, drift, diff_param
 
     def get_conditional_probODE(self, x: torch.Tensor, t: torch.Tensor,
