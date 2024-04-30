@@ -141,7 +141,7 @@ class VPSDEDiffusion(nn.Module):
             predicted_score = score_network.forward(x, conditioner=feature, times=t)
             max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
             discrete_beta = torch.exp(-0.5*self.get_eff_times(diff_times=t))*(1/max_diff_steps)
-            print(t.shape, discrete_beta.shape)
+            print(t.shape, max_diff_steps.shape, diff_index.shape)
             drift = x + 0.5 * discrete_beta * x + discrete_beta * predicted_score
             diff_param = torch.sqrt(discrete_beta)
             print(drift.shape)
