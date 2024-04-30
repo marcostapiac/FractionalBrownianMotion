@@ -144,6 +144,7 @@ class VPSDEDiffusion(nn.Module):
             print(discrete_beta.shape, predicted_score.shape)
             drift = x + 0.5 * discrete_beta * x + discrete_beta * predicted_score
             diff_param = torch.sqrt(discrete_beta)
+            print(drift.shape, diff_param.shape)
         return predicted_score, drift, diff_param
 
     def get_conditional_probODE(self, x: torch.Tensor, t: torch.Tensor,
