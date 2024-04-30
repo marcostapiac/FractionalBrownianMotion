@@ -53,7 +53,7 @@ def path_score_feature_analysis() -> None:
     from configs.RecursiveVPSDE.recursive_fOU_T256_H07_tl_5data import get_config
     config = get_config()
     # Now plot Hurst histogram for the generated samples
-    for train_epoch in [960]:
+    for train_epoch in [2920]:
         path_df_path = config.experiment_path + "_NEp{}_SFS.parquet.gzip".format(train_epoch)
         path_df = pd.read_parquet(path_df_path, engine="pyarrow")
         path_df = path_df
@@ -86,6 +86,7 @@ def path_score_feature_analysis() -> None:
             exact_feat_df = exact_feat_df_all.groupby(level=0).apply(lambda x: x.droplevel(0).mean(axis=0))
         except FileNotFoundError:
             exact_feat_df = pd.DataFrame()
+
         lsp = np.arange(1, path_df.shape[1] + 1)
         bad_path_times = {idx: None for idx in
                           np.concatenate([bad_feat_df_1.index.unique(level=1), bad_feat_df_2.index.unique(level=1)])}
@@ -135,31 +136,31 @@ def path_score_feature_analysis() -> None:
             plt.show()
 
         # Keep only paths for which a time has been identified
-        # Now proceed to plot the drift score for the bad path indice
+        # Now proceed to plot the score score for the bad path indice
         diff_lsp = np.arange(1, config.max_diff_steps + 1)
         feat_lsp = np.arange(1, config.lstm_hiddendim + 1)
         for idx in bad_feat_df_1.index.unique(level=1):
             if bad_path_times[idx] != None:
-                bad_drift_path_before = bad_feat_df_1.loc[pd.IndexSlice[bad_path_times[idx], :], [idx]].droplevel(
+                bad_score_path_before = bad_feat_df_1.loc[pd.IndexSlice[bad_path_times[idx], :], [idx]].droplevel(
                     0).iloc[::-1].cumsum().iloc[::-1] / np.arange(1, config.max_diff_steps + 1, config.max_diff_steps)
-                plt.plot(diff_lsp, bad_drift_path_before, label=(idx, round(bad_hs_1.loc[idx][0], 2)))
-                plt.title("CumMean Drift Error for Under-estimated Hurst Paths Before Jump Time")
+                plt.plot(diff_lsp, bad_score_path_before, label=(idx, round(bad_hs_1.loc[idx][0], 2)))
+                plt.title("CumMean score Error for Under-estimated Hurst Paths Before Jump Time")
                 plt.legend()
                 plt.xlabel("Diffusion Time")
                 plt.show()
                 plt.close()
-                bad_drift_path_at = bad_feat_df_1.loc[pd.IndexSlice[bad_path_times[idx] + 1, :], [idx]].droplevel(
+                bad_score_path_at = bad_feat_df_1.loc[pd.IndexSlice[bad_path_times[idx] + 1, :], [idx]].droplevel(
                     0).iloc[::-1].cumsum().iloc[::-1] / np.arange(1, config.max_diff_steps + 1, config.max_diff_steps)
-                plt.plot(diff_lsp, bad_drift_path_at, label=(idx, round(bad_hs_1.loc[idx][0], 2)))
-                plt.title("CumMean Drift Error for Under-estimated Hurst Paths At Jump Time")
+                plt.plot(diff_lsp, bad_score_path_at, label=(idx, round(bad_hs_1.loc[idx][0], 2)))
+                plt.title("CumMean score Error for Under-estimated Hurst Paths At Jump Time")
                 plt.legend()
                 plt.xlabel("Diffusion Time")
                 plt.show()
                 plt.close()
-                bad_drift_path_at = bad_feat_df_1.loc[pd.IndexSlice[bad_path_times[idx] + 2, :], [idx]].droplevel(
+                bad_score_path_at = bad_feat_df_1.loc[pd.IndexSlice[bad_path_times[idx] + 2, :], [idx]].droplevel(
                     0).iloc[::-1].cumsum().iloc[::-1] / np.arange(1, config.max_diff_steps + 1, config.max_diff_steps)
-                plt.plot(diff_lsp, bad_drift_path_at, label=(idx, round(bad_hs_1.loc[idx][0], 2)))
-                plt.title("CumMean Drift Error for Under-estimated Hurst Paths After Jump Time")
+                plt.plot(diff_lsp, bad_score_path_at, label=(idx, round(bad_hs_1.loc[idx][0], 2)))
+                plt.title("CumMean score Error for Under-estimated Hurst Paths After Jump Time")
                 plt.legend()
                 plt.xlabel("Diffusion Time")
                 plt.show()
@@ -179,26 +180,26 @@ def path_score_feature_analysis() -> None:
                 plt.close()
                 # Choose a random "good path" for comparison
                 good_idx = np.random.choice(good_paths_df.index.values)
-                good_drift_error = good_feat_df.loc[pd.IndexSlice[bad_path_times[idx], :], [good_idx]].droplevel(
+                good_score_error = good_feat_df.loc[pd.IndexSlice[bad_path_times[idx], :], [good_idx]].droplevel(
                     0).iloc[::-1].cumsum().iloc[::-1] / np.arange(1, config.max_diff_steps + 1, config.max_diff_steps)
-                plt.plot(diff_lsp, good_drift_error, label=(good_idx, round(good_hs.loc[good_idx][0], 2)))
-                plt.title("CumMean Drift Error for Good Paths Before Jump Time")
+                plt.plot(diff_lsp, good_score_error, label=(good_idx, round(good_hs.loc[good_idx][0], 2)))
+                plt.title("CumMean score Error for Good Paths Before Jump Time")
                 plt.legend()
                 plt.xlabel("Diffusion Time")
                 plt.show()
                 plt.close()
-                good_drift_error = good_feat_df.loc[pd.IndexSlice[bad_path_times[idx] + 1, :], [good_idx]].droplevel(
+                good_score_error = good_feat_df.loc[pd.IndexSlice[bad_path_times[idx] + 1, :], [good_idx]].droplevel(
                     0).iloc[::-1].cumsum().iloc[::-1] / np.arange(1, config.max_diff_steps + 1, config.max_diff_steps)
-                plt.plot(diff_lsp, good_drift_error, label=(good_idx, round(good_hs.loc[good_idx][0], 2)))
-                plt.title("CumMean Drift Error for Good Paths At Jump Time")
+                plt.plot(diff_lsp, good_score_error, label=(good_idx, round(good_hs.loc[good_idx][0], 2)))
+                plt.title("CumMean score Error for Good Paths At Jump Time")
                 plt.legend()
                 plt.xlabel("Diffusion Time")
                 plt.show()
                 plt.close()
-                good_drift_error = good_feat_df.loc[pd.IndexSlice[bad_path_times[idx] + 2, :], [good_idx]].droplevel(
+                good_score_error = good_feat_df.loc[pd.IndexSlice[bad_path_times[idx] + 2, :], [good_idx]].droplevel(
                     0).iloc[::-1].cumsum().iloc[::-1] / np.arange(1, config.max_diff_steps + 1, config.max_diff_steps)
-                plt.plot(diff_lsp, good_drift_error, label=(good_idx, round(good_hs.loc[good_idx][0], 2)))
-                plt.title("CumMean Drift Error for Good Paths After Jump Time")
+                plt.plot(diff_lsp, good_score_error, label=(good_idx, round(good_hs.loc[good_idx][0], 2)))
+                plt.title("CumMean score Error for Good Paths After Jump Time")
                 plt.legend()
                 plt.xlabel("Diffusion Time")
                 plt.show()
@@ -230,26 +231,26 @@ def path_score_feature_analysis() -> None:
 
         for idx in bad_feat_df_2.index.unique(level=1):
             if bad_path_times[idx] != None:
-                drift_error_path = bad_feat_df_2.loc[pd.IndexSlice[bad_path_times[idx], :], [idx]].droplevel(0).iloc[
+                score_error_path = bad_feat_df_2.loc[pd.IndexSlice[bad_path_times[idx], :], [idx]].droplevel(0).iloc[
                                    ::-1].cumsum() / np.arange(1, config.max_diff_steps + 1, config.max_diff_steps)
-                plt.plot(diff_lsp, drift_error_path, label=(idx, round(bad_hs_2.loc[idx][0], 2)))
-                plt.title("CumMean Drift Error for Over-estimated Hurst Paths Before Jump Time")
+                plt.plot(diff_lsp, score_error_path, label=(idx, round(bad_hs_2.loc[idx][0], 2)))
+                plt.title("CumMean score Error for Over-estimated Hurst Paths Before Jump Time")
                 plt.legend()
                 plt.xlabel("Diffusion Time")
                 plt.show()
                 plt.close()
-                drift_error_path = bad_feat_df_2.loc[pd.IndexSlice[bad_path_times[idx] + 1, :], [idx]].droplevel(
+                score_error_path = bad_feat_df_2.loc[pd.IndexSlice[bad_path_times[idx] + 1, :], [idx]].droplevel(
                     0).iloc[::-1].cumsum().iloc[::-1] / np.arange(1, config.max_diff_steps + 1, config.max_diff_steps)
-                plt.plot(diff_lsp, drift_error_path, label=(idx, round(bad_hs_2.loc[idx][0], 2)))
-                plt.title("CumMean Drift Error for Over-estimated Hurst Paths At Jump Time")
+                plt.plot(diff_lsp, score_error_path, label=(idx, round(bad_hs_2.loc[idx][0], 2)))
+                plt.title("CumMean score Error for Over-estimated Hurst Paths At Jump Time")
                 plt.legend()
                 plt.xlabel("Diffusion Time")
                 plt.show()
                 plt.close()
-                drift_error_path = bad_feat_df_2.loc[pd.IndexSlice[bad_path_times[idx] + 2, :], [idx]].droplevel(
+                score_error_path = bad_feat_df_2.loc[pd.IndexSlice[bad_path_times[idx] + 2, :], [idx]].droplevel(
                     0).iloc[::-1].cumsum().iloc[::-1] / np.arange(1, config.max_diff_steps + 1, config.max_diff_steps)
-                plt.plot(diff_lsp, drift_error_path, label=(idx, round(bad_hs_2.loc[idx][0], 2)))
-                plt.title("CumMean Drift Error for Over-estimated Hurst Paths After Jump Time")
+                plt.plot(diff_lsp, score_error_path, label=(idx, round(bad_hs_2.loc[idx][0], 2)))
+                plt.title("CumMean score Error for Over-estimated Hurst Paths After Jump Time")
                 plt.legend()
                 plt.xlabel("Diffusion Time")
                 plt.show()
@@ -269,26 +270,26 @@ def path_score_feature_analysis() -> None:
                 plt.close()
                 # Choose a random "good path" for comparison
                 good_idx = np.random.choice(good_paths_df.index.values)
-                good_drift_error = good_feat_df.loc[pd.IndexSlice[bad_path_times[idx], :], [good_idx]].droplevel(
+                good_score_error = good_feat_df.loc[pd.IndexSlice[bad_path_times[idx], :], [good_idx]].droplevel(
                     0).iloc[::-1].cumsum().iloc[::-1] / np.arange(1, config.max_diff_steps + 1, config.max_diff_steps)
-                plt.plot(diff_lsp, good_drift_error, label=(good_idx, round(good_hs.loc[good_idx][0], 2)))
-                plt.title("CumMean Drift Error for Good Paths Before Jump Time")
+                plt.plot(diff_lsp, good_score_error, label=(good_idx, round(good_hs.loc[good_idx][0], 2)))
+                plt.title("CumMean score Error for Good Paths Before Jump Time")
                 plt.legend()
                 plt.xlabel("Diffusion Time")
                 plt.show()
                 plt.close()
-                good_drift_error = good_feat_df.loc[pd.IndexSlice[bad_path_times[idx] + 1, :], [good_idx]].droplevel(
+                good_score_error = good_feat_df.loc[pd.IndexSlice[bad_path_times[idx] + 1, :], [good_idx]].droplevel(
                     0).iloc[::-1].cumsum().iloc[::-1] / np.arange(1, config.max_diff_steps + 1, config.max_diff_steps)
-                plt.plot(diff_lsp, good_drift_error, label=(good_idx, round(good_hs.loc[good_idx][0], 2)))
-                plt.title("CumMean Drift Error for Good Paths At Jump Time")
+                plt.plot(diff_lsp, good_score_error, label=(good_idx, round(good_hs.loc[good_idx][0], 2)))
+                plt.title("CumMean score Error for Good Paths At Jump Time")
                 plt.legend()
                 plt.xlabel("Diffusion Time")
                 plt.show()
                 plt.close()
-                good_drift_error = good_feat_df.loc[pd.IndexSlice[bad_path_times[idx] + 2, :], [good_idx]].droplevel(
+                good_score_error = good_feat_df.loc[pd.IndexSlice[bad_path_times[idx] + 2, :], [good_idx]].droplevel(
                     0).iloc[::-1].cumsum().iloc[::-1] / np.arange(1, config.max_diff_steps + 1, config.max_diff_steps)
-                plt.plot(diff_lsp, good_drift_error, label=(good_idx, round(good_hs.loc[good_idx][0], 2)))
-                plt.title("CumMean Drift Error for Good Paths After Jump Time")
+                plt.plot(diff_lsp, good_score_error, label=(good_idx, round(good_hs.loc[good_idx][0], 2)))
+                plt.title("CumMean score Error for Good Paths After Jump Time")
                 plt.legend()
                 plt.xlabel("Diffusion Time")
                 plt.show()
