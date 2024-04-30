@@ -29,7 +29,7 @@ if __name__ == "__main__":
     train_epoch = 2920
     for param_time in param_times:
         try:
-            config.param_time = param_times
+            config.param_time = param_time
             scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
             final_paths,cond_means, cond_vars = recursive_LSTM_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
                                                           data_shape=(config.dataSize, config.ts_length, 1), config=config)
