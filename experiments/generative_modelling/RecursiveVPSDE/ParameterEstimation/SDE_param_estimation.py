@@ -93,6 +93,26 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
         plt.close()
         time.sleep(1)
 
+    # Plot histograms of the mean at a particular time
+    for i in range(3):
+        idx = np.random.randint(low=0, high=config.ts_length)
+        mean = means[:, idx]  # -gamma*X(t-1)
+        plt.hist(mean, bins=150, density=True, label="Drift Histogram")
+        t = time_space[idx - 1]
+        expmeanrev = np.exp(-config.mean_rev * t)
+        exp_mean = 0 * (1. - expmeanrev)
+        exp_mean += paths[:, idx - 1] * expmeanrev # Initial state is the previous path
+        exp_var = np.power(1, 2)
+        exp_var /= (2 * config.mean_rev)
+        exp_var *= 1. - np.power(expmeanrev, 2)
+        exp_var *= config.mean_rev * config.mean_rev
+        exp_rvs = np.random.normal(loc=exp_mean, scale=np.sqrt(exp_var), size=mean.shape[0])
+        plt.hist(exp_rvs, bins=150, density=True, label="Expected")
+        plt.title(f"Marginal Distributions at time {t} for epoch {0}")
+        plt.legend()
+        plt.show()
+        plt.close()
+
 
 if __name__ == "__main__":
     from configs.RecursiveVPSDE.recursive_fOU_T256_H07_tl_5data import get_config
