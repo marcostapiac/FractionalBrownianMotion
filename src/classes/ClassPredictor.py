@@ -150,7 +150,7 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
         super().__init__(diffusion, score_function, end_diff_time, max_diff_steps, device, sample_eps)
 
     def step(self, x_prev: torch.Tensor, feature: torch.Tensor, t: torch.Tensor, diff_index: torch.Tensor,
-             ts_step: float, param_est_time: float) -> Tuple[
+             ts_step: float, param_est_time: float, prev_path:torch.Tensor) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor, Union[None, torch.Tensor], Union[None, torch.Tensor]]:
         score, drift, diffusion = self.diffusion.get_conditional_reverse_diffusion(x=x_prev, t=t,
                                                                                           feature=feature,
@@ -182,12 +182,14 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
                                                                           -1)))
                 print("Var of r1 {} vs expected approx {} vs expected {}\n".format(torch.var(c1 * score.squeeze(dim=-1)),
                                                              (diffusion_var+diffusion_mean2*ts_step)/(diffusion_mean2),torch.pow(((1-torch.exp(torch.Tensor([-2*0.8*ts_step]).to(diff_index.device)))/(2*0.8)) * diffusion_mean2 + diffusion_var,
-                                                                          1)/(diffusion_mean2) ))
-                import termplotlib as tpl
-                fig = tpl.figure()
-                fig.plot(torch.arange(0, 10), torch.arange(0,10))
-                fig.show()
-                fig.close()
+                                                                          1)/(diffusion_mean2)))
+                from scipy.stats import wasserstein_distance
+                import numpy as np
+                histogram1 = np.histogram(x_prev.numpy(), bins=150)
+                exp_mean = torch.pow(diffusion_mean2, 0.5)*ts_step*(-0.8*prev_path).numpy()
+                exp_var = (diffusion_var+diffusion_mean2*ts_step).numpy()
+                histogram2 = np.histogram(np.random.normal(loc=exp_mean, scale=np.sqrt(exp_var)),bins=150)
+                print(wasserstein_distance(histogram1[0], histogram2[0]))
                 print("Mean of our xprev {} vs expected\n".format(torch.mean(x_prev)))
                 print("Var of our xprev {} vs expected {}\n".format(torch.var(x_prev),
                                                                     (ts_step * diffusion_mean2) + diffusion_var))
