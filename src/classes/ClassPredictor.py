@@ -188,6 +188,7 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
                 histogram1 = np.histogram((mean_est/ts_step).cpu().numpy(), bins=150)
                 exp_mean = 0*(torch.pow(diffusion_mean2, 0.5)*ts_step*(-0.8*prev_path)).cpu().numpy()
                 exp_var = (diffusion_var/(diffusion_mean2*ts_step*ts_step) + 1/ts_step).cpu().numpy()
+                print(torch.var(mean_est/ts_step), exp_var)
                 histogram2 = np.histogram(np.random.normal(loc=exp_mean, scale=np.sqrt(exp_var)),bins=150)
                 print(f"Wasserstein 1 {wasserstein_distance(histogram1[0], histogram2[0])}\n")
                 print("Var of our xprev {} vs expected {}\n".format(torch.var(x_prev),
