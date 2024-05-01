@@ -97,7 +97,8 @@ class ConditionalAncestralSamplingPredictor(Predictor):
             # Compute gradients of output with respect to input_data
             #grad_score = torch.autograd.grad(outputs=score, inputs=x_prev, grad_outputs=torch.ones_like(score),
             #                               retain_graph=False)[0].squeeze(dim=-1)
-            z = torch.normal(mean=0, std=torch.sqrt(ts_step) * torch.exp(-0.5 * torch.pow(t.squeeze()[0], -2))).to(
+
+            z = torch.normal(mean=0, std=torch.sqrt(torch.Tensor([ts_step]).to(diff_index.device)) * torch.exp(-0.5 * torch.pow(t.squeeze()[0], -2))).to(
                 diff_index.device)
             score *= z
             with torch.no_grad():
