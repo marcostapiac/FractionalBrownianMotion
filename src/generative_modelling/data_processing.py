@@ -294,11 +294,17 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
                                  early_stop_idx=config.early_stop_idx, ts_step=1./config.ts_length, param_time=config.param_time)
         assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
         if t != 0:
-            est_mean = mean*config.ts_length
-            assert(est_mean.shape == prev_path.shape)
+            est_mean = mean * config.ts_length
+            assert (est_mean.shape == prev_path.shape)
             print("Estimated drift {}\n".format(est_mean))
-            print("Expected drift {}\n".format(-config.mean_rev*prev_path))
-            print(torch.mean(est_mean),torch.std(est_mean), torch.mean(prev_path),torch.std(prev_path), torch.mean(-config.mean_rev*prev_path), torch.std(-config.mean_rev*prev_path))
+            print("Expected drift {}\n".format(-config.mean_rev * prev_path))
+            print("Expected drift if path not inc {}\n".format(-config.mean_rev * prev_path + prev_path))
+            print("Expected drift if exact {}\n".format(
+                torch.exp(torch.Tensor([-config.mean_rev * 1 / config.ts_length]).to(device)) * prev_path - prev_path))
+            print("Expected drift if exact and not inc {}\n".format(
+                torch.exp(torch.Tensor([-config.mean_rev * 1 / config.ts_length]).to(device)) * prev_path))
+            print(torch.mean(est_mean), torch.std(est_mean), torch.mean(prev_path), torch.std(prev_path),
+                  torch.mean(-config.mean_rev * prev_path), torch.std(-config.mean_rev * prev_path))
         paths.append(samples.detach())
         means.append(mean.detach())
         vars.append(var.detach())
