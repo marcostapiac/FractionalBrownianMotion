@@ -55,8 +55,6 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
         meanrev = -np.linalg.solve(designmat.T @ designmat, designmat.T @ ys)
         mean_revs.append(float(meanrev))
     plt.hist(mean_revs, bins=150, density=True)
-    #plt.vlines(x=config.mean_rev, ymin=0, ymax=4, color="blue")
-    plt.xlim((-2, 2))
     plt.title(f"Mean Reversion Linear Regression Estimates for epoch {train_epoch}")
     plt.show()
     plt.close()
@@ -111,7 +109,7 @@ if __name__ == "__main__":
 
     config = get_config()
     train_epoch = 2920
-    for param_time in [4600, 9999]:
+    for param_time in [900,4600, 9999]:
         try:
             pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip",
                         index_col=[0, 1]).to_numpy()

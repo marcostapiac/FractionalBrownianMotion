@@ -158,6 +158,7 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
             z = torch.randn_like(drift)
             x_new = drift + diffusion * z
             if diff_index == torch.Tensor([param_est_time]).to(diff_index.device):
+                print(diff_index, t)
                 # Compute gradients of output with respect to input_data
                 z = torch.normal(mean=0, std=torch.sqrt(torch.Tensor([ts_step]).to(diff_index.device)) * torch.exp(-0.5 * torch.pow(t.squeeze()[0], -2))).to(
                     diff_index.device)
