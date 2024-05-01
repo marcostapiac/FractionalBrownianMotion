@@ -23,7 +23,7 @@ if __name__ == "__main__":
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
-    #init_experiment(config=config)
+    init_experiment(config=config)
     es = []
     param_times = [config.max_diff_steps-1]
     train_epoch = 2920

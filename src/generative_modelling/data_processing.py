@@ -18,7 +18,7 @@ from src.classes.ClassCorrector import VESDECorrector, VPSDECorrector
 from src.classes.ClassDiffTrainer import DiffusionModelTrainer
 from src.classes.ClassPredictor import AncestralSamplingPredictor, \
     ConditionalAncestralSamplingPredictor, ConditionalReverseDiffusionSamplingPredictor, \
-    ConditionalProbODESamplingPredictor, Predictor
+    ConditionalProbODESamplingPredictor, Predictor, ConditionalLowVarReverseDiffusionSamplingPredictor
 from src.classes.ClassSDESampler import SDESampler
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
@@ -263,7 +263,7 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
     elif config.predictor_model == "CondReverseDiffusion":
         predictor = ConditionalReverseDiffusionSamplingPredictor(*predictor_params)
     elif config.predictor_model == "CondLowVarReverseDiffusion":
-        predictor = ConditionalReverseDiffusionSamplingPredictor(*predictor_params)
+        predictor = ConditionalLowVarReverseDiffusionSamplingPredictor(*predictor_params)
     elif config.predictor_model == "ProbODE":
         predictor = ConditionalProbODESamplingPredictor(*predictor_params)
 
