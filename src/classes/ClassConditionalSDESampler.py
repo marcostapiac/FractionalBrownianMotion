@@ -41,6 +41,7 @@ class ConditionalSDESampler:
             x, pred_score, noise, curr_mean, curr_var = self.predictor.step(x, t=t, diff_index=diff_index, feature=feature, ts_step=ts_step, param_est_time=param_time)
             if isinstance(curr_mean, torch.Tensor) and isinstance(curr_var, torch.Tensor):
                 mean_est = curr_mean
+                print(mean_est)
                 var_est = curr_var
             if type(self.corrector) != NoneType:
                 x = self.corrector.sample(x, pred_score, noise, diff_index, self.predictor.max_diff_steps)
