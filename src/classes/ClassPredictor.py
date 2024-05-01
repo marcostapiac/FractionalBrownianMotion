@@ -166,7 +166,7 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
                 # Compute gradients of output with respect to input_data
                 l = torch.normal(mean=0, std=torch.sqrt(torch.Tensor([ts_step]).to(diff_index.device))).to(
                     diff_index.device)
-                # score *= l
+                score *= l
                 diffusion_mean2 = torch.atleast_2d(torch.exp(-self.diffusion.get_eff_times(diff_times=t.squeeze()[0]))).T
                 diffusion_var = 1. - diffusion_mean2
                 # TODO: element wise multiplication along dim=1 (0-indexed) without squeezing
@@ -181,7 +181,7 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
                                                                           -1)))
                 print("Var of r1 {} vs expected {}\n".format(torch.var(c1 * score.squeeze(dim=-1)),
                                                              (diffusion_var+diffusion_mean2*ts_step)/(diffusion_mean2)))
-                print("Mean of our xprev {}\n".format(torch.mean(x_prev)))
+                print("Mean of our xprev {} vs expected\n".format(torch.mean(x_prev)))
                 print("Var of our xprev {} vs expected {}\n".format(torch.var(x_prev),
                                                                     (ts_step * diffusion_mean2) + diffusion_var))
                 print("Var of our r2 {} vs expected {}\n".format(torch.var(c2 * x_prev.squeeze(dim=-1)),
