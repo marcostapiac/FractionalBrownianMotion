@@ -60,8 +60,8 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
     plt.close()
 
     time_space = np.linspace((1. / config.ts_length), 1., num=config.ts_length)
-    sidx = 254
-    for tidx in range(sidx, config.ts_length):
+    for idx in range(10):
+        tidx = np.random.randint(low=0, high=config.ts_length)
         t = time_space[tidx]
         expmeanrev = np.exp(-config.mean_rev * t)
         exp_mean = config.mean * (1. - expmeanrev)
@@ -83,9 +83,11 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
         idx = np.random.randint(low=0, high=paths.shape[0])
         path = paths[idx, :-1]
         meanp = mmeans[idx, :]
+        U_a1, U_a2 = second_order_estimator(paths=path[np.newaxis,:], Nsamples=1)
+        h = estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=train_epoch).flatten()
         plt.scatter(path, meanp)
         plt.plot(path, -config.mean_rev * path, color="blue")
-        plt.title("Drift against Path")
+        plt.title(f"Drift against Path with hurst {h[0]}")
         plt.show()
         plt.close()
         time.sleep(1)
@@ -93,11 +95,13 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
     # Plot path and drift in same plot observations for each path
     for _ in range(10):
         idx = np.random.randint(low=0, high=paths.shape[0])
-        mean = means[idx, :]
-        path = paths[idx,:]
-        plt.plot(time_space, mean, label="Drift")
-        plt.plot(time_space, path, color="blue", label="Path")
-        plt.title("Path/Drift against Time")
+        mean = means[idx, 1:]
+        path = paths[idx,:-1]
+        U_a1, U_a2 = second_order_estimator(paths=path[np.newaxis,:], Nsamples=1)
+        h = estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=train_epoch).flatten()
+        plt.plot(time_space[:-1], mean, label="Drift")
+        plt.plot(time_space[-1], path, color="blue", label="Path")
+        plt.title(f"Path/Drift against Time with hurst {h[0]}")
         plt.legend()
         plt.show()
         plt.close()
@@ -109,7 +113,7 @@ if __name__ == "__main__":
 
     config = get_config()
     train_epoch = 2920
-    for param_time in [900,4600, 9999]:
+    for param_time in [900, 4600, 9999]:
         try:
             pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip",
                         index_col=[0, 1]).to_numpy()
