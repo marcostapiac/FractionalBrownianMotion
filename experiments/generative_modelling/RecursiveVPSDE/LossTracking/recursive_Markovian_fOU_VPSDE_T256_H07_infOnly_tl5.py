@@ -28,8 +28,9 @@ if __name__ == "__main__":
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     init_experiment(config=config)
     es = []
-    for train_epoch in config.max_epochs:
-        print(train_epoch)
+    param_times = [900, 4600, config.max_diff_steps - 1]
+    train_epoch = 2920
+    for param_time in param_times:
         try:
             scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
             final_paths,cond_means, cond_vars = recursive_markovian_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
@@ -43,14 +44,19 @@ if __name__ == "__main__":
             var_df = pd.DataFrame(cond_vars)
             var_df.index = pd.MultiIndex.from_product(
                 [["Final Time Vars"], [i for i in range(config.dataSize)]])
-            PT = 0 if config.param_time == config.max_diff_steps - 1 else 1
-            path_df.to_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip")
-            mean_df.to_csv(
-                (config.experiment_path + "_NEp{}_PT{}.csv.gzip".format(train_epoch, PT)).replace("fOU", "fOUm"),
-                compression="gzip")
-            var_df.to_csv(
-                (config.experiment_path + "_NEp{}_PT{}.csv.gzip".format(train_epoch, PT)).replace("fOU", "fOUv"),
-                compression="gzip")
+            if config.param_time == config.max_diff_steps - 1:
+                PT = 0
+            elif config.param_time == 4600:
+                PT = 2
+            else:
+                PT = 1
+            path_df.to_csv(config.experiment_path + "_rdNEp{}.csv.gzip".format(train_epoch), compression="gzip")
+            mean_df.to_csv((config.experiment_path + "_rdNEp{}_PT{}.csv.gzip".format(train_epoch, PT)).replace("fOU",
+                                                                                                               "fOUm").replace(
+                "fOUm00", "fm00"), compression="gzip")
+            var_df.to_csv((config.experiment_path + "_rdNEp{}_PT{}.csv.gzip".format(train_epoch, PT)).replace("fOU",
+                                                                                                              "fOUv").replace(
+                "fOUv00", "fv00"), compression="gzip")
         except FileNotFoundError as e:
             es.append(e)
             print(e)
