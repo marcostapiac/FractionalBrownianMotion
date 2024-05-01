@@ -140,17 +140,18 @@ class VPSDEDiffusion(nn.Module):
         with torch.no_grad():
             predicted_score = score_network.forward(x, conditioner=feature, times=t)
             max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
-            discrete_beta =  self.get_discretised_beta(diff_index=max_diff_steps - 1 - diff_index,
-                                               max_diff_steps=max_diff_steps)
+            discrete_beta = self.get_discretised_beta(diff_index=max_diff_steps - 1 - diff_index,
+                                                      max_diff_steps=max_diff_steps)
             drift = x + 0.5 * discrete_beta * x + discrete_beta * predicted_score
             diff_param = torch.sqrt(discrete_beta)
         return predicted_score, drift, diff_param
 
     def get_lowvar_conditional_reverse_diffusion(self, x: torch.Tensor, t: torch.Tensor,
-                                          score_network: Union[
-                                              NaiveMLP, TimeSeriesScoreMatching, ConditionalLSTMTimeSeriesScoreMatching, ConditionalTimeSeriesScoreMatching, ConditionalMarkovianTimeSeriesScoreMatching],
-                                          feature: torch.Tensor,
-                                          diff_index: torch.Tensor, max_diff_steps: int, ts_step:float) -> Tuple[
+                                                 score_network: Union[
+                                                     NaiveMLP, TimeSeriesScoreMatching, ConditionalLSTMTimeSeriesScoreMatching, ConditionalTimeSeriesScoreMatching, ConditionalMarkovianTimeSeriesScoreMatching],
+                                                 feature: torch.Tensor,
+                                                 diff_index: torch.Tensor, max_diff_steps: int, ts_step: float) -> \
+    Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor]:
         """
 
@@ -170,8 +171,10 @@ class VPSDEDiffusion(nn.Module):
             ts_step = torch.Tensor([ts_step]).to(diff_index.device)
             discrete_beta = self.get_discretised_beta(diff_index=max_diff_steps - 1 - diff_index,
                                                       max_diff_steps=max_diff_steps)
-            z = torch.normal(mean=0, std=torch.sqrt(ts_step)*torch.exp(-0.5*torch.pow(t,-2))).to(diff_index.device)
-            predicted_score*=z
+            z = torch.normal(mean=0, std=torch.sqrt(ts_step) * torch.exp(-0.5 * torch.pow(t, -2))).to(diff_index.device)
+            print(predicted_score)
+            predicted_score *= z
+            print(predicted_score, z)
             drift = x + 0.5 * discrete_beta * x + discrete_beta * predicted_score
             diff_param = torch.sqrt(discrete_beta)
         return predicted_score, drift, diff_param
