@@ -159,15 +159,15 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
             x_new = drift + diffusion * z
             if diff_index == torch.Tensor([param_est_time]).to(diff_index.device):
                 # Compute gradients of output with respect to input_data
-                l = torch.normal(mean=0, std=torch.sqrt(torch.Tensor([ts_step]).to(diff_index.device)) * torch.exp(-0.5 * torch.pow(t.squeeze()[0], -2))).to(
+                l = torch.normal(mean=0, std=torch.sqrt(torch.Tensor([ts_step]).to(diff_index.device))).to(
                     diff_index.device)
                 #score *= l
                 diffusion_mean2 = torch.atleast_2d(torch.exp(-self.diffusion.get_eff_times(diff_times=t))).T
                 diffusion_var = 1.-diffusion_mean2
                 # TODO: element wise multiplication along dim=1 (0-indexed) without squeezing
                 var_est = torch.ones((x_prev.shape[0],1))
-                mean_est = ((diffusion_var+diffusion_mean2*ts_step)/torch.pow(diffusion_mean2,0.5))*score.squeeze(dim=-1)+(1/torch.pow(diffusion_mean2,0.5))*x_prev.squeeze(dim=-1)
-                print(torch.std(mean_est), torch.std(((diffusion_var+diffusion_mean2*ts_step)/torch.pow(diffusion_mean2,0.5))*score.squeeze(dim=-1)), torch.std((1/torch.pow(diffusion_mean2,0.5))*x_prev.squeeze(dim=-1)))
+                mean_est = ((diffusion_var+diffusion_mean2*ts_step)/torch.pow(diffusion_mean2,0.5))*score.squeeze(dim=-1)+(torch.pow(diffusion_mean2,-0.5))*x_prev.squeeze(dim=-1)
+                print(torch.mean(score.squeeze(-1)),torch.std(mean_est), torch.std(((diffusion_var+diffusion_mean2*ts_step)/torch.pow(diffusion_mean2,0.5))*score.squeeze(dim=-1)), torch.std((1/torch.pow(diffusion_mean2,0.5))*x_prev.squeeze(dim=-1)))
                 assert(var_est.shape == (x_prev.shape[0],1) and mean_est.shape == (x_prev.shape[0],1))
         return x_new, score, z, mean_est, var_est
 
