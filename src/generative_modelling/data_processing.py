@@ -201,7 +201,7 @@ def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
     elif config.predictor_model == "CondReverseDiffusion":
         predictor = ConditionalReverseDiffusionSamplingPredictor(*predictor_params)
     elif config.predictor_model == "CondLowVarReverseDiffusion":
-        predictor = ConditionalReverseDiffusionSamplingPredictor(*predictor_params)
+        predictor = ConditionalLowVarReverseDiffusionSamplingPredictor(*predictor_params)
     elif config.predictor_model == "ProbODE":
         predictor=ConditionalProbODESamplingPredictor(*predictor_params)
 
@@ -336,7 +336,7 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
     elif config.predictor_model == "CondReverseDiffusion":
         predictor = ConditionalReverseDiffusionSamplingPredictor(*predictor_params)
     elif config.predictor_model == "CondLowVarReverseDiffusion":
-        predictor = ConditionalReverseDiffusionSamplingPredictor(*predictor_params)
+        predictor = ConditionalLowVarReverseDiffusionSamplingPredictor(*predictor_params)
     elif config.predictor_model == "ProbODE":
         predictor = ConditionalProbODESamplingPredictor(*predictor_params)
 
@@ -384,7 +384,6 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
             print("Expected drift {}\n".format(-config.mean_rev * prev_path))
             print(torch.mean(est_mean), torch.std(est_mean), torch.mean(prev_path), torch.std(prev_path),
                   torch.mean(-config.mean_rev * prev_path), torch.std(-config.mean_rev * prev_path))
-
         assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
         paths.append(samples.detach())
         means.append(mean.detach())
