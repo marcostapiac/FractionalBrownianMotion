@@ -296,12 +296,14 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
         if t != 0:
             est_mean = mean*config.ts_length
             assert(est_mean.shape == prev_path.shape)
-            est_meanrev = est_mean/prev_path
+            est_meanrev = -est_mean/prev_path
+            assert(est_meanrev.shape == est_mean.shape)
             print(torch.mean(est_meanrev),torch.std(est_meanrev))
         paths.append(samples.detach())
         means.append(mean.detach())
         vars.append(var.detach())
-        prev_path = torch.concat(paths, dim=1).squeeze(dim=2).cumsum(axis=1)
+        prev_path = torch.concat(paths, dim=1).squeeze(dim=2).sum(axis=1)
+        print(prev_path.shape)
     final_paths = np.atleast_2d(torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2).numpy())
     conditional_means = np.atleast_2d(torch.concat(means, dim=1).cpu().numpy())
     conditional_vars = np.atleast_2d(torch.concat(vars, dim=1).cpu().numpy())
