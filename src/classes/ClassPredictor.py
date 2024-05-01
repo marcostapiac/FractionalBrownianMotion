@@ -185,9 +185,9 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
                                                                           1)/(diffusion_mean2)))
                 from scipy.stats import wasserstein_distance
                 import numpy as np
-                histogram1 = np.histogram(x_prev.numpy(), bins=150)
-                exp_mean = torch.pow(diffusion_mean2, 0.5)*ts_step*(-0.8*prev_path).numpy()
-                exp_var = (diffusion_var+diffusion_mean2*ts_step).numpy()
+                histogram1 = np.histogram(x_prev.cpu().numpy(), bins=150)
+                exp_mean = torch.pow(diffusion_mean2, 0.5)*ts_step*(-0.8*prev_path).cpu().numpy()
+                exp_var = (diffusion_var+diffusion_mean2*ts_step).cpu().numpy()
                 histogram2 = np.histogram(np.random.normal(loc=exp_mean, scale=np.sqrt(exp_var)),bins=150)
                 print(wasserstein_distance(histogram1[0], histogram2[0]))
                 print("Mean of our xprev {} vs expected\n".format(torch.mean(x_prev)))
