@@ -183,10 +183,11 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
                 print("Var of r1 {} vs expected approx {} vs expected {}\n".format(torch.var(c1 * score.squeeze(dim=-1)),
                                                              (diffusion_var+diffusion_mean2*ts_step)/(diffusion_mean2),torch.pow(((1-torch.exp(torch.Tensor([-2*0.8*ts_step]).to(diff_index.device)))/(2*0.8)) * diffusion_mean2 + diffusion_var,
                                                                           1)/(diffusion_mean2) ))
-                import matplotlib.pyplot as plt
-                plt.plot(torch.arange(0, 10), torch.arange(0,10))
-                plt.show()
-                plt.close()
+                import termplotlib as tpl
+                fig = tpl.figure()
+                fig.plot(torch.arange(0, 10), torch.arange(0,10))
+                fig.show()
+                fig.close()
                 print("Mean of our xprev {} vs expected\n".format(torch.mean(x_prev)))
                 print("Var of our xprev {} vs expected {}\n".format(torch.var(x_prev),
                                                                     (ts_step * diffusion_mean2) + diffusion_var))
