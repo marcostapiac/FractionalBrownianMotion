@@ -175,9 +175,7 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
                 mean_est = ((diffusion_var + diffusion_mean2 * ts_step) / torch.pow(diffusion_mean2,
                                                                                     0.5)) * score.squeeze(dim=-1) + (
                                torch.pow(diffusion_mean2, -0.5)) * x_prev.squeeze(dim=-1)
-                print(torch.std(mean_est), torch.std(
-                    ((diffusion_var + diffusion_mean2 * ts_step) / torch.pow(diffusion_mean2, 0.5)) * score.squeeze(
-                        dim=-1)), torch.std((1 / torch.pow(diffusion_mean2, 0.5)) * x_prev.squeeze(dim=-1)))
+
                 print("Mean of score {} vs expected {}\n".format(torch.mean(score.squeeze(-1)), 0))
                 print("Var of score {} vs expected {}\n".format(torch.var(score.squeeze(-1)),
                                                                 torch.pow((ts_step * diffusion_mean2) + diffusion_var,
@@ -188,6 +186,9 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
                 print("Mean of our xprev {}\n".format(torch.mean(x_prev)))
                 print("Var of our xprev {} vs expected {}\n".format(torch.var(x_prev),
                                                                     (ts_step * diffusion_mean2) + diffusion_var))
+                print("Var of our r2 {} vs expected {}\n".format(torch.var((
+                               torch.pow(diffusion_mean2, -0.5)) * x_prev.squeeze(dim=-1)),
+                                                             (diffusion_var+diffusion_mean2*ts_step)/(diffusion_mean2*ts_step*ts_step)))
                 assert (var_est.shape == (x_prev.shape[0], 1) and mean_est.shape == (x_prev.shape[0], 1))
         return x_new, score, z, mean_est, var_est
 
