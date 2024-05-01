@@ -78,6 +78,7 @@ class ConditionalAncestralSamplingPredictor(Predictor):
 
     def step(self, x_prev: torch.Tensor, feature: torch.Tensor, t: torch.Tensor, diff_index: torch.Tensor, ts_step:float, param_est_time:float) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor, Union[None,torch.Tensor],Union[None,torch.Tensor]]:
+        print("ANCESTRALNOTLOWVAR")
         score, drift, diffusion = self.diffusion.get_conditional_ancestral_sampling(x=x_prev, t=t, feature=feature,
                                                                                     score_network=self.score_network,
                                                                                     diff_index=diff_index,
@@ -149,6 +150,7 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
 
     def step(self, x_prev: torch.Tensor, feature: torch.Tensor, t: torch.Tensor, diff_index: torch.Tensor, ts_step:float, param_est_time:float) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor, Union[None,torch.Tensor],Union[None,torch.Tensor]]:
+        print("Hihihihi")
         score, drift, diffusion = self.diffusion.get_lowvar_conditional_reverse_diffusion(x=x_prev, t=t, feature=feature,
                                                                                    score_network=self.score_network,
                                                                                    diff_index=diff_index,
