@@ -387,9 +387,9 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
             est_mean = mean
             assert (est_mean.shape == prev_path.shape)
             print("Estimated drift {}\n".format(est_mean))
-            print("Expected drift {}\n".format(-config.mean_rev * prev_path * (1 / config.ts_length)))
+            print("Expected drift {}\n".format(-config.mean_rev * prev_path))
             print("Expected drift if path not inc {}\n".format(
-                -config.mean_rev * prev_path * (1 / config.ts_length) + prev_path))
+                -config.mean_rev * prev_path + prev_path))
             print("Expected drift if exact {}\n".format(
                 torch.exp(
                     torch.Tensor([-config.mean_rev * (1 / config.ts_length)]).to(device)) * prev_path - prev_path))
