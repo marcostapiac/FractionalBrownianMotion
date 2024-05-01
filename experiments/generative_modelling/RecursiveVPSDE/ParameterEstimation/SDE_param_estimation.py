@@ -60,7 +60,7 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
     plt.close()
 
     time_space = np.linspace((1. / config.ts_length), 1., num=config.ts_length)
-    for idx in range(10):
+    for idx in range(3):
         tidx = np.random.randint(low=0, high=config.ts_length)
         t = time_space[tidx]
         expmeanrev = np.exp(-config.mean_rev * t)
@@ -79,7 +79,7 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
         plt.close()
 
     # Plot path and drift in same plot observations for each path
-    for _ in range(10):
+    for _ in range(3):
         idx = np.random.randint(low=0, high=paths.shape[0])
         mean = means[idx, 1:]
         path = paths[idx,:-1]
@@ -98,6 +98,9 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
         idx = np.random.randint(low=0, high=config.ts_length)
         mean = means[:, idx]  # -gamma*X(t-1)
         plt.hist(mean, bins=150, density=True, label="Drift Histogram")
+        plt.legend()
+        plt.show()
+        plt.close()
         t = time_space[idx - 1]
         expmeanrev = np.exp(-config.mean_rev * t)
         exp_mean = 0 * (1. - expmeanrev)
@@ -119,7 +122,7 @@ if __name__ == "__main__":
 
     config = get_config()
     train_epoch = 2920
-    for param_time in [900, 4600, 9999]:
+    for param_time in [9999]:
         try:
             pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip",
                         index_col=[0, 1]).to_numpy()
