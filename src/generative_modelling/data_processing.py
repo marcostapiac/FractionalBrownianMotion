@@ -384,7 +384,7 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
                                  early_stop_idx=config.early_stop_idx, ts_step=1./config.ts_length, param_time=config.param_time, prev_path=prev_path)
         # Samples are size (BatchSize, 1, TimeSeriesDimension)
         if t != 0:
-            est_mean = mean
+            est_mean = mean*config.ts_length
             assert (est_mean.shape == prev_path.shape)
             print("Estimated drift {}\n".format(est_mean))
             print("Expected drift {}\n".format(-config.mean_rev * prev_path))
