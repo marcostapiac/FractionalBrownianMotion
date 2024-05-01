@@ -291,7 +291,7 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
         else:
             output, (h, c) = scoreModel.rnn(samples, (h, c))
         samples, mean, var = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output,
-                                 early_stop_idx=config.early_stop_idx, ts_step=1./config.ts_length, param_time=config.param_time)
+                                 early_stop_idx=config.early_stop_idx, ts_step=1./config.ts_length, param_time=config.param_time, prev_path=prev_path)
         assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
         if t != 0:
             est_mean = mean * config.ts_length
