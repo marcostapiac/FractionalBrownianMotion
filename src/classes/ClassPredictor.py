@@ -171,6 +171,7 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
                 grad_score = torch.pow(-(diffusion_var+diffusion_mean2*ts_step), -1)
                 mean_est = (torch.pow(grad_score, -1)*score.squeeze(dim=-1))-x_prev.squeeze(dim=-1)
                 mean_est *= -torch.pow(diffusion_mean2, -0.5)
+                print(torch.std(mean_est), torch.std(-torch.pow(diffusion_mean2, -0.5)*(torch.pow(grad_score, -1)*score.squeeze(dim=-1))), torch.std(-torch.pow(diffusion_mean2, -0.5)*(-x_prev.squeeze(dim=-1))) )
                 assert(var_est.shape == (x_prev.shape[0],1) and mean_est.shape == (x_prev.shape[0],1))
         return x_new, score, z, mean_est, var_est
 
