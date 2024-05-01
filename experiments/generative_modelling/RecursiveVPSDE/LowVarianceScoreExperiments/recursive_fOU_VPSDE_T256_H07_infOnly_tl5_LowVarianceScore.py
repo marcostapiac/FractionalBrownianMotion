@@ -27,7 +27,7 @@ if __name__ == "__main__":
     es = []
     param_times = [config.max_diff_steps-1]
     train_epoch = 2920
-    config.predictor_model = "CondAncestral"
+    config.predictor_model = "CondLowVarReverseDiffusion"
     for param_time in param_times:
         try:
             config.param_time = param_time

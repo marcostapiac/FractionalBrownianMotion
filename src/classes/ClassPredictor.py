@@ -98,9 +98,6 @@ class ConditionalAncestralSamplingPredictor(Predictor):
             #grad_score = torch.autograd.grad(outputs=score, inputs=x_prev, grad_outputs=torch.ones_like(score),
             #                               retain_graph=False)[0].squeeze(dim=-1)
 
-            z = torch.normal(mean=0, std=torch.sqrt(torch.Tensor([ts_step]).to(diff_index.device)) * torch.exp(-0.5 * torch.pow(t.squeeze()[0], -2))).to(
-                diff_index.device)
-            #score *= z
             with torch.no_grad():
                 diffusion_mean2 = torch.atleast_2d(torch.exp(-self.diffusion.get_eff_times(diff_times=t))).T
                 diffusion_var = 1.-diffusion_mean2
@@ -130,10 +127,8 @@ class ConditionalReverseDiffusionSamplingPredictor(Predictor):
         with torch.no_grad():
             z = torch.randn_like(drift)
             x_new = drift + diffusion * z
-        if diff_index == torch.Tensor([param_est_time]).to(diff_index.device):
-            # Zero out gradients to avoid accumulation
-            self.score_network.zero_grad()
-            with torch.no_grad():
+            if diff_index == torch.Tensor([param_est_time]).to(diff_index.device):
+                # Zero out gradients to avoid accumulation
                 diffusion_mean2 = torch.atleast_2d(torch.exp(-self.diffusion.get_eff_times(diff_times=t))).T
                 diffusion_var = 1.-diffusion_mean2
                 # TODO: element wise multiplication along dim=1 (0-indexed) without squeezing
@@ -159,19 +154,14 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
                                                                                    max_diff_steps=self.max_diff_steps, ts_step=ts_step)
         mean_est = None
         var_est = None
-        if diff_index != torch.Tensor([param_est_time - 1]).to(diff_index.device):
-            with torch.no_grad():
-                z = torch.randn_like(drift)
-                x_new = drift + diffusion * z
-        else:
+        with torch.no_grad():
             z = torch.randn_like(drift)
             x_new = drift + diffusion * z
-        if diff_index == torch.Tensor([param_est_time]).to(diff_index.device):
-            # Zero out gradients to avoid accumulation
-            self.score_network.zero_grad()
-            # Compute gradients of output with respect to input_data
-
-            with torch.no_grad():
+            if diff_index == torch.Tensor([param_est_time]).to(diff_index.device):
+                # Compute gradients of output with respect to input_data
+                z = torch.normal(mean=0, std=torch.sqrt(torch.Tensor([ts_step]).to(diff_index.device)) * torch.exp(-0.5 * torch.pow(t.squeeze()[0], -2))).to(
+                    diff_index.device)
+                score *= z
                 diffusion_mean2 = torch.atleast_2d(torch.exp(-self.diffusion.get_eff_times(diff_times=t))).T
                 diffusion_var = 1.-diffusion_mean2
                 # TODO: element wise multiplication along dim=1 (0-indexed) without squeezing
