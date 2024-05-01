@@ -78,29 +78,15 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
         plt.show()
         plt.close()
 
-    # Plot drift observations for each path
-    for _ in range(10):
-        idx = np.random.randint(low=0, high=paths.shape[0])
-        path = paths[idx, :-1]
-        meanp = mmeans[idx, :]
-        U_a1, U_a2 = second_order_estimator(paths=path[np.newaxis,:], Nsamples=1)
-        h = estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=train_epoch).flatten()
-        plt.scatter(path, meanp)
-        plt.plot(path, -config.mean_rev * path, color="blue")
-        plt.title(f"Drift against Path with hurst {h[0]}")
-        plt.show()
-        plt.close()
-        time.sleep(1)
-
     # Plot path and drift in same plot observations for each path
     for _ in range(10):
         idx = np.random.randint(low=0, high=paths.shape[0])
         mean = means[idx, 1:]
         path = paths[idx,:-1]
         U_a1, U_a2 = second_order_estimator(paths=path[np.newaxis,:], Nsamples=1)
-        h = estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=train_epoch).flatten()
+        h = estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=train_epoch, toShow=False).flatten()
         plt.plot(time_space[:-1], mean, label="Drift")
-        plt.plot(time_space[-1], path, color="blue", label="Path")
+        plt.plot(time_space[:-1], path, color="blue", label="Path")
         plt.title(f"Path/Drift against Time with hurst {h[0]}")
         plt.legend()
         plt.show()

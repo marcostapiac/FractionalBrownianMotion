@@ -176,11 +176,13 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
                 print(c1.shape, c2.shape)
                 mean_est = c1 * score.squeeze(dim=-1) + c2 * x_prev.squeeze(dim=-1)
                 print("Mean of score {} vs expected {}\n".format(torch.mean(score.squeeze(-1)), 0))
-                print("Var of score {} vs expected {}\n".format(torch.var(score.squeeze(-1)),
+                print("Var of score {} vs expected {} vs expected approx {}\n".format(torch.var(score.squeeze(-1)),torch.pow(((1-torch.exp(torch.Tensor([-2*0.8*ts_step]).to(diff_index.device)))/(2*0.8)) * diffusion_mean2 + diffusion_var,
+                                                                          -1),
                                                                 torch.pow((ts_step * diffusion_mean2) + diffusion_var,
                                                                           -1)))
-                print("Var of r1 {} vs expected {}\n".format(torch.var(c1 * score.squeeze(dim=-1)),
-                                                             (diffusion_var+diffusion_mean2*ts_step)/(diffusion_mean2)))
+                print("Var of r1 {} vs expected approx {} vs expected {}\n".format(torch.var(c1 * score.squeeze(dim=-1)),
+                                                             (diffusion_var+diffusion_mean2*ts_step)/(diffusion_mean2),torch.pow(((1-torch.exp(torch.Tensor([-2*0.8*ts_step]).to(diff_index.device)))/(2*0.8)) * diffusion_mean2 + diffusion_var,
+                                                                          1)/(diffusion_mean2) ))
                 print("Mean of our xprev {} vs expected\n".format(torch.mean(x_prev)))
                 print("Var of our xprev {} vs expected {}\n".format(torch.var(x_prev),
                                                                     (ts_step * diffusion_mean2) + diffusion_var))

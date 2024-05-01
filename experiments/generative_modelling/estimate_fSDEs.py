@@ -28,12 +28,13 @@ def second_order_estimator(paths: np.ndarray, Nsamples: int):
     return U_a1, U_a2
 
 
-def estimate_hurst_from_filter(Ua1: np.ndarray, Ua2: np.ndarray, epoch: int):
+def estimate_hurst_from_filter(Ua1: np.ndarray, Ua2: np.ndarray, epoch: int, toShow:bool=True):
     assert (Ua1.shape == Ua2.shape)
     hs = 0.5 * np.log2(Ua2 / Ua1)
-    plot_histogram(hs, num_bins=150, xlabel="H", ylabel="density",
-                   plottitle="Histogram of {} samples' estimated Hurst parameter".format(epoch))
-    plt.show()
+    if toShow:
+        plot_histogram(hs, num_bins=150, xlabel="H", ylabel="density",
+                       plottitle="Histogram of {} samples' estimated Hurst parameter".format(epoch))
+        plt.show()
     return hs
 
 
