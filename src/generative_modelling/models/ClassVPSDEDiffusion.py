@@ -225,9 +225,6 @@ class VPSDEDiffusion(nn.Module):
             with torch.enable_grad():
                 predicted_score = score_network.forward(x, conditioner=feature, times=t)
                 ts_step = torch.Tensor([1/256]).to(diff_index.device)
-                z = torch.normal(mean=0, std=torch.sqrt(ts_step) * torch.exp(-0.5 * torch.pow(t.squeeze()[0], -2))).to(
-                    diff_index.device)
-                predicted_score *=z
                 max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
                 drift = self.get_ancestral_drift(x=x, pred_score=predicted_score, diff_index=diff_index,
                                                  max_diff_steps=max_diff_steps)
