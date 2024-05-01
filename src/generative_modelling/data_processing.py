@@ -302,7 +302,7 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
         paths.append(samples.detach())
         means.append(mean.detach())
         vars.append(var.detach())
-        prev_path = torch.concat(paths, dim=1).squeeze(dim=2).sum(axis=1)
+        prev_path = torch.concat(paths, dim=1).squeeze(dim=2).sum(axis=1).unsqueeze(-1)
         print(prev_path.shape)
     final_paths = np.atleast_2d(torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2).numpy())
     conditional_means = np.atleast_2d(torch.concat(means, dim=1).cpu().numpy())
