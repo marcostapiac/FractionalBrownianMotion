@@ -152,12 +152,11 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
     def step(self, x_prev: torch.Tensor, feature: torch.Tensor, t: torch.Tensor, diff_index: torch.Tensor,
              ts_step: float, param_est_time: float) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor, Union[None, torch.Tensor], Union[None, torch.Tensor]]:
-        score, drift, diffusion = self.diffusion.get_lowvar_conditional_reverse_diffusion(x=x_prev, t=t,
+        score, drift, diffusion = self.diffusion.get_conditional_reverse_diffusion(x=x_prev, t=t,
                                                                                           feature=feature,
                                                                                           score_network=self.score_network,
                                                                                           diff_index=diff_index,
-                                                                                          max_diff_steps=self.max_diff_steps,
-                                                                                          ts_step=ts_step)
+                                                                                          max_diff_steps=self.max_diff_steps)
         mean_est = None
         var_est = None
         with torch.no_grad():
@@ -168,7 +167,7 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
                 l = torch.normal(mean=0, std=torch.sqrt(torch.Tensor([ts_step]).to(diff_index.device))).to(
                     diff_index.device)
                 # score *= l
-                diffusion_mean2 = torch.atleast_2d(torch.exp(-self.diffusion.get_eff_times(diff_times=t))).T
+                diffusion_mean2 = torch.atleast_2d(torch.exp(-self.diffusion.get_eff_times(diff_times=t.squeeze()[0]))).T
                 diffusion_var = 1. - diffusion_mean2
                 # TODO: element wise multiplication along dim=1 (0-indexed) without squeezing
                 var_est = torch.ones((x_prev.shape[0], 1))
@@ -176,7 +175,6 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
                 c2 = (torch.pow(diffusion_mean2, -0.5))
                 print(c1.shape, c2.shape)
                 mean_est = c1 * score.squeeze(dim=-1) + c2 * x_prev.squeeze(dim=-1)
-                print()
                 print("Mean of score {} vs expected {}\n".format(torch.mean(score.squeeze(-1)), 0))
                 print("Var of score {} vs expected {}\n".format(torch.var(score.squeeze(-1)),
                                                                 torch.pow((ts_step * diffusion_mean2) + diffusion_var,

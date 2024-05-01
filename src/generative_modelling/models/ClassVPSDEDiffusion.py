@@ -146,35 +146,6 @@ class VPSDEDiffusion(nn.Module):
             diff_param = torch.sqrt(discrete_beta)
         return predicted_score, drift, diff_param
 
-    def get_lowvar_conditional_reverse_diffusion(self, x: torch.Tensor, t: torch.Tensor,
-                                                 score_network: Union[
-                                                     NaiveMLP, TimeSeriesScoreMatching, ConditionalLSTMTimeSeriesScoreMatching, ConditionalTimeSeriesScoreMatching, ConditionalMarkovianTimeSeriesScoreMatching],
-                                                 feature: torch.Tensor,
-                                                 diff_index: torch.Tensor, max_diff_steps: int, ts_step: float) -> \
-    Tuple[
-        torch.Tensor, torch.Tensor, torch.Tensor]:
-        """
-
-        :param x:
-        :param t:
-        :param score_network:
-        :param feature:
-        :param diff_index:
-        :param max_diff_steps:
-        :param ts_step:
-        :return:
-        """
-        score_network.eval()
-        with torch.no_grad():
-            predicted_score = score_network.forward(x, conditioner=feature, times=t)
-            max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
-            ts_step = torch.Tensor([ts_step]).to(diff_index.device)
-            discrete_beta = self.get_discretised_beta(diff_index=max_diff_steps - 1 - diff_index,
-                                                      max_diff_steps=max_diff_steps)
-            drift = x + 0.5 * discrete_beta * x + discrete_beta * predicted_score
-            diff_param = torch.sqrt(discrete_beta)
-        return predicted_score, drift, diff_param
-
     def get_conditional_probODE(self, x: torch.Tensor, t: torch.Tensor,
                                 score_network: Union[
                                     NaiveMLP, TimeSeriesScoreMatching, ConditionalLSTMTimeSeriesScoreMatching, ConditionalTimeSeriesScoreMatching, ConditionalMarkovianTimeSeriesScoreMatching],
