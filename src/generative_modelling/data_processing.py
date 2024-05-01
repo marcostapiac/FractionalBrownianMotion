@@ -283,6 +283,7 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
     paths = []
     means = []
     vars = []
+    prev_path = torch.zeros(size=(data_shape[0], 1))
     for t in range(config.ts_length):
         print("Sampling at real time {}\n".format(t + 1))
         if t == 0:
@@ -292,10 +293,15 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
         samples, mean, var = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output,
                                  early_stop_idx=config.early_stop_idx, ts_step=1./config.ts_length, param_time=config.param_time)
         assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
-        print(torch.mean(mean),torch.std(mean))
+        if t != 0:
+            est_mean = mean*config.ts_length
+            assert(est_mean.shape == prev_path.shape)
+            est_meanrev = est_mean/prev_path
+            print(torch.mean(est_meanrev),torch.std(est_meanrev))
         paths.append(samples.detach())
         means.append(mean.detach())
         vars.append(var.detach())
+        prev_path = torch.concat(paths, dim=1).squeeze(dim=2).cumsum(axis=1)
     final_paths = np.atleast_2d(torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2).numpy())
     conditional_means = np.atleast_2d(torch.concat(means, dim=1).cpu().numpy())
     conditional_vars = np.atleast_2d(torch.concat(vars, dim=1).cpu().numpy())
