@@ -5,7 +5,9 @@ from tqdm import tqdm
 
 from configs.project_config import NoneType
 from src.classes.ClassCorrector import Corrector
-from src.classes.ClassPredictor import ConditionalAncestralSamplingPredictor
+from src.classes.ClassPredictor import ConditionalAncestralSamplingPredictor, \
+    ConditionalReverseDiffusionSamplingPredictor, ConditionalLowVarReverseDiffusionSamplingPredictor, \
+    ConditionalProbODESamplingPredictor, Predictor
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
@@ -17,7 +19,7 @@ class ConditionalSDESampler:
     """
 
     def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion, OUSDEDiffusion], sample_eps: float,
-                 predictor: ConditionalAncestralSamplingPredictor, corrector: Union[Corrector, NoneType]):
+                 predictor: Predictor, corrector: Union[Corrector, NoneType]):
         self.diffusion = diffusion
         self.predictor = predictor
         self.corrector = corrector

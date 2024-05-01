@@ -78,7 +78,7 @@ def get_config():
     if config.hybrid: assert (config.sample_eps == config.train_eps)
     config.max_lang_steps = 0
     config.snr = 0.01
-    config.predictor_model = "ancestral"  # vs "euler-maryuama"
+    config.predictor_model = "Ancestral"  # vs "euler-maryuama"
     config.corrector_model = "VE"  # vs "VE"
 
     # Experiment evaluation parameters

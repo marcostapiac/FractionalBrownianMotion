@@ -11,12 +11,12 @@ from experiments.generative_modelling.estimate_fSDEs import estimate_fSDE_from_t
 
 
 def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
-    incs = pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip",
+    incs = pd.read_csv(config.experiment_path + "_rdNEp{}.csv.gzip".format(train_epoch), compression="gzip",
                        index_col=[0, 1]).to_numpy()
     # TODO: Note -1 because of bug in original code (only for H0U5 case)
-    means = -1 * pd.read_csv((config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch)).replace("fOU", "fOUm"),
+    means = pd.read_csv((config.experiment_path + "_rdNEp{}.csv.gzip".format(train_epoch)).replace("fOU", "fOUm"),
                              compression="gzip", index_col=[0, 1]).to_numpy()
-    vars = pd.read_csv((config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch)).replace("fOU", "fOUv"),
+    vars = pd.read_csv((config.experiment_path + "_rdNEp{}.csv.gzip".format(train_epoch)).replace("fOU", "fOUv"),
                        compression="gzip",
                        index_col=[0, 1]).to_numpy()
     paths = incs.cumsum(axis=1)

@@ -71,7 +71,7 @@ def get_config():
     config.sample_eps = 1e-3
     config.max_lang_steps = 0
     config.snr = 0.
-    config.predictor_model = "ancestral"  # vs "euler-maryuama"
+    config.predictor_model = "Ancestral"  # vs "euler-maryuama"
     config.corrector_model = "VP"  # vs "VE"
 
     # Experiment evaluation parameters

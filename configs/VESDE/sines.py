@@ -70,7 +70,7 @@ def get_config():
 
     config.max_lang_steps = 1
     config.snr = 0.01
-    config.predictor_model = "ancestral"  # vs "euler-maryuama"
+    config.predictor_model = "Ancestral"  # vs "euler-maryuama"
     config.corrector_model = "VE"  # vs "VE"
 
     # Experiment evaluation parameters

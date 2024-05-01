@@ -16,8 +16,9 @@ from src.classes.ClassConditionalSDESampler import ConditionalSDESampler
 from src.classes.ClassConditionalSignatureDiffTrainer import ConditionalSignatureDiffusionModelTrainer
 from src.classes.ClassCorrector import VESDECorrector, VPSDECorrector
 from src.classes.ClassDiffTrainer import DiffusionModelTrainer
-from src.classes.ClassPredictor import AncestralSamplingPredictor, EulerMaruyamaPredictor, \
-    ConditionalAncestralSamplingPredictor
+from src.classes.ClassPredictor import AncestralSamplingPredictor, \
+    ConditionalAncestralSamplingPredictor, ConditionalReverseDiffusionSamplingPredictor, \
+    ConditionalProbODESamplingPredictor, Predictor
 from src.classes.ClassSDESampler import SDESampler
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
@@ -114,9 +115,8 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
         device = torch.device("cpu")
     # Define predictor
     predictor_params = [diffusion, scoreModel, config.end_diff_time, config.max_diff_steps, device, config.sample_eps]
-    predictor = AncestralSamplingPredictor(
-        *predictor_params) if config.predictor_model == "ancestral" else EulerMaruyamaPredictor(*predictor_params)
-
+    assert(config.predictor_model == "Ancestral")
+    predictor = AncestralSamplingPredictor(*predictor_params)
     # Define corrector
     corrector_params = [config.max_lang_steps, torch.Tensor([config.snr]), device, diffusion]
     if config.corrector_model == "VE":
@@ -194,10 +194,16 @@ def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
         device = 0
     else:
         device = torch.device("cpu")
-    assert (config.predictor_model == "ancestral")
     # Define predictor
     predictor_params = [diffusion, scoreModel, config.end_diff_time, config.max_diff_steps, device, config.sample_eps]
-    predictor = ConditionalAncestralSamplingPredictor(*predictor_params)
+    if config.predictor_model == "CondAncestral":
+        predictor = ConditionalAncestralSamplingPredictor(*predictor_params)
+    elif config.predictor_model == "CondReverseDiffusion":
+        predictor = ConditionalReverseDiffusionSamplingPredictor(*predictor_params)
+    elif config.predictor_model == "CondLowVarReverseDiffusion":
+        predictor = ConditionalReverseDiffusionSamplingPredictor(*predictor_params)
+    elif config.predictor_model == "ProbODE":
+        predictor=ConditionalProbODESamplingPredictor(*predictor_params)
 
     # Define corrector
     corrector_params = [config.max_lang_steps, torch.Tensor([config.snr]), device, diffusion]
@@ -250,10 +256,16 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
         device = 0
     else:
         device = torch.device("cpu")
-    assert (config.predictor_model == "ancestral")
     # Define predictor
     predictor_params = [diffusion, scoreModel, config.end_diff_time, config.max_diff_steps, device, config.sample_eps]
-    predictor = ConditionalAncestralSamplingPredictor(*predictor_params)
+    if config.predictor_model == "CondAncestral":
+        predictor = ConditionalAncestralSamplingPredictor(*predictor_params)
+    elif config.predictor_model == "CondReverseDiffusion":
+        predictor = ConditionalReverseDiffusionSamplingPredictor(*predictor_params)
+    elif config.predictor_model == "CondLowVarReverseDiffusion":
+        predictor = ConditionalReverseDiffusionSamplingPredictor(*predictor_params)
+    elif config.predictor_model == "ProbODE":
+        predictor = ConditionalProbODESamplingPredictor(*predictor_params)
 
     # Define corrector
     corrector_params = [config.max_lang_steps, torch.Tensor([config.snr]), device, diffusion]
@@ -309,10 +321,16 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
         device = 0
     else:
         device = torch.device("cpu")
-    assert (config.predictor_model == "ancestral")
     # Define predictor
     predictor_params = [diffusion, scoreModel, config.end_diff_time, config.max_diff_steps, device, config.sample_eps]
-    predictor = ConditionalAncestralSamplingPredictor(*predictor_params)
+    if config.predictor_model == "CondAncestral":
+        predictor = ConditionalAncestralSamplingPredictor(*predictor_params)
+    elif config.predictor_model == "CondReverseDiffusion":
+        predictor = ConditionalReverseDiffusionSamplingPredictor(*predictor_params)
+    elif config.predictor_model == "CondLowVarReverseDiffusion":
+        predictor = ConditionalReverseDiffusionSamplingPredictor(*predictor_params)
+    elif config.predictor_model == "ProbODE":
+        predictor = ConditionalProbODESamplingPredictor(*predictor_params)
 
     # Define corrector
     corrector_params = [config.max_lang_steps, torch.Tensor([config.snr]), device, diffusion]
