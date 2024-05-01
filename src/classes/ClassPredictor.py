@@ -174,7 +174,7 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
                 c1 = ((diffusion_var + diffusion_mean2 * ts_step) / torch.pow(diffusion_mean2, 0.5))
                 c2 = (torch.pow(diffusion_mean2, -0.5))
                 print(c1.shape, c2.shape)
-                mean_est = c1 * 0*score.squeeze(dim=-1) + c2 * x_prev.squeeze(dim=-1)
+                mean_est = c1 * score.squeeze(dim=-1) + c2 * x_prev.squeeze(dim=-1)
                 print("Mean of score {} vs expected {}\n".format(torch.mean(score.squeeze(-1)), 0))
                 print("Var of score {} vs expected {} vs expected approx {}\n".format(torch.var(score.squeeze(-1)),torch.pow(((1-torch.exp(torch.Tensor([-2*0.8*ts_step]).to(diff_index.device)))/(2*0.8)) * diffusion_mean2 + diffusion_var,
                                                                           -1),
@@ -201,6 +201,7 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
                 print(f"MeanEst Var {torch.std(mean_est)} R1 Var {torch.std(c1 * score.squeeze(dim=-1))} R2 Var {torch.std(c2 * x_prev.squeeze(dim=-1))}\n")
                 print(mean_est/ts_step)
                 assert (var_est.shape == (x_prev.shape[0], 1) and mean_est.shape == (x_prev.shape[0], 1))
+                # Check if score is linear in x
         return x_new, score, z, mean_est, var_est
 
 
