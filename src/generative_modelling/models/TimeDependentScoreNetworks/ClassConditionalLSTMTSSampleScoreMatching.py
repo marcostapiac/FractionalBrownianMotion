@@ -219,5 +219,6 @@ class ConditionalLSTMTSSampleScoreMatching(nn.Module):
         assert (inputs.shape == x.shape == beta_tau.shape == sigma_tau.shape)
         print(torch.any(torch.isnan(x)))
         assert(not torch.any(torch.isinf(x)))
-        assert(not torch.any(torch.isinf(-torch.pow(sigma_tau, -0.5))))
+        assert(not torch.any(torch.isinf(-1/(sigma_tau))))
+        assert(not torch.any(torch.isinf(-torch.pow(sigma_tau, -1))))
         return -torch.pow(sigma_tau, -1) * (inputs - beta_tau * x)

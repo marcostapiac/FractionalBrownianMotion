@@ -94,6 +94,18 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
         plt.close()
         time.sleep(1)
 
+    # Plot path and drift in same plot observations for each path
+    for _ in range(3):
+        idx = np.random.randint(low=0, high=paths.shape[0])
+        mean = means[idx, 1:]
+        path = paths[idx, :-1]
+        plt.scatter(path, mean, label="Drift")
+        plt.plot(time_space[:-1], path, color="blue", label="Path")
+        plt.title(f"Drift against Path with")
+        plt.legend()
+        plt.show()
+        plt.close()
+
     # Plot histograms of the mean at a particular time
     for i in range(3):
         idx = np.random.randint(low=0, high=config.ts_length)
@@ -127,7 +139,6 @@ if __name__ == "__main__":
         try:
             pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip",
                         index_col=[0, 1]).to_numpy()
-            train_epoch = 2920
             config.param_time = param_time
             if config.param_time == config.max_diff_steps - 1:
                 PT = 0

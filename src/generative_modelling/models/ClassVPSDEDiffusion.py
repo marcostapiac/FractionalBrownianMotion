@@ -65,6 +65,7 @@ class VPSDEDiffusion(nn.Module):
         """
         epsts = torch.randn_like(dataSamples)
         xts = torch.exp(-0.5 * effTimes) * dataSamples + torch.sqrt(1. - torch.exp(-effTimes)) * epsts
+        assert(not torch.any(torch.isinf(torch.sqrt((1. - torch.exp(-effTimes))))))
         return xts, -epsts / torch.sqrt((1. - torch.exp(-effTimes)))
 
     @staticmethod
