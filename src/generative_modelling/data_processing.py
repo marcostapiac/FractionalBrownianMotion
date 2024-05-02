@@ -11,6 +11,7 @@ from torch.utils.data.distributed import DistributedSampler
 from torchmetrics import MeanMetric
 
 from src.classes.ClassConditionalLSTMDiffTrainer import ConditionalLSTMDiffusionModelTrainer
+from src.classes.ClassConditionalLearnSamplerLSTMDiffTrainer import ConditionalLSTMSampleDiffusionModelTrainer
 from src.classes.ClassConditionalMarkovianDiffTrainer import ConditionalMarkovianDiffusionModelTrainer
 from src.classes.ClassConditionalSDESampler import ConditionalSDESampler
 from src.classes.ClassConditionalSignatureDiffTrainer import ConditionalSignatureDiffusionModelTrainer
@@ -432,7 +433,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                              diffusion: VPSDEDiffusion,
                                              scoreModel: Union[
                                                  NaiveMLP, ConditionalTSScoreMatching, ConditionalTSScoreMatching, ConditionalMarkovianTSScoreMatching],
-                                             trainClass: Union[
+                                             trainClass: Union[ConditionalLSTMSampleDiffusionModelTrainer,
                                                  ConditionalLSTMDiffusionModelTrainer, ConditionalMarkovianDiffusionModelTrainer, ConditionalSignatureDiffusionModelTrainer, DiffusionModelTrainer]) -> None:
     """
     Helper function to initiate training for recursive diffusion model

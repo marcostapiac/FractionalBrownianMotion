@@ -118,6 +118,7 @@ class ConditionalLSTMSampleDiffusionModelTrainer(nn.Module):
         diff_times = diff_times.reshape(B * T)
         eff_times = eff_times.reshape(target_scores.shape)
         beta_tau = torch.exp(-0.5 * eff_times)
+        print(torch.any(torch.isnan(xts)))
         outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times, beta_tau=beta_tau,
                                              sigma_tau=1. - torch.pow(beta_tau, 2))
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
