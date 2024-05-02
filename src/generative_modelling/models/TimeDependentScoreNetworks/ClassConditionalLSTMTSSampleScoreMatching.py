@@ -179,13 +179,21 @@ class ConditionalLSTMTSSampleScoreMatching(nn.Module):
     def forward(self, inputs, times, conditioner, beta_tau, sigma_tau):
         # For Conditional Time series, input projection accumulates information spatially
         # Therefore it expects inputs to be of shape (BatchSize, 1, NumDims)
+        if torch.any(torch.isnan(inputs)):
+            print(f"0:{torch.any(torch.isnan(inputs))}\n")
+            raise RuntimeError
         x = self.input_projection(inputs)
-        print(f"1:{torch.any(torch.isnan(x))}\n")
+        if torch.any(torch.isnan(x)):
+            print(f"1:{torch.any(torch.isnan(x))}\n")
+            raise RuntimeError
         x = F.leaky_relu(x, 0.01)
-        print(f"2:{torch.any(torch.isnan(x))}\n")
-
+        if torch.any(torch.isnan(x)):
+            print(f"2:{torch.any(torch.isnan(x))}\n")
+            raise RuntimeError
         diffusion_step = self.diffusion_embedding(times)
-        print(f"3:{torch.any(torch.isnan(diffusion_step))}\n")
+        if torch.any(torch.isnan(diffusion_step)):
+            print(f"2:{torch.any(torch.isnan(diffusion_step))}\n")
+            raise RuntimeError
         # Linear layer assumes dimension of conditioning vector to be in last dimension
         # This conditioner needs to be of shape (BatchSize, 1, NumFeatDims)
         cond_up = self.cond_upsampler(conditioner)
