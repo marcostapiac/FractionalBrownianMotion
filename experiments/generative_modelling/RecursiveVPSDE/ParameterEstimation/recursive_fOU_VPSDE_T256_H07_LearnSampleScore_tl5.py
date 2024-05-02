@@ -11,7 +11,7 @@ from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSSampleScoreMatching import \
     ConditionalLSTMTSSampleScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
-from utils.data_processing import cleanup_experiment
+from utils.data_processing import cleanup_experiment, init_experiment
 from utils.math_functions import generate_fOU
 
 if __name__ == "__main__":
