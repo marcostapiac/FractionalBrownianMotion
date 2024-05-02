@@ -123,7 +123,7 @@ class ConditionalLSTMSampleDiffusionModelTrainer(nn.Module):
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         weights = self.diffusion.get_loss_weighting(eff_times=eff_times) / beta_tau
         assert(not torch.any(outputs == torch.nan))
-        if torch.any(torch.abs(beta_tau - torch.zeros_like(beta_tau))<1e-6):
+        if torch.any(torch.abs(beta_tau - torch.zeros_like(beta_tau))<1e-6) or torch.any(weights == torch.nan):
             print("Outputs",outputs)
             print("Weights", weights)
         if not self.include_weightings: weights = torch.ones_like(weights)
