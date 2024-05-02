@@ -176,7 +176,7 @@ class ConditionalLSTMTSSampleScoreMatching(nn.Module):
         nn.init.kaiming_normal_(self.skip_projection.weight)
         nn.init.zeros_(self.output_projection.weight)
 
-    def forward(self, inputs, times, conditioner, beta_tau, sigma_tau):
+    def forward(self, inputs, times, conditioner, eff_times):
         # For Conditional Time series, input projection accumulates information spatially
         # Therefore it expects inputs to be of shape (BatchSize, 1, NumDims)
         if torch.any(torch.isnan(inputs)):
@@ -216,9 +216,7 @@ class ConditionalLSTMTSSampleScoreMatching(nn.Module):
         print(f"9:{torch.any(torch.isnan(x))}\n")
         x = self.output_projection(x)
         print(f"10:{torch.any(torch.isnan(x))}\n")
-        assert (inputs.shape == x.shape == beta_tau.shape == sigma_tau.shape)
         print(torch.any(torch.isnan(x)))
         assert(not torch.any(torch.isinf(x)))
-        assert(not torch.any(torch.isinf(-1/(sigma_tau))))
-        assert(not torch.any(torch.isinf(-torch.pow(sigma_tau, -1))))
-        return -torch.pow(sigma_tau, -1) * (inputs - beta_tau * x)
+        assert(not torch.any(torch.isinf((1-torch.exp(-eff_times)) )))
+        return -(inputs - torch.exp(-0.5*eff_times) * x)/(1-torch.exp(-eff_times))

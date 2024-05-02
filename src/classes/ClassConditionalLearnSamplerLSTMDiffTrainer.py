@@ -119,11 +119,9 @@ class ConditionalLSTMSampleDiffusionModelTrainer(nn.Module):
         target_scores = target_scores.reshape(B * T, 1, -1)
         diff_times = diff_times.reshape(B * T)
         eff_times = eff_times.reshape(target_scores.shape)
-        beta_tau = torch.exp(-0.5 * eff_times)
-        outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times, beta_tau=beta_tau,
-                                             sigma_tau=1. - torch.pow(beta_tau, 2))
+        outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times, eff_times=eff_times)
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
-        weights = self.diffusion.get_loss_weighting(eff_times=eff_times) / beta_tau
+        weights = self.diffusion.get_loss_weighting(eff_times=eff_times) / torch.exp(-0.5 * eff_times)
         assert(not (torch.any(torch.isnan(weights)) or torch.any(torch.isinf(weights))))
         assert(not (torch.any(torch.isnan(outputs)) or torch.any(torch.isinf(outputs))))
         if not self.include_weightings: weights = torch.ones_like(weights)
