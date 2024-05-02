@@ -96,7 +96,7 @@ class ConditionalLSTMSampleDiffusionModelTrainer(nn.Module):
             :param targets: Target values to compare against outputs
             :return: Batch Loss
         """
-        print(outputs.shape, targets.shape)
+        print(torch.any(torch.isinf(outputs)), torch.any(torch.isinf(targets)))
         loss = self.loss_fn()(outputs, targets)
         return self._batch_update(loss)
 
