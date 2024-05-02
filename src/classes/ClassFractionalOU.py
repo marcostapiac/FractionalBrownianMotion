@@ -20,9 +20,10 @@ class FractionalOU:
     def get_initial_state(self):
         return self.initialVol
 
-    def sample_increments(self, H: float, N: int, isUnitInterval:bool, gaussRvs: np.ndarray) -> np.ndarray:
+    def sample_increments(self, H: float, N: int, isUnitInterval: bool, gaussRvs: np.ndarray) -> np.ndarray:
         fBn = FractionalBrownianNoise(H=H, rng=self.rng)
-        incs = fBn.circulant_simulation(N_samples=N, gaussRvs=gaussRvs, scaleUnitInterval=isUnitInterval)  # Scale over timescale included in circulant
+        incs = fBn.circulant_simulation(N_samples=N, gaussRvs=gaussRvs,
+                                        scaleUnitInterval=isUnitInterval)  # Scale over timescale included in circulant
         return incs
 
     def lamperti(self, x: Union[np.ndarray, float]) -> Union[np.ndarray, float]:
@@ -37,7 +38,8 @@ class FractionalOU:
         diffX = self.diff * M
         return prev + driftX * deltaT + diffX
 
-    def euler_simulation(self, H: float, N: int, isUnitInterval:bool, deltaT: float, X0: float = None, Ms: np.ndarray = None,
+    def euler_simulation(self, H: float, N: int, isUnitInterval: bool, deltaT: float, X0: float = None,
+                         Ms: np.ndarray = None,
                          gaussRvs: np.ndarray = None):
         if X0 is None:
             Zs = [self.initialVol]  # [self.lamperti(self.initialVol)]

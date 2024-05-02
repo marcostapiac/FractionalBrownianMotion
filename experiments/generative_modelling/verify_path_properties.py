@@ -1,10 +1,7 @@
-import time
-
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 
-from experiments.generative_modelling.estimate_fSDEs import estimate_fSDEs, estimate_fSDE_from_true
+from experiments.generative_modelling.estimate_fSDEs import estimate_fSDE_from_true
 
 
 def exact_hurst():
@@ -14,18 +11,18 @@ def exact_hurst():
     estimate_fSDE_from_true(config=config)
     # Check histogram for each time
     data = np.load(config.data_path, allow_pickle=True)
-    #data = pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(480), compression="gzip", index_col=[0,1]).to_numpy()
-    time_space = np.linspace(0,1.+(1./config.ts_length),num=config.ts_length+1)[1:]
+    # data = pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(480), compression="gzip", index_col=[0,1]).to_numpy()
+    time_space = np.linspace(0, 1. + (1. / config.ts_length), num=config.ts_length + 1)[1:]
     sidx = 254
-    for tidx in range(sidx,config.ts_length):
+    for tidx in range(sidx, config.ts_length):
         t = time_space[tidx]
-        expmeanrev = np.exp(-config.mean_rev*t)
-        exp_mean = config.mean*(1.-expmeanrev)
-        exp_mean += config.initState*expmeanrev
+        expmeanrev = np.exp(-config.mean_rev * t)
+        exp_mean = config.mean * (1. - expmeanrev)
+        exp_mean += config.initState * expmeanrev
         exp_var = np.power(config.diffusion, 2)
-        exp_var /= (2*config.mean_rev)
-        exp_var *= 1.-np.power(expmeanrev, 2)
-        exp_rvs = np.random.normal(loc=exp_mean, scale=np.sqrt(exp_var),size=data.shape[0])
+        exp_var /= (2 * config.mean_rev)
+        exp_var *= 1. - np.power(expmeanrev, 2)
+        exp_rvs = np.random.normal(loc=exp_mean, scale=np.sqrt(exp_var), size=data.shape[0])
         pathst = data[:, tidx]
         plt.hist(pathst, bins=150, density=True, label="True")
         plt.hist(exp_rvs, bins=150, density=True, label="Expected")
@@ -34,13 +31,13 @@ def exact_hurst():
         plt.show()
         plt.close()
     # Construct estimator for mean reversion
-    augdata = np.concatenate([np.zeros(shape=(data.shape[0],1)), data], axis=1)
-    denom = np.sum(np.power(augdata[:,:-1],2), axis=1)*(1./config.ts_length)
+    augdata = np.concatenate([np.zeros(shape=(data.shape[0], 1)), data], axis=1)
+    denom = np.sum(np.power(augdata[:, :-1], 2), axis=1) * (1. / config.ts_length)
     diffs = np.diff(augdata, n=1, axis=1)
-    num = np.sum(augdata[:,:-1]*diffs, axis=1)
-    estimators =-num/denom
-    plt.hist(estimators,bins=150, density=True)
-    plt.vlines(x=config.mean_rev,ymin=0, ymax=0.25, label="", color='b')
+    num = np.sum(augdata[:, :-1] * diffs, axis=1)
+    estimators = -num / denom
+    plt.hist(estimators, bins=150, density=True)
+    plt.vlines(x=config.mean_rev, ymin=0, ymax=0.25, label="", color='b')
     plt.title("Estimator")
     plt.legend()
     plt.show()
@@ -54,5 +51,5 @@ if __name__ == "__main__":
     l2 = 1. / (4. - 4 * H)
     alpha = max(l1, max(l2, 1))
     print(alpha)
-    assert(alpha == 1)
+    assert (alpha == 1)
     exact_hurst()

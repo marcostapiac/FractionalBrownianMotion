@@ -9,12 +9,12 @@ import torchmetrics
 from torch import nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torchmetrics import MeanMetric
-import numpy as np
+
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTimeSeriesScoreMatching import \
-    ConditionalLSTMTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSScoreMatching import \
+    ConditionalLSTMTSScoreMatching
 
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
@@ -27,7 +27,7 @@ class ConditionalLSTMDiffusionModelTrainer(nn.Module):
     def __init__(self,
                  diffusion: Union[VESDEDiffusion, OUSDEDiffusion, VPSDEDiffusion],
                  score_network: Union[
-                     ConditionalLSTMTimeSeriesScoreMatching],
+                     ConditionalLSTMTSScoreMatching],
                  train_data_loader: torch.utils.data.dataloader.DataLoader,
                  train_eps: float,
                  end_diff_time: float,

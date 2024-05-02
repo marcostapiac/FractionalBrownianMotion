@@ -4,15 +4,15 @@ from ml_collections import ConfigDict
 
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
-    TimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTSScoreMatching import \
+    TSScoreMatching
 from utils.experiment_evaluations import run_fBm_score_error_experiment
 from utils.plotting_functions import plot_errors_ts, plot_errors_heatmap
 
 
 def run(config: ConfigDict):
     rng = np.random.default_rng()
-    scoreModel = TimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
+    scoreModel = TSScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VESDEDiffusion(stdMax=config.std_max, stdMin=config.std_min)
     try:

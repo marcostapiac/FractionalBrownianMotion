@@ -7,8 +7,8 @@ import torch
 
 from src.generative_modelling.data_processing import recursive_LSTM_reverse_sampling
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
-    ConditionalTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTSScoreMatching import \
+    ConditionalTSScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from utils.data_processing import init_experiment, cleanup_experiment
 
@@ -44,7 +44,7 @@ if __name__ == "__main__":
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 5)
 
-    scoreModel = ConditionalTimeSeriesScoreMatching(
+    scoreModel = ConditionalTSScoreMatching(
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     scoreModel.apply(repro_weights_init)

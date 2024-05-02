@@ -6,18 +6,18 @@ import torch
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
-    ConditionalTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTSScoreMatching import \
+    ConditionalTSScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
-    TimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTSScoreMatching import \
+    TSScoreMatching
 
 
 class Predictor(abc.ABC):
     """ Base class for all predictor algorithms during reverse-time sampling """
 
     def __init__(self, diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
-                 score_function: Union[NaiveMLP, TimeSeriesScoreMatching, ConditionalTimeSeriesScoreMatching],
+                 score_function: Union[NaiveMLP, TSScoreMatching, ConditionalTSScoreMatching],
                  end_diff_time: float, max_diff_steps: int,
                  device: Union[int, torch.device], sample_eps: float):
         super().__init__()
@@ -49,7 +49,7 @@ class Predictor(abc.ABC):
 
 class AncestralSamplingPredictor(Predictor):
     def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion],
-                 score_function: Union[NaiveMLP, TimeSeriesScoreMatching], end_diff_time: float, max_diff_steps: int,
+                 score_function: Union[NaiveMLP, TSScoreMatching], end_diff_time: float, max_diff_steps: int,
                  device: Union[int, torch.device], sample_eps: float):
         try:
             assert (type(diffusion) != OUSDEDiffusion)
@@ -68,7 +68,7 @@ class AncestralSamplingPredictor(Predictor):
 
 class ConditionalAncestralSamplingPredictor(Predictor):
     def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion],
-                 score_function: ConditionalTimeSeriesScoreMatching, end_diff_time: float, max_diff_steps: int,
+                 score_function: ConditionalTSScoreMatching, end_diff_time: float, max_diff_steps: int,
                  device: Union[int, torch.device], sample_eps: float):
         try:
             assert (type(diffusion) != OUSDEDiffusion)
@@ -114,7 +114,7 @@ class ConditionalAncestralSamplingPredictor(Predictor):
 
 class ConditionalReverseDiffusionSamplingPredictor(Predictor):
     def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion],
-                 score_function: ConditionalTimeSeriesScoreMatching, end_diff_time: float, max_diff_steps: int,
+                 score_function: ConditionalTSScoreMatching, end_diff_time: float, max_diff_steps: int,
                  device: Union[int, torch.device], sample_eps: float):
         super().__init__(diffusion, score_function, end_diff_time, max_diff_steps, device, sample_eps)
 
@@ -145,18 +145,18 @@ class ConditionalReverseDiffusionSamplingPredictor(Predictor):
 
 class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
     def __init__(self, diffusion: Union[VPSDEDiffusion],
-                 score_function: ConditionalTimeSeriesScoreMatching, end_diff_time: float, max_diff_steps: int,
+                 score_function: ConditionalTSScoreMatching, end_diff_time: float, max_diff_steps: int,
                  device: Union[int, torch.device], sample_eps: float):
         super().__init__(diffusion, score_function, end_diff_time, max_diff_steps, device, sample_eps)
 
     def step(self, x_prev: torch.Tensor, feature: torch.Tensor, t: torch.Tensor, diff_index: torch.Tensor,
-             ts_step: float, param_est_time: float, prev_path:torch.Tensor) -> Tuple[
+             ts_step: float, param_est_time: float, prev_path: torch.Tensor) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor, Union[None, torch.Tensor], Union[None, torch.Tensor]]:
         score, drift, diffusion = self.diffusion.get_conditional_reverse_diffusion(x=x_prev, t=t,
-                                                                                          feature=feature,
-                                                                                          score_network=self.score_network,
-                                                                                          diff_index=diff_index,
-                                                                                          max_diff_steps=self.max_diff_steps)
+                                                                                   feature=feature,
+                                                                                   score_network=self.score_network,
+                                                                                   diff_index=diff_index,
+                                                                                   max_diff_steps=self.max_diff_steps)
         mean_est = None
         var_est = None
         with torch.no_grad():
@@ -164,10 +164,11 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
             x_new = drift + diffusion * z
             if diff_index == torch.Tensor([param_est_time]).to(diff_index.device):
                 # Compute gradients of output with respect to input_data
-                #l = torch.normal(mean=0, std=torch.sqrt(torch.Tensor([ts_step]).to(diff_index.device))).to(
+                # l = torch.normal(mean=0, std=torch.sqrt(torch.Tensor([ts_step]).to(diff_index.device))).to(
                 #    diff_index.device)
-                #score *= l
-                diffusion_mean2 = torch.atleast_2d(torch.exp(-self.diffusion.get_eff_times(diff_times=t.squeeze()[0]))).T.to(diff_index.device)
+                # score *= l
+                diffusion_mean2 = torch.atleast_2d(
+                    torch.exp(-self.diffusion.get_eff_times(diff_times=t.squeeze()[0]))).T.to(diff_index.device)
                 diffusion_var = 1. - diffusion_mean2
                 # TODO: element wise multiplication along dim=1 (0-indexed) without squeezing
                 var_est = torch.ones((x_prev.shape[0], 1))
@@ -176,30 +177,53 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
                 print(c1.shape, c2.shape)
                 mean_est = c1 * score.squeeze(dim=-1) + c2 * x_prev.squeeze(dim=-1)
                 print("Mean of score {} vs expected {}\n".format(torch.mean(score.squeeze(-1)), 0))
-                print("Var of score {} vs expected {} vs expected approx {}\n".format(torch.var(score.squeeze(-1)),torch.pow(((1-torch.exp(torch.Tensor([-2*0.8*ts_step]).to(diff_index.device)))/(2*0.8)) * diffusion_mean2 + diffusion_var,
-                                                                          -1),
-                                                                torch.pow((ts_step * diffusion_mean2) + diffusion_var,
-                                                                          -1)))
-                print("Var of r1 {} vs expected approx {} vs expected {}\n".format(torch.var(c1 * score.squeeze(dim=-1)),
-                                                             (diffusion_var+diffusion_mean2*ts_step)/(diffusion_mean2),torch.pow(((1-torch.exp(torch.Tensor([-2*0.8*ts_step]).to(diff_index.device)))/(2*0.8)) * diffusion_mean2 + diffusion_var,
-                                                                          1)/(diffusion_mean2)))
+                print("Var of score {} vs expected {} vs expected approx {}\n".format(torch.var(score.squeeze(-1)),
+                                                                                      torch.pow(((1 - torch.exp(
+                                                                                          torch.Tensor(
+                                                                                              [-2 * 0.8 * ts_step]).to(
+                                                                                              diff_index.device))) / (
+                                                                                                             2 * 0.8)) * diffusion_mean2 + diffusion_var,
+                                                                                                -1),
+                                                                                      torch.pow((
+                                                                                                            ts_step * diffusion_mean2) + diffusion_var,
+                                                                                                -1)))
+                print(
+                    "Var of r1 {} vs expected approx {} vs expected {}\n".format(torch.var(c1 * score.squeeze(dim=-1)),
+                                                                                 (
+                                                                                             diffusion_var + diffusion_mean2 * ts_step) / (
+                                                                                     diffusion_mean2), torch.pow(((
+                                                                                                                              1 - torch.exp(
+                                                                                                                          torch.Tensor(
+                                                                                                                              [
+                                                                                                                                  -2 * 0.8 * ts_step]).to(
+                                                                                                                              diff_index.device))) / (
+                                                                                                                              2 * 0.8)) * diffusion_mean2 + diffusion_var,
+                                                                                                                 1) / (
+                                                                                     diffusion_mean2)))
                 from scipy.stats import wasserstein_distance
                 import numpy as np
-                histogram1 = np.histogram((mean_est/ts_step).cpu().numpy(), bins=150)
-                exp_mean = 0*(torch.pow(diffusion_mean2, 0.5)*ts_step*(-0.8*prev_path)).cpu().numpy()
-                exp_var = (diffusion_var/(diffusion_mean2*ts_step*ts_step) + 1/ts_step).cpu().numpy()
-                print(torch.var(mean_est/ts_step), exp_var)
-                histogram2 = np.histogram(np.random.normal(loc=exp_mean, scale=np.sqrt(exp_var)),bins=150)
+                histogram1 = np.histogram((mean_est / ts_step).cpu().numpy(), bins=150)
+                exp_mean = 0 * (torch.pow(diffusion_mean2, 0.5) * ts_step * (-0.8 * prev_path)).cpu().numpy()
+                exp_var = (diffusion_var / (diffusion_mean2 * ts_step * ts_step) + 1 / ts_step).cpu().numpy()
+                print(torch.var(mean_est / ts_step), exp_var)
+                histogram2 = np.histogram(np.random.normal(loc=exp_mean, scale=np.sqrt(exp_var)), bins=150)
                 print(f"Wasserstein 1 {wasserstein_distance(histogram1[0], histogram2[0])}\n")
                 print("Var of our xprev {} vs expected {}\n".format(torch.var(x_prev),
                                                                     (ts_step * diffusion_mean2) + diffusion_var))
-                print("Var of our r2 {} vs expected approx {} vs expected {}\n".format(torch.var(c2 * x_prev.squeeze(dim=-1)),
-                                                             (diffusion_var+diffusion_mean2*ts_step)/(diffusion_mean2), torch.pow(((1-torch.exp(torch.Tensor([-2*0.8*ts_step]).to(diff_index.device)))/(2*0.8)) * diffusion_mean2 + diffusion_var,
-                                                                          1)/(diffusion_mean2) ))
-                print("Covar of our r2,r1 {} vs expected {}\n".format(torch.cov(torch.concat([c1 * score.squeeze(dim=-1),c2 * x_prev.squeeze(dim=-1)], dim=1).T),-(diffusion_var+diffusion_mean2*ts_step)/(diffusion_mean2)))
-                print(f"MeanEst Mean {torch.mean(mean_est)} R1 Mean {torch.mean(c1 * score.squeeze(dim=-1))} R2 Mean {torch.mean(c2 * x_prev.squeeze(dim=-1))}\n")
-                print(f"MeanEst Var {torch.std(mean_est)} R1 Var {torch.std(c1 * score.squeeze(dim=-1))} R2 Var {torch.std(c2 * x_prev.squeeze(dim=-1))}\n")
-                print(mean_est/ts_step)
+                print("Var of our r2 {} vs expected approx {} vs expected {}\n".format(
+                    torch.var(c2 * x_prev.squeeze(dim=-1)),
+                    (diffusion_var + diffusion_mean2 * ts_step) / (diffusion_mean2), torch.pow(((1 - torch.exp(
+                        torch.Tensor([-2 * 0.8 * ts_step]).to(diff_index.device))) / (
+                                                                                                            2 * 0.8)) * diffusion_mean2 + diffusion_var,
+                                                                                               1) / (diffusion_mean2)))
+                print("Covar of our r2,r1 {} vs expected {}\n".format(
+                    torch.cov(torch.concat([c1 * score.squeeze(dim=-1), c2 * x_prev.squeeze(dim=-1)], dim=1).T),
+                    -(diffusion_var + diffusion_mean2 * ts_step) / (diffusion_mean2)))
+                print(
+                    f"MeanEst Mean {torch.mean(mean_est)} R1 Mean {torch.mean(c1 * score.squeeze(dim=-1))} R2 Mean {torch.mean(c2 * x_prev.squeeze(dim=-1))}\n")
+                print(
+                    f"MeanEst Var {torch.std(mean_est)} R1 Var {torch.std(c1 * score.squeeze(dim=-1))} R2 Var {torch.std(c2 * x_prev.squeeze(dim=-1))}\n")
+                print(mean_est / ts_step)
                 assert (var_est.shape == (x_prev.shape[0], 1) and mean_est.shape == (x_prev.shape[0], 1))
                 # Check if score is linear in x
         return x_new, score, z, mean_est, var_est
@@ -207,7 +231,7 @@ class ConditionalLowVarReverseDiffusionSamplingPredictor(Predictor):
 
 class ConditionalProbODESamplingPredictor(Predictor):
     def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion],
-                 score_function: ConditionalTimeSeriesScoreMatching, end_diff_time: float, max_diff_steps: int,
+                 score_function: ConditionalTSScoreMatching, end_diff_time: float, max_diff_steps: int,
                  device: Union[int, torch.device], sample_eps: float):
         super().__init__(diffusion, score_function, end_diff_time, max_diff_steps, device, sample_eps)
 

@@ -1,9 +1,9 @@
 import time
 
-import pandas as pd
-import numpy as np
-from ml_collections import ConfigDict
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from ml_collections import ConfigDict
 from tqdm import tqdm
 
 from experiments.generative_modelling.estimate_fSDEs import estimate_fSDE_from_true, second_order_estimator, \
@@ -42,7 +42,8 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
     else:
         PT = 1
     means = pd.read_csv(
-        (config.experiment_path + "_rdNEp{}_PT{}.csv.gzip".format(train_epoch, PT)).replace("fOU", "fOUm").replace("fOUm00", "fm00"),
+        (config.experiment_path + "_rdNEp{}_PT{}.csv.gzip".format(train_epoch, PT)).replace("fOU", "fOUm").replace(
+            "fOUm00", "fm00"),
         compression="gzip", index_col=[0, 1]).to_numpy()
     means *= (config.ts_length ** (2 * config.hurst))
     M = means.shape[0]
@@ -82,8 +83,8 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
     for _ in range(3):
         idx = np.random.randint(low=0, high=paths.shape[0])
         mean = means[idx, 1:]
-        path = paths[idx,:-1]
-        U_a1, U_a2 = second_order_estimator(paths=path[np.newaxis,:], Nsamples=1)
+        path = paths[idx, :-1]
+        U_a1, U_a2 = second_order_estimator(paths=path[np.newaxis, :], Nsamples=1)
         h = estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=train_epoch, toShow=False).flatten()
         plt.plot(time_space[:-1], mean, label="Drift")
         plt.plot(time_space[:-1], path, color="blue", label="Path")
@@ -104,7 +105,7 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
         t = time_space[idx - 1]
         expmeanrev = np.exp(-config.mean_rev * t)
         exp_mean = 0 * (1. - expmeanrev)
-        exp_mean += paths[:, idx - 1] * expmeanrev # Initial state is the previous path
+        exp_mean += paths[:, idx - 1] * expmeanrev  # Initial state is the previous path
         exp_var = np.power(1, 2)
         exp_var /= (2 * config.mean_rev)
         exp_var *= 1. - np.power(expmeanrev, 2)

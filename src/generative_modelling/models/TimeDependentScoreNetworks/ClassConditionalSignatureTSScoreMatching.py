@@ -1,10 +1,12 @@
 import math
+from typing import Union
 
+# import signatory
 import torch
 import torch.nn.functional as F
 from torch import nn
 
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTransformerEncoder import TransformerEncoder
+from utils.math_functions import time_aug
 
 """ NOTE: The model below is an adaptation of the implementation of pytorch-ts """
 
@@ -109,8 +111,9 @@ class ResidualBlock(nn.Module):
 class CondUpsampler(nn.Module):
     def __init__(self, cond_length, target_dim):
         super().__init__()
-        self.linear1 = nn.Linear(cond_length, int(2 * target_dim), bias=False)
-        self.linear2 = nn.Linear(int(2 * target_dim), target_dim, bias=False)
+        # Note a linear layer expects the input vector to have in_features in the last dimension
+        self.linear1 = nn.Linear(in_features=cond_length, out_features=int(2 * target_dim), bias=False)
+        self.linear2 = nn.Linear(in_features=int(2 * target_dim), out_features=target_dim, bias=False)
 
     def forward(self, x):
         x = self.linear1(x)
@@ -120,28 +123,64 @@ class CondUpsampler(nn.Module):
         return x
 
 
-class ConditionalTransformerTimeSeriesScoreMatching(nn.Module):
+class SigNet(nn.Module):
+    def __init__(self, in_dims: int, sig_depth: int):
+        super(SigNet, self).__init__()
+        self.augment = time_aug
+        self.conv1d = torch.nn.Conv1d(in_channels=in_dims + 1, out_channels=in_dims + 1, padding=0, kernel_size=1,
+                                      stride=1)
+        self.signature = signatory.Signature(depth=sig_depth, stream=True)
+
+    def forward(self, batch: torch.Tensor, time_ax: torch.Tensor,
+                basepoint: Union[torch.Tensor, bool] = True) -> torch.Tensor:
+        # Batch is of shape (N, T, D)
+        a = self.augment(batch, time_ax=time_ax.to(batch.device))
+        if isinstance(basepoint, torch.Tensor):
+            assert (basepoint.shape[-1] == 2)
+            a = torch.concat([basepoint, a], dim=1)
+        else:
+            # We assume starting point is (t, X) = (0,0)
+            a = torch.concat([torch.zeros_like(a[:, [0], :]), torch.zeros_like(a[:, [0], :]), a], dim=1)
+        # Batch is of shape (N, T+2, D+1)
+        b = self.conv1d(a.permute(0, 2, 1)).permute((0, 2, 1))
+        # Batch is now of shape (N, T+2, D+1)
+        c = self.signature(b, basepoint=False)
+        # Features are now delayed path signatures of shape (N, T+1, D) and we remove last entry in dim=1 in training
+        return c
+
+
+class ConditionalSignatureTSScoreMatching(nn.Module):
     def __init__(
             self,
             max_diff_steps: int,
             diff_embed_size: int,
             diff_hidden_size: int,
+            ts_dims: int,
+            sig_depth: int,
+            feat_hiddendims: int,
             residual_layers: int = 10,
             residual_channels: int = 8,
             dilation_cycle_length: int = 10
     ):
         super().__init__()
-        self.rnn = TransformerEncoder()
+        # For input of size (B, T, D), input projection applies cross-correlation for each t along D dimensions
+        # So if we have processed our B time-series of length T and dimension D into (BT, 1, D) then input projection
+        # accumulates spatial information mapping each (1, D) tensor into a (residual_channel, Lout) tensor
+        # where Lout is a function of D and convolution parameters
+        self.signet = SigNet(in_dims=ts_dims, sig_depth=sig_depth)
         self.input_projection = nn.Conv1d(
-            1, residual_channels, 1
+            in_channels=ts_dims, out_channels=residual_channels, kernel_size=1
         )
         self.diffusion_embedding = DiffusionEmbedding(diff_embed_size=diff_embed_size,
                                                       diff_hidden_size=diff_hidden_size,
                                                       max_steps=max_diff_steps)  # get_timestep_embedding
 
-        # TODO: What is target_dim and cond_length?
+        # For feature of shape (B, 1, N)
+        # Target dim is the dimension of output vector
+        # Cond_length is the dimension of the feature vector (N)
+        # As a linear layer, it expects input to be a vector, not a matrix
         self.cond_upsampler = CondUpsampler(
-            target_dim=1, cond_length=128
+            target_dim=1, cond_length=feat_hiddendims
         )
         self.residual_layers = nn.ModuleList(
             [
@@ -162,10 +201,14 @@ class ConditionalTransformerTimeSeriesScoreMatching(nn.Module):
 
     def forward(self, inputs, times, conditioner):
         # inputs = inputs.unsqueeze(1)
+        # For Conditional Time series, input projection accumulates information spatially
+        # Therefore it expects inputs to be of shape (BatchSize, 1, NumDims)
         x = self.input_projection(inputs)
         x = F.leaky_relu(x, 0.01)
 
         diffusion_step = self.diffusion_embedding(times)
+        # Linear layer assumes dimension of conditioning vector to be in last dimension
+        # This conditioner needs to be of shape (BatchSize, 1, NumFeatDims)
         cond_up = self.cond_upsampler(conditioner)
         skip = []
         for layer in self.residual_layers:

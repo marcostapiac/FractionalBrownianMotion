@@ -3,15 +3,15 @@ from typing import Tuple, Union
 import torch
 from torch import nn
 
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTimeSeriesScoreMatching import \
-    ConditionalLSTMTimeSeriesScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTimeSeriesScoreMatching import \
-    ConditionalMarkovianTimeSeriesScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
-    ConditionalTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSScoreMatching import \
+    ConditionalLSTMTSScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSScoreMatching import \
+    ConditionalMarkovianTSScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTSScoreMatching import \
+    ConditionalTSScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
-    TimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTSScoreMatching import \
+    TSScoreMatching
 
 
 class VESDEDiffusion(nn.Module):
@@ -128,7 +128,7 @@ class VESDEDiffusion(nn.Module):
 
     def get_ancestral_sampling(self, x: torch.Tensor, t: torch.Tensor,
                                score_network: Union[
-                                   NaiveMLP, TimeSeriesScoreMatching, ConditionalLSTMTimeSeriesScoreMatching, ConditionalTimeSeriesScoreMatching, ConditionalMarkovianTimeSeriesScoreMatching],
+                                   NaiveMLP, TSScoreMatching, ConditionalLSTMTSScoreMatching, ConditionalTSScoreMatching, ConditionalMarkovianTSScoreMatching],
                                diff_index: torch.Tensor, max_diff_steps: int) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor]:
         """

@@ -28,7 +28,7 @@ def second_order_estimator(paths: np.ndarray, Nsamples: int):
     return U_a1, U_a2
 
 
-def estimate_hurst_from_filter(Ua1: np.ndarray, Ua2: np.ndarray, epoch: int, toShow:bool=True):
+def estimate_hurst_from_filter(Ua1: np.ndarray, Ua2: np.ndarray, epoch: int, toShow: bool = True):
     assert (Ua1.shape == Ua2.shape)
     hs = 0.5 * np.log2(Ua2 / Ua1)
     if toShow:
@@ -67,8 +67,8 @@ def estimate_fSDE_from_true(config: ConfigDict):
     plt.close()
     N, T = fOU.shape
     assert (config.hurst < 0.75)
-    #U_a1, U_a2 = simple_estimator(paths=fOU, Nsamples=N)
-    #estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=0)
+    # U_a1, U_a2 = simple_estimator(paths=fOU, Nsamples=N)
+    # estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=0)
     U_a1, U_a2 = second_order_estimator(paths=fOU, Nsamples=N)
     hs = estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=0)
     return hs

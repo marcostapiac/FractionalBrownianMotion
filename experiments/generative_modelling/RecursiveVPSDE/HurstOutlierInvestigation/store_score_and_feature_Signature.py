@@ -10,10 +10,10 @@ from tqdm import tqdm
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.generative_modelling.data_processing import compute_current_sig_feature
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalSignatureTimeSeriesScoreMatching import \
-    ConditionalSignatureTimeSeriesScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
-    ConditionalTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalSignatureTSScoreMatching import \
+    ConditionalSignatureTSScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTSScoreMatching import \
+    ConditionalTSScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from utils.math_functions import compute_fBm_cov, compute_fBn_cov, compute_sig_size
 from utils.plotting_functions import hurst_estimation
@@ -22,7 +22,7 @@ from utils.plotting_functions import hurst_estimation
 def recursive_sampling_and_track(data_shape: tuple, torch_device, feature: torch.Tensor,
                                  diffusion: VPSDEDiffusion,
                                  scoreModel: Union[
-                                     ConditionalSignatureTimeSeriesScoreMatching, ConditionalTimeSeriesScoreMatching],
+                                     ConditionalSignatureTSScoreMatching, ConditionalTSScoreMatching],
                                  config: ConfigDict, ctvar: torch.Tensor, cv1: torch.Tensor, cv2: torch.Tensor,
                                  true_past: torch.Tensor):
     """
@@ -72,7 +72,7 @@ def recursive_sampling_and_track(data_shape: tuple, torch_device, feature: torch
 
 @record
 def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
-                                         scoreModel: ConditionalSignatureTimeSeriesScoreMatching, data_shape,
+                                         scoreModel: ConditionalSignatureTSScoreMatching, data_shape,
                                          config: ConfigDict, rng: np.random.Generator) -> Tuple[
     np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """
@@ -160,7 +160,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
     feature = torch.concat(features, dim=0).cpu()
     true_features = true_features.permute((1, 0, 2)).cpu()
     assert (feature.shape == (
-    config.ts_length, config.dataSize, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc) - 1))
+        config.ts_length, config.dataSize, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc) - 1))
     assert (true_features.shape == feature.shape)
     drift_error = torch.concat(drift_errors, dim=0).cpu()
     assert (drift_error.shape == (config.ts_length, config.max_diff_steps, config.dataSize))
@@ -175,7 +175,7 @@ def store_score_and_feature() -> None:
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 5)
     config.dataSize = 2000
-    scoreModel = ConditionalSignatureTimeSeriesScoreMatching(
+    scoreModel = ConditionalSignatureTSScoreMatching(
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
@@ -198,7 +198,7 @@ def store_score_and_feature() -> None:
             paths.shape == (config.dataSize, config.ts_length) and features.shape == (
         config.ts_length, config.dataSize, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc) - 1) and
             drift_errors.shape == (config.ts_length, config.max_diff_steps, config.dataSize) and (
-                        features.shape == true_features.shape))
+                    features.shape == true_features.shape))
 
     print("Storing Path Data\n")
     path_df = pd.DataFrame(paths)

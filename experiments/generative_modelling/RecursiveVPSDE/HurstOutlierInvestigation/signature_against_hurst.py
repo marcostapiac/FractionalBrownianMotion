@@ -38,7 +38,7 @@ if __name__ == "__main__":
             device = 0
         else:
             device = torch.device("cpu")
-        scoreModel = ConditionalSignatureTimeSeriesScoreMatching(*config.model_parameters)
+        scoreModel = ConditionalSignatureTSScoreMatching(*config.model_parameters)
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
         scoreModel.eval()
         scoreModel.to(device)
@@ -72,7 +72,7 @@ if __name__ == "__main__":
             sim_feat_df.to_numpy().reshape((config.ts_length, sim_feat_df.index.levshape[1], feat_dim)), axis=1)
 
         assert (avg_bm_feats.shape == avg_fbm_feats.shape == avg_true_feat_df.shape and avg_bm_feats.shape == (
-        config.ts_length, feat_dim))
+            config.ts_length, feat_dim))
         dimspace = np.arange(1, feat_dim + 1, dtype=int)
         for t in range(1, config.ts_length):
             plt.plot(dimspace, avg_fbm_feats[t, :], label="fBm Sig Feat")

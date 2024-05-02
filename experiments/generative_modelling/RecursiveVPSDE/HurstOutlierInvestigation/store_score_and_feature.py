@@ -7,8 +7,8 @@ from tqdm import tqdm
 
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
-    ConditionalTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTSScoreMatching import \
+    ConditionalTSScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from utils.data_processing import cleanup_experiment, init_experiment
 from utils.math_functions import compute_fBm_cov, compute_fBn_cov
@@ -17,7 +17,7 @@ from utils.plotting_functions import hurst_estimation
 
 def recursive_sampling_and_track(data_shape: tuple, torch_device, feature: torch.Tensor,
                                  diffusion: VPSDEDiffusion,
-                                 scoreModel: ConditionalTimeSeriesScoreMatching,
+                                 scoreModel: ConditionalTSScoreMatching,
                                  config: ConfigDict, ctvar: torch.Tensor, cv1: torch.Tensor, cv2: torch.Tensor,
                                  true_past: torch.Tensor):
     """
@@ -66,7 +66,7 @@ def recursive_sampling_and_track(data_shape: tuple, torch_device, feature: torch
 
 @record
 def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
-                                         scoreModel: ConditionalTimeSeriesScoreMatching, data_shape,
+                                         scoreModel: ConditionalTSScoreMatching, data_shape,
                                          config: ConfigDict, rng: np.random.Generator):
     """
     Recursive reverse sampling using LSTMs and tracking feature and drift values
@@ -149,7 +149,7 @@ def store_score_and_feature() -> None:
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 5)
     config.dataSize = 40000
-    scoreModel = ConditionalTimeSeriesScoreMatching(
+    scoreModel = ConditionalTSScoreMatching(
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)

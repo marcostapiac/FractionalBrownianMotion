@@ -3,11 +3,8 @@ import pickle
 import matplotlib
 import matplotlib.pyplot as plt
 import numpy as np
-import pandas as pd
 
 from experiments.generative_modelling.estimate_fSDEs import estimate_fSDEs
-from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
-from utils.plotting_functions import hurst_estimation
 
 plt.style.use('ggplot')
 matplotlib.rcParams.update({
@@ -61,4 +58,5 @@ if __name__ == "__main__":
         hs = hurst_estimation(df.to_numpy(), sample_type="Final Time Samples at Train Epoch {}".format(train_epoch),
                               isfBm=config.isfBm, true_hurst=config.hurst)
         """
-        estimate_fSDEs(config=config, train_epoch=train_epoch, path=config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch))
+        estimate_fSDEs(config=config, train_epoch=train_epoch,
+                       path=config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch))

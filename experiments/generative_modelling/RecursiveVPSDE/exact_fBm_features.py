@@ -3,8 +3,8 @@ import pandas as pd
 import torch
 from tqdm import tqdm
 
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
-    ConditionalTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTSScoreMatching import \
+    ConditionalTSScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 
 
@@ -15,7 +15,7 @@ def exact_fBm_features():
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 5)
     config.dataSize = 40000
-    scoreModel = ConditionalTimeSeriesScoreMatching(
+    scoreModel = ConditionalTSScoreMatching(
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     # init_experiment(config=config)

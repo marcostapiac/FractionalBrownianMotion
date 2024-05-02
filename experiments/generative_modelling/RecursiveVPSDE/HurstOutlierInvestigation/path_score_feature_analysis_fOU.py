@@ -4,9 +4,8 @@ import seaborn as sns
 from matplotlib import pyplot as plt
 from ml_collections import ConfigDict
 
-from experiments.generative_modelling.estimate_fSDEs import estimate_fSDEs, estimate_hurst_from_filter, \
+from experiments.generative_modelling.estimate_fSDEs import estimate_hurst_from_filter, \
     second_order_estimator
-from utils.plotting_functions import hurst_estimation
 
 
 def identify_jump_index(time_series, eps):
@@ -63,7 +62,7 @@ def path_score_feature_analysis() -> None:
         config.experiment_path = config.experiment_path.replace("LSTM_H40_Nlay2_", "")
 
         feature_data_path = (config.experiment_path.replace("results/",
-                                                           "results/feature_data/") + "_NEp{}_SFS".format(
+                                                            "results/feature_data/") + "_NEp{}_SFS".format(
             train_epoch).replace(".", "") + ".parquet.gzip").replace("rec_TSM_False_incs_True_unitIntv_", "")
         try:
             bad_feat_df_1 = pd.read_parquet(feature_data_path.replace(".parquet.gzip", "_bad1.parquet.gzip"),
@@ -364,13 +363,15 @@ def path_score_feature_analysis() -> None:
             plt.show()
         except Exception:
             pass
-        avg_feat = good_feat_df.to_numpy().reshape((good_feat_df.index.levshape[0], good_feat_df.index.levshape[1], good_feat_df.shape[1]))
+        avg_feat = good_feat_df.to_numpy().reshape(
+            (good_feat_df.index.levshape[0], good_feat_df.index.levshape[1], good_feat_df.shape[1]))
         avg_feat = np.mean(avg_feat, axis=1)
         for i in range(avg_feat.shape[1]):
-            plt.plot(np.arange(1, config.ts_length+1), avg_feat[:,i], label="Dim {}".format(i+1))
+            plt.plot(np.arange(1, config.ts_length + 1), avg_feat[:, i], label="Dim {}".format(i + 1))
             plt.legend()
             plt.show()
             plt.close()
+
 
 if __name__ == "__main__":
     path_score_feature_analysis()

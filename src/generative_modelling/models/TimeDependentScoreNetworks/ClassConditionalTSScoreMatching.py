@@ -119,28 +119,18 @@ class CondUpsampler(nn.Module):
         return x
 
 
-class ConditionalLSTMTimeSeriesScoreMatching(nn.Module):
+class ConditionalTSScoreMatching(nn.Module):
     def __init__(
             self,
             max_diff_steps: int,
             diff_embed_size: int,
             diff_hidden_size: int,
-            lstm_hiddendim: int,
-            lstm_numlay: int,
-            lstm_inputdim: int = 1,
-            lstm_dropout: float = 0.1,
+            feat_hiddendim: int,
             residual_layers: int = 10,
             residual_channels: int = 8,
             dilation_cycle_length: int = 10
     ):
         super().__init__()
-        self.rnn = nn.LSTM(
-            input_size=lstm_inputdim,  # What is the input_size of an LSTM?
-            hidden_size=lstm_hiddendim,
-            num_layers=lstm_numlay,
-            dropout=lstm_dropout,
-            batch_first=True,
-        )
         # For input of size (B, T, D), input projection applies cross-correlation for each t along D dimensions
         # So if we have processed our B time-series of length T and dimension D into (BT, 1, D) then input projection
         # accumulates spatial information mapping each (1, D) tensor into a (residual_channel, Lout) tensor
@@ -152,12 +142,12 @@ class ConditionalLSTMTimeSeriesScoreMatching(nn.Module):
                                                       diff_hidden_size=diff_hidden_size,
                                                       max_steps=max_diff_steps)  # get_timestep_embedding
 
-        # For input of shape (B, 1, N)
+        # For feature of shape (B, 1, N)
         # Target dim is the dimension of output vector
-        # Cond_length is the dimension of the input vector (N)
+        # Cond_length is the dimension of the feature vector (N)
         # As a linear layer, it expects input to be a vector, not a matrix
         self.cond_upsampler = CondUpsampler(
-            target_dim=1, cond_length=lstm_hiddendim
+            target_dim=1, cond_length=feat_hiddendim
         )
         self.residual_layers = nn.ModuleList(
             [

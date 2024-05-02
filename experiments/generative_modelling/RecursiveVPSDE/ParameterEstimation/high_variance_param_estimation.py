@@ -1,13 +1,10 @@
 import time
 
-import pandas as pd
-import numpy as np
-from ml_collections import ConfigDict
 import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+from ml_collections import ConfigDict
 from tqdm import tqdm
-
-from experiments.generative_modelling.estimate_fSDEs import estimate_fSDE_from_true, second_order_estimator, \
-    estimate_hurst_from_filter
 
 
 def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
@@ -15,7 +12,7 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
                        index_col=[0, 1]).to_numpy()
     # TODO: Note -1 because of bug in original code (only for H0U5 case)
     means = pd.read_csv((config.experiment_path + "_rdNEp{}.csv.gzip".format(train_epoch)).replace("fOU", "fOUm"),
-                             compression="gzip", index_col=[0, 1]).to_numpy()
+                        compression="gzip", index_col=[0, 1]).to_numpy()
     vars = pd.read_csv((config.experiment_path + "_rdNEp{}.csv.gzip".format(train_epoch)).replace("fOU", "fOUv"),
                        compression="gzip",
                        index_col=[0, 1]).to_numpy()
@@ -41,8 +38,8 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
     plt.title("Mean Reversion Linear Regression Estimates")
     plt.show()
     plt.close()
-    path_ids = np.arange(paths.shape[0])[np.abs(np.array(mean_revs))>10]
-    faulty_paths = paths[np.abs(np.array(mean_revs))>10, :]
+    path_ids = np.arange(paths.shape[0])[np.abs(np.array(mean_revs)) > 10]
+    faulty_paths = paths[np.abs(np.array(mean_revs)) > 10, :]
     time_space = np.linspace((1. / config.ts_length), 1., num=config.ts_length)
     for _ in range(faulty_paths.shape[0]):
         plt.plot(time_space, faulty_paths)
@@ -55,14 +52,14 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
         varst = vars[:, t]
         pathst = paths[:, t - 1]
         plt.scatter(pathst, meant)
-        plt.plot(pathst, -config.mean_rev*pathst, color="blue")
-        plt.ylim((-config.mean_rev*max(pathst), -config.mean_rev*min(pathst)))
+        plt.plot(pathst, -config.mean_rev * pathst, color="blue")
+        plt.ylim((-config.mean_rev * max(pathst), -config.mean_rev * min(pathst)))
         plt.title(f"Drift Function at time {t + 1} against state value")
         plt.show()
         plt.close()
         time.sleep(0.5)
         plt.scatter(pathst, varst)
-        plt.plot(pathst, [config.diffusion]*len(pathst), color="blue")
+        plt.plot(pathst, [config.diffusion] * len(pathst), color="blue")
         plt.ylim((-1, 2))
         plt.title(f"Diffusion Function at time {t + 1} against state value")
         plt.show()

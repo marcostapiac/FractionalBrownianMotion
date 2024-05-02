@@ -6,15 +6,15 @@ from ml_collections import ConfigDict
 from src.generative_modelling.data_processing import reverse_sampling
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
-    TimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTSScoreMatching import \
+    TSScoreMatching
 from utils.data_processing import init_experiment, cleanup_experiment
 from utils.experiment_evaluations import evaluate_fBm_performance
 from utils.experiment_evaluations import prepare_fBm_experiment, run_fBm_experiment
 from utils.math_functions import generate_fBm
 
 
-def run_experiment(dataSize: int, diffusion: OUSDEDiffusion, scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
+def run_experiment(dataSize: int, diffusion: OUSDEDiffusion, scoreModel: Union[NaiveMLP, TSScoreMatching],
                    rng: np.random.Generator, config: ConfigDict, experiment_res: dict) -> dict:
     try:
         assert (config.train_eps <= config.sample_eps)
@@ -38,7 +38,7 @@ if __name__ == "__main__":
     assert (0 < config.hurst < 1.)
 
     rng = np.random.default_rng()
-    scoreModel = TimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
+    scoreModel = TSScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = OUSDEDiffusion()
 

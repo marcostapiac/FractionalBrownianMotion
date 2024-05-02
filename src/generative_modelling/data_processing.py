@@ -18,20 +18,20 @@ from src.classes.ClassCorrector import VESDECorrector, VPSDECorrector
 from src.classes.ClassDiffTrainer import DiffusionModelTrainer
 from src.classes.ClassPredictor import AncestralSamplingPredictor, \
     ConditionalAncestralSamplingPredictor, ConditionalReverseDiffusionSamplingPredictor, \
-    ConditionalProbODESamplingPredictor, Predictor, ConditionalLowVarReverseDiffusionSamplingPredictor
+    ConditionalProbODESamplingPredictor, ConditionalLowVarReverseDiffusionSamplingPredictor
 from src.classes.ClassSDESampler import SDESampler
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTimeSeriesScoreMatching import \
-    ConditionalMarkovianTimeSeriesScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalSignatureTimeSeriesScoreMatching import \
-    ConditionalSignatureTimeSeriesScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
-    ConditionalTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSScoreMatching import \
+    ConditionalMarkovianTSScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalSignatureTSScoreMatching import \
+    ConditionalSignatureTSScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTSScoreMatching import \
+    ConditionalTSScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
-    TimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTSScoreMatching import \
+    TSScoreMatching
 from utils.math_functions import compute_sig_size
 
 
@@ -60,7 +60,7 @@ def prepare_scoreModel_data(data: np.ndarray, batch_size: int, config: ConfigDic
 def train_and_save_diffusion_model(data: np.ndarray,
                                    config: ConfigDict,
                                    diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
-                                   scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching]) -> None:
+                                   scoreModel: Union[NaiveMLP, TSScoreMatching]) -> None:
     """
     Helper function to initiate training
         :param data: Dataset
@@ -98,7 +98,7 @@ def train_and_save_diffusion_model(data: np.ndarray,
 
 @record
 def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
-                     scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], data_shape: Tuple[int, int],
+                     scoreModel: Union[NaiveMLP, TSScoreMatching], data_shape: Tuple[int, int],
                      config: ConfigDict) -> torch.Tensor:
     """
     Helper function to initiate sampling
@@ -115,7 +115,7 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
         device = torch.device("cpu")
     # Define predictor
     predictor_params = [diffusion, scoreModel, config.end_diff_time, config.max_diff_steps, device, config.sample_eps]
-    assert(config.predictor_model == "Ancestral")
+    assert (config.predictor_model == "Ancestral")
     predictor = AncestralSamplingPredictor(*predictor_params)
     # Define corrector
     corrector_params = [config.max_lang_steps, torch.Tensor([config.snr]), device, diffusion]
@@ -134,7 +134,7 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
 
 def compute_current_sig_feature(ts_time: int, device: Union[int, str], past_feat: torch.Tensor, basepoint: torch.Tensor,
                                 latest_path: torch.Tensor, config: ConfigDict,
-                                score_network: ConditionalSignatureTimeSeriesScoreMatching,
+                                score_network: ConditionalSignatureTSScoreMatching,
                                 full_path: torch.Tensor) -> torch.Tensor:
     """
     Efficient computation of path signature through concatenation
@@ -178,7 +178,7 @@ def compute_current_sig_feature(ts_time: int, device: Union[int, str], past_feat
 
 @record
 def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
-                                         scoreModel: ConditionalSignatureTimeSeriesScoreMatching,
+                                         scoreModel: ConditionalSignatureTSScoreMatching,
                                          data_shape: Tuple[int, int, int],
                                          config: ConfigDict) -> torch.Tensor:
     """
@@ -203,7 +203,7 @@ def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
     elif config.predictor_model == "CondLowVarReverseDiffusion":
         predictor = ConditionalLowVarReverseDiffusionSamplingPredictor(*predictor_params)
     elif config.predictor_model == "ProbODE":
-        predictor=ConditionalProbODESamplingPredictor(*predictor_params)
+        predictor = ConditionalProbODESamplingPredictor(*predictor_params)
 
     # Define corrector
     corrector_params = [config.max_lang_steps, torch.Tensor([config.snr]), device, diffusion]
@@ -238,7 +238,7 @@ def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
 
 @record
 def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
-                                    scoreModel: ConditionalTimeSeriesScoreMatching, data_shape: Tuple[int, int, int],
+                                    scoreModel: ConditionalTSScoreMatching, data_shape: Tuple[int, int, int],
                                     config: ConfigDict) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Recursive reverse sampling using LSTMs
@@ -291,7 +291,8 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
         else:
             output, (h, c) = scoreModel.rnn(samples, (h, c))
         samples, mean, var = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output,
-                                 early_stop_idx=config.early_stop_idx, ts_step=1./config.ts_length, param_time=config.param_time, prev_path=prev_path)
+                                            early_stop_idx=config.early_stop_idx, ts_step=1. / config.ts_length,
+                                            param_time=config.param_time, prev_path=prev_path)
         assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
         if t != 0:
             est_mean = mean * config.ts_length
@@ -308,15 +309,15 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
     final_paths = np.atleast_2d(torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2).numpy())
     conditional_means = np.atleast_2d(torch.concat(means, dim=1).cpu().numpy())
     conditional_vars = np.atleast_2d(torch.concat(vars, dim=1).cpu().numpy())
-    assert(final_paths.shape == conditional_means.shape == conditional_vars.shape)
+    assert (final_paths.shape == conditional_means.shape == conditional_vars.shape)
     return final_paths, conditional_means, conditional_vars
 
 
 @record
 def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
-                                         scoreModel: ConditionalTimeSeriesScoreMatching,
+                                         scoreModel: ConditionalTSScoreMatching,
                                          data_shape: Tuple[int, int, int],
-                                         config: ConfigDict) -> Tuple[torch.Tensor,torch.Tensor,torch.Tensor]:
+                                         config: ConfigDict) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Recursive reverse sampling using Markovian Diffusion Model
         :param diffusion: Diffusion model
@@ -366,20 +367,22 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
                 past = [torch.zeros_like(paths[0]) for _ in range(max(0, config.mkv_blnk - t))] + paths
                 past = torch.stack(past, dim=1)
                 past = past.cumsum(dim=1)
-                assert(past.shape == (data_shape[0], max(1,t), config.ts_dims,1))
-                features = past[:,-config.mkv_blnk:,:].reshape(
+                assert (past.shape == (data_shape[0], max(1, t), config.ts_dims, 1))
+                features = past[:, -config.mkv_blnk:, :].reshape(
                     (data_shape[0], 1, config.mkv_blnk * config.ts_dims, 1)).squeeze(-1)
-                assert(features.shape == (data_shape[0], 1, config.mkv_blnk * config.ts_dims))
+                assert (features.shape == (data_shape[0], 1, config.mkv_blnk * config.ts_dims))
             else:
                 past = [torch.zeros_like(paths[0]) for _ in range(max(0, config.mkv_blnk - t))] + paths[
                                                                                                   -config.mkv_blnk:]
                 features = torch.stack(past, dim=1).reshape(
                     (data_shape[0], 1, config.mkv_blnk * config.ts_dims, 1)).squeeze(-1)
-        samples, mean, var = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=features,
-                                 early_stop_idx=config.early_stop_idx, ts_step=1./config.ts_length, param_time=config.param_time, prev_path=prev_path)
+        samples, mean, var = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device,
+                                            feature=features,
+                                            early_stop_idx=config.early_stop_idx, ts_step=1. / config.ts_length,
+                                            param_time=config.param_time, prev_path=prev_path)
         # Samples are size (BatchSize, 1, TimeSeriesDimension)
         if t != 0:
-            est_mean = mean*config.ts_length
+            est_mean = mean * config.ts_length
             assert (est_mean.shape == prev_path.shape)
             print("Estimated drift {}\n".format(est_mean))
             print("Expected drift {}\n".format(-config.mean_rev * prev_path))
@@ -428,7 +431,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                              config: ConfigDict,
                                              diffusion: VPSDEDiffusion,
                                              scoreModel: Union[
-                                                 NaiveMLP, ConditionalTimeSeriesScoreMatching, ConditionalTimeSeriesScoreMatching, ConditionalMarkovianTimeSeriesScoreMatching],
+                                                 NaiveMLP, ConditionalTSScoreMatching, ConditionalTSScoreMatching, ConditionalMarkovianTSScoreMatching],
                                              trainClass: Union[
                                                  ConditionalLSTMDiffusionModelTrainer, ConditionalMarkovianDiffusionModelTrainer, ConditionalSignatureDiffusionModelTrainer, DiffusionModelTrainer]) -> None:
     """

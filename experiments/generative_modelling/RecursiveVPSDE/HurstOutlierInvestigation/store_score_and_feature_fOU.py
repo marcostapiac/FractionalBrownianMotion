@@ -6,22 +6,18 @@ from torch.distributed.elastic.multiprocessing.errors import record
 from tqdm import tqdm
 
 from experiments.generative_modelling.estimate_fSDEs import second_order_estimator, estimate_hurst_from_filter
-from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTimeSeriesScoreMatching import \
-    ConditionalLSTMTimeSeriesScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
-    ConditionalTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSScoreMatching import \
+    ConditionalLSTMTSScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTSScoreMatching import \
+    ConditionalTSScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
-from utils.data_processing import cleanup_experiment, init_experiment
-from utils.math_functions import compute_fBm_cov, compute_fBn_cov
-from utils.plotting_functions import hurst_estimation
 
 
 def recursive_sampling_and_track(data_shape: tuple, torch_device, feature: torch.Tensor,
                                  diffusion: VPSDEDiffusion,
-                                 scoreModel: ConditionalTimeSeriesScoreMatching,
-                                 config: ConfigDict, sampling:str, prev_state:torch.Tensor):
+                                 scoreModel: ConditionalTSScoreMatching,
+                                 config: ConfigDict, sampling: str, prev_state: torch.Tensor):
     """
     Run through whole ancestral sampling for single real time index
     :param data_shape: Size of data output
@@ -51,16 +47,19 @@ def recursive_sampling_and_track(data_shape: tuple, torch_device, feature: torch
         elif sampling == "reverse":
             pred_score, pred_drift, diffusion_param = diffusion.get_conditional_reverse_diffusion(x, t=t * torch.ones(
                 (x.shape[0],)).to(torch_device), feature=feature, score_network=scoreModel, diff_index=diff_index,
-                                                                                                   max_diff_steps=config.max_diff_steps)
+                                                                                                  max_diff_steps=config.max_diff_steps)
         else:
             pred_score, pred_drift, diffusion_param = diffusion.get_conditional_probODE(x, t=t * torch.ones(
                 (x.shape[0],)).to(torch_device), feature=feature, score_network=scoreModel, diff_index=diff_index,
-                                                                                                  max_diff_steps=config.max_diff_steps)
+                                                                                        max_diff_steps=config.max_diff_steps)
 
         # One-step reverse-time SDE
         diffusion_mean2 = torch.atleast_2d(torch.exp(-diffusion.get_eff_times(diff_times=t))).T.to(torch_device)
         diffusion_var = 1. - diffusion_mean2
-        exp_score = -torch.pow(torch.Tensor([diffusion_var+diffusion_mean2*(1./config.ts_length)]).to(torch_device), -1)*(x-torch.sqrt(diffusion_mean2)*(-config.mean_rev*prev_state*(1./config.ts_length)))
+        exp_score = -torch.pow(
+            torch.Tensor([diffusion_var + diffusion_mean2 * (1. / config.ts_length)]).to(torch_device), -1) * (
+                                x - torch.sqrt(diffusion_mean2) * (
+                                    -config.mean_rev * prev_state * (1. / config.ts_length)))
         x = pred_drift + diffusion_param * torch.randn_like(x)
         score_errors[config.max_diff_steps - 1 - i, :] = torch.pow(
             torch.linalg.norm((pred_score - exp_score).squeeze(1).T, ord=2, axis=0),
@@ -70,8 +69,8 @@ def recursive_sampling_and_track(data_shape: tuple, torch_device, feature: torch
 
 @record
 def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
-                                         scoreModel: ConditionalTimeSeriesScoreMatching, data_shape,
-                                         config: ConfigDict, sampling:str):
+                                         scoreModel: ConditionalTSScoreMatching, data_shape,
+                                         config: ConfigDict, sampling: str):
     """
     Recursive reverse sampling using LSTMs and tracking feature and drift values
         :param diffusion: Diffusion model
@@ -88,7 +87,6 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
         device = torch.device("cpu")
     assert (config.predictor_model == "ancestral")
 
-
     features = []
     score_errors = []
     scoreModel.eval()
@@ -102,18 +100,19 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
                 output, (h, c) = scoreModel.rnn(samples, None)
             else:
                 output, (h, c) = scoreModel.rnn(samples, (h, c))
-            samples, per_time_score_error = recursive_sampling_and_track(data_shape=data_shape,torch_device=device,
-                                                                                       feature=output,
-                                                                                       diffusion=diffusion,
-                                                                                       scoreModel=scoreModel,
-                                                                                       config=config, sampling=sampling, prev_state=paths[-1])
+            samples, per_time_score_error = recursive_sampling_and_track(data_shape=data_shape, torch_device=device,
+                                                                         feature=output,
+                                                                         diffusion=diffusion,
+                                                                         scoreModel=scoreModel,
+                                                                         config=config, sampling=sampling,
+                                                                         prev_state=paths[-1])
             assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
             paths.append(samples)
             features.append(output.permute(1, 0, 2))
             score_errors.append(per_time_score_error.unsqueeze(0))
 
     final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)[:, 1:].cumsum(axis=1)
-    assert (final_paths.shape == (config.dataSize,config.ts_length))
+    assert (final_paths.shape == (config.dataSize, config.ts_length))
     feature = torch.concat(features, dim=0).cpu()
     assert (feature.shape == (config.ts_length, config.dataSize, config.lstm_hiddendim))
     score_errors = torch.concat(score_errors, dim=0).cpu()
@@ -127,7 +126,7 @@ def store_score_and_feature() -> None:
     assert (0 < config.hurst < 1.)
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 5)
-    scoreModel = ConditionalLSTMTimeSeriesScoreMatching(
+    scoreModel = ConditionalLSTMTSScoreMatching(
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
@@ -144,8 +143,9 @@ def store_score_and_feature() -> None:
                                                                              config.dataSize, config.ts_length, 1),
                                                                          config=config, sampling=sampling)
     assert (
-        paths.shape == (config.dataSize, config.ts_length) and features.shape == (
-            config.ts_length, config.dataSize, config.lstm_hiddendim) and score_errors.shape == (config.ts_length, config.max_diff_steps, config.dataSize))
+            paths.shape == (config.dataSize, config.ts_length) and features.shape == (
+        config.ts_length, config.dataSize, config.lstm_hiddendim) and score_errors.shape == (
+            config.ts_length, config.max_diff_steps, config.dataSize))
 
     print("Storing Path Data\n")
     path_df = pd.DataFrame(paths)
@@ -188,10 +188,9 @@ def store_score_and_feature() -> None:
     del feature_df
     print("Done Storing Feature Data\n")
 
-
     print("Storing Score Errors\n")
     score_data_path = (config.experiment_path.replace("results/",
-                                                     "results/score_errors/") + "_NEp{}".format(
+                                                      "results/score_errors/") + "_NEp{}".format(
         train_epoch).replace(
         ".", "") + ".parquet.gzip").replace("rec_TSM_False_incs_True_unitIntv_", "")
     score_df = pd.concat({i: pd.DataFrame(score_errors[i, :, :]) for i in tqdm(range(config.ts_length))})

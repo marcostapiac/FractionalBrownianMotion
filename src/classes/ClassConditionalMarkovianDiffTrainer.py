@@ -13,8 +13,8 @@ from torchmetrics import MeanMetric
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTimeSeriesScoreMatching import \
-    ConditionalTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTSScoreMatching import \
+    ConditionalTSScoreMatching
 
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
@@ -26,7 +26,7 @@ class ConditionalMarkovianDiffusionModelTrainer(nn.Module):
 
     def __init__(self,
                  diffusion: Union[VESDEDiffusion, OUSDEDiffusion, VPSDEDiffusion],
-                 score_network: Union[ConditionalTimeSeriesScoreMatching],
+                 score_network: Union[ConditionalTSScoreMatching],
                  train_data_loader: torch.utils.data.dataloader.DataLoader,
                  train_eps: float,
                  end_diff_time: float,
@@ -61,7 +61,7 @@ class ConditionalMarkovianDiffusionModelTrainer(nn.Module):
         self.include_weightings = to_weight
         self.lookback = mkv_blnk
         self.ts_data = ts_data
-        assert(self.ts_data == "fOU" or self.ts_data == "fBm")
+        assert (self.ts_data == "fOU" or self.ts_data == "fBm")
 
         # Move score network to appropriate device
         if type(self.device_id) == int:

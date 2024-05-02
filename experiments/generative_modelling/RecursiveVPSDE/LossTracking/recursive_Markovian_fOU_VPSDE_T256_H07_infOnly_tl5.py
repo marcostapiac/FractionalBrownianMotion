@@ -2,13 +2,10 @@ import numpy as np
 import pandas as pd
 import torch
 
-from src.generative_modelling.data_processing import recursive_LSTM_reverse_sampling, \
-    recursive_markovian_reverse_sampling
+from src.generative_modelling.data_processing import recursive_markovian_reverse_sampling
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTimeSeriesScoreMatching import \
-    ConditionalLSTMTimeSeriesScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTimeSeriesScoreMatching import \
-    ConditionalMarkovianTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSScoreMatching import \
+    ConditionalMarkovianTSScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from utils.data_processing import init_experiment
 
@@ -22,7 +19,7 @@ if __name__ == "__main__":
     assert (config.tdata_mult == 5)
     print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()
-    scoreModel = ConditionalMarkovianTimeSeriesScoreMatching(
+    scoreModel = ConditionalMarkovianTSScoreMatching(
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
@@ -33,8 +30,11 @@ if __name__ == "__main__":
     for param_time in param_times:
         try:
             scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
-            final_paths,cond_means, cond_vars = recursive_markovian_reverse_sampling(diffusion=diffusion, scoreModel=scoreModel,
-                                                          data_shape=(config.dataSize, config.ts_length, 1), config=config)
+            final_paths, cond_means, cond_vars = recursive_markovian_reverse_sampling(diffusion=diffusion,
+                                                                                      scoreModel=scoreModel,
+                                                                                      data_shape=(
+                                                                                      config.dataSize, config.ts_length,
+                                                                                      1), config=config)
             path_df = pd.DataFrame(final_paths)
             path_df.index = pd.MultiIndex.from_product(
                 [["Final Time Samples"], [i for i in range(config.dataSize)]])

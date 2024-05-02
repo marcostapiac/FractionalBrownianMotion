@@ -4,8 +4,8 @@ import torch
 
 from src.generative_modelling.data_processing import recursive_signature_reverse_sampling
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalSignatureTimeSeriesScoreMatching import \
-    ConditionalSignatureTimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalSignatureTSScoreMatching import \
+    ConditionalSignatureTSScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 
 if __name__ == "__main__":
@@ -18,7 +18,7 @@ if __name__ == "__main__":
     assert (config.tdata_mult == 5)
     print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()
-    scoreModel = ConditionalSignatureTimeSeriesScoreMatching(
+    scoreModel = ConditionalSignatureTSScoreMatching(
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)

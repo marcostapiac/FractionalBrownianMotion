@@ -19,9 +19,10 @@ class FractionalSin:
     def get_initial_state(self):
         return self.initialVol
 
-    def sample_increments(self, H: float, N: int, isUnitInterval:bool, gaussRvs: np.ndarray) -> np.ndarray:
+    def sample_increments(self, H: float, N: int, isUnitInterval: bool, gaussRvs: np.ndarray) -> np.ndarray:
         fBn = FractionalBrownianNoise(H=H, rng=self.rng)
-        incs = fBn.circulant_simulation(N_samples=N, gaussRvs=gaussRvs, scaleUnitInterval=isUnitInterval)  # Scale over timescale included in circulant
+        incs = fBn.circulant_simulation(N_samples=N, gaussRvs=gaussRvs,
+                                        scaleUnitInterval=isUnitInterval)  # Scale over timescale included in circulant
         return incs
 
     def lamperti(self, x: Union[np.ndarray, float]) -> Union[np.ndarray, float]:
@@ -30,16 +31,17 @@ class FractionalSin:
     def inverse_lamperti(self, Z: np.ndarray):
         return None  # self.initialVol * np.exp(self.volVol * Z)
 
-    def increment_state(self, prev: np.ndarray, time:float,deltaT: float, M: int):
+    def increment_state(self, prev: np.ndarray, time: float, deltaT: float, M: int):
         """ Increment volatilities """
-        driftX = self.mean_rev * np.sin(prev+time)
+        driftX = self.mean_rev * np.sin(prev + time)
         diffX = self.diff * M
         return prev + driftX * deltaT + diffX
 
-    def euler_simulation(self, H: float, N: int, isUnitInterval:bool, t0:float, t1:float, deltaT: float, X0: float = None, Ms: np.ndarray = None,
+    def euler_simulation(self, H: float, N: int, isUnitInterval: bool, t0: float, t1: float, deltaT: float,
+                         X0: float = None, Ms: np.ndarray = None,
                          gaussRvs: np.ndarray = None):
-        assert((isUnitInterval and t0==0. and t1==1.) or ((not isUnitInterval) and t0==0. and t1!=1.))
-        time_ax = np.arange(start=t0, stop=t1+deltaT, step=deltaT)
+        assert ((isUnitInterval and t0 == 0. and t1 == 1.) or ((not isUnitInterval) and t0 == 0. and t1 != 1.))
+        time_ax = np.arange(start=t0, stop=t1 + deltaT, step=deltaT)
         if X0 is None:
             Zs = [self.initialVol]  # [self.lamperti(self.initialVol)]
         else:
@@ -51,5 +53,5 @@ class FractionalSin:
         if Ms is None:
             Ms = self.sample_increments(H=H, N=N, gaussRvs=self.gaussIncs, isUnitInterval=isUnitInterval)
         for i in range(1, N + 1):
-            Zs.append(self.increment_state(prev=Zs[i - 1], time=time_ax[i-1], deltaT=deltaT, M=Ms[i - 1]))
+            Zs.append(self.increment_state(prev=Zs[i - 1], time=time_ax[i - 1], deltaT=deltaT, M=Ms[i - 1]))
         return np.array(Zs[1:])

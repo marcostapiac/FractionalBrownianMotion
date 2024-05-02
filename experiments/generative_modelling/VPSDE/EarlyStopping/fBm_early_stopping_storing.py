@@ -5,15 +5,15 @@ from ml_collections import ConfigDict
 from src.generative_modelling.data_processing import reverse_sampling
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
-    TimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTSScoreMatching import \
+    TSScoreMatching
 
 
 def run_early_stopping(config: ConfigDict) -> None:
     T = config.ts_length
 
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
-    scoreModel = TimeSeriesScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
+    scoreModel = TSScoreMatching(*config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(config.max_epochs)))
 
