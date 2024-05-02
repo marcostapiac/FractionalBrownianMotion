@@ -126,6 +126,7 @@ class ConditionalLSTMSampleDiffusionModelTrainer(nn.Module):
         assert(not torch.any(torch.isnan(weights)))
         if not self.include_weightings: weights = torch.ones_like(weights)
         print("Done one gradient batch loss\n")
+        print(weights * outputs, weights * target_scores)
         return self._batch_loss_compute(outputs=weights * outputs, targets=weights * target_scores)
 
     def _run_epoch(self, epoch: int) -> list:
