@@ -180,22 +180,34 @@ class ConditionalLSTMTSSampleScoreMatching(nn.Module):
         # For Conditional Time series, input projection accumulates information spatially
         # Therefore it expects inputs to be of shape (BatchSize, 1, NumDims)
         x = self.input_projection(inputs)
+        print(f"1:{torch.any(torch.isnan(x))}\n")
         x = F.leaky_relu(x, 0.01)
+        print(f"2:{torch.any(torch.isnan(x))}\n")
 
         diffusion_step = self.diffusion_embedding(times)
+        print(f"3:{torch.any(torch.isnan(diffusion_step))}\n")
         # Linear layer assumes dimension of conditioning vector to be in last dimension
         # This conditioner needs to be of shape (BatchSize, 1, NumFeatDims)
         cond_up = self.cond_upsampler(conditioner)
+        print(f"4:{torch.any(torch.isnan(cond_up))}\n")
         skip = []
+        i = 0
         for layer in self.residual_layers:
             x, skip_connection = layer(x, conditioner=cond_up, diffusion_step=diffusion_step)
+            print(f"5_{i}:{torch.any(torch.isnan(x))}\n")
             x = F.leaky_relu(x, 0.01)
+            print(f"6_{i}:{torch.any(torch.isnan(x))}\n")
             skip.append(skip_connection)
+            i+=1
 
         x = torch.sum(torch.stack(skip), dim=0) / math.sqrt(len(self.residual_layers))
+        print(f"7:{torch.any(torch.isnan(x))}\n")
         x = self.skip_projection(x)
+        print(f"8:{torch.any(torch.isnan(x))}\n")
         x = F.leaky_relu(x, 0.01)
+        print(f"9:{torch.any(torch.isnan(x))}\n")
         x = self.output_projection(x)
+        print(f"10:{torch.any(torch.isnan(x))}\n")
         assert (inputs.shape == x.shape == beta_tau.shape == sigma_tau.shape)
-        print(torch.any(torch.isnan(inputs)))
+        print(torch.any(torch.isnan(x)))
         return -torch.pow(sigma_tau, -1) * (inputs - beta_tau * x)
