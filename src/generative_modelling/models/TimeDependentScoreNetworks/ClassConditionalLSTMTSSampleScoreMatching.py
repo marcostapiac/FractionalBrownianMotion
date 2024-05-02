@@ -186,14 +186,10 @@ class ConditionalLSTMTSSampleScoreMatching(nn.Module):
         # This conditioner needs to be of shape (BatchSize, 1, NumFeatDims)
         cond_up = self.cond_upsampler(conditioner)
         skip = []
-        i = 0
         for layer in self.residual_layers:
             x, skip_connection = layer(x, conditioner=cond_up, diffusion_step=diffusion_step)
-            print(f"5_{i}:{torch.any(torch.isnan(x))}\n")
             x = F.leaky_relu(x, 0.01)
-            print(f"6_{i}:{torch.any(torch.isnan(x))}\n")
             skip.append(skip_connection)
-            i+=1
         x = torch.sum(torch.stack(skip), dim=0) / math.sqrt(len(self.residual_layers))
         x = self.skip_projection(x)
         x = F.leaky_relu(x, 0.01)
