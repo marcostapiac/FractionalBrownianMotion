@@ -122,6 +122,7 @@ class ConditionalLSTMSampleDiffusionModelTrainer(nn.Module):
                                              sigma_tau=1. - torch.pow(beta_tau, 2))
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         weights = self.diffusion.get_loss_weighting(eff_times=eff_times) / beta_tau
+        print(outputs, weights)
         if not self.include_weightings: weights = torch.ones_like(weights)
         return self._batch_loss_compute(outputs=weights * outputs, targets=weights * target_scores)
 
