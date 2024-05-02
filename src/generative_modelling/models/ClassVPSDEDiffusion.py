@@ -3,6 +3,8 @@ from typing import Union, Tuple
 import torch
 from torch import nn
 
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSSampleScoreMatching import \
+    ConditionalLSTMTSSampleScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSScoreMatching import \
     ConditionalLSTMTSScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSScoreMatching import \
@@ -145,7 +147,32 @@ class VPSDEDiffusion(nn.Module):
             drift = x + 0.5 * discrete_beta * x + discrete_beta * predicted_score
             diff_param = torch.sqrt(discrete_beta)
         return predicted_score, drift, diff_param
+    def get_conditional_learnsample_reverse_diffusion(self, x: torch.Tensor, t: torch.Tensor,
+                                          score_network: Union[ConditionalLSTMTSSampleScoreMatching],
+                                          feature: torch.Tensor,
+                                          diff_index: torch.Tensor, max_diff_steps: int) -> Tuple[
+        torch.Tensor, torch.Tensor, torch.Tensor]:
+        """
 
+        :param x:
+        :param t:
+        :param score_network:
+        :param feature:
+        :param diff_index:
+        :param max_diff_steps:
+        :return:
+        """
+        score_network.eval()
+        with torch.no_grad():
+            eff_times = self.get_eff_times(diff_times=t)
+            eff_times = eff_times.reshape(x.shape)
+            predicted_score = score_network.forward(x, conditioner=feature, times=t, eff_times=eff_times)
+            max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
+            discrete_beta = self.get_discretised_beta(diff_index=max_diff_steps - 1 - diff_index,
+                                                      max_diff_steps=max_diff_steps)
+            drift = x + 0.5 * discrete_beta * x + discrete_beta * predicted_score
+            diff_param = torch.sqrt(discrete_beta)
+        return predicted_score, drift, diff_param
     def get_conditional_probODE(self, x: torch.Tensor, t: torch.Tensor,
                                 score_network: Union[
                                     NaiveMLP, TSScoreMatching, ConditionalLSTMTSScoreMatching, ConditionalTSScoreMatching, ConditionalMarkovianTSScoreMatching],

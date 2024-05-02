@@ -91,7 +91,7 @@ def get_config():
     if config.hybrid: assert (config.sample_eps == config.train_eps)
     config.max_lang_steps = 0
     config.snr = 0.
-    config.predictor_model = "CondReverseDiffusion"  # vs "euler-maryuama"
+    config.predictor_model = "CondLearnSampleReverseDiffusion"  # vs "euler-maryuama"
     config.corrector_model = "VP"  # vs "VE" vs "OUSDE"
     config.param_time = 9999
 
