@@ -179,25 +179,12 @@ class ConditionalLSTMTSSampleScoreMatching(nn.Module):
     def forward(self, inputs, times, conditioner, eff_times):
         # For Conditional Time series, input projection accumulates information spatially
         # Therefore it expects inputs to be of shape (BatchSize, 1, NumDims)
-        if torch.any(torch.isnan(inputs)):
-            print(f"0:{torch.any(torch.isnan(inputs))}\n")
-            raise RuntimeError
         x = self.input_projection(inputs)
-        if torch.any(torch.isnan(x)):
-            print(f"1:{torch.any(torch.isnan(x))}\n")
-            raise RuntimeError
         x = F.leaky_relu(x, 0.01)
-        if torch.any(torch.isnan(x)):
-            print(f"2:{torch.any(torch.isnan(x))}\n")
-            raise RuntimeError
         diffusion_step = self.diffusion_embedding(times)
-        if torch.any(torch.isnan(diffusion_step)):
-            print(f"2:{torch.any(torch.isnan(diffusion_step))}\n")
-            raise RuntimeError
         # Linear layer assumes dimension of conditioning vector to be in last dimension
         # This conditioner needs to be of shape (BatchSize, 1, NumFeatDims)
         cond_up = self.cond_upsampler(conditioner)
-        print(f"4:{torch.any(torch.isnan(cond_up))}\n")
         skip = []
         i = 0
         for layer in self.residual_layers:
@@ -207,16 +194,10 @@ class ConditionalLSTMTSSampleScoreMatching(nn.Module):
             print(f"6_{i}:{torch.any(torch.isnan(x))}\n")
             skip.append(skip_connection)
             i+=1
-
         x = torch.sum(torch.stack(skip), dim=0) / math.sqrt(len(self.residual_layers))
-        print(f"7:{torch.any(torch.isnan(x))}\n")
         x = self.skip_projection(x)
-        print(f"8:{torch.any(torch.isnan(x))}\n")
         x = F.leaky_relu(x, 0.01)
-        print(f"9:{torch.any(torch.isnan(x))}\n")
         x = self.output_projection(x)
-        print(f"10:{torch.any(torch.isnan(x))}\n")
-        print(torch.any(torch.isnan(x)))
         assert(not torch.any(torch.isinf(x)))
         assert(not torch.any(torch.isinf((1-torch.exp(-eff_times)) )))
         return -(inputs - torch.exp(-0.5*eff_times) * x)/(1-torch.exp(-eff_times))

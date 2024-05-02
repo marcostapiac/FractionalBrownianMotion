@@ -85,7 +85,6 @@ class ConditionalLSTMSampleDiffusionModelTrainer(nn.Module):
         # Detach returns the loss as a Tensor that does not require gradients, so you can manipulate it
         # independently of the original value, which does require gradients
         # Item is used to return a 1x1 tensor as a standard Python dtype (determined by Tensor dtype)
-        print(loss.detach().item())
         self.loss_aggregator.update(loss.detach().item())
         return loss.detach().item()
 
@@ -96,7 +95,6 @@ class ConditionalLSTMSampleDiffusionModelTrainer(nn.Module):
             :param targets: Target values to compare against outputs
             :return: Batch Loss
         """
-        print(torch.any(torch.isinf(outputs)), torch.any(torch.isinf(targets)))
         loss = self.loss_fn()(outputs, targets)
         return self._batch_update(loss)
 
@@ -125,7 +123,6 @@ class ConditionalLSTMSampleDiffusionModelTrainer(nn.Module):
         assert(not (torch.any(torch.isnan(weights)) or torch.any(torch.isinf(weights))))
         assert(not (torch.any(torch.isnan(outputs)) or torch.any(torch.isinf(outputs))))
         if not self.include_weightings: weights = torch.ones_like(weights)
-        print("Done one gradient batch loss\n")
         return self._batch_loss_compute(outputs=weights * outputs, targets=weights * target_scores)
 
     def _run_epoch(self, epoch: int) -> list:
