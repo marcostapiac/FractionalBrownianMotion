@@ -197,4 +197,5 @@ class ConditionalLSTMTSSampleScoreMatching(nn.Module):
         x = F.leaky_relu(x, 0.01)
         x = self.output_projection(x)
         assert (inputs.shape == x.shape == beta_tau.shape == sigma_tau.shape)
+        print(torch.any(torch.isnan(torch.pow(sigma_tau, -1))))
         return -torch.pow(sigma_tau, -1) * (inputs - beta_tau * x)
