@@ -64,4 +64,4 @@ if __name__ == "__main__":
             es.append(e)
             continue
     for e in es:
-        raise RuntimeError(e)
+        raise RuntimeError(es)
