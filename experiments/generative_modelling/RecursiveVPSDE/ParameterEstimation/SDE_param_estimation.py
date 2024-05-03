@@ -131,11 +131,11 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
 
 
 if __name__ == "__main__":
-    from configs.RecursiveVPSDE.recursive_fOU_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_LearnSampleScore_fOU_T256_H07_tl_5data import get_config
 
     config = get_config()
-    train_epoch = 2920
-    for param_time in [9999]:
+    train_epoch = 301
+    for param_time in [900]:
         try:
             pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip",
                         index_col=[0, 1]).to_numpy()
