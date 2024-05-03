@@ -22,6 +22,7 @@ if __name__ == "__main__":
     assert (0 < config.hurst < 1.)
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 5)
+    assert (config.weightings == True)
     print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()
     scoreModel = ConditionalLSTMTSSampleScoreMatching(

@@ -177,7 +177,6 @@ class ConditionalLSTMTSSampleScoreMatching(nn.Module):
         nn.init.zeros_(self.output_projection.weight)
 
     def forward(self, inputs, times, conditioner, eff_times):
-        print(eff_times.shape)
         # For Conditional Time series, input projection accumulates information spatially
         # Therefore it expects inputs to be of shape (BatchSize, 1, NumDims)
         x = self.input_projection(inputs)
@@ -197,4 +196,7 @@ class ConditionalLSTMTSSampleScoreMatching(nn.Module):
         x = self.output_projection(x)
         assert(not torch.any(torch.isinf(x)))
         assert(not torch.any(torch.isinf((1-torch.exp(-eff_times)))))
-        return -(inputs - torch.exp(-0.5*eff_times) * x)/(1-torch.exp(-eff_times))
+        # For VPSDE only
+        beta_tau = torch.exp(-0.5*eff_times)
+        sigma_tau = (1-torch.exp(-eff_times))
+        return -(inputs - beta_tau * x)/sigma_tau

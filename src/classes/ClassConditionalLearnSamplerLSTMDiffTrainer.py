@@ -58,7 +58,7 @@ class ConditionalLSTMSampleDiffusionModelTrainer(nn.Module):
         self.end_diff_time = end_diff_time
         self.is_hybrid = hybrid_training
         self.include_weightings = to_weight
-
+        assert (to_weight == True) # This is irrelevant when learning predicted sample
         # Move score network to appropriate device
         if type(self.device_id) == int:
             print("DDP Setup\n")
@@ -118,12 +118,13 @@ class ConditionalLSTMSampleDiffusionModelTrainer(nn.Module):
         diff_times = diff_times.reshape(B * T)
         eff_times = eff_times.reshape(target_scores.shape)
         outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times, eff_times=eff_times)
+        # For VPSDE only
+        beta_tau = torch.exp(-0.5 * eff_times)
+        sigma_tau = (1 - torch.exp(-eff_times))
+        scaled_outputs = (sigma_tau/beta_tau)*outputs
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
-        weights = self.diffusion.get_loss_weighting(eff_times=eff_times) / torch.exp(-0.5 * eff_times)
-        assert(not (torch.any(torch.isnan(weights)) or torch.any(torch.isinf(weights))))
-        assert(not (torch.any(torch.isnan(outputs)) or torch.any(torch.isinf(outputs))))
-        if not self.include_weightings: weights = torch.ones_like(weights)
-        return self._batch_loss_compute(outputs=weights * outputs, targets=weights * target_scores)
+        scaled_target_scores = (sigma_tau/beta_tau)*target_scores
+        return self._batch_loss_compute(outputs=scaled_outputs, targets= scaled_target_scores)
 
     def _run_epoch(self, epoch: int) -> list:
         """
