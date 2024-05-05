@@ -6,8 +6,8 @@ import torch
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSSampleScoreMatching import \
-    ConditionalLSTMTSSampleScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
+    ConditionalLSTMTSPostMeanScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSScoreMatching import \
     ConditionalLSTMTSScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalSignatureTSScoreMatching import \
@@ -23,7 +23,7 @@ class Predictor(abc.ABC):
     """ Base class for all predictor algorithms during reverse-time sampling """
 
     def __init__(self, diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
-                 score_function: Union[NaiveMLP, TSScoreMatching, ConditionalTSScoreMatching, ConditionalLSTMTSSampleScoreMatching,ConditionalSignatureTSScoreMatching, ConditionalLSTMTSScoreMatching],
+                 score_function: Union[NaiveMLP, TSScoreMatching, ConditionalTSScoreMatching, ConditionalLSTMTSPostMeanScoreMatching,ConditionalSignatureTSScoreMatching, ConditionalLSTMTSScoreMatching],
                  end_diff_time: float, max_diff_steps: int,
                  device: Union[int, torch.device], sample_eps: float):
         super().__init__()

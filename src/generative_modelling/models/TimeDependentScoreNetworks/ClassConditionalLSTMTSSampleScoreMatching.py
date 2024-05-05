@@ -119,7 +119,7 @@ class CondUpsampler(nn.Module):
         return x
 
 
-class ConditionalLSTMTSSampleScoreMatching(nn.Module):
+class ConditionalLSTMTSPostMeanScoreMatching(nn.Module):
     def __init__(
             self,
             max_diff_steps: int,

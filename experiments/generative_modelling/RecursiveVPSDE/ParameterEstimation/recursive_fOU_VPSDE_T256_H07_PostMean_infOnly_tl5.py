@@ -4,19 +4,19 @@ import numpy as np
 import pandas as pd
 import torch
 
-from src.classes.ClassConditionalLearnSamplerLSTMDiffTrainer import ConditionalLSTMSampleDiffusionModelTrainer
+from src.classes.ClassConditionalPostMeanrLSTMDiffTrainer import ConditionalLSTMPostMeanDiffusionModelTrainer
 from src.generative_modelling.data_processing import recursive_LSTM_reverse_sampling, \
     train_and_save_recursive_diffusion_model
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSSampleScoreMatching import \
-    ConditionalLSTMTSSampleScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
+    ConditionalLSTMTSPostMeanScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from utils.data_processing import cleanup_experiment, init_experiment
 from utils.math_functions import generate_fOU
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.recursive_LearnSampleScore_fOU_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H07_tl_5data import get_config
 
     config = get_config()
     assert (0 < config.hurst < 1.)
@@ -24,7 +24,7 @@ if __name__ == "__main__":
     assert (config.tdata_mult == 5)
     print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()
-    scoreModel = ConditionalLSTMTSSampleScoreMatching(
+    scoreModel = ConditionalLSTMTSPostMeanScoreMatching(
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)

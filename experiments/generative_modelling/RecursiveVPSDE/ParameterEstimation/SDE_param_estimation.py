@@ -125,13 +125,13 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
 
 
 if __name__ == "__main__":
-    from configs.RecursiveVPSDE.recursive_LearnSampleScore_fOU_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H07_tl_5data import get_config
 
     config = get_config()
     param_time = 900
     for train_epoch in config.max_epochs:
         try:
-            if train_epoch != 960:
+            if train_epoch != 2920:
                 raise FileNotFoundError
             pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip",
                         index_col=[0, 1]).to_numpy()
