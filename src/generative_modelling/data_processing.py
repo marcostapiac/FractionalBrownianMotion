@@ -201,7 +201,7 @@ def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
         predictor = ConditionalAncestralSamplingPredictor(*predictor_params)
     elif config.predictor_model == "CondReverseDiffusion":
         predictor = ConditionalReverseDiffusionSamplingPredictor(*predictor_params)
-    elif config.predictor_model == "ProbODE":
+    elif config.predictor_model == "CondProbODE":
         predictor = ConditionalProbODESamplingPredictor(*predictor_params)
 
     # Define corrector
@@ -261,7 +261,7 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
         predictor = ConditionalAncestralSamplingPredictor(*predictor_params)
     elif config.predictor_model == "CondReverseDiffusion":
         predictor = ConditionalReverseDiffusionSamplingPredictor(*predictor_params)
-    elif config.predictor_model == "ProbODE":
+    elif config.predictor_model == "CondProbODE":
         predictor = ConditionalProbODESamplingPredictor(*predictor_params)
 
     # Define corrector

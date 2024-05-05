@@ -31,7 +31,7 @@ if __name__ == "__main__":
     init_experiment(config=config)
     es = []
     train_epoch = 960
-    sampling_models = ["CondAncestral", "CondReverseDiffusion", "CondProbOde"]
+    sampling_models = ["CondAncestral", "CondReverseDiffusion", "CondProbODE"]
     for sampling_model in sampling_models:
         try:
             scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
