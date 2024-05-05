@@ -15,7 +15,7 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
         losses = np.array(pickle.load(f))
     assert (losses.shape[0] >= 1)  # max(config.max_epochs))
     T = losses.shape[0]
-    plt.plot(np.linspace(1, T + 1, T), losses)
+    plt.plot(np.linspace(1, T + 1, T)[600:], (losses.cumsum()/np.arange(1, T+1))[600:])
     plt.xlabel("Epoch")
     plt.ylabel("Training Loss")
     plt.title("Per-epoch Training Loss")
@@ -59,8 +59,10 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
 
     # Plot some marginal distributions
     time_space = np.linspace((1. / config.ts_length), 1., num=config.ts_length)
-    for idx in range(3):
-        tidx = np.random.randint(low=config.ts_length-10, high=config.ts_length)
+    low = 0#config.ts_length-10
+    high = 10#config.ts_length
+    for idx in range(256):
+        tidx = idx#np.random.randint(low=low, high=high)
         t = time_space[tidx]
         expmeanrev = np.exp(-config.mean_rev * t)
         exp_mean = config.mean * (1. - expmeanrev)
@@ -71,7 +73,7 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
         exp_rvs = np.random.normal(loc=exp_mean, scale=np.sqrt(exp_var), size=paths.shape[0])
         pathst = paths[:, tidx]  # Paths[:, 0] corresponds to X_{t_{1}} NOT X_{t_{0}}
         plt.hist(pathst, bins=150, density=True, label="Simulated")
-        plt.hist(exp_rvs, bins=150, density=True, label="Expected")
+        #plt.hist(exp_rvs, bins=150, density=True, label="Expected")
         plt.title(f"Marginal Distributions at time {t} for epoch {train_epoch}")
         plt.legend()
         plt.show()
@@ -141,7 +143,7 @@ if __name__ == "__main__":
     param_time = 900
     for train_epoch in config.max_epochs:
         try:
-            if train_epoch != 2920:
+            if train_epoch != 960:
                 raise FileNotFoundError
             pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip",
                         index_col=[0, 1]).to_numpy()

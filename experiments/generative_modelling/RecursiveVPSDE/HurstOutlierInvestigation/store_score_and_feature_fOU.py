@@ -65,9 +65,11 @@ def recursive_sampling_and_track(data_shape: tuple, torch_device, feature: torch
         else:
             scoreModel.eval()
             with torch.no_grad():
-                ts=(t * torch.ones(x.shape[0],)).to(torch_device)
+                ts = (t * torch.ones(x.shape[0], )).to(torch_device)
                 predicted_score = scoreModel.forward(x, conditioner=feature, times=ts)
-            pred_score, pred_drift, diffusion_param = diffusion.get_conditional_probODE(x,predicted_score=predicted_score, diff_index=diff_index,
+            pred_score, pred_drift, diffusion_param = diffusion.get_conditional_probODE(x,
+                                                                                        predicted_score=predicted_score,
+                                                                                        diff_index=diff_index,
                                                                                         max_diff_steps=config.max_diff_steps)
 
         # One-step reverse-time SDE
@@ -75,8 +77,8 @@ def recursive_sampling_and_track(data_shape: tuple, torch_device, feature: torch
         diffusion_var = 1. - diffusion_mean2
         exp_score = -torch.pow(
             torch.Tensor([diffusion_var + diffusion_mean2 * (1. / config.ts_length)]).to(torch_device), -1) * (
-                                x - torch.sqrt(diffusion_mean2) * (
-                                    -config.mean_rev * prev_state * (1. / config.ts_length)))
+                            x - torch.sqrt(diffusion_mean2) * (
+                            -config.mean_rev * prev_state * (1. / config.ts_length)))
         x = pred_drift + diffusion_param * torch.randn_like(x)
         score_errors[config.max_diff_steps - 1 - i, :] = torch.pow(
             torch.linalg.norm((pred_score - exp_score).squeeze(1).T, ord=2, axis=0),
@@ -162,7 +164,7 @@ def store_score_and_feature() -> None:
     assert (
             paths.shape == (config.dataSize, config.ts_length) and features.shape == (
         config.ts_length, config.dataSize, config.lstm_hiddendim) and score_errors.shape == (
-            config.ts_length, config.max_diff_steps, config.dataSize))
+                config.ts_length, config.max_diff_steps, config.dataSize))
 
     print("Storing Path Data\n")
     path_df = pd.DataFrame(paths)

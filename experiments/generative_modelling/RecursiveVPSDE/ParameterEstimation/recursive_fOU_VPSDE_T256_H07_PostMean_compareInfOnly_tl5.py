@@ -31,12 +31,11 @@ if __name__ == "__main__":
     init_experiment(config=config)
     es = []
     train_epoch = 960
-    config.dataSize = 2
-    config.max_diff_steps = 22
-    sampling_model = ["CondAncestral", "CondReverseDiffusion", "CondProbOde"]
-    for train_epoch in config.max_epochs:
+    sampling_models = ["CondAncestral", "CondReverseDiffusion", "CondProbOde"]
+    for sampling_model in sampling_models:
         try:
             scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
+            config.predictor_model = sampling_model
             final_paths, cond_means, cond_vars = recursive_LSTM_reverse_sampling(diffusion=diffusion,
                                                                                  scoreModel=scoreModel,
                                                                                  data_shape=(
