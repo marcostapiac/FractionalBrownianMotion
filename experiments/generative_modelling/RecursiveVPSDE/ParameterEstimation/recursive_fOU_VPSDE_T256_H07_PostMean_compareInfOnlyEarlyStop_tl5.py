@@ -59,12 +59,12 @@ if __name__ == "__main__":
                 sampling_type = "r"
             else:
                 sampling_type = "p"
-            path_df.to_csv(config.experiment_path + "_{}NEp{}.csv.gzip".format(sampling_type,train_epoch), compression="gzip")
+            path_df.to_csv(config.experiment_path + "_e{}NEp{}.csv.gzip".format(sampling_type,train_epoch), compression="gzip")
             mean_df.to_csv(
-                (config.experiment_path + "_{}NEp{}_P{}.csv.gzip".format(sampling_type,train_epoch, PT)).replace("fOU", "fOUm").replace(
+                (config.experiment_path + "_e{}NEp{}_P{}.csv.gzip".format(sampling_type,train_epoch, PT)).replace("fOU", "fOUm").replace(
                 "fOUm00", "fm0"), compression="gzip")
             var_df.to_csv(
-                (config.experiment_path + "_{}NEp{}_P{}.csv.gzip".format(sampling_type,train_epoch, PT)).replace("fOU", "fOUv").replace(
+                (config.experiment_path + "_e{}NEp{}_P{}.csv.gzip".format(sampling_type,train_epoch, PT)).replace("fOU", "fOUv").replace(
                 "fOUv00", "fv0"), compression="gzip")
         except FileNotFoundError as e:
             print(e)
