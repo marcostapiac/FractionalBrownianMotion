@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from src.classes.ClassConditionalPostMeanrLSTMDiffTrainer import ConditionalLSTMPostMeanDiffusionModelTrainer
+from src.classes.ClassConditionalPostMeanLSTMDiffTrainer import ConditionalLSTMPostMeanDiffusionModelTrainer
 from src.generative_modelling.data_processing import recursive_LSTM_reverse_sampling, \
     train_and_save_recursive_diffusion_model
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion

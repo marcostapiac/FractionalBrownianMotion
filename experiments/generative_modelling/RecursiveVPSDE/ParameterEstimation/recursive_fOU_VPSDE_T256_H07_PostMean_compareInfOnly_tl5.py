@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from src.classes.ClassConditionalPostMeanrLSTMDiffTrainer import ConditionalLSTMPostMeanDiffusionModelTrainer
+from src.classes.ClassConditionalPostMeanLSTMDiffTrainer import ConditionalLSTMPostMeanDiffusionModelTrainer
 from src.generative_modelling.data_processing import recursive_LSTM_reverse_sampling, \
     train_and_save_recursive_diffusion_model
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
@@ -28,7 +28,7 @@ if __name__ == "__main__":
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
-    #init_experiment(config=config)
+    init_experiment(config=config)
     es = []
     train_epoch = 960
     config.dataSize = 2

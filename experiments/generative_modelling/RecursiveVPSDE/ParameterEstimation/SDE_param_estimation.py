@@ -5,12 +5,22 @@ import numpy as np
 import pandas as pd
 from ml_collections import ConfigDict
 from tqdm import tqdm
-
+import pickle
 from experiments.generative_modelling.estimate_fSDEs import estimate_fSDE_from_true, second_order_estimator, \
     estimate_hurst_from_filter
 
 
 def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
+    with open(config.scoreNet_trained_path.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as f:
+        losses = np.array(pickle.load(f))
+    assert (losses.shape[0] >= 1)  # max(config.max_epochs))
+    T = losses.shape[0]
+    plt.plot(np.linspace(1, T + 1, T), losses)
+    plt.xlabel("Epoch")
+    plt.ylabel("Training Loss")
+    plt.title("Per-epoch Training Loss")
+    plt.show()
+
     incs = pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip",
                        index_col=[0, 1]).to_numpy()
     paths = incs.cumsum(axis=1)
@@ -50,7 +60,7 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
     # Plot some marginal distributions
     time_space = np.linspace((1. / config.ts_length), 1., num=config.ts_length)
     for idx in range(3):
-        tidx = np.random.randint(low=0, high=config.ts_length)
+        tidx = np.random.randint(low=config.ts_length-10, high=config.ts_length)
         t = time_space[tidx]
         expmeanrev = np.exp(-config.mean_rev * t)
         exp_mean = config.mean * (1. - expmeanrev)
