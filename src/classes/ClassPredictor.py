@@ -65,7 +65,10 @@ class AncestralSamplingPredictor(Predictor):
 
     def step(self, x_prev: torch.Tensor, t: torch.Tensor, diff_index: torch.Tensor) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor]:
-        score, drift, diffusion = self.diffusion.get_ancestral_sampling(x_prev, t=t, score_network=self.score_network,
+        self.score_network.eval()
+        with torch.no_grad():
+            predicted_score = self.score_network.forward(x_prev, t.squeeze(-1)).squeeze(1)
+        score, drift, diffusion = self.diffusion.get_ancestral_sampling(x_prev, predicted_score=predicted_score,
                                                                         diff_index=diff_index,
                                                                         max_diff_steps=self.max_diff_steps)
         z = torch.randn_like(x_prev)
@@ -85,8 +88,28 @@ class ConditionalAncestralSamplingPredictor(Predictor):
     def step(self, x_prev: torch.Tensor, feature: torch.Tensor, t: torch.Tensor, diff_index: torch.Tensor,
              ts_step: float, param_est_time: float) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor, Union[None, torch.Tensor], Union[None, torch.Tensor]]:
-        score, drift, diffusion = self.diffusion.get_conditional_ancestral_sampling(x=x_prev, t=t, feature=feature,
-                                                                                    score_network=self.score_network,
+        self.score_network.eval()
+        if diff_index >= torch.Tensor([self.max_diff_steps - 2]).to(diff_index.device):
+            with torch.enable_grad():
+                try:
+                    predicted_score = self.score_network.forward(x_prev, conditioner=feature, times=t)
+                except TypeError as e:
+                    eff_times = self.diffusion.get_eff_times(diff_times=t)
+                    eff_times = eff_times.reshape(x_prev.shape)
+                    predicted_score = self.score_network.forward(x_prev, conditioner=feature, times=t,
+                                                                 eff_times=eff_times)
+
+        else:
+            with torch.no_grad():
+                try:
+                    predicted_score = self.score_network.forward(x_prev, conditioner=feature, times=t)
+                except TypeError as e:
+                    eff_times = self.diffusion.get_eff_times(diff_times=t)
+                    eff_times = eff_times.reshape(x_prev.shape)
+                    predicted_score = self.score_network.forward(x_prev, conditioner=feature, times=t,
+                                                                 eff_times=eff_times)
+
+        score, drift, diffusion = self.diffusion.get_conditional_ancestral_sampling(x=x_prev, predicted_score = predicted_score,
                                                                                     diff_index=diff_index,
                                                                                     max_diff_steps=self.max_diff_steps)
         mean_est = None
@@ -127,38 +150,16 @@ class ConditionalReverseDiffusionSamplingPredictor(Predictor):
     def step(self, x_prev: torch.Tensor, feature: torch.Tensor, t: torch.Tensor, diff_index: torch.Tensor,
              ts_step: float, param_est_time: float) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor, Union[None, torch.Tensor], Union[None, torch.Tensor]]:
-        score, drift, diffusion = self.diffusion.get_conditional_reverse_diffusion(x=x_prev, t=t, feature=feature,
-                                                                                   score_network=self.score_network,
-                                                                                   diff_index=diff_index,
-                                                                                   max_diff_steps=self.max_diff_steps)
-        mean_est = None
-        var_est = None
+        self.score_network.eval()
         with torch.no_grad():
-            z = torch.randn_like(drift)
-            x_new = drift + diffusion * z
-            if diff_index == torch.Tensor([param_est_time]).to(diff_index.device):
-                # Zero out gradients to avoid accumulation
-                diffusion_mean2 = torch.atleast_2d(torch.exp(-self.diffusion.get_eff_times(diff_times=t))).T
-                diffusion_var = 1. - diffusion_mean2
-                # TODO: element wise multiplication along dim=1 (0-indexed) without squeezing
-                var_est = torch.ones((x_prev.shape[0], 1))
-                grad_score = torch.pow(-(diffusion_var + diffusion_mean2 * ts_step), -1)
-                mean_est = (torch.pow(grad_score, -1) * score.squeeze(dim=-1)) - x_prev.squeeze(dim=-1)
-                mean_est *= -torch.pow(diffusion_mean2, -0.5)
-                assert (var_est.shape == (x_prev.shape[0], 1) and mean_est.shape == (x_prev.shape[0], 1))
-        return x_new, score, z, mean_est, var_est
-
-class ConditionalLearnSampleReverseDiffusionSamplingPredictor(Predictor):
-    def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion],
-                 score_function: ConditionalLSTMTSSampleScoreMatching, end_diff_time: float, max_diff_steps: int,
-                 device: Union[int, torch.device], sample_eps: float):
-        super().__init__(diffusion, score_function, end_diff_time, max_diff_steps, device, sample_eps)
-
-    def step(self, x_prev: torch.Tensor, feature: torch.Tensor, t: torch.Tensor, diff_index: torch.Tensor,
-             ts_step: float, param_est_time: float) -> Tuple[
-        torch.Tensor, torch.Tensor, torch.Tensor, Union[None, torch.Tensor], Union[None, torch.Tensor]]:
-        score, drift, diffusion = self.diffusion.get_conditional_learnsample_reverse_diffusion(x=x_prev, t=t, feature=feature,
-                                                                                   score_network=self.score_network,
+            try:
+                predicted_score = self.score_network.forward(x_prev, conditioner=feature, times=t)
+            except TypeError as e:
+                eff_times = self.diffusion.get_eff_times(diff_times=t)
+                eff_times = eff_times.reshape(x_prev.shape)
+                predicted_score = self.score_network.forward(x_prev, conditioner=feature, times=t, eff_times=eff_times)
+        score, drift, diffusion = self.diffusion.get_conditional_reverse_diffusion(x=x_prev,
+                                                                                   predicted_score=predicted_score,
                                                                                    diff_index=diff_index,
                                                                                    max_diff_steps=self.max_diff_steps)
         mean_est = None
@@ -187,8 +188,17 @@ class ConditionalProbODESamplingPredictor(Predictor):
     def step(self, x_prev: torch.Tensor, feature: torch.Tensor, t: torch.Tensor, diff_index: torch.Tensor,
              ts_step: float, param_est_time: float) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor, Union[None, torch.Tensor], Union[None, torch.Tensor]]:
-        score, drift, diffusion = self.diffusion.get_conditional_probODE(x=x_prev, t=t, feature=feature,
-                                                                         score_network=self.score_network,
+        self.score_network.eval()
+        with torch.no_grad():
+            try:
+                predicted_score = self.score_network.forward(x_prev, conditioner=feature, times=t)
+            except TypeError as e:
+                eff_times = self.diffusion.get_eff_times(diff_times=t)
+                eff_times = eff_times.reshape(x_prev.shape)
+                predicted_score = self.score_network.forward(x_prev, conditioner=feature, times=t,
+                                                             eff_times=eff_times)
+        score, drift, diffusion = self.diffusion.get_conditional_probODE(x=x_prev,
+                                                                         predicted_score=predicted_score,
                                                                          diff_index=diff_index,
                                                                          max_diff_steps=self.max_diff_steps)
         mean_est = None

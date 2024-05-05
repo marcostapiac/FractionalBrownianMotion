@@ -19,7 +19,7 @@ from src.classes.ClassCorrector import VESDECorrector, VPSDECorrector
 from src.classes.ClassDiffTrainer import DiffusionModelTrainer
 from src.classes.ClassPredictor import AncestralSamplingPredictor, \
     ConditionalAncestralSamplingPredictor, ConditionalReverseDiffusionSamplingPredictor, \
-    ConditionalProbODESamplingPredictor, ConditionalLearnSampleReverseDiffusionSamplingPredictor
+    ConditionalProbODESamplingPredictor
 from src.classes.ClassSDESampler import SDESampler
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
@@ -201,8 +201,6 @@ def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
         predictor = ConditionalAncestralSamplingPredictor(*predictor_params)
     elif config.predictor_model == "CondReverseDiffusion":
         predictor = ConditionalReverseDiffusionSamplingPredictor(*predictor_params)
-    elif config.predictor_model == "CondLearnSampleReverseDiffusion":
-        predictor = ConditionalLearnSampleReverseDiffusionSamplingPredictor(*predictor_params)
     elif config.predictor_model == "ProbODE":
         predictor = ConditionalProbODESamplingPredictor(*predictor_params)
 
@@ -263,10 +261,6 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
         predictor = ConditionalAncestralSamplingPredictor(*predictor_params)
     elif config.predictor_model == "CondReverseDiffusion":
         predictor = ConditionalReverseDiffusionSamplingPredictor(*predictor_params)
-    elif config.predictor_model == "CondLearnSampleReverseDiffusion":
-        predictor = ConditionalLearnSampleReverseDiffusionSamplingPredictor(*predictor_params)
-    elif config.predictor_model == "CondLearnSampleReverseDiffusion":
-        predictor = ConditionalLearnSampleReverseDiffusionSamplingPredictor(*predictor_params)
     elif config.predictor_model == "ProbODE":
         predictor = ConditionalProbODESamplingPredictor(*predictor_params)
 

@@ -11,7 +11,7 @@ from experiments.generative_modelling.estimate_fSDEs import estimate_fSDE_from_t
 
 
 def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
-    incs = pd.read_csv(config.experiment_path + "_rdNEp{}.csv.gzip".format(train_epoch), compression="gzip",
+    incs = pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip",
                        index_col=[0, 1]).to_numpy()
     paths = incs.cumsum(axis=1)
     for _ in range(paths.shape[0]):
@@ -42,24 +42,12 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
     else:
         PT = 1
     means = pd.read_csv(
-        (config.experiment_path + "_rdNEp{}_PT{}.csv.gzip".format(train_epoch, PT)).replace("fOU", "fOUm").replace(
-            "fOUm00", "fm00"),
+        (config.experiment_path + "_NEp{}_PT{}.csv.gzip".format(train_epoch, PT)).replace("fOU", "fOUm").replace(
+            "fOUm00", "fm0"),
         compression="gzip", index_col=[0, 1]).to_numpy()
     means *= (config.ts_length ** (2 * config.hurst))
-    M = means.shape[0]
-    N = means.shape[1] - 1
-    mean_revs = []
-    mmeans = means[:, 1:]
-    for pathidx in tqdm(range(M)):
-        ys = mmeans[pathidx, :].flatten().reshape((N, 1))
-        designmat = paths[pathidx, :-1].flatten().reshape((N, 1))
-        meanrev = -np.linalg.solve(designmat.T @ designmat, designmat.T @ ys)
-        mean_revs.append(float(meanrev))
-    plt.hist(mean_revs, bins=150, density=True)
-    plt.title(f"Mean Reversion Linear Regression Estimates for epoch {train_epoch}")
-    plt.show()
-    plt.close()
 
+    # Plot some marginal distributions
     time_space = np.linspace((1. / config.ts_length), 1., num=config.ts_length)
     for idx in range(3):
         tidx = np.random.randint(low=0, high=config.ts_length)
@@ -69,17 +57,18 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
         exp_mean += config.initState * expmeanrev
         exp_var = np.power(config.diffusion, 2)
         exp_var /= (2 * config.mean_rev)
-        exp_var *= 1. - np.power(expmeanrev, 2)
+        exp_var *= (1. - np.power(expmeanrev, 2))
         exp_rvs = np.random.normal(loc=exp_mean, scale=np.sqrt(exp_var), size=paths.shape[0])
         pathst = paths[:, tidx]  # Paths[:, 0] corresponds to X_{t_{1}} NOT X_{t_{0}}
-        plt.hist(pathst, bins=150, density=True, label="True")
+        plt.hist(pathst, bins=150, density=True, label="Simulated")
         plt.hist(exp_rvs, bins=150, density=True, label="Expected")
         plt.title(f"Marginal Distributions at time {t} for epoch {train_epoch}")
         plt.legend()
         plt.show()
         plt.close()
 
-    # Plot path and drift in same plot observations for each path
+
+    # Plot path and drift as a function of time
     for _ in range(3):
         idx = np.random.randint(low=0, high=paths.shape[0])
         mean = means[idx, 1:]
@@ -94,13 +83,20 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
         plt.close()
         time.sleep(1)
 
-    # Plot path and drift in same plot observations for each path
+    # Plot drift as a function of space for a single path
     for _ in range(3):
         idx = np.random.randint(low=0, high=paths.shape[0])
         mean = means[idx, 1:]
         path = paths[idx, :-1]
-        plt.scatter(path, mean, label="Drift")
-        plt.plot(time_space[:-1], path, color="blue", label="Path")
+        paired = zip(path, mean)
+        # Sort the pairs based on values of arr1
+        sorted_pairs = sorted(paired, key=lambda x: x[0])
+        # Separate the pairs back into two arrays
+        path, mean = zip(*sorted_pairs)
+        mean = np.array(mean)
+        path = np.array(path)
+        plt.scatter(path, mean, label="Drift Against State")
+        plt.scatter(path, -config.mean_rev*path, label="Expected Drift Against State")
         plt.title(f"Drift against Path with")
         plt.legend()
         plt.show()
@@ -110,21 +106,19 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
     for i in range(3):
         idx = np.random.randint(low=0, high=config.ts_length)
         mean = means[:, idx]  # -gamma*X(t-1)
-        plt.hist(mean, bins=150, density=True, label="Drift Histogram")
-        plt.legend()
-        plt.show()
-        plt.close()
+        plt.hist(mean, bins=150, density=True, label="Estimated Drift")
         t = time_space[idx - 1]
         expmeanrev = np.exp(-config.mean_rev * t)
         exp_mean = 0 * (1. - expmeanrev)
         exp_mean += paths[:, idx - 1] * expmeanrev  # Initial state is the previous path
+        exp_mean *= -config.mean_rev
         exp_var = np.power(1, 2)
         exp_var /= (2 * config.mean_rev)
         exp_var *= 1. - np.power(expmeanrev, 2)
         exp_var *= config.mean_rev * config.mean_rev
         exp_rvs = np.random.normal(loc=exp_mean, scale=np.sqrt(exp_var), size=mean.shape[0])
-        plt.hist(exp_rvs, bins=150, density=True, label="Expected")
-        plt.title(f"Marginal Distributions at time {t} for epoch {0}")
+        plt.hist(exp_rvs, bins=150, density=True, label="Expected Drift")
+        plt.title(f"Marginal Distributions of Drift at time {t} for epoch {0}")
         plt.legend()
         plt.show()
         plt.close()
@@ -134,9 +128,11 @@ if __name__ == "__main__":
     from configs.RecursiveVPSDE.recursive_LearnSampleScore_fOU_T256_H07_tl_5data import get_config
 
     config = get_config()
-    train_epoch = 301
-    for param_time in [900]:
+    param_time = 900
+    for train_epoch in config.max_epochs:
         try:
+            if train_epoch != 960:
+                raise FileNotFoundError
             pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip",
                         index_col=[0, 1]).to_numpy()
             config.param_time = param_time

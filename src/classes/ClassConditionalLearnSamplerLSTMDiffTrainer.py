@@ -123,7 +123,7 @@ class ConditionalLSTMSampleDiffusionModelTrainer(nn.Module):
         sigma_tau = (1 - torch.exp(-eff_times))
         scaled_outputs = (sigma_tau/beta_tau)*outputs+xts/beta_tau # This leaves the network ONLY
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
-        scaled_target_scores = (sigma_tau/beta_tau)*target_scores +xts/beta_tau # This leaves the original data sample ONLY
+        scaled_target_scores = (sigma_tau/beta_tau)*target_scores + xts/beta_tau # This leaves the original data sample ONLY
         return self._batch_loss_compute(outputs=scaled_outputs, targets= scaled_target_scores)
 
     def _run_epoch(self, epoch: int) -> list:

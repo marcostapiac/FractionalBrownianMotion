@@ -17,8 +17,8 @@ from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTimeSeriesScoreMatching import \
-    TimeSeriesScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTSScoreMatching import \
+    TSScoreMatching
 from utils.data_processing import generate_circles, generate_sine_dataset
 from utils.math_functions import chiSquared_test, reduce_to_fBn, compute_fBm_cov, permutation_test, \
     energy_statistic, MMD_statistic, generate_fBm, compute_circle_proportions, generate_fBn, estimate_hurst, \
@@ -26,8 +26,8 @@ from utils.math_functions import chiSquared_test, reduce_to_fBn, compute_fBm_cov
 
 
 def prepare_sines_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion],
-                             scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
-                             rng: np.random.Generator, config: ConfigDict) -> Union[NaiveMLP, TimeSeriesScoreMatching]:
+                             scoreModel: Union[NaiveMLP, TSScoreMatching],
+                             rng: np.random.Generator, config: ConfigDict) -> Union[NaiveMLP, TSScoreMatching]:
     """
     Helper function to train and / or load necessary models for sines experiments
         :param diffusion: Diffusion model
@@ -79,7 +79,7 @@ def prepare_sines_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VE
 
 
 def run_sines_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion],
-                         scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
+                         scoreModel: Union[NaiveMLP, TSScoreMatching],
                          rng: np.random.Generator, config: ConfigDict) -> None:
     """
     Run sines experiment
@@ -170,8 +170,8 @@ def evaluate_sines_performance(true_samples: np.ndarray, generated_samples: np.n
 
 
 def prepare_fBm_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion],
-                           scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
-                           rng: np.random.Generator, config: ConfigDict) -> Union[NaiveMLP, TimeSeriesScoreMatching]:
+                           scoreModel: Union[NaiveMLP, TSScoreMatching],
+                           rng: np.random.Generator, config: ConfigDict) -> Union[NaiveMLP, TSScoreMatching]:
     """
     Helper function to train and / or load necessary models for fBm experiments
         :param diffusion: Diffusion model
@@ -228,7 +228,7 @@ def prepare_fBm_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESD
 
 
 def run_fBm_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion],
-                       scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
+                       scoreModel: Union[NaiveMLP, TSScoreMatching],
                        rng: np.random.Generator, config: ConfigDict) -> None:
     """
     Run fBm experiment
@@ -350,8 +350,8 @@ def evaluate_fBm_performance(true_samples: np.ndarray, generated_samples: np.nda
 
 
 def prepare_circle_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion],
-                              scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], config: ConfigDict) -> Union[
-    NaiveMLP, TimeSeriesScoreMatching]:
+                              scoreModel: Union[NaiveMLP, TSScoreMatching], config: ConfigDict) -> Union[
+    NaiveMLP, TSScoreMatching]:
     """
         Helper function to train and / or load necessary models for fBm experiments
             :param diffusion: Diffusion model
@@ -377,7 +377,7 @@ def prepare_circle_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, V
 
 
 def run_circle_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion],
-                          scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
+                          scoreModel: Union[NaiveMLP, TSScoreMatching],
                           config: ConfigDict) -> None:
     """
     Run circle experiment
@@ -453,7 +453,7 @@ def evaluate_circle_performance(true_samples: np.ndarray, generated_samples: np.
 
 def run_fBm_score_error_experiment(dataSize: int,
                                    diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion],
-                                   scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], rng: np.random.Generator,
+                                   scoreModel: Union[NaiveMLP, TSScoreMatching], rng: np.random.Generator,
                                    config: ConfigDict) -> torch.Tensor:
     """
         Visualise the error between score
@@ -501,9 +501,12 @@ def run_fBm_score_error_experiment(dataSize: int,
         diff_index = torch.Tensor([i]).to(device)
 
         # Obtain required diffusion parameters
-        pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[
-                                                                                       diff_index.long()] * torch.ones(
-            (x.shape[0], 1)).to(device), score_network=scoreModel, diff_index=diff_index,
+        scoreModel.eval()
+        with torch.no_grad():
+            t = timesteps[diff_index.long()] * torch.ones((x.shape[0], 1)).to(device)
+            predicted_score = scoreModel.forward(x, t.squeeze(-1)).squeeze(1)
+        pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, predicted_score=predicted_score,
+                                                                              diff_index=diff_index,
                                                                               max_diff_steps=config.max_diff_steps)
         eff_time = diffusion.get_eff_times(diff_times=timesteps[diff_index.long()])
         if isinstance(diffusion, VESDEDiffusion):
@@ -525,7 +528,7 @@ def run_fBm_score_error_experiment(dataSize: int,
 
 def run_fBm_backward_drift_experiment(dataSize: int,
                                       diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion],
-                                      scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching], rng: np.random.Generator,
+                                      scoreModel: Union[NaiveMLP, TSScoreMatching], rng: np.random.Generator,
                                       config: ConfigDict) -> Tuple[torch.Tensor, torch.Tensor]:
     """
     Visualise the error between drifts
@@ -579,12 +582,13 @@ def run_fBm_backward_drift_experiment(dataSize: int,
         max_diff_steps = torch.Tensor([config.max_diff_steps]).to(device)
 
         # Obtain required diffusion parameters
-        _, pred_drift, diffusion_param = diffusion.get_ancestral_sampling(x,
-                                                                          t=timesteps[diff_index.long()] * torch.ones(
-                                                                              (x.shape[0], 1)).to(device),
-                                                                          score_network=scoreModel,
-                                                                          diff_index=diff_index,
-                                                                          max_diff_steps=config.max_diff_steps)
+        scoreModel.eval()
+        with torch.no_grad():
+            t = timesteps[diff_index.long()] * torch.ones((x.shape[0], 1)).to(device)
+            predicted_score = scoreModel.forward(x, t.squeeze(-1)).squeeze(1)
+        pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, predicted_score=predicted_score,
+                                                                              diff_index=diff_index,
+                                                                              max_diff_steps=config.max_diff_steps)
         eff_time = diffusion.get_eff_times(diff_times=timesteps[diff_index.long()])
         if isinstance(diffusion, VESDEDiffusion):
             inv_cov = -torch.linalg.inv(eff_time * torch.eye(config.ts_length).to(device) + data_cov)
@@ -614,7 +618,7 @@ def run_fBm_backward_drift_experiment(dataSize: int,
     return drift_errors, score_only_errors
 
 
-def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
+def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[NaiveMLP, TSScoreMatching],
                   diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion], folderPath: str, gifPath: str,
                   rng: np.random.Generator, config: ConfigDict) -> torch.Tensor:
     """
@@ -679,9 +683,12 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
             diffType = "VPSDE"
             cov = (1. - torch.exp(-eff_time)) * torch.eye(config.ts_length).to(device) + torch.exp(-eff_time) * data_cov
 
-        pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[
-                                                                                       diff_index.long()] * torch.ones(
-            (x.shape[0], 1)).to(device), score_network=scoreModel, diff_index=diff_index,
+        scoreModel.eval()
+        with torch.no_grad():
+            t = timesteps[diff_index.long()] * torch.ones((x.shape[0], 1)).to(device)
+            predicted_score = scoreModel.forward(x, t.squeeze(-1)).squeeze(1)
+        pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, predicted_score=predicted_score,
+                                                                              diff_index=diff_index,
                                                                               max_diff_steps=config.max_diff_steps)
         if i % config.gif_save_freq == 0 or i == (config.max_diff_steps - 1):
             save_path = folderPath + gifPath + "_diffIndex_{}.png".format(i + 1)
@@ -700,7 +707,7 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
     return x
 
 
-def run_fBm_scatter_matrix(dataSize: int, scoreModel: Union[NaiveMLP, TimeSeriesScoreMatching],
+def run_fBm_scatter_matrix(dataSize: int, scoreModel: Union[NaiveMLP, TSScoreMatching],
                            diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESDEDiffusion], folderPath: str,
                            gifPath: str,
                            rng: np.random.Generator, config: ConfigDict) -> None:
@@ -760,9 +767,11 @@ def run_fBm_scatter_matrix(dataSize: int, scoreModel: Union[NaiveMLP, TimeSeries
             diffType = "VPSDE"
             cov = (1. - torch.exp(-eff_time)) * torch.eye(config.ts_length).to(device) + torch.exp(-eff_time) * data_cov
 
-        pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, t=timesteps[
-                                                                                       diff_index.long()] * torch.ones(
-            (x.shape[0], 1)).to(device), score_network=scoreModel, diff_index=diff_index,
+        scoreModel.eval()
+        with torch.no_grad():
+            t = timesteps[diff_index.long()] * torch.ones((x.shape[0], 1)).to(device)
+            predicted_score = scoreModel.forward(x, t.squeeze(-1)).squeeze(1)
+        pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, predicted_score=predicted_score, diff_index=diff_index,
                                                                               max_diff_steps=config.max_diff_steps)
         if (i >= config.idx_start_save) and (i % config.gif_save_freq == 0 or i == (config.max_diff_steps - 1)):
             row_vars = config.row_idxs

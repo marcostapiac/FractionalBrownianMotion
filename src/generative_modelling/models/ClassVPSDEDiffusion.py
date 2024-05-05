@@ -97,15 +97,14 @@ class VPSDEDiffusion(nn.Module):
         """
         return torch.randn(shape)
 
-    def get_ancestral_sampling(self, x: torch.Tensor, t: torch.Tensor,
-                               score_network: Union[NaiveMLP, TSScoreMatching],
+    def get_ancestral_sampling(self, x: torch.Tensor,
+                               predicted_score: torch.Tensor,
                                diff_index: torch.Tensor, max_diff_steps: int) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Compute parameters for one-step in ancestral sampling of reverse-time diffusion
             :param x: Current reverse-time diffusion sample
-            :param t: Current reverse-time diffusion time
-            :param score_network: Trained score matching function
+            :param predicted_score: Predicted Score Function
             :param diff_index: FORWARD diffusion index
             :param max_diff_steps: Maximum number of diffusion steps
             :return:
@@ -113,70 +112,54 @@ class VPSDEDiffusion(nn.Module):
                 - Ancestral Sampling Drift
                 - Ancestral Sampling Diffusion Coefficient
         """
-        score_network.eval()
         with torch.no_grad():
-            predicted_score = score_network.forward(x, t.squeeze(-1)).squeeze(1)
             max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
             drift = self.get_ancestral_drift(x=x, pred_score=predicted_score, diff_index=diff_index,
                                              max_diff_steps=max_diff_steps)
             diff_param = self.get_ancestral_diff(diff_index=diff_index, max_diff_steps=max_diff_steps)
         return predicted_score, drift, diff_param
 
-    def get_conditional_reverse_diffusion(self, x: torch.Tensor, t: torch.Tensor,
-                                          score_network: Union[
-                                              NaiveMLP, TSScoreMatching, ConditionalLSTMTSScoreMatching, ConditionalTSScoreMatching, ConditionalMarkovianTSScoreMatching],
-                                          feature: torch.Tensor,
+    def get_conditional_reverse_diffusion(self, x: torch.Tensor, predicted_score: torch.Tensor,
                                           diff_index: torch.Tensor, max_diff_steps: int) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor]:
         """
 
         :param x:
-        :param t:
-        :param score_network:
-        :param feature:
+        :param predicted_score:
         :param diff_index:
         :param max_diff_steps:
         :return:
         """
-        score_network.eval()
         with torch.no_grad():
-            predicted_score = score_network.forward(x, conditioner=feature, times=t)
             max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
             discrete_beta = self.get_discretised_beta(diff_index=max_diff_steps - 1 - diff_index,
                                                       max_diff_steps=max_diff_steps)
             drift = x + 0.5 * discrete_beta * x + discrete_beta * predicted_score
             diff_param = torch.sqrt(discrete_beta)
         return predicted_score, drift, diff_param
-    def get_conditional_learnsample_reverse_diffusion(self, x: torch.Tensor, t: torch.Tensor,
-                                          score_network: Union[ConditionalLSTMTSSampleScoreMatching],
-                                          feature: torch.Tensor,
-                                          diff_index: torch.Tensor, max_diff_steps: int) -> Tuple[
+
+    def get_conditional_learnsample_reverse_diffusion(self, x: torch.Tensor, predicted_score: torch.Tensor,
+                                                      diff_index: torch.Tensor, max_diff_steps: int) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor]:
         """
 
         :param x:
         :param t:
         :param score_network:
-        :param feature:
         :param diff_index:
         :param max_diff_steps:
         :return:
         """
-        score_network.eval()
         with torch.no_grad():
-            eff_times = self.get_eff_times(diff_times=t)
-            eff_times = eff_times.reshape(x.shape)
-            predicted_score = score_network.forward(x, conditioner=feature, times=t, eff_times=eff_times)
             max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
             discrete_beta = self.get_discretised_beta(diff_index=max_diff_steps - 1 - diff_index,
                                                       max_diff_steps=max_diff_steps)
             drift = x + 0.5 * discrete_beta * x + discrete_beta * predicted_score
             diff_param = torch.sqrt(discrete_beta)
         return predicted_score, drift, diff_param
-    def get_conditional_probODE(self, x: torch.Tensor, t: torch.Tensor,
-                                score_network: Union[
-                                    NaiveMLP, TSScoreMatching, ConditionalLSTMTSScoreMatching, ConditionalTSScoreMatching, ConditionalMarkovianTSScoreMatching],
-                                feature: torch.Tensor,
+
+    def get_conditional_probODE(self, x: torch.Tensor,
+                                predicted_score: torch.Tensor,
                                 diff_index: torch.Tensor, max_diff_steps: int) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor]:
         """
@@ -189,9 +172,7 @@ class VPSDEDiffusion(nn.Module):
         :param max_diff_steps:
         :return:
         """
-        score_network.eval()
         with torch.no_grad():
-            predicted_score = score_network.forward(x, conditioner=feature, times=t)
             max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
             beta_t = self.get_discretised_beta(diff_index=max_diff_steps - 1 - diff_index,
                                                max_diff_steps=max_diff_steps)
@@ -199,10 +180,8 @@ class VPSDEDiffusion(nn.Module):
             diff_param = torch.sqrt(beta_t) * 0
         return predicted_score, drift, diff_param
 
-    def get_conditional_ancestral_sampling(self, x: torch.Tensor, t: torch.Tensor,
-                                           score_network: Union[
-                                               NaiveMLP, TSScoreMatching, ConditionalLSTMTSScoreMatching, ConditionalTSScoreMatching, ConditionalMarkovianTSScoreMatching],
-                                           feature: torch.Tensor,
+    def get_conditional_ancestral_sampling(self, x: torch.Tensor,
+                                           predicted_score:torch.Tensor,
                                            diff_index: torch.Tensor, max_diff_steps: int) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor]:
         """
@@ -217,18 +196,14 @@ class VPSDEDiffusion(nn.Module):
                 - Ancestral Sampling Drift
                 - Ancestral Sampling Diffusion Coefficient
         """
-        score_network.eval()
-        score_network.zero_grad()
         if diff_index >= torch.Tensor([max_diff_steps - 2]).to(diff_index.device):
             with torch.enable_grad():
-                predicted_score = score_network.forward(x, conditioner=feature, times=t)
                 max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
                 drift = self.get_ancestral_drift(x=x, pred_score=predicted_score, diff_index=diff_index,
                                                  max_diff_steps=max_diff_steps)
                 diff_param = self.get_ancestral_diff(diff_index=diff_index, max_diff_steps=max_diff_steps)
         else:
             with torch.no_grad():
-                predicted_score = score_network.forward(x, conditioner=feature, times=t)
                 max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
                 drift = self.get_ancestral_drift(x=x, pred_score=predicted_score, diff_index=diff_index,
                                                  max_diff_steps=max_diff_steps)

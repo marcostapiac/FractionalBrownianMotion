@@ -41,16 +41,33 @@ def recursive_sampling_and_track(data_shape: tuple, torch_device, feature: torch
         t = timesteps[diff_index]
         # Obtain required diffusion parameters
         if sampling == "ancestral":
-            pred_score, pred_drift, diffusion_param = diffusion.get_conditional_ancestral_sampling(x, t=t * torch.ones(
-                (x.shape[0],)).to(torch_device), feature=feature, score_network=scoreModel, diff_index=diff_index,
+            scoreModel.eval()
+            ts = t * torch.ones((x.shape[0],)).to(torch_device)
+            if diff_index >= torch.Tensor([config.max_diff_steps - 2]).to(diff_index.device):
+                with torch.enable_grad():
+                    predicted_score = scoreModel.forward(x, conditioner=feature, times=ts)
+            else:
+                with torch.no_grad():
+                    predicted_score = scoreModel.forward(x, conditioner=feature, times=ts)
+            pred_score, pred_drift, diffusion_param = diffusion.get_conditional_ancestral_sampling(x,
+                                                                                                   predicted_score=predicted_score,
+                                                                                                   diff_index=diff_index,
                                                                                                    max_diff_steps=config.max_diff_steps)
         elif sampling == "reverse":
-            pred_score, pred_drift, diffusion_param = diffusion.get_conditional_reverse_diffusion(x, t=t * torch.ones(
-                (x.shape[0],)).to(torch_device), feature=feature, score_network=scoreModel, diff_index=diff_index,
+            scoreModel.eval()
+            with torch.no_grad():
+                t = t * torch.ones((x.shape[0],)).to(torch_device)
+                predicted_score = scoreModel.forward(x, conditioner=feature, times=t)
+            pred_score, pred_drift, diffusion_param = diffusion.get_conditional_reverse_diffusion(x,
+                                                                                                  predicted_score=predicted_score,
+                                                                                                  diff_index=diff_index,
                                                                                                   max_diff_steps=config.max_diff_steps)
         else:
-            pred_score, pred_drift, diffusion_param = diffusion.get_conditional_probODE(x, t=t * torch.ones(
-                (x.shape[0],)).to(torch_device), feature=feature, score_network=scoreModel, diff_index=diff_index,
+            scoreModel.eval()
+            with torch.no_grad():
+                ts=(t * torch.ones(x.shape[0],)).to(torch_device)
+                predicted_score = scoreModel.forward(x, conditioner=feature, times=ts)
+            pred_score, pred_drift, diffusion_param = diffusion.get_conditional_probODE(x,predicted_score=predicted_score, diff_index=diff_index,
                                                                                         max_diff_steps=config.max_diff_steps)
 
         # One-step reverse-time SDE

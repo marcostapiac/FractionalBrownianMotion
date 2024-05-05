@@ -49,8 +49,15 @@ def recursive_sampling_and_track(data_shape: tuple, torch_device, feature: torch
         diff_index = torch.Tensor([i]).to(torch_device).long()
         t = timesteps[diff_index]
         # Obtain required diffusion parameters
-        pred_score, pred_drift, diffusion_param = diffusion.get_conditional_ancestral_sampling(x, t=t * torch.ones(
-            (x.shape[0],)).to(torch_device), feature=feature, score_network=scoreModel, diff_index=diff_index,
+        scoreModel.eval()
+        ts = t * torch.ones((x.shape[0],)).to(torch_device)
+        if diff_index >= torch.Tensor([config.max_diff_steps - 2]).to(diff_index.device):
+            with torch.enable_grad():
+                predicted_score = scoreModel.forward(x, conditioner=feature, times=ts)
+        else:
+            with torch.no_grad():
+                predicted_score = scoreModel.forward(x, conditioner=feature, times=ts)
+        pred_score, pred_drift, diffusion_param = diffusion.get_conditional_ancestral_sampling(x, predicted_score=predicted_score, diff_index=diff_index,
                                                                                                max_diff_steps=config.max_diff_steps)
 
         eff_time = diffusion.get_eff_times(diff_times=t)
