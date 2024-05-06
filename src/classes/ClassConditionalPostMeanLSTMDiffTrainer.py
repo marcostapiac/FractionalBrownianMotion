@@ -123,7 +123,7 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
         beta_tau = torch.exp(-0.5*eff_times)
         tau0 = torch.Tensor([0.2825]).to(diff_times.device)
         w1 = (diff_times > tau0).unsqueeze(-1).unsqueeze(-1)*(sigma_tau/beta_tau)
-        w2 = (diff_times < tau0).unsqueeze(-1).unsqueeze(-1)*torch.pow(1.-torch.exp(-eff_times),1/3)
+        w2 = (diff_times < tau0).unsqueeze(-1).unsqueeze(-1)*torch.pow(1.-torch.exp(-eff_times),1/4)
         weights = w1 + w2
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         return self._batch_loss_compute(outputs=outputs*weights, targets= target_scores*weights)
