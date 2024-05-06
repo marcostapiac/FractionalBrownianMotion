@@ -121,7 +121,7 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
         # For times larger than tau0, use inverse_weighting
         sigma_tau = 1.-torch.exp(-eff_times)
         beta_tau = torch.exp(-0.5*eff_times)
-        tau0 = torch.Tensor([0.2825]).to(diff_times.device)
+        tau0 = torch.Tensor([0.2904]).to(diff_times.device)
         w1 = (diff_times > tau0).unsqueeze(-1).unsqueeze(-1)*(sigma_tau/beta_tau)
         w2 = (diff_times < tau0).unsqueeze(-1).unsqueeze(-1)*torch.pow(1.-torch.exp(-eff_times),1/4)
         weights = w1 + w2
