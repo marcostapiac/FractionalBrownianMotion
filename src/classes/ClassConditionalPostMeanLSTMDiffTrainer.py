@@ -118,8 +118,13 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
         diff_times = diff_times.reshape(B * T)
         eff_times = eff_times.reshape(target_scores.shape)
         outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times, eff_times=eff_times)
-        # For VPSDE only
-        weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
+        # For times larger than tau0, use inverse_weighting
+        sigma_tau = 1.-torch.exp(-eff_times)
+        beta_tau = torch.exp(-0.5*eff_times)
+        tau0 = torch.Tensor([0.2632]).to(diff_times.device)
+        w1 = (diff_times > tau0).unsqueeze(-1).unsqueeze(-1)*(sigma_tau/beta_tau)
+        w2 = (diff_times < tau0).unsqueeze(-1).unsqueeze(-1)*torch.exp(-(1/3)*eff_times)
+        weights = w1 + w2
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         return self._batch_loss_compute(outputs=outputs*weights, targets= target_scores*weights)
 
