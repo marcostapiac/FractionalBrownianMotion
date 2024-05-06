@@ -58,7 +58,7 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
         self.end_diff_time = end_diff_time
         self.is_hybrid = hybrid_training
         self.include_weightings = to_weight
-        assert (to_weight == True) # This is irrelevant when learning predicted sample
+        assert (to_weight == True)
         # Move score network to appropriate device
         if type(self.device_id) == int:
             print("DDP Setup\n")
@@ -119,11 +119,9 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
         eff_times = eff_times.reshape(target_scores.shape)
         outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times, eff_times=eff_times)
         # For VPSDE only
-        beta_tau = torch.exp(-0.5 * eff_times)
-        sigma_tau = (1 - torch.exp(-eff_times))
+        weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
-        m = torch.pow(sigma_tau/beta_tau,1)
-        return self._batch_loss_compute(outputs=outputs*m, targets= target_scores*m)
+        return self._batch_loss_compute(outputs=outputs*weights, targets= target_scores*weights)
 
     def _run_epoch(self, epoch: int) -> list:
         """
