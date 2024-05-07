@@ -35,8 +35,9 @@ if __name__ == "__main__":
             final_paths, cond_means, cond_vars = recursive_markovian_reverse_sampling(diffusion=diffusion,
                                                                                       scoreModel=scoreModel,
                                                                                       data_shape=(
-                                                                                      config.dataSize, config.ts_length,
-                                                                                      1), config=config)
+                                                                                          config.dataSize,
+                                                                                          config.ts_length,
+                                                                                          1), config=config)
             path_df = pd.DataFrame(final_paths)
             path_df.index = pd.MultiIndex.from_product(
                 [["Final Time Samples"], [i for i in range(config.dataSize)]])

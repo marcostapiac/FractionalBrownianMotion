@@ -1,32 +1,33 @@
+import pickle
 import time
 
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 from ml_collections import ConfigDict
-from tqdm import tqdm
-import pickle
-from experiments.generative_modelling.estimate_fSDEs import estimate_fSDE_from_true, second_order_estimator, \
+
+from experiments.generative_modelling.estimate_fSDEs import second_order_estimator, \
     estimate_hurst_from_filter
 
 
-def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
+def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> None:
     with open(config.scoreNet_trained_path.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as f:
         losses = np.array(pickle.load(f))
     assert (losses.shape[0] >= 1)  # max(config.max_epochs))
     T = losses.shape[0]
-    plt.plot(np.linspace(1, T + 1, T), (losses.cumsum()/np.arange(1, T+1)))
+    plt.plot(np.linspace(1, T + 1, T), (losses.cumsum() / np.arange(1, T + 1)))
     plt.xlabel("Epoch")
     plt.ylabel("Training Loss")
     plt.title("CumMean Per-epoch Training Loss")
     plt.show()
-    plt.plot(np.linspace(1, T + 1, T),losses)
+    plt.plot(np.linspace(1, T + 1, T), losses)
     plt.xlabel("Epoch")
     plt.ylabel("Training Loss")
     plt.title("Per-epoch Training Loss")
     plt.show()
 
-    incs = pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip",
+    incs = pd.read_csv(config.experiment_path + "_{}NEp{}.csv.gzip".format(sampling_model, train_epoch),
+                       compression="gzip",
                        index_col=[0, 1]).to_numpy()
     paths = incs.cumsum(axis=1)
     for _ in range(paths.shape[0]):
@@ -36,8 +37,6 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
     # Estimate Hurst indices from paths
     U_a1, U_a2 = second_order_estimator(paths=paths, Nsamples=paths.shape[0])
     estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=train_epoch).flatten()
-    # Estimate Hurst indices from true
-    estimate_fSDE_from_true(config=config).flatten()
     # Construct estimator for mean reversion
     augdata = np.concatenate([np.zeros(shape=(paths.shape[0], 1)), paths], axis=1)
     denom = np.sum(np.power(augdata[:, :-1], 2), axis=1) * (1. / config.ts_length)
@@ -57,14 +56,15 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
     else:
         PT = 1
     means = pd.read_csv(
-        (config.experiment_path + "_NEp{}_PT{}.csv.gzip".format(train_epoch, PT)).replace("fOU", "fOUm").replace(
-            "fOUm00", "fOUm00"),
+        (config.experiment_path + "_{}NEp{}_P{}.csv.gzip".format(sampling_model, train_epoch, PT)).replace("fOU",
+                                                                                                           "fOUm").replace(
+            "fOUm00", "fm0"),
         compression="gzip", index_col=[0, 1]).to_numpy()
     means *= (config.ts_length ** (2 * config.hurst))
 
     # Plot some marginal distributions
     time_space = np.linspace((1. / config.ts_length), 1., num=config.ts_length)
-    low = config.ts_length-10
+    low = config.ts_length - 10
     high = config.ts_length
     for idx in range(3):
         tidx = np.random.randint(low=low, high=high)
@@ -83,7 +83,6 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
         plt.legend()
         plt.show()
         plt.close()
-
 
     # Plot path and drift as a function of time
     for _ in range(3):
@@ -113,7 +112,7 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
         mean = np.array(mean)
         path = np.array(path)
         plt.scatter(path, mean, label="Drift Against State")
-        plt.scatter(path, -config.mean_rev*path, label="Expected Drift Against State")
+        plt.scatter(path, -config.mean_rev * path, label="Expected Drift Against State")
         plt.title(f"Drift against Path with")
         plt.legend()
         plt.show()
@@ -142,22 +141,34 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
 
 
 if __name__ == "__main__":
-    from configs.RecursiveVPSDE.recursive_fOU_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H07_tl_5data import get_config
 
     config = get_config()
-    param_time = 9999
+    param_time = 900
+    sampling_models = ["CondAncestral", "CondReverseDiffusion", "CondProbODE"]
+    early_stopping = [True, False]
     for train_epoch in config.max_epochs:
-        try:
-            pd.read_csv(config.experiment_path + "_NEp{}.csv.gzip".format(train_epoch), compression="gzip",
-                        index_col=[0, 1]).to_numpy()
-            config.param_time = param_time
-            if config.param_time == config.max_diff_steps - 1:
-                PT = 0
-            elif config.param_time == 4600:
-                PT = 2
+        for sampling_model in sampling_models:
+            if sampling_model == "CondAncestral":
+                sampling_type = "a"
+            elif sampling_model == "CondReverseDiffusion":
+                sampling_type = "r"
             else:
-                PT = 1
-            estimate_SDEs(config=config, train_epoch=train_epoch)
-        except FileNotFoundError as e:
-            print(e)
-            continue
+                sampling_type = "p"
+            for early_stop in early_stopping:
+                sampling_type = "e" + sampling_type if early_stop else sampling_type
+                try:
+                    pd.read_csv(config.experiment_path + "_{}NEp{}.csv.gzip".format(sampling_type, train_epoch),
+                                compression="gzip",
+                                index_col=[0, 1]).to_numpy()
+                    config.param_time = param_time
+                    if config.param_time == config.max_diff_steps - 1:
+                        PT = 0
+                    elif config.param_time == 4600:
+                        PT = 2
+                    else:
+                        PT = 1
+                    estimate_SDEs(config=config, train_epoch=train_epoch, sampling_model=sampling_type)
+                except FileNotFoundError as e:
+                    print(e)
+                    continue

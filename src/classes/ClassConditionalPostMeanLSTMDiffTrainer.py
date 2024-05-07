@@ -38,6 +38,7 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
                  checkpoint_freq: int,
                  to_weight: bool,
                  hybrid_training: bool,
+                 loss_factor:float,
                  loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
         super().__init__()
@@ -51,6 +52,7 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
         self.train_loader = train_data_loader
         self.loss_fn = loss_fn  # If callable, need to ensure we allow for gradient computation
         self.loss_aggregator = loss_aggregator().to(self.device_id)
+        self.loss_factor = loss_factor
 
         self.diffusion = diffusion
         self.train_eps = train_eps
@@ -121,10 +123,19 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
         # For times larger than tau0, use inverse_weighting
         sigma_tau = 1.-torch.exp(-eff_times)
         beta_tau = torch.exp(-0.5*eff_times)
-        tau0 = torch.Tensor([0.2904]).to(diff_times.device)
-        w1 = (diff_times > tau0).unsqueeze(-1).unsqueeze(-1)*(sigma_tau/beta_tau)
-        w2 = (diff_times < tau0).unsqueeze(-1).unsqueeze(-1)*torch.pow(1.-torch.exp(-eff_times),1/3)
-        weights = w1 + w2
+        if self.loss_factor == 0:
+            weights = (sigma_tau/beta_tau) # PM
+        elif self.loss_factor == 3:
+            tau0 = torch.Tensor([0.2904]).to(diff_times.device)
+            w1 = (diff_times > tau0).unsqueeze(-1).unsqueeze(-1)*(sigma_tau/beta_tau)
+            w2 = (diff_times < tau0).unsqueeze(-1).unsqueeze(-1)*torch.pow(1.-torch.exp(-eff_times),1/self.loss_factor)
+            weights = w1 + w2
+        elif self.loss_factor == 2:
+            tau0 = torch.Tensor([0.2830]).to(diff_times.device)
+            w1 = (diff_times > tau0).unsqueeze(-1).unsqueeze(-1) * (sigma_tau / beta_tau)
+            w2 = (diff_times < tau0).unsqueeze(-1).unsqueeze(-1) * torch.pow(1. - torch.exp(-eff_times),
+                                                                             1 / self.loss_factor)
+            weights = w1 + w2
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         return self._batch_loss_compute(outputs=outputs*weights, targets= target_scores*weights)
 
