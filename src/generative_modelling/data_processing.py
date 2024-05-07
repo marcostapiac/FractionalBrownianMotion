@@ -497,6 +497,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                 trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
             except (AttributeError, KeyError, AssertionError) as e:
                 # Post Mean LSTM
+                print(type(trainClass))
                 assert(type(trainClass)==ConditionalLSTMPostMeanDiffusionModelTrainer)
                 trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                                      checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
