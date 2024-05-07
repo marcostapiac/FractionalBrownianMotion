@@ -495,17 +495,17 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
 
                 # Start training
                 trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
-        except (AttributeError, KeyError, AssertionError) as e:
-            # Post Mean LSTM
-            assert(type(trainClass)==ConditionalLSTMPostMeanDiffusionModelTrainer)
-            trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
-                                 checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
-                                 loss_aggregator=MeanMetric,
-                                 snapshot_path=config.scoreNet_snapshot_path, device=device,
-                                 train_eps=train_eps,
-                                 end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
-                                 to_weight=config.weightings,
-                                 hybrid_training=config.hybrid, loss_factor=config.loss_factor)
+            except (AttributeError, KeyError, AssertionError) as e:
+                # Post Mean LSTM
+                assert(type(trainClass)==ConditionalLSTMPostMeanDiffusionModelTrainer)
+                trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
+                                     checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
+                                     loss_aggregator=MeanMetric,
+                                     snapshot_path=config.scoreNet_snapshot_path, device=device,
+                                     train_eps=train_eps,
+                                     end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
+                                     to_weight=config.weightings,
+                                     hybrid_training=config.hybrid, loss_factor=config.loss_factor)
 
-            # Start training
-            trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
+                # Start training
+                trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
