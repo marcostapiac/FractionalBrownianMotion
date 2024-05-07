@@ -452,6 +452,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
     train_eps, end_diff_time, max_diff_steps, checkpoint_freq = config.train_eps, config.end_diff_time, config.max_diff_steps, config.save_freq
     try:
         # Markovian
+        assert (type(trainClass) == ConditionalMarkovianDiffusionModelTrainer)
         ts_type = "fOU" if "fOU" in config.data_path else "fBm"
         trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                              checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
@@ -466,6 +467,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
     except (AttributeError, KeyError) as e:
         # Signature
         try:
+            assert (type(trainClass) == ConditionalSignatureDiffusionModelTrainer)
             assert (config.sig_trunc)
             trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                                  checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
@@ -478,20 +480,22 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
             # Start training
             trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path,
                           ts_dims=config.ts_dims)
-        except (AttributeError, KeyError) as e:
+        except (AttributeError, KeyError, AssertionError) as e:
             # LSTM
-            trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
-                                 checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
-                                 loss_aggregator=MeanMetric,
-                                 snapshot_path=config.scoreNet_snapshot_path, device=device,
-                                 train_eps=train_eps,
-                                 end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
-                                 to_weight=config.weightings,
-                                 hybrid_training=config.hybrid)
+            try:
+                assert(type(trainClass)==ConditionalLSTMDiffusionModelTrainer)
+                trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
+                                     checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
+                                     loss_aggregator=MeanMetric,
+                                     snapshot_path=config.scoreNet_snapshot_path, device=device,
+                                     train_eps=train_eps,
+                                     end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
+                                     to_weight=config.weightings,
+                                     hybrid_training=config.hybrid)
 
-            # Start training
-            trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
-        except (AttributeError, KeyError) as e:
+                # Start training
+                trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
+        except (AttributeError, KeyError, AssertionError) as e:
             # Post Mean LSTM
             assert(type(trainClass)==ConditionalLSTMPostMeanDiffusionModelTrainer)
             trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
