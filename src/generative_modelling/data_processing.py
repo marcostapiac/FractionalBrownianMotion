@@ -438,6 +438,8 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
         :param trainClass: Class of diffusion trainer
         :return: None
     """
+    print(type(trainClass))
+    raise RuntimeError
     if config.has_cuda:
         device = int(os.environ["LOCAL_RANK"])
     else:
