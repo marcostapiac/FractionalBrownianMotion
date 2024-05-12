@@ -39,6 +39,7 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
                  to_weight: bool,
                  hybrid_training: bool,
                  loss_factor:float,
+                 ts_time_diff:float=1/256,
                  loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
         super().__init__()
@@ -60,6 +61,7 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
         self.end_diff_time = end_diff_time
         self.is_hybrid = hybrid_training
         self.include_weightings = to_weight
+        self.ts_time_diff = ts_time_diff
         assert (to_weight == True)
         # Move score network to appropriate device
         if type(self.device_id) == int:
@@ -131,11 +133,13 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
             w2 = (diff_times < tau0).unsqueeze(-1).unsqueeze(-1)*torch.pow(1.-torch.exp(-eff_times),1/self.loss_factor)
             weights = w1 + w2
         elif self.loss_factor == 2:
-            tau0 = torch.Tensor([0.2830]).to(diff_times.device)
+            tau0 = torch.Tensor([0.2630]).to(diff_times.device)
             w1 = (diff_times > tau0).unsqueeze(-1).unsqueeze(-1) * (sigma_tau / beta_tau)
             w2 = (diff_times < tau0).unsqueeze(-1).unsqueeze(-1) * torch.pow(1. - torch.exp(-eff_times),
                                                                              1 / self.loss_factor)
             weights = w1 + w2
+        elif self.loss_factor == 4:
+            weights = (sigma_tau / (beta_tau*self.ts_time_diff))
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         return self._batch_loss_compute(outputs=outputs*weights, targets= target_scores*weights)
 

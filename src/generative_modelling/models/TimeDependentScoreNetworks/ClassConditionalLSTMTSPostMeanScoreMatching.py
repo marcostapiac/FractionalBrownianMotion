@@ -196,6 +196,6 @@ class ConditionalLSTMTSPostMeanScoreMatching(nn.Module):
         x = self.output_projection(x)
         # For VPSDE only
         beta_tau = torch.exp(-0.5*eff_times)
-        sigma_tau = (1-torch.exp(-eff_times))
+        sigma_tau = (1.-torch.exp(-eff_times))
         # Network tries to learn the posterior mean
         return -inputs/sigma_tau + (beta_tau/sigma_tau) * x

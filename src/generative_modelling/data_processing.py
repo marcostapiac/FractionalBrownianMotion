@@ -501,7 +501,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                      train_eps=train_eps,
                                      end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
                                      to_weight=config.weightings,
-                                     hybrid_training=config.hybrid, loss_factor=config.loss_factor)
+                                     hybrid_training=config.hybrid, loss_factor=config.loss_factor, ts_time_diff=1/config.ts_length)
 
                 # Start training
                 trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
