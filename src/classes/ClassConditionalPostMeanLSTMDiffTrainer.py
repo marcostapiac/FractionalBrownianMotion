@@ -140,6 +140,8 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
             weights = w1 + w2
         elif self.loss_factor == 4:
             weights = (sigma_tau / (beta_tau*self.ts_time_diff))
+        elif self.loss_factor == 5:
+            weights = (torch.pow(sigma_tau, 0.5) / (self.ts_time_diff))
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         return self._batch_loss_compute(outputs=outputs*weights, targets= target_scores*weights)
 
