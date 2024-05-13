@@ -4,6 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 
+from src.classes.ClassConditionalLSTMDiffTrainer import ConditionalLSTMDiffusionModelTrainer
 from src.classes.ClassConditionalPostMeanLSTMDiffTrainer import ConditionalLSTMPostMeanDiffusionModelTrainer
 from src.generative_modelling.data_processing import recursive_LSTM_reverse_sampling, \
     train_and_save_recursive_diffusion_model
@@ -54,7 +55,7 @@ if __name__ == "__main__":
         assert (data.shape == (training_size, config.ts_length, config.ts_dims))
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
         train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel,
-                                                 trainClass=ConditionalLSTMPostMeanDiffusionModelTrainer)
+                                                 trainClass=ConditionalLSTMDiffusionModelTrainer)
     cleanup_experiment()
     es = []
     for train_epoch in config.max_epochs:
