@@ -11,21 +11,6 @@ from experiments.generative_modelling.estimate_fSDEs import second_order_estimat
 
 
 def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> None:
-    with open(config.scoreNet_trained_path.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as f:
-        losses = np.array(pickle.load(f))
-    assert (losses.shape[0] >= 1)  # max(config.max_epochs))
-    T = losses.shape[0]
-    plt.plot(np.linspace(1, T + 1, T), (losses.cumsum() / np.arange(1, T + 1)))
-    plt.xlabel("Epoch")
-    plt.ylabel("Training Loss")
-    plt.title("CumMean Per-epoch Training Loss")
-    plt.show()
-    plt.plot(np.linspace(1, T + 1, T), losses)
-    plt.xlabel("Epoch")
-    plt.ylabel("Training Loss")
-    plt.title("Per-epoch Training Loss")
-    plt.show()
-
     incs = pd.read_csv(config.experiment_path + "_{}NEp{}.csv.gzip".format(sampling_model, train_epoch),
                        compression="gzip",
                        index_col=[0, 1]).to_numpy()
@@ -58,7 +43,7 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
     means = pd.read_csv(
         (config.experiment_path + "_{}NEp{}_P{}.csv.gzip".format(sampling_model, train_epoch, PT)).replace("fOU",
                                                                                                            "fOUm").replace(
-            "fOUm00", "fm0"),
+            "fOUm00", "m0"),
         compression="gzip", index_col=[0, 1]).to_numpy()
     means *= (config.ts_length ** (2 * config.hurst))
 
@@ -134,20 +119,34 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
         exp_var *= config.mean_rev * config.mean_rev
         exp_rvs = np.random.normal(loc=exp_mean, scale=np.sqrt(exp_var), size=mean.shape[0])
         plt.hist(exp_rvs, bins=150, density=True, label="Expected Drift")
-        plt.title(f"Marginal Distributions of Drift at time {t} for epoch {0}")
+        plt.title(f"Marginal Distributions of Drift at time {t} for epoch {train_epoch}")
         plt.legend()
         plt.show()
         plt.close()
 
 
 if __name__ == "__main__":
-    from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_rrPostMeanScore_fOU_T256_H07_tl_5data import get_config
 
     config = get_config()
     param_time = 900
-    sampling_models = ["CondAncestral", "CondReverseDiffusion", "CondProbODE"]
-    early_stopping = [True, False]
+    sampling_models = ["CondProbODE"]#["CondAncestral", "CondReverseDiffusion", "CondProbODE"]
+    early_stopping = [False]
     for train_epoch in config.max_epochs:
+        with open(config.scoreNet_trained_path.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as f:
+            losses = np.array(pickle.load(f))
+        assert (losses.shape[0] >= 1)  # max(config.max_epochs))
+        T = losses.shape[0]
+        plt.plot(np.linspace(1, T + 1, T), (losses.cumsum() / np.arange(1, T + 1)))
+        plt.xlabel("Epoch")
+        plt.ylabel("Training Loss")
+        plt.title("CumMean Per-epoch Training Loss")
+        plt.show()
+        plt.plot(np.linspace(1, T + 1, T), losses)
+        plt.xlabel("Epoch")
+        plt.ylabel("Training Loss")
+        plt.title("Per-epoch Training Loss")
+        plt.show()
         for sampling_model in sampling_models:
             if sampling_model == "CondAncestral":
                 sampling_type = "a"

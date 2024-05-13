@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H07_tl_5data import get_config
+from configs.RecursiveVPSDE.recursive_rrPostMeanScore_fOU_T256_H07_tl_5data import get_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
     ConditionalLSTMTSPostMeanScoreMatching
@@ -34,46 +34,6 @@ diff_time_scale = torch.linspace(start=config.end_diff_time, end=config.sample_e
                                  steps=config.max_diff_steps)
 diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 ts_step = 1 / config.ts_length
-
-# In[4]:
-
-
-# real time 0
-prev_path = torch.zeros((data_shape[0], 1, data_shape[-1])).to(
-    device)  # torch.normal(mean=0, std=np.sqrt(1/config.ts_length), size=(data_shape[0], 1, data_shape[-1])).to(device)
-feature, (h, c) = scoreModel.rnn(prev_path, None)  # Feature for real time 0
-tau = diff_time_scale[900] * torch.ones((data_shape[0],)).to(device)  # End of reverse-diffusion
-
-# In[5]:
-
-
-# Create a linear sequence of "corrupted samples"
-diffusion_mean2 = torch.atleast_2d(torch.exp(-diffusion.get_eff_times(diff_times=tau))).T.to(device)
-diffusion_var = 1. - diffusion_mean2
-exp_mean = torch.sqrt(diffusion_mean2) * (ts_step) * (-0.8 * prev_path.squeeze(-1))
-assert (exp_mean.shape == prev_path.squeeze(-1).shape)
-exp_var = diffusion_var + diffusion_mean2 * (ts_step)
-Xtaus = torch.sort(torch.normal(mean=exp_mean, std=torch.sqrt(exp_var)).reshape((N, data_shape[1], 1)), dim=0)[0]
-
-# In[6]:
-
-
-plt.hist(Xtaus.squeeze())
-print(np.std(Xtaus.squeeze().numpy()), torch.sqrt(exp_var))
-
-# In[7]:
-
-
-with torch.no_grad():
-    try:
-        score_evals = scoreModel.forward(inputs=Xtaus, times=tau, conditioner=feature,
-                                         eff_times=diffusion.get_eff_times(tau.reshape(Xtaus.shape)))
-    except TypeError:
-        score_evals = scoreModel.forward(inputs=Xtaus, times=tau, conditioner=feature)
-score_evals.shape
-
-
-# In[8]:
 
 
 def check_linear_score(config, Xtaus, score_evals, diffusion_var, diffusion_mean2, ts_step, prev_path):
@@ -119,13 +79,6 @@ def check_linear_score(config, Xtaus, score_evals, diffusion_var, diffusion_mean
     plt.close()
 
 
-check_linear_score(config=config, Xtaus=Xtaus, score_evals=score_evals, diffusion_var=diffusion_var,
-                   diffusion_mean2=diffusion_mean2, ts_step=ts_step, prev_path=prev_path)
-
-
-# In[9]:
-
-
 # Build drift estimator
 def build_drift_estimator(config, diffusion_var, diffusion_mean2, ts_step, score_evals, Xtaus, prev_path):
     try:
@@ -165,13 +118,6 @@ def build_drift_estimator(config, diffusion_var, diffusion_mean2, ts_step, score
     plt.show()
     plt.close()
     return mean_est
-
-
-mean_est = build_drift_estimator(config=config, diffusion_var=diffusion_var, diffusion_mean2=diffusion_mean2,
-                                 ts_step=ts_step, score_evals=score_evals, Xtaus=Xtaus, prev_path=prev_path)
-
-
-# In[10]:
 
 
 # Plot some marginal distributions for estimated drift
