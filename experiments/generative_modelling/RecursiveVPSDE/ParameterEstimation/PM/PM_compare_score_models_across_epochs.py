@@ -25,9 +25,9 @@ config_postmean = get_config_postmean()
 
 config_score = get_config_score()
 rng = np.random.default_rng()
-N = 10000
+N = 2
 data_shape = (N, 1, 1)
-device = "cuda:0"
+device = "cpu"
 
 diff_time_scale = torch.linspace(start=config_postmean.end_diff_time, end=config_postmean.sample_eps,
                                  steps=config_postmean.max_diff_steps).to(device)
@@ -228,6 +228,25 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
     beta_taus = np.exp(-0.5 * eff_times)
     beta_2_taus = np.exp(-eff_times)
     sigma_taus = 1. - beta_2_taus
+    data_means = (ts_step * -1 * mean_rev * prev_paths)[:, :, np.newaxis]
+    # Plot histograms for every 100 diffusion times
+    for t in range(ts_length):
+        data_mean_t = data_means[:,t, :]
+        for diffidx in range(0, max_diff_steps, 100)[::-1]:
+            beta_taus_tau = beta_taus[diffidx]
+            sigma_tau_tau = sigma_taus[diffidx]
+            mean = beta_taus_tau*data_mean_t
+            std = np.sqrt(sigma_tau_tau+beta_taus_tau*beta_taus_tau*ts_step)
+            rvs = np.random.normal(loc=mean, scale=std)
+            plt.hist(rvs, bins=150,density=True, label="Expected")
+            plt.hist(revSDE_paths[:, t, diffidx], density=True, bins=150, label="Simulated")
+            plt.title(f"Histogram of Diffused Samples at Real Time {t+1} and RevDiff Time {diffidx}")
+            plt.legend()
+            plt.show()
+
+
+
+
     # Finally, build drift estimator
     #build_drift_estimator(ts_step=ts_step, ts_length=ts_length, diff_time_space=diff_time_space, score_evals=scores,
     #                      Xtaus=revSDE_paths, prev_paths=prev_paths)
@@ -237,7 +256,6 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
     assert(exp_score_hist.shape == (150,ts_length, max_diff_steps))
     score_KL_divs = scipy.stats.entropy(score_hist, exp_score_hist, axis=0)
     for t in range(0):
-        k= score_KL_divs[t,:]
         plt.plot(diff_time_space, score_KL_divs[t, :], label=modeltype)
         plt.title(f"KLDiv Scores at real time {t + 1}")
         plt.legend()
@@ -318,7 +336,6 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
     exp_Xtau_score_component = c1 * revSDE_paths
     # Compute the part of the score dependent only on the data mean
     c2 = -beta_taus * c1
-    data_means = (ts_step * -1 * mean_rev * prev_paths)[:, :, np.newaxis]
     exp_dataMean_score_component = data_means * (c2.reshape(1, 1, -1))
     # Check the sum of both parts is the same as the expected scores
     for t in range(0):
@@ -443,7 +460,7 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
 
 
 # In[10]:
-T = 3
+T = 1
 
 # Experiment for rrrrpostmean score model
 initial_feature_input = torch.zeros(data_shape).to(device)

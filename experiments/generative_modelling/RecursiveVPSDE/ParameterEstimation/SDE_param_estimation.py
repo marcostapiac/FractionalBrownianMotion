@@ -11,7 +11,7 @@ from experiments.generative_modelling.estimate_fSDEs import second_order_estimat
 
 
 def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> None:
-    incs = pd.read_csv(config.experiment_path + "_{}NEp{}.csv.gzip".format(sampling_model, train_epoch),
+    incs = pd.read_csv(config.experiment_path.replace("rrrrP", "r4P") + "_{}NEp{}.csv.gzip".format(sampling_model, train_epoch),
                        compression="gzip",
                        index_col=[0, 1]).to_numpy()
     paths = incs.cumsum(axis=1)
@@ -41,7 +41,7 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
     else:
         PT = 1
     means = pd.read_csv(
-        (config.experiment_path + "_{}NEp{}_P{}.csv.gzip".format(sampling_model, train_epoch, PT)).replace("fOU",
+        (config.experiment_path.replace("rrrrP", "r4P") + "_{}NEp{}_P{}.csv.gzip".format(sampling_model, train_epoch, PT)).replace("fOU",
                                                                                                            "fOUm").replace(
             "fOUm00", "m0"),
         compression="gzip", index_col=[0, 1]).to_numpy()
@@ -126,11 +126,11 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
 
 
 if __name__ == "__main__":
-    from configs.RecursiveVPSDE.recursive_rrPostMeanScore_fOU_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_rrrrPostMeanScore_fOU_T256_H07_tl_5data import get_config
 
     config = get_config()
     param_time = 900
-    sampling_models = ["CondProbODE"]#["CondAncestral", "CondReverseDiffusion", "CondProbODE"]
+    sampling_models = ["CondAncestral", "CondReverseDiffusion", "CondProbODE"]
     early_stopping = [False]
     for train_epoch in config.max_epochs:
         with open(config.scoreNet_trained_path.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as f:
@@ -157,7 +157,7 @@ if __name__ == "__main__":
             for early_stop in early_stopping:
                 sampling_type = "e" + sampling_type if early_stop else sampling_type
                 try:
-                    pd.read_csv(config.experiment_path + "_{}NEp{}.csv.gzip".format(sampling_type, train_epoch),
+                    pd.read_csv(config.experiment_path.replace("rrrrP", "r4P") + "_{}NEp{}.csv.gzip".format(sampling_type, train_epoch),
                                 compression="gzip",
                                 index_col=[0, 1]).to_numpy()
                     config.param_time = param_time

@@ -237,7 +237,6 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
     assert(exp_score_hist.shape == (150,ts_length, max_diff_steps))
     score_KL_divs = scipy.stats.entropy(score_hist, exp_score_hist, axis=0)
     for t in range(ts_length):
-        k= score_KL_divs[t,:]
         plt.plot(diff_time_space, score_KL_divs[t, :], label=modeltype)
         plt.title(f"KLDiv Scores at real time {t + 1}")
         plt.legend()
