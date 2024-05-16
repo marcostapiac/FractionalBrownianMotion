@@ -26,7 +26,7 @@ if __name__ == "__main__":
     init_experiment(config=config)
     es = []
     for train_epoch in config.max_epochs:
-        config.early_stop_idx = 200
+        config.early_stop_idx = 20
         sampling_models = ["CondAncestral", "CondReverseDiffusion", "CondProbODE"]
         for sampling_model in sampling_models:
             try:
