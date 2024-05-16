@@ -55,7 +55,8 @@ if __name__ == "__main__":
                                                  trainClass=ConditionalLSTMPostMeanDiffusionModelTrainer)
     cleanup_experiment()
     es = []
-    for train_epoch in config.max_epochs:
+    for train_epoch in [960]:#config.max_epochs:
+        config.early_stop_idx = 20
         sampling_models = ["CondAncestral", "CondReverseDiffusion", "CondProbODE"]
         for sampling_model in sampling_models:
             try:
@@ -83,14 +84,14 @@ if __name__ == "__main__":
                     sampling_type = "r"
                 else:
                     sampling_type = "p"
-                path_df.to_csv(config.experiment_path + "_{}NEp{}.csv.gzip".format(sampling_type, train_epoch),
+                path_df.to_csv(config.experiment_path + "_e{}NEp{}.csv.gzip".format(sampling_type, train_epoch),
                                compression="gzip")
                 mean_df.to_csv(
-                    (config.experiment_path + "_{}NEp{}_P{}.csv.gzip".format(sampling_type, train_epoch, PT)).replace(
+                    (config.experiment_path + "_e{}NEp{}_P{}.csv.gzip".format(sampling_type, train_epoch, PT)).replace(
                         "fOU", "fOUm").replace(
                         "fOUm00", "fm0"), compression="gzip")
                 var_df.to_csv(
-                    (config.experiment_path + "_{}NEp{}_P{}.csv.gzip".format(sampling_type, train_epoch, PT)).replace(
+                    (config.experiment_path + "_e{}NEp{}_P{}.csv.gzip".format(sampling_type, train_epoch, PT)).replace(
                         "fOU", "fOUv").replace(
                         "fOUv00", "fv0"), compression="gzip")
             except FileNotFoundError as e:
