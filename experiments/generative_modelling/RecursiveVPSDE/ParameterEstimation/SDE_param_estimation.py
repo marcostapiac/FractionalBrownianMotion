@@ -20,8 +20,8 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
     plt.show()
     plt.close()
     # Estimate Hurst indices from paths
-    U_a1, U_a2 = second_order_estimator(paths=paths, Nsamples=paths.shape[0])
-    estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=train_epoch).flatten()
+    #U_a1, U_a2 = second_order_estimator(paths=paths, Nsamples=paths.shape[0])
+    #estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=train_epoch).flatten()
     # Construct estimator for mean reversion
     augdata = np.concatenate([np.zeros(shape=(paths.shape[0], 1)), paths], axis=1)
     denom = np.sum(np.power(augdata[:, :-1], 2), axis=1) * (1. / config.ts_length)
@@ -40,14 +40,27 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
         PT = 2
     else:
         PT = 1
-    means = pd.read_csv(
-        (config.experiment_path.replace("rrrrP", "r4P") + "_{}NEp{}_P{}.csv.gzip".format(sampling_model, train_epoch, PT)).replace("fOU",
-                                                                                                           "fOUm").replace(
-            "fOUm00", "m0"),
-        compression="gzip", index_col=[0, 1]).to_numpy()
-    means *= (config.ts_length ** (2 * config.hurst))
 
-    # Plot some marginal distributions
+    # Plot some marginal distributions for increments
+    time_space = np.linspace((1. / config.ts_length), 1., num=config.ts_length)
+    low = 0
+    high = config.ts_length
+    for idx in range(3):
+        tidx = np.random.randint(low=low, high=high)
+        t = time_space[tidx]
+        exp_mean = 0.
+        exp_var = 1./config.ts_length
+        exp_rvs = np.random.normal(loc=exp_mean, scale=np.sqrt(exp_var), size=paths.shape[0])
+        incst = incs[:, tidx]
+        plt.hist(incst, bins=150, density=True, label="Simulated")
+        plt.hist(exp_rvs, bins=150, density=True, label="Expected")
+        plt.title(f"Marginal Distributions for Increments at time {t} for epoch {train_epoch}")
+        plt.legend()
+        plt.show()
+        plt.close()
+
+
+    # Plot some marginal distributions for PATHS
     time_space = np.linspace((1. / config.ts_length), 1., num=config.ts_length)
     low = config.ts_length - 10
     high = config.ts_length
@@ -64,10 +77,17 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
         pathst = paths[:, tidx]  # Paths[:, 0] corresponds to X_{t_{1}} NOT X_{t_{0}}
         plt.hist(pathst, bins=150, density=True, label="Simulated")
         plt.hist(exp_rvs, bins=150, density=True, label="Expected")
-        plt.title(f"Marginal Distributions at time {t} for epoch {train_epoch}")
+        plt.title(f"Marginal Distributions for PATHS at time {t} for epoch {train_epoch}")
         plt.legend()
         plt.show()
         plt.close()
+    means = pd.read_csv(
+        (config.experiment_path.replace("rrrrP", "r4P") + "_{}NEp{}_P{}.csv.gzip".format(sampling_model, train_epoch,
+                                                                                         PT)).replace("fOU",
+                                                                                                      "fOUm").replace(
+            "fOUm00", "m0"),
+        compression="gzip", index_col=[0, 1]).to_numpy()
+    means *= (config.ts_length ** (2 * config.hurst))
 
     # Plot path and drift as a function of time
     for _ in range(3):
@@ -126,7 +146,7 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
 
 
 if __name__ == "__main__":
-    from configs.RecursiveVPSDE.recursive_rrrrPostMeanScore_fOU_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H07_tl_5data import get_config
 
     config = get_config()
     param_time = 900

@@ -38,8 +38,8 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
                  checkpoint_freq: int,
                  to_weight: bool,
                  hybrid_training: bool,
-                 loss_factor:float,
-                 ts_time_diff:float=1/256,
+                 loss_factor: float,
+                 ts_time_diff: float = 1 / 256,
                  loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
         super().__init__()
@@ -123,27 +123,33 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
         eff_times = eff_times.reshape(target_scores.shape)
         outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times, eff_times=eff_times)
         # For times larger than tau0, use inverse_weighting
-        sigma_tau = 1.-torch.exp(-eff_times)
-        beta_tau = torch.exp(-0.5*eff_times)
-        if self.loss_factor == 0:
-            weights = (sigma_tau/beta_tau) # PM
-        elif self.loss_factor == 3:
+        sigma_tau = 1. - torch.exp(-eff_times)
+        beta_tau = torch.exp(-0.5 * eff_times)
+        if self.loss_factor == 0:  # PM
+            weights = (sigma_tau / beta_tau)
+        elif self.loss_factor == 3:  # rPM
             tau0 = torch.Tensor([0.2904]).to(diff_times.device)
-            w1 = (diff_times > tau0).unsqueeze(-1).unsqueeze(-1)*(sigma_tau/beta_tau)
-            w2 = (diff_times < tau0).unsqueeze(-1).unsqueeze(-1)*torch.pow(1.-torch.exp(-eff_times),1/self.loss_factor)
+            w1 = (diff_times > tau0).unsqueeze(-1).unsqueeze(-1) * (sigma_tau / beta_tau)
+            w2 = (diff_times < tau0).unsqueeze(-1).unsqueeze(-1) * torch.pow(1. - torch.exp(-eff_times),
+                                                                             1 / self.loss_factor)
             weights = w1 + w2
-        elif self.loss_factor == 2:
+        elif self.loss_factor == 2:  # rrPM
             tau0 = torch.Tensor([0.2630]).to(diff_times.device)
             w1 = (diff_times > tau0).unsqueeze(-1).unsqueeze(-1) * (sigma_tau / beta_tau)
             w2 = (diff_times < tau0).unsqueeze(-1).unsqueeze(-1) * torch.pow(1. - torch.exp(-eff_times),
                                                                              1 / self.loss_factor)
             weights = w1 + w2
-        elif self.loss_factor == 4:
-            weights = (sigma_tau / (beta_tau*self.ts_time_diff))
-        elif self.loss_factor == 5:
+        elif self.loss_factor == 4:  # rrrPM
+            weights = (sigma_tau / (beta_tau * self.ts_time_diff))
+        elif self.loss_factor == 5:  # rrrrPM
             weights = (torch.pow(sigma_tau, 0.5) / (self.ts_time_diff))
+        elif self.loss_factor == 6:  # To investigate if this can stabilise and/or accelerate training between epochs
+            tau0 = torch.Tensor([0.2633]).to(diff_times.device)
+            w1 = (diff_times > tau0).unsqueeze(-1).unsqueeze(-1) * (sigma_tau / (beta_tau * self.ts_time_diff))
+            w2 = (diff_times < tau0).unsqueeze(-1).unsqueeze(-1) * (sigma_tau / beta_tau)
+            weights = w1 + w2  # Outputs should be
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
-        return self._batch_loss_compute(outputs=outputs*weights, targets= target_scores*weights)
+        return self._batch_loss_compute(outputs=outputs * weights, targets=target_scores * weights)
 
     def _run_epoch(self, epoch: int) -> list:
         """

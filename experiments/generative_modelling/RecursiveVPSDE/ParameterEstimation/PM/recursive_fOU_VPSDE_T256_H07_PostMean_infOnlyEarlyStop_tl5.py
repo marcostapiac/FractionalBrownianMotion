@@ -11,7 +11,7 @@ from utils.data_processing import init_experiment
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_PostMeanScaledScore_fOU_T256_H07_tl_5data import get_config
 
     config = get_config()
     assert (0 < config.hurst < 1.)
@@ -25,7 +25,7 @@ if __name__ == "__main__":
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     init_experiment(config=config)
     es = []
-    for train_epoch in config.max_epochs:
+    for train_epoch in [960,12920]:
         config.early_stop_idx = 20
         sampling_models = ["CondAncestral", "CondReverseDiffusion", "CondProbODE"]
         for sampling_model in sampling_models:
@@ -54,14 +54,14 @@ if __name__ == "__main__":
                     sampling_type = "r"
                 else:
                     sampling_type = "p"
-                path_df.to_csv(config.experiment_path + "_{}NEp{}.csv.gzip".format(sampling_type, train_epoch),
+                path_df.to_csv(config.experiment_path + "_e{}NEp{}.csv.gzip".format(sampling_type, train_epoch),
                                compression="gzip")
                 mean_df.to_csv(
-                    (config.experiment_path + "_{}NEp{}_P{}.csv.gzip".format(sampling_type, train_epoch, PT)).replace(
+                    (config.experiment_path + "_e{}NEp{}_P{}.csv.gzip".format(sampling_type, train_epoch, PT)).replace(
                         "fOU", "fOUm").replace(
                         "fOUm00", "m0"), compression="gzip")
                 var_df.to_csv(
-                    (config.experiment_path + "_{}NEp{}_P{}.csv.gzip".format(sampling_type, train_epoch, PT)).replace(
+                    (config.experiment_path + "_e{}NEp{}_P{}.csv.gzip".format(sampling_type, train_epoch, PT)).replace(
                         "fOU", "fOUv").replace(
                         "fOUv00", "v0"), compression="gzip")
             except FileNotFoundError as e:
