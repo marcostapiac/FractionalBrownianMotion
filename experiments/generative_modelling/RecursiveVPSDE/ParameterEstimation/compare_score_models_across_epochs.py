@@ -6,6 +6,7 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
+import scipy.special
 import torch
 from tqdm import tqdm
 
@@ -24,9 +25,9 @@ config_rrrrpostmean = get_config_rrrrpostmean()
 
 config_score = get_config_score()
 rng = np.random.default_rng()
-N = 10000
+N = 2
 data_shape = (N, 1, 1)
-device = "cuda:0"
+device = "cpu"
 
 diff_time_scale = torch.linspace(start=config_rrrrpostmean.end_diff_time, end=config_rrrrpostmean.sample_eps,
                                  steps=config_rrrrpostmean.max_diff_steps).to(device)
@@ -230,7 +231,27 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
     # Finally, build drift estimator
     #build_drift_estimator(ts_step=ts_step, ts_length=ts_length, diff_time_space=diff_time_space, score_evals=scores,
     #                      Xtaus=revSDE_paths, prev_paths=prev_paths)
-
+    score_hist = np.atleast_3d([np.atleast_2d([np.histogram(scores[:, t, diffidx].flatten(), bins=150, density=True)[0] for diffidx in range(max_diff_steps)]) for t in range(ts_length)]).transpose((2,0,1))
+    exp_score_hist = np.atleast_3d([np.atleast_2d([np.histogram(exp_scores[:, t, diffidx].flatten(), bins=150, density=True)[0] for diffidx in range(max_diff_steps)]) for t in range(ts_length)]).transpose((2,0,1))
+    assert(score_hist.shape == (150,ts_length, max_diff_steps))
+    assert(exp_score_hist.shape == (150,ts_length, max_diff_steps))
+    score_KL_divs = scipy.stats.entropy(score_hist, exp_score_hist, axis=0)
+    for t in range(ts_length):
+        plt.plot(diff_time_space, score_KL_divs[t, :], label=modeltype)
+        plt.title(f"KLDiv Scores at real time {t + 1}")
+        plt.legend()
+        plt.show()
+        plt.close()
+        plt.plot(diff_time_space[50:400], score_KL_divs[t, 50:400], label=modeltype)
+        plt.title(f"KLDiv First 50to400 Scores at real time {t + 1}")
+        plt.legend()
+        plt.show()
+        plt.close()
+        plt.plot(diff_time_space[7000:], score_KL_divs[t, 7000:], label=modeltype)
+        plt.title(f"KLDiv Last 2000 Scores at real time {t + 1}")
+        plt.legend()
+        plt.show()
+        plt.close()
     score_errs = np.mean(np.power(scores - exp_scores, 2), axis=0)
     print(score_errs.shape)
     assert (score_errs.shape == (ts_length, max_diff_steps))
@@ -417,7 +438,7 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
 
 
 # In[10]:
-T = 3
+T = 1
 """
 # Experiment for rrrrpostmean score model
 initial_feature_input = torch.zeros(data_shape).to(device)
