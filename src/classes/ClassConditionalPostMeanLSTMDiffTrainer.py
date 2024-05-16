@@ -145,7 +145,7 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
             weights = (torch.pow(sigma_tau, 0.5) / (self.ts_time_diff))
         elif self.loss_factor == 6:  # To investigate if this can stabilise and/or accelerate training between epochs
             tau0 = torch.Tensor([0.2633]).to(diff_times.device)
-            w1 = (diff_times > tau0).unsqueeze(-1).unsqueeze(-1) * (sigma_tau / (beta_tau * torch.pow(torch.Tensor([self.ts_time_diff]).to(diff_times.device),0.5)))
+            w1 = (diff_times > tau0).unsqueeze(-1).unsqueeze(-1) * (sigma_tau / (beta_tau * torch.pow(torch.Tensor([self.ts_time_diff]).to(diff_times.device),1)))
             w2 = (diff_times < tau0).unsqueeze(-1).unsqueeze(-1) * (sigma_tau / beta_tau)
             weights = w1 + w2  # Outputs should be
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
