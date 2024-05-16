@@ -58,7 +58,7 @@ if __name__ == "__main__":
                                                  trainClass=ConditionalLSTMDiffusionModelTrainer)
     cleanup_experiment()
     es = []
-    for train_epoch in config.max_epochs:
+    for train_epoch in [2920,960]:#config.max_epochs:
         sampling_models = ["CondAncestral", "CondReverseDiffusion", "CondProbODE"]
         for sampling_model in sampling_models:
             try:
