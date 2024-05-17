@@ -11,7 +11,7 @@ from utils.data_processing import init_experiment
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.recursive_PostScaledMeanScore_fOU_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_PostMeanScaledScore_fOU_T256_H07_tl_5data import get_config
 
     config = get_config()
     assert (0 < config.hurst < 1.)
@@ -26,7 +26,7 @@ if __name__ == "__main__":
     init_experiment(config=config)
     es = []
     for train_epoch in config.max_epochs:
-        config.early_stop_idx = 20
+        config.early_stop_idx = 85
         sampling_models = ["CondAncestral", "CondReverseDiffusion", "CondProbODE"]
         for sampling_model in sampling_models:
             try:
