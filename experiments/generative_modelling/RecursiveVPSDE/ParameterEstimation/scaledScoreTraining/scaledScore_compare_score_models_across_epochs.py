@@ -10,54 +10,54 @@ import scipy
 import torch
 from tqdm import tqdm
 
-from configs.RecursiveVPSDE.recursive_PostMeanScaledScore_fOU_T256_H07_tl_5data import get_config as get_config_postmeanscaled
+from configs.RecursiveVPSDE.recursive_fOU_T256_H07_tl_5data_scaled import get_config as get_config_scaledScore
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
-    ConditionalLSTMTSPostMeanScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSScoreMatching import \
+    ConditionalLSTMTSScoreMatching
 
 # In[2]:
 
 
-config_postmeanscaled = get_config_postmeanscaled()
+config_scaledScore = get_config_scaledScore()
 rng = np.random.default_rng()
 N = 10000
 data_shape = (N, 1, 1)
 device = "cuda:0"
 
-diff_time_scale = torch.linspace(start=config_postmeanscaled.end_diff_time, end=config_postmeanscaled.sample_eps,
-                                 steps=config_postmeanscaled.max_diff_steps).to(device)
-real_time_scale = torch.linspace(start=1 / config_postmeanscaled.ts_length, end=1, steps=config_postmeanscaled.ts_length).to(device)
-diffusion = VPSDEDiffusion(beta_max=config_postmeanscaled.beta_max, beta_min=config_postmeanscaled.beta_min)
-ts_length = config_postmeanscaled.ts_length
-max_diff_steps = config_postmeanscaled.max_diff_steps
-sample_eps = config_postmeanscaled.sample_eps
-mean_rev = config_postmeanscaled.mean_rev
+diff_time_scale = torch.linspace(start=config_scaledScore.end_diff_time, end=config_scaledScore.sample_eps,
+                                 steps=config_scaledScore.max_diff_steps).to(device)
+real_time_scale = torch.linspace(start=1 / config_scaledScore.ts_length, end=1, steps=config_scaledScore.ts_length).to(device)
+diffusion = VPSDEDiffusion(beta_max=config_scaledScore.beta_max, beta_min=config_scaledScore.beta_min)
+ts_length = config_scaledScore.ts_length
+max_diff_steps = config_scaledScore.max_diff_steps
+sample_eps = config_scaledScore.sample_eps
+mean_rev = config_scaledScore.mean_rev
 ts_step = 1 / ts_length
 
 # In[3]:
 
 
-rPM_960 = ConditionalLSTMTSPostMeanScoreMatching(*config_postmeanscaled.model_parameters).to(device)
-rPM_960.load_state_dict(torch.load(config_postmeanscaled.scoreNet_trained_path + "_NEp" + str(960)))
+sScore_960 = ConditionalLSTMTSScoreMatching(*config_scaledScore.model_parameters).to(device)
+sScore_960.load_state_dict(torch.load(config_scaledScore.scoreNet_trained_path + "_NEp" + str(960)))
+
+
+sScore_1440 = ConditionalLSTMTSScoreMatching(*config_scaledScore.model_parameters).to(device)
+sScore_1440.load_state_dict(torch.load(config_scaledScore.scoreNet_trained_path + "_NEp" + str(1440)))
+
+
+
+sScore_1920 = ConditionalLSTMTSScoreMatching(*config_scaledScore.model_parameters).to(device)
+sScore_1920.load_state_dict(torch.load(config_scaledScore.scoreNet_trained_path + "_NEp" + str(1920)))
 """
 
-rPM_1440 = ConditionalLSTMTSPostMeanScoreMatching(*config_postmeanscaled.model_parameters).to(device)
-rPM_1440.load_state_dict(torch.load(config_postmeanscaled.scoreNet_trained_path + "_NEp" + str(1440)))
+
+sScore_2920 = ConditionalLSTMTSScoreMatching(*config_scaledScore.model_parameters).to(device)
+sScore_2920.load_state_dict(torch.load(config_scaledScore.scoreNet_trained_path + "_NEp" + str(2920)))
 
 
 
-rPM_1920 = ConditionalLSTMTSPostMeanScoreMatching(*config_postmeanscaled.model_parameters).to(device)
-rPM_1920.load_state_dict(torch.load(config_postmeanscaled.scoreNet_trained_path + "_NEp" + str(1920)))
-
-
-
-rPM_2920 = ConditionalLSTMTSPostMeanScoreMatching(*config_postmeanscaled.model_parameters).to(device)
-rPM_2920.load_state_dict(torch.load(config_postmeanscaled.scoreNet_trained_path + "_NEp" + str(2920)))
-
-
-
-rPM_6920 = ConditionalLSTMTSPostMeanScoreMatching(*config_postmeanscaled.model_parameters).to(device)
-rPM_6920.load_state_dict(torch.load(config_postmeanscaled.scoreNet_trained_path + "_NEp" + str(6920)))
+sScore_6920 = ConditionalLSTMTSScoreMatching(*config_scaledScore.model_parameters).to(device)
+sScore_6920.load_state_dict(torch.load(config_scaledScore.scoreNet_trained_path + "_NEp" + str(6920)))
 """
 
 def single_time_sampling(config, diff_time_space, diffusion, feature, scoreModel, device, prev_path):
@@ -197,7 +197,7 @@ def build_drift_estimator(ts_step, ts_length, diff_time_space, score_evals, Xtau
         print(np.min(mses), np.argmin(mses))
         argmin = np.argmin(mses)
     # Choose a diffusion time for the mean estimator
-    best_mean_est = mean_est[:, :, 9900]
+    best_mean_est = mean_est[:, :, argmin]
     for t in range(ts_length):
         paired = zip(prev_paths[:, t], best_mean_est[:, t])
         sorted_pairs = sorted(paired, key=lambda x: x[0])
@@ -225,7 +225,7 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
     sigma_taus = 1. - beta_2_taus
     data_means = (ts_step * -1 * mean_rev * prev_paths)[:, :, np.newaxis]
     # Plot histograms for every 100 diffusion times
-    for t in range(3,ts_length):
+    for t in range(2,ts_length):
         data_mean_t = data_means[:,t, :]
         expmeanrev = np.exp(-config.mean_rev * t)
         exp_mean = config.mean * (1. - expmeanrev)
@@ -235,7 +235,7 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
         exp_var *= (1. - np.power(expmeanrev, 2))
         exp_var = ts_step
         exp_rvs = np.random.normal(loc=exp_mean, scale=np.sqrt(exp_var), size=data_means.shape[0])
-        for diffidx in range(80, 130, 3)[::-1]:
+        for diffidx in range(0, max_diff_steps, max_diff_steps)[::-1]:
             beta_taus_tau = beta_taus[diffidx]
             sigma_tau_tau = sigma_taus[diffidx]
             mean = beta_taus_tau*data_mean_t
@@ -512,10 +512,10 @@ T = 3
 # Experiment for rrrrpostmean score model
 initial_feature_input = torch.zeros(data_shape).to(device)
 postMean_scores, postMean_expscores, postMean_revSDEpaths, postMean_prevPaths = run_whole_ts_recursive_diffusion(
-    ts_length=T, config=config_postmeanscaled, initial_feature_input=initial_feature_input, diffusion=diffusion,
-    scoreModel=rPM_960, device=device, diff_time_scale=diff_time_scale, real_time_scale=real_time_scale)
+    ts_length=T, config=config_scaledScore, initial_feature_input=initial_feature_input, diffusion=diffusion,
+    scoreModel=sScore_960, device=device, diff_time_scale=diff_time_scale, real_time_scale=real_time_scale)
 
-analyse_score_models(config=config_postmeanscaled, ts_length=T, max_diff_steps=max_diff_steps, sample_eps=sample_eps,
+analyse_score_models(config=config_scaledScore, ts_length=T, max_diff_steps=max_diff_steps, sample_eps=sample_eps,
                      ts_step=ts_step, mean_rev=mean_rev, diffusion=diffusion, scores=postMean_scores.cpu().numpy(),
                      exp_scores=postMean_expscores.cpu().numpy(), revSDE_paths=postMean_revSDEpaths.cpu().numpy(),
                      prev_paths=postMean_prevPaths.cpu().numpy(), modeltype="PM 960")
@@ -524,10 +524,10 @@ del postMean_expscores, postMean_prevPaths, postMean_scores, initial_feature_inp
 # Experiment for rrrrpostmean score model
 initial_feature_input = torch.zeros(data_shape).to(device)
 postMean_scores, postMean_expscores, postMean_revSDEpaths, postMean_prevPaths = run_whole_ts_recursive_diffusion(
-    ts_length=T, config=config_postmeanscaled, initial_feature_input=initial_feature_input, diffusion=diffusion,
-    scoreModel=rPM_1440, device=device, diff_time_scale=diff_time_scale, real_time_scale=real_time_scale)
+    ts_length=T, config=config_scaledScore, initial_feature_input=initial_feature_input, diffusion=diffusion,
+    scoreModel=sScore_1440, device=device, diff_time_scale=diff_time_scale, real_time_scale=real_time_scale)
 
-analyse_score_models(config=config_postmeanscaled, ts_length=T, max_diff_steps=max_diff_steps, sample_eps=sample_eps,
+analyse_score_models(config=config_scaledScore, ts_length=T, max_diff_steps=max_diff_steps, sample_eps=sample_eps,
                      ts_step=ts_step, mean_rev=mean_rev, diffusion=diffusion, scores=postMean_scores.cpu().numpy(),
                      exp_scores=postMean_expscores.cpu().numpy(), revSDE_paths=postMean_revSDEpaths.cpu().numpy(),
                      prev_paths=postMean_prevPaths.cpu().numpy(), modeltype="PM 1440")
@@ -536,10 +536,10 @@ del postMean_expscores, postMean_prevPaths, postMean_scores, initial_feature_inp
 # Experiment for rrrrpostmean score model
 initial_feature_input = torch.zeros(data_shape).to(device)
 postMean_scores, postMean_expscores, postMean_revSDEpaths, postMean_prevPaths = run_whole_ts_recursive_diffusion(
-    ts_length=T, config=config_postmeanscaled, initial_feature_input=initial_feature_input, diffusion=diffusion,
-    scoreModel=rPM_1920, device=device, diff_time_scale=diff_time_scale, real_time_scale=real_time_scale)
+    ts_length=T, config=config_scaledScore, initial_feature_input=initial_feature_input, diffusion=diffusion,
+    scoreModel=sScore_1920, device=device, diff_time_scale=diff_time_scale, real_time_scale=real_time_scale)
 
-analyse_score_models(config=config_postmeanscaled, ts_length=T, max_diff_steps=max_diff_steps, sample_eps=sample_eps,
+analyse_score_models(config=config_scaledScore, ts_length=T, max_diff_steps=max_diff_steps, sample_eps=sample_eps,
                      ts_step=ts_step, mean_rev=mean_rev, diffusion=diffusion, scores=postMean_scores.cpu().numpy(),
                      exp_scores=postMean_expscores.cpu().numpy(), revSDE_paths=postMean_revSDEpaths.cpu().numpy(),
                      prev_paths=postMean_prevPaths.cpu().numpy(), modeltype="PM 1920")
@@ -548,10 +548,10 @@ del postMean_scores, postMean_expscores, postMean_prevPaths, postMean_revSDEpath
 # Experiment for rrrrpostmean score model
 initial_feature_input = torch.zeros(data_shape).to(device)
 postMean_scores, postMean_expscores, postMean_revSDEpaths, postMean_prevPaths = run_whole_ts_recursive_diffusion(
-    ts_length=T, config=config_postmeanscaled, initial_feature_input=initial_feature_input, diffusion=diffusion,
-    scoreModel=rPM_2920, device=device, diff_time_scale=diff_time_scale, real_time_scale=real_time_scale)
+    ts_length=T, config=config_scaledScore, initial_feature_input=initial_feature_input, diffusion=diffusion,
+    scoreModel=sScore_2920, device=device, diff_time_scale=diff_time_scale, real_time_scale=real_time_scale)
 
-analyse_score_models(config=config_postmeanscaled, ts_length=T, max_diff_steps=max_diff_steps, sample_eps=sample_eps,
+analyse_score_models(config=config_scaledScore, ts_length=T, max_diff_steps=max_diff_steps, sample_eps=sample_eps,
                      ts_step=ts_step, mean_rev=mean_rev, diffusion=diffusion, scores=postMean_scores.cpu().numpy(),
                      exp_scores=postMean_expscores.cpu().numpy(), revSDE_paths=postMean_revSDEpaths.cpu().numpy(),
                      prev_paths=postMean_prevPaths.cpu().numpy(), modeltype="PM 2920")
@@ -559,10 +559,10 @@ del postMean_revSDEpaths, postMean_prevPaths, postMean_scores, postMean_expscore
 
 initial_feature_input = torch.zeros(data_shape).to(device)
 postMean_scores, postMean_expscores, postMean_revSDEpaths, postMean_prevPaths = run_whole_ts_recursive_diffusion(
-    ts_length=T, config=config_postmeanscaled, initial_feature_input=initial_feature_input, diffusion=diffusion,
-    scoreModel=rPM_6920, device=device, diff_time_scale=diff_time_scale, real_time_scale=real_time_scale)
+    ts_length=T, config=config_scaledScore, initial_feature_input=initial_feature_input, diffusion=diffusion,
+    scoreModel=sScore_6920, device=device, diff_time_scale=diff_time_scale, real_time_scale=real_time_scale)
 
-analyse_score_models(config=config_postmeanscaled, ts_length=T, max_diff_steps=max_diff_steps, sample_eps=sample_eps,
+analyse_score_models(config=config_scaledScore, ts_length=T, max_diff_steps=max_diff_steps, sample_eps=sample_eps,
                      ts_step=ts_step, mean_rev=mean_rev, diffusion=diffusion, scores=postMean_scores.cpu().numpy(),
                      exp_scores=postMean_expscores.cpu().numpy(), revSDE_paths=postMean_revSDEpaths.cpu().numpy(),
                      prev_paths=postMean_prevPaths.cpu().numpy(), modeltype="PM 6920")
