@@ -151,18 +151,18 @@ if __name__ == "__main__":
     config = get_config()
     param_time = 900
     sampling_models = ["CondAncestral", "CondReverseDiffusion", "CondProbODE"]
-    early_stopping = [False]
-    for train_epoch in config.max_epochs:
+    early_stopping = [True]
+    for train_epoch in [12920]:#config.max_epochs:
         with open(config.scoreNet_trained_path.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as f:
             losses = np.array(pickle.load(f))
         assert (losses.shape[0] >= 1)  # max(config.max_epochs))
         T = losses.shape[0]
-        plt.plot(np.linspace(1, T + 1, T), (losses.cumsum() / np.arange(1, T + 1)))
+        plt.plot(np.linspace(1, T + 1, T)[10000:], (losses.cumsum() / np.arange(1, T + 1))[10000:])
         plt.xlabel("Epoch")
         plt.ylabel("Training Loss")
         plt.title("CumMean Per-epoch Training Loss")
         plt.show()
-        plt.plot(np.linspace(1, T + 1, T), losses)
+        plt.plot(np.linspace(1, T + 1, T)[10000:], losses[10000:])
         plt.xlabel("Epoch")
         plt.ylabel("Training Loss")
         plt.title("Per-epoch Training Loss")
