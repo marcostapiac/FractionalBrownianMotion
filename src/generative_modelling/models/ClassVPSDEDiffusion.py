@@ -100,11 +100,10 @@ class VPSDEDiffusion(nn.Module):
                 - Ancestral Sampling Drift
                 - Ancestral Sampling Diffusion Coefficient
         """
-        with torch.no_grad():
-            max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
-            drift = self.get_ancestral_drift(x=x, pred_score=predicted_score, diff_index=diff_index,
-                                             max_diff_steps=max_diff_steps)
-            diff_param = self.get_ancestral_diff(diff_index=diff_index, max_diff_steps=max_diff_steps)
+        max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
+        drift = self.get_ancestral_drift(x=x, pred_score=predicted_score, diff_index=diff_index,
+                                         max_diff_steps=max_diff_steps)
+        diff_param = self.get_ancestral_diff(diff_index=diff_index, max_diff_steps=max_diff_steps)
         return predicted_score, drift, diff_param
 
     def get_conditional_reverse_diffusion(self, x: torch.Tensor, predicted_score: torch.Tensor,
@@ -118,12 +117,11 @@ class VPSDEDiffusion(nn.Module):
         :param max_diff_steps:
         :return:
         """
-        with torch.no_grad():
-            max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
-            discrete_beta = self.get_discretised_beta(diff_index=max_diff_steps - 1 - diff_index,
-                                                      max_diff_steps=max_diff_steps)
-            drift = x + 0.5 * discrete_beta * x + discrete_beta * predicted_score
-            diff_param = torch.sqrt(discrete_beta)
+        max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
+        discrete_beta = self.get_discretised_beta(diff_index=max_diff_steps - 1 - diff_index,
+                                                  max_diff_steps=max_diff_steps)
+        drift = x + 0.5 * discrete_beta * x + discrete_beta * predicted_score
+        diff_param = torch.sqrt(discrete_beta)
         return predicted_score, drift, diff_param
 
     def get_conditional_learnsample_reverse_diffusion(self, x: torch.Tensor, predicted_score: torch.Tensor,
@@ -138,12 +136,11 @@ class VPSDEDiffusion(nn.Module):
         :param max_diff_steps:
         :return:
         """
-        with torch.no_grad():
-            max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
-            discrete_beta = self.get_discretised_beta(diff_index=max_diff_steps - 1 - diff_index,
-                                                      max_diff_steps=max_diff_steps)
-            drift = x + 0.5 * discrete_beta * x + discrete_beta * predicted_score
-            diff_param = torch.sqrt(discrete_beta)
+        max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
+        discrete_beta = self.get_discretised_beta(diff_index=max_diff_steps - 1 - diff_index,
+                                                  max_diff_steps=max_diff_steps)
+        drift = x + 0.5 * discrete_beta * x + discrete_beta * predicted_score
+        diff_param = torch.sqrt(discrete_beta)
         return predicted_score, drift, diff_param
 
     def get_conditional_probODE(self, x: torch.Tensor,
@@ -160,12 +157,11 @@ class VPSDEDiffusion(nn.Module):
         :param max_diff_steps:
         :return:
         """
-        with torch.no_grad():
-            max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
-            beta_t = self.get_discretised_beta(diff_index=max_diff_steps - 1 - diff_index,
-                                               max_diff_steps=max_diff_steps)
-            drift = x * (2. - torch.sqrt(1. - beta_t)) + 0.5 * beta_t * predicted_score
-            diff_param = torch.sqrt(beta_t) * 0
+        max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
+        beta_t = self.get_discretised_beta(diff_index=max_diff_steps - 1 - diff_index,
+                                           max_diff_steps=max_diff_steps)
+        drift = x * (2. - torch.sqrt(1. - beta_t)) + 0.5 * beta_t * predicted_score
+        diff_param = torch.sqrt(beta_t) * 0
         return predicted_score, drift, diff_param
 
     def get_conditional_ancestral_sampling(self, x: torch.Tensor,
@@ -184,18 +180,10 @@ class VPSDEDiffusion(nn.Module):
                 - Ancestral Sampling Drift
                 - Ancestral Sampling Diffusion Coefficient
         """
-        if diff_index >= torch.Tensor([max_diff_steps - 2]).to(diff_index.device):
-            with torch.enable_grad():
-                max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
-                drift = self.get_ancestral_drift(x=x, pred_score=predicted_score, diff_index=diff_index,
-                                                 max_diff_steps=max_diff_steps)
-                diff_param = self.get_ancestral_diff(diff_index=diff_index, max_diff_steps=max_diff_steps)
-        else:
-            with torch.no_grad():
-                max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
-                drift = self.get_ancestral_drift(x=x, pred_score=predicted_score, diff_index=diff_index,
-                                                 max_diff_steps=max_diff_steps)
-                diff_param = self.get_ancestral_diff(diff_index=diff_index, max_diff_steps=max_diff_steps)
+        max_diff_steps = torch.Tensor([max_diff_steps]).to(diff_index.device)
+        drift = self.get_ancestral_drift(x=x, pred_score=predicted_score, diff_index=diff_index,
+                                         max_diff_steps=max_diff_steps)
+        diff_param = self.get_ancestral_diff(diff_index=diff_index, max_diff_steps=max_diff_steps)
         return predicted_score, drift, diff_param
 
     def get_ancestral_drift(self, x: torch.Tensor, pred_score: torch.Tensor, diff_index: torch.Tensor,
