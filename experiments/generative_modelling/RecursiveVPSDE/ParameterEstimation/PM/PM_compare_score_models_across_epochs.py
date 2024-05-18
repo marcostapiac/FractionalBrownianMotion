@@ -65,7 +65,7 @@ def single_time_sampling(config, diff_time_space, diffusion, feature, scoreModel
         tau = diff_time_space[diff_index] * torch.ones((data_shape[0],)).to(device)
         try:
             scoreModel.eval()
-            if diff_index == 900-1 or diff_index == 900:
+            if diff_index == 1000-1 or diff_index == 1000:
                 with torch.enable_grad():
                     tau = tau * torch.ones((x.shape[0],)).to(device)
                     predicted_score = scoreModel.forward(x, conditioner=feature, times=tau)
@@ -75,7 +75,7 @@ def single_time_sampling(config, diff_time_space, diffusion, feature, scoreModel
                     predicted_score = scoreModel.forward(x, conditioner=feature, times=tau)
         except TypeError as e:
             scoreModel.eval()
-            if diff_index == 900-1 or diff_index == 900:
+            if diff_index == 1000-1 or diff_index == 1000:
                 with torch.enable_grad():
                     tau = tau * torch.ones((x.shape[0],)).to(device)
                     eff_times = diffusion.get_eff_times(diff_times=tau)
@@ -110,7 +110,7 @@ def single_time_sampling(config, diff_time_space, diffusion, feature, scoreModel
         else:
             assert (x.shape == (data_shape[0], 1))
             revSDE_paths.append(x)
-        if diff_index == torch.Tensor([900]).to(device):
+        if diff_index == torch.Tensor([1000]).to(device):
             scoreModel.zero_grad()
             # Compute gradients of output with respect to input_data
             grad_score = \
