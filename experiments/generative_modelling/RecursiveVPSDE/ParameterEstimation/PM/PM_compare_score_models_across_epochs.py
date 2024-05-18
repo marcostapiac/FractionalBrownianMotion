@@ -65,7 +65,7 @@ def single_time_sampling(config, diff_time_space, diffusion, feature, scoreModel
         tau = diff_time_space[diff_index] * torch.ones((data_shape[0],)).to(device)
         try:
             scoreModel.eval()
-            if diff_index != torch.Tensor([900+1]).to(device) or diff_index != torch.Tensor([900]).to(device) :
+            if diff_index != torch.Tensor([900-1]).to(device) or diff_index != torch.Tensor([900]).to(device) :
                 with torch.no_grad():
                     tau = tau * torch.ones((x.shape[0],)).to(device)
                     predicted_score = scoreModel.forward(x, conditioner=feature, times=tau)
@@ -75,7 +75,7 @@ def single_time_sampling(config, diff_time_space, diffusion, feature, scoreModel
                     predicted_score = scoreModel.forward(x, conditioner=feature, times=tau)
         except TypeError as e:
             scoreModel.eval()
-            if diff_index != torch.Tensor([900+1]).to(device) or diff_index != torch.Tensor([900]).to(device) :
+            if diff_index != torch.Tensor([900-1]).to(device) or diff_index != torch.Tensor([900]).to(device) :
                 with torch.no_grad():
                     tau = tau * torch.ones((x.shape[0],)).to(device)
                     eff_times = diffusion.get_eff_times(diff_times=tau)
