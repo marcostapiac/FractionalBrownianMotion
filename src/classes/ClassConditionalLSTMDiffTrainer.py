@@ -38,8 +38,8 @@ class ConditionalLSTMDiffusionModelTrainer(nn.Module):
                  checkpoint_freq: int,
                  to_weight: bool,
                  hybrid_training: bool,
-                 loss_factor:int,
-                 ts_time_diff:float=1/256,
+                 loss_factor: int,
+                 ts_time_diff: float = 1 / 256,
                  loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
         super().__init__()
@@ -126,7 +126,8 @@ class ConditionalLSTMDiffusionModelTrainer(nn.Module):
         if self.loss_factor == 0:
             weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
         elif self.loss_factor == 1:
-            weights = self.diffusion.get_loss_weighting(eff_times=eff_times)/torch.pow(torch.Tensor([self.ts_time_diff]).to(eff_times.device), 0.5)
+            weights = self.diffusion.get_loss_weighting(eff_times=eff_times) / torch.pow(
+                torch.Tensor([self.ts_time_diff]).to(eff_times.device), 0.5)
         elif not self.include_weightings:
             weights = torch.ones_like(eff_times)
         return self._batch_loss_compute(outputs=weights * outputs, targets=weights * target_scores)

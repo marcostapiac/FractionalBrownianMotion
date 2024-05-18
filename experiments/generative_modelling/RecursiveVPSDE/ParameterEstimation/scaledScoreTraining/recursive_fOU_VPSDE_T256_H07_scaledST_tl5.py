@@ -5,12 +5,9 @@ import pandas as pd
 import torch
 
 from src.classes.ClassConditionalLSTMDiffTrainer import ConditionalLSTMDiffusionModelTrainer
-from src.classes.ClassConditionalPostMeanLSTMDiffTrainer import ConditionalLSTMPostMeanDiffusionModelTrainer
 from src.generative_modelling.data_processing import recursive_LSTM_reverse_sampling, \
     train_and_save_recursive_diffusion_model
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
-    ConditionalLSTMTSPostMeanScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSScoreMatching import \
     ConditionalLSTMTSScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
@@ -58,7 +55,7 @@ if __name__ == "__main__":
                                                  trainClass=ConditionalLSTMDiffusionModelTrainer)
     cleanup_experiment()
     es = []
-    for train_epoch in [2920,960]:#config.max_epochs:
+    for train_epoch in [2920, 960]:  # config.max_epochs:
         sampling_models = ["CondAncestral", "CondReverseDiffusion", "CondProbODE"]
         for sampling_model in sampling_models:
             try:

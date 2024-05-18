@@ -9,14 +9,14 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from configs.RecursiveVPSDE.recursive_rrrPostMeanScore_fOU_T256_H07_tl_5data import get_config as get_config_rrrpostmean
-from configs.RecursiveVPSDE.recursive_rrrrPostMeanScore_fOU_T256_H07_tl_5data import get_config as get_config_rrrrpostmean
-from configs.RecursiveVPSDE.recursive_rrPostMeanScore_fOU_T256_H07_tl_5data import get_config as get_config_rrpostmean
-from configs.RecursiveVPSDE.recursive_rPostMeanScore_fOU_T256_H07_tl_5data import get_config as get_config_rpostmean
 from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H07_tl_5data import get_config as get_config_postmean
 from configs.RecursiveVPSDE.recursive_fOU_T256_H07_tl_5data import get_config as get_config_score
 from configs.RecursiveVPSDE.recursive_fOU_T256_H07_tl_5data_scaled import get_config as get_config_score_scaled
-
+from configs.RecursiveVPSDE.recursive_rPostMeanScore_fOU_T256_H07_tl_5data import get_config as get_config_rpostmean
+from configs.RecursiveVPSDE.recursive_rrPostMeanScore_fOU_T256_H07_tl_5data import get_config as get_config_rrpostmean
+from configs.RecursiveVPSDE.recursive_rrrPostMeanScore_fOU_T256_H07_tl_5data import get_config as get_config_rrrpostmean
+from configs.RecursiveVPSDE.recursive_rrrrPostMeanScore_fOU_T256_H07_tl_5data import \
+    get_config as get_config_rrrrpostmean
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
     ConditionalLSTMTSPostMeanScoreMatching
@@ -40,7 +40,7 @@ N = 300
 data_shape = (N, 1, 1)
 device = "cpu"
 assert (
-            config_postmean.end_diff_time == config_score.end_diff_time and config_postmean.sample_eps == config_score.sample_eps and config_postmean.max_diff_steps == config_score.max_diff_steps)
+        config_postmean.end_diff_time == config_score.end_diff_time and config_postmean.sample_eps == config_score.sample_eps and config_postmean.max_diff_steps == config_score.max_diff_steps)
 diff_time_scale = torch.linspace(start=config_postmean.end_diff_time, end=config_postmean.sample_eps,
                                  steps=config_postmean.max_diff_steps)
 real_time_scale = torch.linspace(start=1 / config_postmean.ts_length, end=1, steps=config_postmean.ts_length)
@@ -70,7 +70,8 @@ rrrpostMeanScoreModel = ConditionalLSTMTSPostMeanScoreMatching(*config_rrrpostme
 rrrpostMeanScoreModel.load_state_dict(torch.load(config_rrrpostmean.scoreNet_trained_path + "_NEp" + str(train_epoch)))
 
 rrrrpostMeanScoreModel = ConditionalLSTMTSPostMeanScoreMatching(*config_rrrrpostmean.model_parameters)
-rrrrpostMeanScoreModel.load_state_dict(torch.load(config_rrrrpostmean.scoreNet_trained_path + "_NEp" + str(train_epoch)))
+rrrrpostMeanScoreModel.load_state_dict(
+    torch.load(config_rrrrpostmean.scoreNet_trained_path + "_NEp" + str(train_epoch)))
 
 scoreScoreModel = ConditionalLSTMTSScoreMatching(*config_score.model_parameters)
 scoreScoreModel.load_state_dict(torch.load(config_score.scoreNet_trained_path + "_NEp" + str(train_epoch)))
@@ -240,7 +241,7 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
     # First plot the score errors for one of the models
     diff_time_space = np.linspace(sample_eps, 1, max_diff_steps)
     # Finally, build drift estimator
-    #build_drift_estimator(ts_step=ts_step, ts_length=ts_length, diff_time_space=diff_time_space, score_evals=scores,
+    # build_drift_estimator(ts_step=ts_step, ts_length=ts_length, diff_time_space=diff_time_space, score_evals=scores,
     #                      Xtaus=revSDE_paths, prev_paths=prev_paths)
 
     score_errs = np.mean(np.power(scores - exp_scores, 2), axis=0)
@@ -263,7 +264,6 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
         plt.show()
         plt.close()
 
-
     # Which part of the score is the issue?
     eff_times = diffusion.get_eff_times(torch.Tensor(diff_time_space)).numpy()
     beta_taus = np.exp(-0.5 * eff_times)
@@ -271,7 +271,7 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
     sigma_taus = 1. - beta_2_taus
 
     # View the reverse diffusion drift score error
-    rev_diff_drift= np.mean(np.power(scores*sigma_taus, 1), axis=0)
+    rev_diff_drift = np.mean(np.power(scores * sigma_taus, 1), axis=0)
     assert (rev_diff_drift.shape == (ts_length, max_diff_steps))
     for t in range(ts_length):
         plt.plot(diff_time_space, rev_diff_drift[t, :], label=modeltype)
@@ -379,7 +379,7 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
     Xtau_comp = (beta_taus * ts_step / (sigma_taus + beta_2_taus * ts_step)) * revSDE_paths
     post_mean = data_mean_comp + Xtau_comp
     # Visualise relative components across diffusion time
-    for t in range(0): #ts_length
+    for t in range(0):  # ts_length
         plt.plot(diff_time_space, np.mean(data_mean_comp[:, t, :], 0), label="DataMeanComp")
         plt.title(f"True DataMean Comp of Post Mean at real time {t + 1}")
         # plt.show()
@@ -389,7 +389,7 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
         # plt.show()
         plt.close()
     # Check posterior mean from the expected score agrees with the computed posterior mean
-    for t in range(0): #ts_length
+    for t in range(0):  # ts_length
         realtime_exp_scores = exp_scores[:, t, :]
         realtime_Xtaus = revSDE_paths[:, t, :]
         exp_post_mean = (-sigma_taus * realtime_exp_scores - realtime_Xtaus) / (-beta_taus)

@@ -771,7 +771,8 @@ def run_fBm_scatter_matrix(dataSize: int, scoreModel: Union[NaiveMLP, TSScoreMat
         with torch.no_grad():
             t = timesteps[diff_index.long()] * torch.ones((x.shape[0], 1)).to(device)
             predicted_score = scoreModel.forward(x, t.squeeze(-1)).squeeze(1)
-        pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, predicted_score=predicted_score, diff_index=diff_index,
+        pred_score, drift, diffusion_param = diffusion.get_ancestral_sampling(x, predicted_score=predicted_score,
+                                                                              diff_index=diff_index,
                                                                               max_diff_steps=config.max_diff_steps)
         if (i >= config.idx_start_save) and (i % config.gif_save_freq == 0 or i == (config.max_diff_steps - 1)):
             row_vars = config.row_idxs

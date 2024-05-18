@@ -33,7 +33,7 @@ class FractionalSin:
 
     def increment_state(self, prev: np.ndarray, time: float, deltaT: float, M: int):
         """ Increment volatilities """
-        driftX = self.mean_rev * np.sin(prev + time)
+        driftX = self.mean_rev * np.sin(prev)  # gamma*sin(Xt-1)
         diffX = self.diff * M
         return prev + driftX * deltaT + diffX
 

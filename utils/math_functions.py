@@ -17,6 +17,7 @@ from src.classes import ClassFractionalBrownianNoise
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.classes.ClassFractionalCEV import FractionalCEV
 from src.classes.ClassFractionalOU import FractionalOU
+from src.classes.ClassFractionalSin import FractionalSin
 
 
 # from src.classes.ClassFractionalSin import FractionalSin

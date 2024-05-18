@@ -107,9 +107,8 @@ class ResidualBlock(nn.Module):
 class CondUpsampler(nn.Module):
     def __init__(self, cond_length, target_dim):
         super().__init__()
-        # Note a linear layer expects the input vector to have in_features in the last dimension
-        self.linear1 = nn.Linear(in_features=cond_length, out_features=int(2 * target_dim), bias=False)
-        self.linear2 = nn.Linear(in_features=int(2 * target_dim), out_features=target_dim, bias=False)
+        self.linear1 = nn.Linear(cond_length, int(2 * target_dim), bias=False)
+        self.linear2 = nn.Linear(int(2 * target_dim), target_dim, bias=False)
 
     def forward(self, x):
         x = self.linear1(x)
@@ -119,32 +118,19 @@ class CondUpsampler(nn.Module):
         return x
 
 
-class ConditionalLSTMTSPostMeanScoreMatching(nn.Module):
+class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
     def __init__(
             self,
             max_diff_steps: int,
             diff_embed_size: int,
             diff_hidden_size: int,
-            lstm_hiddendim: int,
-            lstm_numlay: int,
-            lstm_inputdim: int = 1,
-            lstm_dropout: float = 0.1,
+            mkv_blnk: int,
+            ts_dims: int,
             residual_layers: int = 10,
             residual_channels: int = 8,
             dilation_cycle_length: int = 10
     ):
         super().__init__()
-        self.rnn = nn.LSTM(
-            input_size=lstm_inputdim,  # What is the input_size of an LSTM?
-            hidden_size=lstm_hiddendim,
-            num_layers=lstm_numlay,
-            dropout=lstm_dropout,
-            batch_first=True,
-        )
-        # For input of size (B, T, D), input projection applies cross-correlation for each t along D dimensions
-        # So if we have processed our B time-series of length T and dimension D into (BT, 1, D) then input projection
-        # accumulates spatial information mapping each (1, D) tensor into a (residual_channel, Lout) tensor
-        # where Lout is a function of D and convolution parameters
         self.input_projection = nn.Conv1d(
             1, residual_channels, 1
         )
@@ -152,12 +138,8 @@ class ConditionalLSTMTSPostMeanScoreMatching(nn.Module):
                                                       diff_hidden_size=diff_hidden_size,
                                                       max_steps=max_diff_steps)  # get_timestep_embedding
 
-        # For input of shape (B, 1, N)
-        # Target dim is the dimension of output vector
-        # Cond_length is the dimension of the input vector (N)
-        # As a linear layer, it expects input to be a vector, not a matrix
         self.cond_upsampler = CondUpsampler(
-            target_dim=1, cond_length=lstm_hiddendim
+            target_dim=1, cond_length=mkv_blnk * ts_dims
         )
         self.residual_layers = nn.ModuleList(
             [
@@ -177,19 +159,18 @@ class ConditionalLSTMTSPostMeanScoreMatching(nn.Module):
         nn.init.zeros_(self.output_projection.weight)
 
     def forward(self, inputs, times, conditioner, eff_times):
-        # For Conditional Time series, input projection accumulates information spatially
-        # Therefore it expects inputs to be of shape (BatchSize, 1, NumDims)
+        # inputs = inputs.unsqueeze(1)
         x = self.input_projection(inputs)
         x = F.leaky_relu(x, 0.01)
+
         diffusion_step = self.diffusion_embedding(times)
-        # Linear layer assumes dimension of conditioning vector to be in last dimension
-        # This conditioner needs to be of shape (BatchSize, 1, NumFeatDims)
         cond_up = self.cond_upsampler(conditioner)
         skip = []
         for layer in self.residual_layers:
             x, skip_connection = layer(x, conditioner=cond_up, diffusion_step=diffusion_step)
             x = F.leaky_relu(x, 0.01)
             skip.append(skip_connection)
+
         x = torch.sum(torch.stack(skip), dim=0) / math.sqrt(len(self.residual_layers))
         x = self.skip_projection(x)
         x = F.leaky_relu(x, 0.01)

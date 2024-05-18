@@ -23,7 +23,8 @@ class Predictor(abc.ABC):
     """ Base class for all predictor algorithms during reverse-time sampling """
 
     def __init__(self, diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
-                 score_function: Union[NaiveMLP, TSScoreMatching, ConditionalTSScoreMatching, ConditionalLSTMTSPostMeanScoreMatching,ConditionalSignatureTSScoreMatching, ConditionalLSTMTSScoreMatching],
+                 score_function: Union[
+                     NaiveMLP, TSScoreMatching, ConditionalTSScoreMatching, ConditionalLSTMTSPostMeanScoreMatching, ConditionalSignatureTSScoreMatching, ConditionalLSTMTSScoreMatching],
                  end_diff_time: float, max_diff_steps: int,
                  device: Union[int, torch.device], sample_eps: float):
         super().__init__()
@@ -55,7 +56,9 @@ class Predictor(abc.ABC):
 
 class AncestralSamplingPredictor(Predictor):
     def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion],
-                 score_function: Union[NaiveMLP, TSScoreMatching, ConditionalTSScoreMatching,ConditionalTSScoreMatching, ConditionalSignatureTSScoreMatching,ConditionalLSTMTSScoreMatching], end_diff_time: float, max_diff_steps: int,
+                 score_function: Union[
+                     NaiveMLP, TSScoreMatching, ConditionalTSScoreMatching, ConditionalTSScoreMatching, ConditionalSignatureTSScoreMatching, ConditionalLSTMTSScoreMatching],
+                 end_diff_time: float, max_diff_steps: int,
                  device: Union[int, torch.device], sample_eps: float):
         try:
             assert (type(diffusion) != OUSDEDiffusion)
@@ -77,7 +80,9 @@ class AncestralSamplingPredictor(Predictor):
 
 class ConditionalAncestralSamplingPredictor(Predictor):
     def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion],
-                 score_function: Union[ConditionalTSScoreMatching, ConditionalSignatureTSScoreMatching,ConditionalLSTMTSScoreMatching], end_diff_time: float, max_diff_steps: int,
+                 score_function: Union[
+                     ConditionalTSScoreMatching, ConditionalSignatureTSScoreMatching, ConditionalLSTMTSScoreMatching],
+                 end_diff_time: float, max_diff_steps: int,
                  device: Union[int, torch.device], sample_eps: float):
         try:
             assert (type(diffusion) != OUSDEDiffusion)
@@ -109,7 +114,8 @@ class ConditionalAncestralSamplingPredictor(Predictor):
                     predicted_score = self.score_network.forward(x_prev, conditioner=feature, times=t,
                                                                  eff_times=eff_times)
 
-        score, drift, diffusion = self.diffusion.get_conditional_ancestral_sampling(x=x_prev, predicted_score = predicted_score,
+        score, drift, diffusion = self.diffusion.get_conditional_ancestral_sampling(x=x_prev,
+                                                                                    predicted_score=predicted_score,
                                                                                     diff_index=diff_index,
                                                                                     max_diff_steps=self.max_diff_steps)
         mean_est = None
@@ -143,7 +149,9 @@ class ConditionalAncestralSamplingPredictor(Predictor):
 
 class ConditionalReverseDiffusionSamplingPredictor(Predictor):
     def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion],
-                 score_function: Union[ConditionalTSScoreMatching, ConditionalSignatureTSScoreMatching,ConditionalLSTMTSScoreMatching], end_diff_time: float, max_diff_steps: int,
+                 score_function: Union[
+                     ConditionalTSScoreMatching, ConditionalSignatureTSScoreMatching, ConditionalLSTMTSScoreMatching],
+                 end_diff_time: float, max_diff_steps: int,
                  device: Union[int, torch.device], sample_eps: float):
         super().__init__(diffusion, score_function, end_diff_time, max_diff_steps, device, sample_eps)
 
@@ -178,6 +186,7 @@ class ConditionalReverseDiffusionSamplingPredictor(Predictor):
                 mean_est *= -torch.pow(diffusion_mean2, -0.5)
                 assert (var_est.shape == (x_prev.shape[0], 1) and mean_est.shape == (x_prev.shape[0], 1))
         return x_new, score, z, mean_est, var_est
+
 
 class ConditionalProbODESamplingPredictor(Predictor):
     def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion],

@@ -1,19 +1,7 @@
-from typing import Union, Tuple
+from typing import Tuple
 
 import torch
 from torch import nn
-
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
-    ConditionalLSTMTSPostMeanScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSScoreMatching import \
-    ConditionalLSTMTSScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSScoreMatching import \
-    ConditionalMarkovianTSScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTSScoreMatching import \
-    ConditionalTSScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTSScoreMatching import \
-    TSScoreMatching
 
 
 class VPSDEDiffusion(nn.Module):
@@ -181,7 +169,7 @@ class VPSDEDiffusion(nn.Module):
         return predicted_score, drift, diff_param
 
     def get_conditional_ancestral_sampling(self, x: torch.Tensor,
-                                           predicted_score:torch.Tensor,
+                                           predicted_score: torch.Tensor,
                                            diff_index: torch.Tensor, max_diff_steps: int) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor]:
         """

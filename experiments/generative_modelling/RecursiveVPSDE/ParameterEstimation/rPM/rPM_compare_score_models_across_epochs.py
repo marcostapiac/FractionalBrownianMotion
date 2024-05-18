@@ -6,7 +6,6 @@
 
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy
 import torch
 from tqdm import tqdm
 
@@ -26,7 +25,8 @@ device = "cuda:0"
 
 diff_time_scale = torch.linspace(start=config_rpostmean.end_diff_time, end=config_rpostmean.sample_eps,
                                  steps=config_rpostmean.max_diff_steps).to(device)
-real_time_scale = torch.linspace(start=1 / config_rpostmean.ts_length, end=1, steps=config_rpostmean.ts_length).to(device)
+real_time_scale = torch.linspace(start=1 / config_rpostmean.ts_length, end=1, steps=config_rpostmean.ts_length).to(
+    device)
 diffusion = VPSDEDiffusion(beta_max=config_rpostmean.beta_max, beta_min=config_rpostmean.beta_min)
 ts_length = config_rpostmean.ts_length
 max_diff_steps = config_rpostmean.max_diff_steps
@@ -59,6 +59,7 @@ rPM_2920.load_state_dict(torch.load(config_rpostmean.scoreNet_trained_path + "_N
 rPM_6920 = ConditionalLSTMTSPostMeanScoreMatching(*config_rpostmean.model_parameters).to(device)
 rPM_6920.load_state_dict(torch.load(config_rpostmean.scoreNet_trained_path + "_NEp" + str(6920)))
 """
+
 
 def single_time_sampling(config, diff_time_space, diffusion, feature, scoreModel, device, prev_path):
     x = diffusion.prior_sampling(shape=data_shape).to(device)  # Move to correct device
@@ -225,8 +226,8 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
     sigma_taus = 1. - beta_2_taus
     data_means = (ts_step * -1 * mean_rev * prev_paths)[:, :, np.newaxis]
     # Plot histograms for every 100 diffusion times
-    for t in range(2,ts_length):
-        data_mean_t = data_means[:,t, :]
+    for t in range(2, ts_length):
+        data_mean_t = data_means[:, t, :]
         expmeanrev = np.exp(-config.mean_rev * t)
         exp_mean = config.mean * (1. - expmeanrev)
         exp_mean += config.initState * expmeanrev
@@ -238,28 +239,30 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
         for diffidx in range(0, max_diff_steps, max_diff_steps)[::-1]:
             beta_taus_tau = beta_taus[diffidx]
             sigma_tau_tau = sigma_taus[diffidx]
-            mean = beta_taus_tau*data_mean_t
-            std = np.sqrt(sigma_tau_tau+beta_taus_tau*beta_taus_tau*ts_step)
+            mean = beta_taus_tau * data_mean_t
+            std = np.sqrt(sigma_tau_tau + beta_taus_tau * beta_taus_tau * ts_step)
             rvs = np.random.normal(loc=mean, scale=std)
-            plt.hist(rvs, bins=150,density=True, label="Expected")
+            plt.hist(rvs, bins=150, density=True, label="Expected")
             plt.hist(revSDE_paths[:, t, diffidx], density=True, bins=150, label="Simulated")
-            plt.title(f"Histogram of Diffused Samples at Real Time {t+1} and RevDiff Time {diffidx}")
+            plt.title(f"Histogram of Diffused Samples at Real Time {t + 1} and RevDiff Time {diffidx}")
             plt.legend()
             plt.show()
             plt.close()
             # Also plot their histogram against the expected data distribution at that particular time
-            plt.hist(exp_rvs, bins=150,density=True, label="Expected")
+            plt.hist(exp_rvs, bins=150, density=True, label="Expected")
             plt.hist(revSDE_paths[:, t, diffidx], density=True, bins=150, label="Simulated")
-            plt.title(f"Histogram against Data Distribution at Real Time {t+1} and RevDiff Time {diffidx}")
+            plt.title(f"Histogram against Data Distribution at Real Time {t + 1} and RevDiff Time {diffidx}")
             plt.legend()
             plt.show()
-            plt.close()            
+            plt.close()
 
-    # Plot the reverse diffusion drift
-    g2 = (diffusion.get_beta_min().cpu().numpy()+(diffusion.get_beta_max().cpu().numpy()-diffusion.get_beta_min().cpu().numpy())*diff_time_space)[np.newaxis,np.newaxis,:]
-    rev_drift = g2*scores
-    rev_exp_drift = g2*exp_scores
-    rev_drift_mse = np.mean(np.power(rev_drift-rev_exp_drift,2),axis=0)
+            # Plot the reverse diffusion drift
+    g2 = (diffusion.get_beta_min().cpu().numpy() + (
+                diffusion.get_beta_max().cpu().numpy() - diffusion.get_beta_min().cpu().numpy()) * diff_time_space)[
+         np.newaxis, np.newaxis, :]
+    rev_drift = g2 * scores
+    rev_exp_drift = g2 * exp_scores
+    rev_drift_mse = np.mean(np.power(rev_drift - rev_exp_drift, 2), axis=0)
     for t in range(ts_length):
         plt.plot(diff_time_space, rev_drift_mse[t, :], label=modeltype)
         plt.title(f"RevDiffDrift MSE at real time {t + 1}")
@@ -291,17 +294,16 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
         plt.legend()
         plt.show()
         plt.close()
-        print(np.argmin(rev_drift_mse[t,:]))
-
+        print(np.argmin(rev_drift_mse[t, :]))
 
     # Finally, build drift estimator
     build_drift_estimator(ts_step=ts_step, ts_length=ts_length, diff_time_space=diff_time_space, score_evals=scores,
                           Xtaus=revSDE_paths, prev_paths=prev_paths)
-    #score_hist = np.atleast_3d([np.atleast_2d([np.histogram(scores[:, t, diffidx].flatten(), bins=150, density=True)[0] for diffidx in range(max_diff_steps)]) for t in range(ts_length)]).transpose((2,0,1))
-    #exp_score_hist = np.atleast_3d([np.atleast_2d([np.histogram(exp_scores[:, t, diffidx].flatten(), bins=150, density=True)[0] for diffidx in range(max_diff_steps)]) for t in range(ts_length)]).transpose((2,0,1))
-    #assert(score_hist.shape == (150,ts_length, max_diff_steps))
-    #assert(exp_score_hist.shape == (150,ts_length, max_diff_steps))
-    #score_KL_divs = scipy.stats.entropy(score_hist, exp_score_hist, axis=0)
+    # score_hist = np.atleast_3d([np.atleast_2d([np.histogram(scores[:, t, diffidx].flatten(), bins=150, density=True)[0] for diffidx in range(max_diff_steps)]) for t in range(ts_length)]).transpose((2,0,1))
+    # exp_score_hist = np.atleast_3d([np.atleast_2d([np.histogram(exp_scores[:, t, diffidx].flatten(), bins=150, density=True)[0] for diffidx in range(max_diff_steps)]) for t in range(ts_length)]).transpose((2,0,1))
+    # assert(score_hist.shape == (150,ts_length, max_diff_steps))
+    # assert(exp_score_hist.shape == (150,ts_length, max_diff_steps))
+    # score_KL_divs = scipy.stats.entropy(score_hist, exp_score_hist, axis=0)
     for t in range(0):
         plt.plot(diff_time_space, score_KL_divs[t, :], label=modeltype)
         plt.title(f"KLDiv Scores at real time {t + 1}")
@@ -318,7 +320,7 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
         plt.legend()
         plt.show()
         plt.close()
-        print(np.argmin(score_KL_divs[t,:]))
+        print(np.argmin(score_KL_divs[t, :]))
     score_errs = np.mean(np.power(scores - exp_scores, 2), axis=0)
     print(score_errs.shape)
     assert (score_errs.shape == (ts_length, max_diff_steps))
@@ -339,7 +341,7 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
         plt.show()
         plt.close()
     print(score_errs.shape)
-    #score_means = np.mean(scores, axis=0)
+    # score_means = np.mean(scores, axis=0)
     for t in range(0):
         plt.plot(diff_time_space, score_means[t, :], label=modeltype)
         plt.title(f"Score Moment Scores at real time {t + 1}")
@@ -356,10 +358,10 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
         plt.legend()
         plt.show()
         plt.close()
-        print(np.argmin(np.abs(score_means[t,:])))
-   
-    #sscores = np.mean(np.power(scores-np.mean(scores, axis=0)[np.newaxis,:,:], 2), axis=0)
-    #assert (score_errs.shape == (ts_length, max_diff_steps))
+        print(np.argmin(np.abs(score_means[t, :])))
+
+    # sscores = np.mean(np.power(scores-np.mean(scores, axis=0)[np.newaxis,:,:], 2), axis=0)
+    # assert (score_errs.shape == (ts_length, max_diff_steps))
     for t in range(0):
         plt.plot(diff_time_space, sscores[t, :], label=modeltype)
         plt.title(f"Score Second Moment Scores at real time {t + 1}")
@@ -376,8 +378,8 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
         plt.legend()
         plt.show()
         plt.close()
-        print(np.argmin(sscores[t,:]))
-   
+        print(np.argmin(sscores[t, :]))
+
     # Compute the part of the score independent of data mean
     c1 = -np.power(sigma_taus + beta_2_taus * ts_step, -1)
     exp_Xtau_score_component = c1 * revSDE_paths
@@ -447,7 +449,7 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
     Xtau_comp = (beta_taus * ts_step / (sigma_taus + beta_2_taus * ts_step)) * revSDE_paths
     post_mean = data_mean_comp + Xtau_comp
     # Visualise relative components across diffusion time
-    for t in range(0): #ts_length
+    for t in range(0):  # ts_length
         plt.plot(diff_time_space, np.mean(data_mean_comp[:, t, :], 0), label="DataMeanComp")
         plt.title(f"True DataMean Comp of Post Mean at real time {t + 1}")
         # plt.show()
@@ -457,7 +459,7 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
         # plt.show()
         plt.close()
     # Check posterior mean from the expected score agrees with the computed posterior mean
-    for t in range(0): #ts_length
+    for t in range(0):  # ts_length
         realtime_exp_scores = exp_scores[:, t, :]
         realtime_Xtaus = revSDE_paths[:, t, :]
         exp_post_mean = (-sigma_taus * realtime_exp_scores - realtime_Xtaus) / (-beta_taus)

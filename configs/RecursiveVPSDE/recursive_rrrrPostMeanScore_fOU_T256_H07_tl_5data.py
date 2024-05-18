@@ -3,6 +3,7 @@ import torch
 
 from configs import project_config
 
+
 # NOTE: This model scales by 1/ts_length
 def get_config():
     config = ml_collections.ConfigDict()
