@@ -65,16 +65,29 @@ def single_time_sampling(config, diff_time_space, diffusion, feature, scoreModel
         tau = diff_time_space[diff_index] * torch.ones((data_shape[0],)).to(device)
         try:
             scoreModel.eval()
-            with torch.no_grad():
-                tau = tau * torch.ones((x.shape[0],)).to(device)
-                predicted_score = scoreModel.forward(x, conditioner=feature, times=tau)
+            if diff_index != torch.Tensor([900-1]).to(device): #or diff_index != torch.Tensor([900]).to(device) :
+                with torch.no_grad():
+                    tau = tau * torch.ones((x.shape[0],)).to(device)
+                    predicted_score = scoreModel.forward(x, conditioner=feature, times=tau)
+            else:
+                with torch.enable_grad():
+                    tau = tau * torch.ones((x.shape[0],)).to(device)
+                    predicted_score = scoreModel.forward(x, conditioner=feature, times=tau)
         except TypeError as e:
             scoreModel.eval()
-            with torch.no_grad():
-                tau = tau * torch.ones((x.shape[0],)).to(device)
-                eff_times = diffusion.get_eff_times(diff_times=tau)
-                eff_times = eff_times.reshape(x.shape)
-                predicted_score = scoreModel.forward(x, conditioner=feature, times=tau, eff_times=eff_times)
+            if diff_index != torch.Tensor([900-1]).to(device): #or diff_index != torch.Tensor([900]).to(device) :
+                with torch.no_grad():
+                    tau = tau * torch.ones((x.shape[0],)).to(device)
+                    eff_times = diffusion.get_eff_times(diff_times=tau)
+                    eff_times = eff_times.reshape(x.shape)
+                    predicted_score = scoreModel.forward(x, conditioner=feature, times=tau, eff_times=eff_times)
+            else:
+                with torch.enable_grad():
+                    tau = tau * torch.ones((x.shape[0],)).to(device)
+                    eff_times = diffusion.get_eff_times(diff_times=tau)
+                    eff_times = eff_times.reshape(x.shape)
+                    predicted_score = scoreModel.forward(x, conditioner=feature, times=tau, eff_times=eff_times)
+
         score, drift, diffParam = diffusion.get_conditional_reverse_diffusion(x=x,
                                                                               predicted_score=predicted_score,
                                                                               diff_index=torch.Tensor(
@@ -97,6 +110,13 @@ def single_time_sampling(config, diff_time_space, diffusion, feature, scoreModel
         else:
             assert (x.shape == (data_shape[0], 1))
             revSDE_paths.append(x)
+        if diff_index == torch.Tensor([900]).to(device):
+            scoreModel.zero_grad()
+            # Compute gradients of output with respect to input_data
+            grad_score = \
+            torch.autograd.grad(outputs=predicted_score, inputs=x, grad_outputs=torch.ones_like(predicted_score),
+                                retain_graph=False)[0].squeeze(dim=-1)
+            print(torch.mean(grad_score), diffusion_var+diffusion_mean2*ts_step)
         # Now update sample
         z = torch.randn_like(drift)
         x = drift + diffParam * z
