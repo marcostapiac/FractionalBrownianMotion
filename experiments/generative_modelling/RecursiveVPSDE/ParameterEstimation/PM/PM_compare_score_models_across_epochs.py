@@ -83,6 +83,7 @@ def single_time_sampling(config, diff_time_space, diffusion, feature, scoreModel
                     predicted_score = scoreModel.forward(x, conditioner=feature, times=tau, eff_times=eff_times)
             else:
                 with torch.enable_grad():
+                    print("ENTERING GRAD\n")
                     tau = tau * torch.ones((x.shape[0],)).to(device)
                     eff_times = diffusion.get_eff_times(diff_times=tau)
                     eff_times = eff_times.reshape(x.shape)
