@@ -146,10 +146,9 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
 
 
 if __name__ == "__main__":
-    from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_PostMeanScaledScore_fOU_T256_H07_tl_5data import get_config
 
     config = get_config()
-    param_time = 0
     sampling_models = ["CondAncestral", "CondReverseDiffusion", "CondProbODE"]
     early_stopping = [True]
     for train_epoch in config.max_epochs:
@@ -183,7 +182,6 @@ if __name__ == "__main__":
                                                                                                     train_epoch),
                         compression="gzip",
                         index_col=[0, 1]).to_numpy()
-                    config.param_time = param_time
                     if config.param_time == config.max_diff_steps - 1:
                         PT = 0
                     elif config.param_time == 4600:

@@ -1,28 +1,22 @@
-import pickle
-
 import numpy as np
 import pandas as pd
 import torch
 
-from src.classes.ClassConditionalPostMeanLSTMDiffTrainer import ConditionalLSTMPostMeanDiffusionModelTrainer
-from src.generative_modelling.data_processing import recursive_LSTM_reverse_sampling, \
-    train_and_save_recursive_diffusion_model
+from src.generative_modelling.data_processing import recursive_LSTM_reverse_sampling
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
     ConditionalLSTMTSPostMeanScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
-from utils.data_processing import cleanup_experiment, init_experiment
-from utils.math_functions import generate_fOU
+from utils.data_processing import init_experiment
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_PostMeanScore_fSin_T256_H07_tl_5data import get_config
 
     config = get_config()
     assert (0 < config.hurst < 1.)
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 5)
-    assert (config.weightings == True)
     print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()
     scoreModel = ConditionalLSTMTSPostMeanScoreMatching(
@@ -30,35 +24,11 @@ if __name__ == "__main__":
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     init_experiment(config=config)
-    end_epoch = max(config.max_epochs)
-    try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))
-    except FileNotFoundError as e:
-        print("Error {}; no valid trained model found; proceeding to training\n".format(e))
-        training_size = int(
-            min(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 1200000))
-        print(training_size)
-        try:
-            data = np.load(config.data_path, allow_pickle=True)
-            assert (data.shape[0] >= training_size)
-        except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
-            print("Error {}; generating synthetic data\n".format(e))
-            data = generate_fOU(T=config.ts_length, isUnitInterval=config.isUnitInterval, S=training_size,
-                                H=config.hurst, mean_rev=config.mean_rev, mean=config.mean, diff=config.diffusion,
-                                initial_state=config.initState)
-            np.save(config.data_path, data)
-        data = np.concatenate([data[:, [0]], np.diff(data, axis=1)], axis=1)
-        data = np.atleast_3d(data[:training_size, :])
-        assert (data.shape == (training_size, config.ts_length, config.ts_dims))
-        # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
-        train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel,
-                                                 trainClass=ConditionalLSTMPostMeanDiffusionModelTrainer)
-    cleanup_experiment()
     es = []
-    for train_epoch in config.max_epochs:
+    for train_epoch in [960, 12920]:
+        config.early_stop_idx = 20
         sampling_models = ["CondAncestral", "CondReverseDiffusion", "CondProbODE"]
         for sampling_model in sampling_models:
-            config.early_stop_idx = 20
             try:
                 scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
                 final_paths, cond_means, cond_vars = recursive_LSTM_reverse_sampling(diffusion=diffusion,
@@ -89,11 +59,11 @@ if __name__ == "__main__":
                 mean_df.to_csv(
                     (config.experiment_path + "_e{}NEp{}_P{}.csv.gzip".format(sampling_type, train_epoch, PT)).replace(
                         "fOU", "fOUm").replace(
-                        "fOUm00", "fm0"), compression="gzip")
+                        "fOUm00", "m0"), compression="gzip")
                 var_df.to_csv(
                     (config.experiment_path + "_e{}NEp{}_P{}.csv.gzip".format(sampling_type, train_epoch, PT)).replace(
                         "fOU", "fOUv").replace(
-                        "fOUv00", "fv0"), compression="gzip")
+                        "fOUv00", "v0"), compression="gzip")
             except FileNotFoundError as e:
                 print(e)
                 es.append(e)
