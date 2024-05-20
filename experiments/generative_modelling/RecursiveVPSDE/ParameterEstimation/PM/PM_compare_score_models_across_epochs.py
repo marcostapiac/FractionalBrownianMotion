@@ -529,7 +529,7 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
 
 # In[10]:
 T = 3
-
+"""
 # Experiment for rrrrpostmean score model
 initial_feature_input = torch.zeros(data_shape).to(device)
 postMean_scores, postMean_expscores, postMean_revSDEpaths, postMean_prevPaths = run_whole_ts_recursive_diffusion(
@@ -542,6 +542,7 @@ analyse_score_models(config=config_postmean, ts_length=T, max_diff_steps=max_dif
                      prev_paths=postMean_prevPaths.cpu().numpy(), modeltype="PM 960")
 
 del postMean_expscores, postMean_prevPaths, postMean_scores, initial_feature_input
+"""
 # Experiment for rrrrpostmean score model
 initial_feature_input = torch.zeros(data_shape).to(device)
 postMean_scores, postMean_expscores, postMean_revSDEpaths, postMean_prevPaths = run_whole_ts_recursive_diffusion(
