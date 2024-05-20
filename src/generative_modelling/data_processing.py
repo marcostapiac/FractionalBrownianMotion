@@ -298,9 +298,15 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
             est_mean = mean * config.ts_length
             assert (est_mean.shape == prev_path.shape)
             print("Estimated drift {}\n".format(est_mean))
-            print("Expected drift {}\n".format(-config.mean_rev * prev_path))
-            print(torch.mean(est_mean), torch.std(est_mean), torch.mean(prev_path), torch.std(prev_path),
-                  torch.mean(-config.mean_rev * prev_path), torch.std(-config.mean_rev * prev_path))
+            if "fSin" in config.data_path:
+                print("Expected drift {}\n".format(config.mean_rev * torch.sin(prev_path)))
+                print(torch.mean(est_mean), torch.std(est_mean), torch.mean(prev_path), torch.std(prev_path),
+                      torch.mean(config.mean_rev * torch.sin(prev_path)), torch.std(config.mean_rev * torch.sin(prev_path)))
+            elif "fOU" in config.data_path:
+                print("Expected drift {}\n".format(-config.mean_rev * (prev_path)))
+                print(torch.mean(est_mean), torch.std(est_mean), torch.mean(prev_path), torch.std(prev_path),
+                      torch.mean(-config.mean_rev * (prev_path)),
+                      torch.std(-config.mean_rev * (prev_path)))
         paths.append(samples.detach())
         means.append(mean.detach())
         vars.append(var.detach())
