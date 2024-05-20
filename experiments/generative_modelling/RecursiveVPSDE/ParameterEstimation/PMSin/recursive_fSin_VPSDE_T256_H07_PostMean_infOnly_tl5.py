@@ -57,12 +57,10 @@ if __name__ == "__main__":
                                compression="gzip")
                 mean_df.to_csv(
                     (config.experiment_path + "_{}NEp{}_P{}.csv.gzip".format(sampling_type, train_epoch, PT)).replace(
-                        "fOU", "fOUm").replace(
-                        "fOUm00", "m0"), compression="gzip")
+                        "fSin", "fSinm"), compression="gzip")
                 var_df.to_csv(
                     (config.experiment_path + "_{}NEp{}_P{}.csv.gzip".format(sampling_type, train_epoch, PT)).replace(
-                        "fOU", "fOUv").replace(
-                        "fOUv00", "v0"), compression="gzip")
+                        "fSin", "fSinv"), compression="gzip")
             except FileNotFoundError as e:
                 print(e)
                 es.append(e)

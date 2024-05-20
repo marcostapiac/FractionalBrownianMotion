@@ -25,7 +25,7 @@ if __name__ == "__main__":
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     init_experiment(config=config)
     es = []
-    for train_epoch in [960, 12920]:
+    for train_epoch in config.max_epochs:
         config.early_stop_idx = 20
         sampling_models = ["CondAncestral", "CondReverseDiffusion", "CondProbODE"]
         for sampling_model in sampling_models:
@@ -58,12 +58,10 @@ if __name__ == "__main__":
                                compression="gzip")
                 mean_df.to_csv(
                     (config.experiment_path + "_e{}NEp{}_P{}.csv.gzip".format(sampling_type, train_epoch, PT)).replace(
-                        "fOU", "fOUm").replace(
-                        "fOUm00", "m0"), compression="gzip")
+                        "fSin", "fSinm"), compression="gzip")
                 var_df.to_csv(
                     (config.experiment_path + "_e{}NEp{}_P{}.csv.gzip".format(sampling_type, train_epoch, PT)).replace(
-                        "fOU", "fOUv").replace(
-                        "fOUv00", "v0"), compression="gzip")
+                        "fSin", "fSinv"), compression="gzip")
             except FileNotFoundError as e:
                 print(e)
                 es.append(e)

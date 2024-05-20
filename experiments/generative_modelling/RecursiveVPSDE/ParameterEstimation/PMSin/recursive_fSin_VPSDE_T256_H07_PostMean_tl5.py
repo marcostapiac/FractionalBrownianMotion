@@ -12,7 +12,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
     ConditionalLSTMTSPostMeanScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from utils.data_processing import cleanup_experiment, init_experiment
-from utils.math_functions import generate_fOU
+from utils.math_functions import  generate_fSin
 
 if __name__ == "__main__":
     # Data parameters
@@ -34,7 +34,7 @@ if __name__ == "__main__":
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))
     except FileNotFoundError as e:
-        print("Error {}; no valid trained model found; proceeding to training\n".format(e))
+        print("Error {}; no valid trained model fSinnd; proceeding to training\n".format(e))
         training_size = int(
             min(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 1200000))
         print(training_size)
@@ -43,8 +43,8 @@ if __name__ == "__main__":
             assert (data.shape[0] >= training_size)
         except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
-            data = generate_fOU(T=config.ts_length, isUnitInterval=config.isUnitInterval, S=training_size,
-                                H=config.hurst, mean_rev=config.mean_rev, mean=config.mean, diff=config.diffusion,
+            data = generate_fSin(T=config.ts_length, isUnitInterval=config.isUnitInterval, S=training_size,
+                                H=config.hurst, mean_rev=config.mean_rev, diff=config.diffusion,
                                 initial_state=config.initState)
             np.save(config.data_path, data)
         data = np.concatenate([data[:, [0]], np.diff(data, axis=1)], axis=1)
@@ -88,12 +88,12 @@ if __name__ == "__main__":
                                compression="gzip")
                 mean_df.to_csv(
                     (config.experiment_path + "_e{}NEp{}_P{}.csv.gzip".format(sampling_type, train_epoch, PT)).replace(
-                        "fOU", "fOUm").replace(
-                        "fOUm00", "fm0"), compression="gzip")
+                        "fSin", "fSinm").replace(
+                        "fSinm00", "fm0"), compression="gzip")
                 var_df.to_csv(
                     (config.experiment_path + "_e{}NEp{}_P{}.csv.gzip".format(sampling_type, train_epoch, PT)).replace(
-                        "fOU", "fOUv").replace(
-                        "fOUv00", "fv0"), compression="gzip")
+                        "fSin", "fSinv").replace(
+                        "fSinv00", "fv0"), compression="gzip")
             except FileNotFoundError as e:
                 print(e)
                 es.append(e)
