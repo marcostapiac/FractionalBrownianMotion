@@ -56,7 +56,7 @@ if __name__ == "__main__":
     cleanup_experiment()
     es = []
     for train_epoch in [960]:  # config.max_epochs:
-        config.early_stop_idx = 20
+        config.early_stop_idx = 90
         sampling_models = ["CondAncestral", "CondReverseDiffusion", "CondProbODE"]
         for sampling_model in sampling_models:
             try:

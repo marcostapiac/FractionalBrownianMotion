@@ -117,7 +117,7 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
         mean = np.array(mean)
         path = np.array(path)
         plt.scatter(path, mean, label="Drift Against State")
-        plt.scatter(path, -config.mean_rev * path, label="Expected Drift Against State")
+        plt.scatter(path, config.mean_rev * np.sin(path), label="Expected Drift Against State")
         plt.title(f"Drift against Path with")
         plt.legend()
         plt.show()
@@ -146,7 +146,7 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
 
 
 if __name__ == "__main__":
-    from configs.RecursiveVPSDE.recursive_PostMeanScaledScore_fOU_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_PostMeanScore_fSin_T256_H07_tl_5data import get_config
 
     config = get_config()
     sampling_models = ["CondAncestral", "CondReverseDiffusion", "CondProbODE"]
