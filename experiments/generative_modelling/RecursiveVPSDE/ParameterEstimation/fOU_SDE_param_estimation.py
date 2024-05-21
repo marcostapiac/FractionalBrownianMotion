@@ -47,7 +47,7 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
     time_space = np.linspace((1. / config.ts_length), 1., num=config.ts_length)
     low = 0
     high = config.ts_length
-    for idx in range(3):
+    for idx in range(0):
         tidx = np.random.randint(low=low, high=high)
         t = time_space[tidx]
         exp_mean = 0.
@@ -65,7 +65,7 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
     time_space = np.linspace((1. / config.ts_length), 1., num=config.ts_length)
     low = config.ts_length - 10
     high = config.ts_length
-    for idx in range(3):
+    for idx in range(0):
         tidx = np.random.randint(low=low, high=high)
         t = time_space[tidx]
         expmeanrev = np.exp(-config.mean_rev * t)
@@ -91,7 +91,7 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
     means *= (config.ts_length ** (2 * config.hurst))
 
     # Plot path and drift as a function of time
-    for _ in range(3):
+    for _ in range(0):
         idx = np.random.randint(low=0, high=paths.shape[0])
         mean = means[idx, 1:]
         path = paths[idx, :-1]
@@ -106,7 +106,7 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
         time.sleep(1)
 
     # Plot drift as a function of space for a single path
-    for _ in range(3):
+    for _ in range(0):
         idx = np.random.randint(low=0, high=paths.shape[0])
         mean = means[idx, 1:]
         path = paths[idx, :-1]
@@ -125,7 +125,7 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
         plt.close()
 
     # Plot histograms of the mean at a particular time
-    for i in range(3):
+    for i in range(0):
         idx = np.random.randint(low=0, high=config.ts_length)
         mean = means[:, idx]  # -gamma*X(t-1)
         plt.hist(mean, bins=150, density=True, label="Estimated Drift")
@@ -144,15 +144,31 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
         plt.legend()
         plt.show()
         plt.close()
+    # Plot drift as a function of space over all paths
+    mean = means[:10000, 1:].flatten()
+    path = paths[:10000, :-1].flatten()
+    paired = zip(path, mean)
+    # Sort the pairs based on values of arr1
+    sorted_pairs = sorted(paired, key=lambda x: x[0])
+    # Separate the pairs back into two arrays
+    path, mean = zip(*sorted_pairs)
+    mean = np.array(mean)
+    path = np.array(path)
+    plt.scatter(path, mean, label="Drift Against State")
+    plt.scatter(path, -config.mean_rev * path, label="Expected Drift Against State")
+    plt.title(f"Drift against Path")
+    plt.legend()
+    plt.show()
+    plt.close()
 
 
 if __name__ == "__main__":
     from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H07_tl_5data import get_config
 
     config = get_config()
-    sampling_models = ["CondAncestral", "CondReverseDiffusion", "CondProbODE"]
+    sampling_models = ["CondAncestral"]#, "CondReverseDiffusion", "CondProbODE"]
     early_stopping = [True]
-    for train_epoch in [12920]:
+    for train_epoch in [960]:
         with open(config.scoreNet_trained_path.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as f:
             losses = np.array(pickle.load(f))
         assert (losses.shape[0] >= 1)  # max(config.max_epochs))

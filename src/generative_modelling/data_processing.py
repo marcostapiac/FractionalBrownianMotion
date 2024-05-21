@@ -279,7 +279,6 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
                                     corrector=corrector)
 
     scoreModel.eval()
-    samples = torch.zeros(size=(data_shape[0], 1, data_shape[-1])).to(device)
     paths = []
     means = []
     vars = []
@@ -287,9 +286,9 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
     for t in range(config.ts_length):
         print("Sampling at real time {}\n".format(t + 1))
         if t == 0:
-            output, (h, c) = scoreModel.rnn(samples, None)
+            output, (h, c) = scoreModel.rnn(prev_path, None)
         else:
-            output, (h, c) = scoreModel.rnn(samples, (h, c))
+            output, (h, c) = scoreModel.rnn(prev_path, (h, c))
         samples, mean, var = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output,
                                             early_stop_idx=config.early_stop_idx, ts_step=1. / config.ts_length,
                                             param_time=config.param_time, prev_path=prev_path)
@@ -312,7 +311,7 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
         paths.append(samples.detach())
         means.append(mean.detach())
         vars.append(var.detach())
-        prev_path = torch.concat(paths, dim=1).squeeze(dim=2).sum(axis=1).unsqueeze(-1)
+        prev_path = torch.concat(paths, dim=1).sum(dim=1)
         print(prev_path.shape)
     final_paths = np.atleast_2d(torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2).numpy())
     conditional_means = np.atleast_2d(torch.concat(means, dim=1).cpu().numpy())
@@ -369,7 +368,7 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
         if t == 0:
             features = torch.zeros(size=(data_shape[0], 1, config.mkv_blnk * config.ts_dims)).to(device)
         else:
-            if "fOU" in config.data_path:
+            if "fBn" not in config.data_path:
                 past = [torch.zeros_like(paths[0]) for _ in range(max(0, config.mkv_blnk - t))] + paths
                 past = torch.stack(past, dim=1)
                 past = past.cumsum(dim=1)

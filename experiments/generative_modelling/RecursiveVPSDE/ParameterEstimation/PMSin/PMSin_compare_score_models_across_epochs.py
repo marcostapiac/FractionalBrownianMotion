@@ -25,7 +25,7 @@ config_score = get_config_score()
 rng = np.random.default_rng()
 N = 10000
 data_shape = (N, 1, 1)
-device = "cuda:0"
+device = "cpu"
 
 diff_time_scale = torch.linspace(start=config_postmean.end_diff_time, end=config_postmean.sample_eps,
                                  steps=config_postmean.max_diff_steps).to(device)
@@ -42,6 +42,11 @@ ts_step = 1 / ts_length
 
 PM_960 = ConditionalLSTMTSPostMeanScoreMatching(*config_postmean.model_parameters).to(device)
 PM_960.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(960)))
+
+Xs = torch.linspace(-2, 2, 10000)
+with torch.no_grad():
+    score_evals = PM_960.forward(Xs, conditioner=feature, times=0.01)
+
 """
 PM_1440 = ConditionalLSTMTSPostMeanScoreMatching(*config_postmean.model_parameters).to(device)
 PM_1440.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(1440)))

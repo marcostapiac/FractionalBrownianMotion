@@ -258,7 +258,9 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
 
         # batch shape (N_batches, Time Series Length, Input Size)
         # hidden states: (D*NumLayers, N, Hidden Dims), D is 2 if bidirectional, else 1.
+
         dbatch = torch.cat([torch.zeros((batch.shape[0], 1, batch.shape[-1])).to(batch.device), batch], dim=1)
+        dbatch = dbatch.cumsum(dim=1)
         if type(self.device_id) == int:
             output, (hn, cn) = (self.score_network.module.rnn(dbatch, None))
         else:

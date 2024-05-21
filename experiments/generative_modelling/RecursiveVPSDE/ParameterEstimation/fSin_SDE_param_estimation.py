@@ -16,10 +16,11 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
         compression="gzip",
         index_col=[0, 1]).to_numpy()
     paths = incs.cumsum(axis=1)
-    #for _ in range(paths.shape[0]):
-    #    plt.plot(np.linspace(0, 1, config.ts_length), paths[_, :])
-    #plt.show()
-    #plt.close()
+    for _ in range(0):
+        plt.plot(np.linspace(0, 1, config.ts_length), paths[_, :])
+    plt.title("Sample Paths")
+    plt.show()
+    plt.close()
     # Estimate Hurst indices from paths
     #U_a1, U_a2 = second_order_estimator(paths=paths, Nsamples=paths.shape[0])
     #estimate_hurst_from_filter(Ua1=U_a1, Ua2=U_a2, epoch=train_epoch).flatten()
@@ -30,17 +31,21 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
         PT = 2
     else:
         PT = 1
-
+    print(config.data_path)
     # Plot some marginal distributions for increments
     time_space = np.linspace((1. / config.ts_length), 1., num=config.ts_length)
-    low = 0
+    low =  config.ts_length - 10
     high = config.ts_length
+    true_paths = np.load(config.data_path, allow_pickle=True)
+    true_incs = np.concatenate([true_paths[:, [0]], np.diff(true_paths, axis=1)], axis=1)
+    for _ in range(10):#paths.shape[0]):
+        plt.plot(np.linspace(0, 1, config.ts_length), true_paths[_, :])
+    plt.show()
+    plt.close()
     for idx in range(0):
         tidx = np.random.randint(low=low, high=high)
         t = time_space[tidx]
-        exp_mean = 0.
-        exp_var = 1. / config.ts_length
-        exp_rvs = np.random.normal(loc=exp_mean, scale=np.sqrt(exp_var), size=paths.shape[0])
+        exp_rvs = true_incs[:, tidx]
         incst = incs[:, tidx]
         plt.hist(incst, bins=150, density=True, label="Simulated")
         plt.hist(exp_rvs, bins=150, density=True, label="Expected")
@@ -53,9 +58,7 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
     time_space = np.linspace((1. / config.ts_length), 1., num=config.ts_length)
     low = config.ts_length - 10
     high = config.ts_length
-    print(config.data_path)
-    true_paths = np.load(config.data_path, allow_pickle=True)
-    print(true_paths)
+    true_paths = true_incs.cumsum(axis=1)
     for idx in range(0):
         tidx = np.random.randint(low=low, high=high)
         t = time_space[tidx]
@@ -70,7 +73,7 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
     means = pd.read_csv(
         (config.experiment_path + "_{}NEp{}_P{}.csv.gzip".format(sampling_type, train_epoch, PT)).replace(
                         "fSin", "fSinm"),
-        compression="gzip").to_numpy()
+        compression="gzip", index_col=[0,1]).to_numpy()
     means *= (config.ts_length ** (2 * config.hurst))
 
     # Plot drift as a function of space for a single path
@@ -85,18 +88,36 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
         path, mean = zip(*sorted_pairs)
         mean = np.array(mean)
         path = np.array(path)
-        #plt.scatter(path, mean, label="Drift Against State")
-        plt.scatter(path, config.mean_rev * np.sin(path), label="Expected Drift Against State")
-        plt.title(f"Drift against Path with")
+        plt.scatter(path, mean, label="Drift Against State")
+        plt.scatter(path, config.mean_rev *np.sin(path), label="Expected Drift Against State")
+        plt.title(f"Drift against Path")
         plt.legend()
         plt.show()
         plt.close()
+
+    # Plot drift as a function of space over all paths
+    mean = means[:10000, 1:].flatten()
+    path = paths[:10000, :-1].flatten()
+    paired = zip(path, mean)
+    # Sort the pairs based on values of arr1
+    sorted_pairs = sorted(paired, key=lambda x: x[0])
+    # Separate the pairs back into two arrays
+    path, mean = zip(*sorted_pairs)
+    mean = np.array(mean)
+    path = np.array(path)
+    plt.scatter(path, mean, label="Drift Against State")
+    plt.scatter(path, config.mean_rev * np.sin(path), label="Expected Drift Against State")
+    plt.title(f"Drift against Paths")
+    plt.legend()
+    plt.show()
+    plt.close()
+    raise RuntimeError
 
 if __name__ == "__main__":
     from configs.RecursiveVPSDE.recursive_PostMeanScore_fSin_T256_H07_tl_5data import get_config
 
     config = get_config()
-    sampling_models = ["CondAncestral", "CondReverseDiffusion", "CondProbODE"]
+    sampling_models = ["CondAncestral"]#, "CondReverseDiffusion", "CondProbODE"]
     early_stopping = [True]
     for train_epoch in config.max_epochs:
         with open(config.scoreNet_trained_path.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as f:
