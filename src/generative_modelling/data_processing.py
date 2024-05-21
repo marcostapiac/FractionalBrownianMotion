@@ -295,6 +295,7 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
         assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
         if t != 0:
             est_mean = mean * config.ts_length
+            prev_path = prev_path.squeeze(-1)
             assert (est_mean.shape == prev_path.shape)
             print("Estimated drift {}\n".format(est_mean))
             if "fSin" in config.data_path:
