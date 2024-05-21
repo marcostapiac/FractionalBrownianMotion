@@ -93,7 +93,7 @@ def get_config():
     config.snr = 0.
     config.predictor_model = "CondAncestral"
     config.corrector_model = "VP"  # vs "VE" vs "OUSDE"
-    config.param_time = 500
+    config.param_time = 900
 
     # Experiment evaluation parameters
     config.dataSize = 40000
