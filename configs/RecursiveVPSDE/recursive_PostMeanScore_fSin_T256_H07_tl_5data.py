@@ -26,7 +26,7 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = [960]#, 1440, 1920, 2920, 6920, 12920]
+    config.max_epochs = [960, 1440, 1920, 2920, 6920, 12920]
     config.batch_size = 256
     config.isfBm = True
     config.isUnitInterval = True
@@ -93,7 +93,7 @@ def get_config():
     config.snr = 0.
     config.predictor_model = "CondAncestral"
     config.corrector_model = "VP"  # vs "VE" vs "OUSDE"
-    config.param_time = 900
+    config.param_time = 500
 
     # Experiment evaluation parameters
     config.dataSize = 40000

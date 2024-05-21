@@ -47,7 +47,7 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
     time_space = np.linspace((1. / config.ts_length), 1., num=config.ts_length)
     low = 0
     high = config.ts_length
-    for idx in range(0):
+    for idx in range(3):
         tidx = np.random.randint(low=low, high=high)
         t = time_space[tidx]
         exp_mean = 0.
@@ -65,7 +65,7 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
     time_space = np.linspace((1. / config.ts_length), 1., num=config.ts_length)
     low = config.ts_length - 10
     high = config.ts_length
-    for idx in range(0):
+    for idx in range(3):
         tidx = np.random.randint(low=low, high=high)
         t = time_space[tidx]
         expmeanrev = np.exp(-config.mean_rev * t)
@@ -91,7 +91,7 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
     means *= (config.ts_length ** (2 * config.hurst))
 
     # Plot path and drift as a function of time
-    for _ in range(0):
+    for _ in range(3):
         idx = np.random.randint(low=0, high=paths.shape[0])
         mean = means[idx, 1:]
         path = paths[idx, :-1]
@@ -106,7 +106,7 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
         time.sleep(1)
 
     # Plot drift as a function of space for a single path
-    for _ in range(0):
+    for _ in range(3):
         idx = np.random.randint(low=0, high=paths.shape[0])
         mean = means[idx, 1:]
         path = paths[idx, :-1]
