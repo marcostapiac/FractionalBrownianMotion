@@ -282,7 +282,7 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
     paths = []
     means = []
     vars = []
-    prev_path = torch.zeros(size=(data_shape[0], 1)).to(device)
+    prev_path = torch.zeros(size=(data_shape[0], 1, 1)).to(device)
     for t in range(config.ts_length):
         print("Sampling at real time {}\n".format(t + 1))
         if t == 0:
