@@ -49,7 +49,7 @@ with torch.no_grad():
     # Fix a single past feature for a single time
     del tensor_true_paths, output
 
-for i in range(200,201):
+for i in range(200,256):
     path_values.append(true_paths[[0], [i],:].flatten()[0])
     fixed_feature = torch.tile(features[[0], [i], :].unsqueeze(0),dims=(N, 1,1))
     # Now run reverse-diffusion
