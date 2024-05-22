@@ -41,8 +41,8 @@ ts_step = 1 / ts_length
 
 
 PM_960 = ConditionalLSTMTSPostMeanScoreMatching(*config_postmean.model_parameters).to(device)
-PM_960.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(960)))
-
+PM_960.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(1440)))
+"""
 PM_1440 = ConditionalLSTMTSPostMeanScoreMatching(*config_postmean.model_parameters).to(device)
 PM_1440.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(1440)))
 
@@ -55,7 +55,7 @@ PM_2920.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp
 PM_6920 = ConditionalLSTMTSPostMeanScoreMatching(*config_postmean.model_parameters).to(device)
 PM_6920.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(6920)))
 
-
+"""
 def single_time_sampling(config, diff_time_space, diffusion, feature, scoreModel, device, prev_path):
     x = diffusion.prior_sampling(shape=data_shape).to(device)  # Move to correct device
     scores = []
@@ -66,7 +66,7 @@ def single_time_sampling(config, diff_time_space, diffusion, feature, scoreModel
         try:
             scoreModel.eval()
             if diff_index == 1000-1 or diff_index == 1000:
-                with torch.enable_grad():
+                with torch.no_grad():
                     tau = tau * torch.ones((x.shape[0],)).to(device)
                     predicted_score = scoreModel.forward(x, conditioner=feature, times=tau)
             else:
@@ -76,7 +76,7 @@ def single_time_sampling(config, diff_time_space, diffusion, feature, scoreModel
         except TypeError as e:
             scoreModel.eval()
             if diff_index == 1000-1 or diff_index == 1000:
-                with torch.enable_grad():
+                with torch.no_grad():
                     tau = tau * torch.ones((x.shape[0],)).to(device)
                     eff_times = diffusion.get_eff_times(diff_times=tau)
                     eff_times = eff_times.reshape(x.shape)
@@ -110,14 +110,6 @@ def single_time_sampling(config, diff_time_space, diffusion, feature, scoreModel
         else:
             assert (x.shape == (data_shape[0], 1))
             revSDE_paths.append(x)
-        if diff_index == torch.Tensor([1000]).to(device):
-            scoreModel.zero_grad()
-            # Compute gradients of output with respect to input_data
-            grad_score = \
-            torch.autograd.grad(outputs=predicted_score, inputs=x, grad_outputs=torch.ones_like(predicted_score),
-                                retain_graph=False)[0].squeeze(dim=-1)
-            print(torch.mean((-torch.pow(grad_score,-1)-diffusion_var)/diffusion_mean2,0),ts_step)
-        # Now update sample
         z = torch.randn_like(drift)
         x = drift + diffParam * z
     scores = torch.flip(torch.concat(scores, dim=-1).cpu(), dims=[1])
@@ -137,7 +129,6 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
     stored_expscores = []
     stored_revSDE_paths = []
     prev_paths = []
-    samples = initial_feature_input
     cumsamples = initial_feature_input
     for t in (range(ts_length)):
         prev_paths.append(cumsamples.cpu())
@@ -145,16 +136,16 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
         scoreModel.eval()
         with torch.no_grad():
             if t == 0:
-                feature, (h, c) = scoreModel.rnn(samples, None)
+                feature, (h, c) = scoreModel.rnn(cumsamples, None)
             else:
-                feature, (h, c) = scoreModel.rnn(samples, (h, c))
+                feature, (h, c) = scoreModel.rnn(cumsamples, (h, c))
         new_samples, scores, exp_scores, revSDE_paths = single_time_sampling(config=config,
                                                                              diff_time_space=diff_time_scale,
                                                                              diffusion=diffusion, scoreModel=scoreModel,
                                                                              device=device, feature=feature,
-                                                                             prev_path=samples)
-        cumsamples = samples + new_samples
-        samples = new_samples  # But we feed latest INCREMENT to the LSTM
+                                                                             prev_path=cumsamples)
+        cumsamples = cumsamples + new_samples
+        print(cumsamples.shape)
         stored_scores.append(scores.unsqueeze(1))
         stored_expscores.append(exp_scores.unsqueeze(1))
         stored_revSDE_paths.append(revSDE_paths.unsqueeze(1))
@@ -213,7 +204,7 @@ def build_drift_estimator(ts_step, ts_length, diff_time_space, score_evals, Xtau
         print(np.min(mses), np.argmin(mses))
         argmin = np.argmin(mses)
     # Choose a diffusion time for the mean estimator
-    best_mean_est = mean_est[:, :, 9000]
+    best_mean_est = mean_est[:, :, argmin]
     for t in range(ts_length):
         paired = zip(prev_paths[:, t], best_mean_est[:, t])
         sorted_pairs = sorted(paired, key=lambda x: x[0])
@@ -241,7 +232,7 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
     sigma_taus = 1. - beta_2_taus
     data_means = (ts_step * -1 * mean_rev * prev_paths)[:, :, np.newaxis]
     # Plot histograms for every 100 diffusion times
-    for t in range(0):
+    for t in range(3,ts_length):
         data_mean_t = data_means[:, t, :]
         expmeanrev = np.exp(-config.mean_rev * t)
         exp_mean = config.mean * (1. - expmeanrev)
@@ -278,7 +269,7 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
     rev_drift = g2 * scores
     rev_exp_drift = g2 * exp_scores
     rev_drift_mse = np.mean(np.power(rev_drift - rev_exp_drift, 2), axis=0)
-    for t in range(ts_length):
+    for t in range(3,ts_length):
         plt.plot(diff_time_space, rev_drift_mse[t, :], label=modeltype)
         plt.title(f"RevDiffDrift MSE at real time {t + 1}")
         plt.legend()
@@ -312,8 +303,8 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
         print(np.argmin(rev_drift_mse[t, :]))
 
     # Finally, build drift estimator
-    # build_drift_estimator(ts_step=ts_step, ts_length=ts_length, diff_time_space=diff_time_space, score_evals=scores,
-    #                      Xtaus=revSDE_paths, prev_paths=prev_paths)
+    build_drift_estimator(ts_step=ts_step, ts_length=ts_length, diff_time_space=diff_time_space, score_evals=scores,
+                          Xtaus=revSDE_paths, prev_paths=prev_paths)
     score_hist = np.atleast_3d([np.atleast_2d(
         [np.histogram(scores[:, t, diffidx].flatten(), bins=150, density=True)[0] for diffidx in range(max_diff_steps)])
                                 for t in range(ts_length)]).transpose((2, 0, 1))
@@ -529,7 +520,7 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
 
 # In[10]:
 T = 3
-"""
+
 # Experiment for rrrrpostmean score model
 initial_feature_input = torch.zeros(data_shape).to(device)
 postMean_scores, postMean_expscores, postMean_revSDEpaths, postMean_prevPaths = run_whole_ts_recursive_diffusion(
@@ -542,7 +533,7 @@ analyse_score_models(config=config_postmean, ts_length=T, max_diff_steps=max_dif
                      prev_paths=postMean_prevPaths.cpu().numpy(), modeltype="PM 960")
 
 del postMean_expscores, postMean_prevPaths, postMean_scores, initial_feature_input
-"""
+
 # Experiment for rrrrpostmean score model
 initial_feature_input = torch.zeros(data_shape).to(device)
 postMean_scores, postMean_expscores, postMean_revSDEpaths, postMean_prevPaths = run_whole_ts_recursive_diffusion(
