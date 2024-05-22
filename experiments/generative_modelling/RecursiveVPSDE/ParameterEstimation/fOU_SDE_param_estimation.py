@@ -166,9 +166,9 @@ if __name__ == "__main__":
     from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H07_tl_5data import get_config
 
     config = get_config()
-    sampling_models = ["CondAncestral"]#, "CondReverseDiffusion", "CondProbODE"]
+    sampling_models = ["CondAncestral", "CondProbODE"]
     early_stopping = [True]
-    for train_epoch in [960]:
+    for train_epoch in [1440]:
         with open(config.scoreNet_trained_path.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as f:
             losses = np.array(pickle.load(f))
         assert (losses.shape[0] >= 1)  # max(config.max_epochs))

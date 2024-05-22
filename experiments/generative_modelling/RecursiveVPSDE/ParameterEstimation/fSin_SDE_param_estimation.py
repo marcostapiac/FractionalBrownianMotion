@@ -16,7 +16,7 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
         compression="gzip",
         index_col=[0, 1]).to_numpy()
     paths = incs.cumsum(axis=1)
-    for _ in range(0):
+    for _ in range(paths.shape[0]):
         plt.plot(np.linspace(0, 1, config.ts_length), paths[_, :])
     plt.title("Sample Paths")
     plt.show()
@@ -42,13 +42,13 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
         plt.plot(np.linspace(0, 1, config.ts_length), true_paths[_, :])
     plt.show()
     plt.close()
-    for idx in range(0):
+    for idx in range(3):
         tidx = np.random.randint(low=low, high=high)
         t = time_space[tidx]
         exp_rvs = true_incs[:, tidx]
         incst = incs[:, tidx]
-        plt.hist(incst, bins=150, density=True, label="Simulated")
-        plt.hist(exp_rvs, bins=150, density=True, label="Expected")
+        plt.hist(incst, bins=150, alpha=0.5, density=True, label="Simulated")
+        plt.hist(exp_rvs, bins=150, alpha=0.5, density=True, label="Expected")
         plt.title(f"Marginal Distributions for Increments at time {t} for epoch {train_epoch}")
         plt.legend()
         plt.show()
@@ -59,13 +59,13 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
     low = config.ts_length - 10
     high = config.ts_length
     true_paths = true_incs.cumsum(axis=1)
-    for idx in range(0):
+    for idx in range(3):
         tidx = np.random.randint(low=low, high=high)
         t = time_space[tidx]
         tpathst = true_paths[:, tidx]
         pathst = paths[:, tidx]  # Paths[:, 0] corresponds to X_{t_{1}} NOT X_{t_{0}}
-        plt.hist(pathst, bins=150, density=True, label="Simulated")
-        plt.hist(tpathst, bins=150, density=True, label="Expected")
+        plt.hist(pathst, bins=150, alpha=0.5, density=True, label="Simulated")
+        plt.hist(tpathst, bins=150, alpha=0.5, density=True, label="Expected")
         plt.title(f"Marginal Distributions for PATHS at time {t} for epoch {train_epoch}")
         plt.legend()
         plt.show()
@@ -117,9 +117,9 @@ if __name__ == "__main__":
     from configs.RecursiveVPSDE.recursive_PostMeanScore_fSin_T256_H07_tl_5data import get_config
 
     config = get_config()
-    sampling_models = ["CondAncestral"]#, "CondReverseDiffusion", "CondProbODE"]
+    sampling_models = ["CondAncestral", "CondProbODE"]
     early_stopping = [True]
-    for train_epoch in config.max_epochs:
+    for train_epoch in [1440]:
         with open(config.scoreNet_trained_path.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as f:
             losses = np.array(pickle.load(f))
         assert (losses.shape[0] >= 1)  # max(config.max_epochs))
