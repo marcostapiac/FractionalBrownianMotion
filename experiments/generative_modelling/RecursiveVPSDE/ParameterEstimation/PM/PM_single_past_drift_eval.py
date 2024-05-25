@@ -16,9 +16,9 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 config_postmean = get_config_postmean()
 
 rng = np.random.default_rng()
-N = 2
+N = 10000
 data_shape = (N, 1, 1)
-device = "cpu"
+device = "cuda:0"
 
 diff_time_space = torch.linspace(start=config_postmean.end_diff_time, end=config_postmean.sample_eps,
                                  steps=config_postmean.max_diff_steps).to(device)
@@ -36,21 +36,20 @@ ts_step = 1 / ts_length
 PM_960 = ConditionalLSTMTSPostMeanScoreMatching(*config_postmean.model_parameters).to(device)
 PM_960.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(960)))
 
-true_paths = np.load(config_postmean.data_path, allow_pickle=True)[:N,:]
+true_paths = np.load(config_postmean.data_path, allow_pickle=True)[:1000,:]
 true_paths = true_paths.reshape((true_paths.shape[0], true_paths.shape[1], 1))
 true_paths = np.concatenate([np.zeros((true_paths.shape[0],1,true_paths.shape[-1])), true_paths], axis=1)
 start_time_idx = 200
 end_time_idx = 256
-end_diff_idx = 9100
+end_diff_idx = 1000
 drifts = np.zeros(shape=(end_time_idx-start_time_idx, max_diff_steps-end_diff_idx))
 path_values = []
 PM_960.eval()
 with torch.no_grad():
-    tensor_true_paths = torch.Tensor(true_paths).to(device)
-    output, (hn, cn) = (PM_960.rnn(tensor_true_paths, None))
+    output, (hn, cn) = (PM_960.rnn(torch.Tensor(true_paths).to(device), None))
     features = output[:, :-1, :]
     # Fix a single past feature for a single time
-    del tensor_true_paths, output
+    del output, hn, cn
 
 for i in tqdm(range(start_time_idx,end_time_idx)):
     pathidx = np.random.randint(low=0, high=true_paths.shape[0])
@@ -87,13 +86,43 @@ assert(len(path_values) == drifts.shape[0])
 sorted_idxs = np.argsort(path_values)
 path_values = np.array(path_values)[sorted_idxs]
 drifts = drifts[sorted_idxs, :]
+exp_drifts = -config_postmean.mean_rev*path_values.reshape((path_values.shape[0],1))*np.ones_like(drifts)
 # Separate the pairs back into two arrays
+x, y = np.meshgrid(diff_time_space[:config_postmean.max_diff_steps-end_diff_idx].detach().cpu(), path_values) # x is the columns (diff time), y is the rows (path value)
+"""
 ax = plt.axes(projection='3d')
-x, y = np.meshgrid(diff_time_space[:config_postmean.max_diff_steps-end_diff_idx], path_values) # x is the columns, y is the rows
+x, y = np.meshgrid(diff_time_space[:config_postmean.max_diff_steps-end_diff_idx].detach().cpu(), path_values) # x is the columns (diff time), y is the rows (path value)
 ax.scatter3D(x, y, drifts, cmap='viridis', label="Estimated")
 ax.scatter3D(x, y,  -config_postmean.mean_rev*path_values.reshape((path_values.shape[0],1))*np.ones((drifts.shape[0], drifts.shape[1])), label="Expected")
 plt.legend()
 ax.set_xlabel('Diffusion Time', rotation=150)
 ax.set_ylabel('Path/State Value',  rotation=150)
+plt.savefig("fOU3D.png")
 plt.show()
 plt.close()
+"""
+import plotly.express as px
+import plotly.graph_objects as go
+import pandas as pd
+
+df1 = pd.DataFrame({'DiffTime': x.flatten(), "PathVal": y.flatten(), 'z': drifts.flatten()})
+df2 = pd.DataFrame({'DiffTime': x.flatten(), "PathVal": y.flatten(), 'z': exp_drifts.flatten()})
+fig=go.Figure(px.scatter_3d(df1, x='DiffTime',y="PathVal",z='z'))
+new_sizes = np.random.rand(np.prod(drifts.shape)) * 20  # random sizes
+new_colors = np.random.choice(["tomato"], size=np.prod(drifts.shape))  # random categories
+
+true=go.Scatter3d(mode="markers",name="TrueDrift",
+                  x=df2['DiffTime'], y=df2["PathVal"],
+                    z=df2['z'])
+fig.add_trace(true)
+fig.data[0].name="Estimated"
+fig.update_layout(
+    legend=dict(
+        title='Legend',
+        x=0, y=1.0,
+        bgcolor='rgba(255, 255, 255, 0.5)',
+        bordercolor='rgba(0, 0, 0, 0.5)',
+        borderwidth=2
+    )
+)
+fig.show()
