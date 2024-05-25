@@ -42,7 +42,7 @@ true_paths = np.concatenate([np.zeros((true_paths.shape[0],1,true_paths.shape[-1
 start_time_idx = 0
 end_time_idx = 256
 end_diff_idx = 0
-Npaths = 39
+Npaths = 3
 drifts = np.zeros(shape=((end_time_idx-start_time_idx)*Npaths, max_diff_steps-end_diff_idx))
 path_values = []
 PM_960.eval()
