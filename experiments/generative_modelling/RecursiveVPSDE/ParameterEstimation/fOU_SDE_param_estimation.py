@@ -54,8 +54,8 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
         exp_var = 1. / config.ts_length
         exp_rvs = np.random.normal(loc=exp_mean, scale=np.sqrt(exp_var), size=paths.shape[0])
         incst = incs[:, tidx]
-        plt.hist(incst, bins=150, density=True, label="Simulated")
-        plt.hist(exp_rvs, bins=150, density=True, label="Expected")
+        plt.hist(incst, bins=150,alpha=0.5, density=True, label="Simulated")
+        plt.hist(exp_rvs, bins=150,alpha=0.5, density=True, label="Expected")
         plt.title(f"Marginal Distributions for Increments at time {t} for epoch {train_epoch}")
         plt.legend()
         plt.show()
@@ -168,17 +168,17 @@ if __name__ == "__main__":
     config = get_config()
     sampling_models = ["CondAncestral", "CondProbODE"]
     early_stopping = [True]
-    for train_epoch in [1440]:
+    for train_epoch in [2920]:
         with open(config.scoreNet_trained_path.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as f:
             losses = np.array(pickle.load(f))
         assert (losses.shape[0] >= 1)  # max(config.max_epochs))
         T = losses.shape[0]
-        plt.plot(np.linspace(1, T + 1, T)[800:20000], (losses.cumsum()/np.arange(1, T+1, 1))[800:20000])
+        plt.plot(np.linspace(1, T + 1, T)[3000:20000], (losses.cumsum()/np.arange(1, T+1, 1))[3000:20000])
         plt.xlabel("Epoch")
         plt.ylabel("Training Loss")
         plt.title("CumMean Per-epoch Training Loss")
         plt.show()
-        plt.plot(np.linspace(1, T + 1, T)[800:20000], losses[800:20000])
+        plt.plot(np.linspace(1, T + 1, T)[3000:20000], losses[3000:20000])
         plt.xlabel("Epoch")
         plt.ylabel("Training Loss")
         plt.title("Per-epoch Training Loss")
