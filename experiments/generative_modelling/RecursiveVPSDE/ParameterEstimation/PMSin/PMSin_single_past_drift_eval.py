@@ -23,6 +23,7 @@ epoch = 960
 
 diff_time_space = torch.linspace(start=config_postmean.end_diff_time, end=config_postmean.sample_eps,
                                  steps=config_postmean.max_diff_steps).to(device)
+
 real_time_scale = torch.linspace(start=1 / config_postmean.ts_length, end=1, steps=config_postmean.ts_length).to(device)
 diffusion = VPSDEDiffusion(beta_max=config_postmean.beta_max, beta_min=config_postmean.beta_min)
 ts_length = config_postmean.ts_length
@@ -96,7 +97,7 @@ path_values = np.array(path_values)[sorted_idxs]
 drifts = drifts[sorted_idxs, :]
 np.save(f"fSin_DriftSampling_{epoch}Epoch_Drifts.npy", drifts)
 np.save(f"fSin_DriftSampling_{epoch}Epoch_PathValues.npy", path_values)
-np.save(f"fSin_DriftSampling_{epoch}Epoch_DiffTimeSpace.npy", diff_time_space[:config_postmean.max_diff_steps-end_diff_idx])
+np.save(f"fSin_DriftSampling_{epoch}Epoch_DiffTimeSpace.npy", diff_time_space[:config_postmean.max_diff_steps-end_diff_idx].detach().cpu().numpy())
 
 # Separate the pairs back into two arrays
 ax = plt.axes(projection='3d')

@@ -18,7 +18,7 @@ config_postmean = get_config_postmean()
 rng = np.random.default_rng()
 N = 10000
 data_shape = (N, 1, 1)
-device = "cuda:0"
+device = "cpu"
 epoch = 960
 diff_time_space = torch.linspace(start=config_postmean.end_diff_time, end=config_postmean.sample_eps,
                                  steps=config_postmean.max_diff_steps).to(device)
@@ -43,6 +43,7 @@ start_time_idx = 0
 end_time_idx = 256
 end_diff_idx = 0
 Npaths = 3
+
 drifts = np.zeros(shape=((end_time_idx-start_time_idx)*Npaths, max_diff_steps-end_diff_idx))
 path_values = []
 PM_960.eval()
@@ -93,7 +94,7 @@ path_values = np.array(path_values)[sorted_idxs]
 drifts = drifts[sorted_idxs, :]
 np.save(f"fOU_DriftSampling_{epoch}Epoch_Drifts.npy", drifts)
 np.save(f"fOU_DriftSampling_{epoch}Epoch_PathValues.npy", path_values)
-np.save(f"fOU_DriftSampling_{epoch}Epoch_DiffTimeSpace.npy", diff_time_space[:config_postmean.max_diff_steps-end_diff_idx])
+np.save(f"fOU_DriftSampling_{epoch}Epoch_DiffTimeSpace.npy", diff_time_space[:config_postmean.max_diff_steps-end_diff_idx].detach().cpu().numpy())
 """
 import plotly.express as px
 import plotly.graph_objects as go
