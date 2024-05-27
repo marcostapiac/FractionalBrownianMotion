@@ -17,7 +17,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 config_postmean = get_config_postmean()
 
 rng = np.random.default_rng()
-N = 10
+N = 10000
 data_shape = (N, 1, 1)
 device = "cuda:0"
 epoch = 960
@@ -42,7 +42,7 @@ true_paths = true_paths.reshape((true_paths.shape[0], true_paths.shape[1], 1))
 true_paths = np.concatenate([np.zeros((true_paths.shape[0],1,true_paths.shape[-1])), true_paths], axis=1)
 start_time_idx = 0
 end_time_idx = 256
-end_diff_idx = 9990
+end_diff_idx = 0
 Npaths = 3
 
 drifts = np.zeros(shape=((end_time_idx-start_time_idx)*Npaths, max_diff_steps-end_diff_idx))
