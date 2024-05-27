@@ -5,6 +5,7 @@ import scipy
 import torch
 from tqdm import tqdm
 
+from configs import project_config
 from configs.RecursiveVPSDE.recursive_PostMeanScore_fSin_T256_H07_tl_5data import get_config as get_config_postmean
 from configs.RecursiveVPSDE.recursive_fOU_T256_H07_tl_5data import get_config as get_config_score
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
@@ -95,9 +96,9 @@ assert(len(path_values) == drifts.shape[0])
 sorted_idxs = np.argsort(path_values)
 path_values = np.array(path_values)[sorted_idxs]
 drifts = drifts[sorted_idxs, :]
-np.save(f"fSin_DriftSampling_{epoch}Epoch_Drifts.npy", drifts)
-np.save(f"fSin_DriftSampling_{epoch}Epoch_PathValues.npy", path_values)
-np.save(f"fSin_DriftSampling_{epoch}Epoch_DiffTimeSpace.npy", diff_time_space[:config_postmean.max_diff_steps-end_diff_idx].detach().cpu().numpy())
+np.save(f"{project_config.ROOT_DIR}/fSin_DriftSampling_{epoch}Epoch_Drifts.npy", drifts)
+np.save(f"{project_config.ROOT_DIR}/fSin_DriftSampling_{epoch}Epoch_PathValues.npy", path_values)
+np.save(f"{project_config.ROOT_DIR}/fSin_DriftSampling_{epoch}Epoch_DiffTimeSpace.npy", diff_time_space[:config_postmean.max_diff_steps-end_diff_idx].detach().cpu().numpy())
 """
 # Separate the pairs back into two arrays
 ax = plt.axes(projection='3d')

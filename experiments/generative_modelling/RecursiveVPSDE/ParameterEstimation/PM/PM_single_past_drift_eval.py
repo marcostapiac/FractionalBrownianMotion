@@ -5,6 +5,7 @@ import scipy
 import torch
 from tqdm import tqdm
 
+from configs import project_config
 from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H07_tl_5data import get_config as get_config_postmean
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
@@ -92,9 +93,9 @@ assert(len(path_values) == drifts.shape[0])
 sorted_idxs = np.argsort(path_values)
 path_values = np.array(path_values)[sorted_idxs]
 drifts = drifts[sorted_idxs, :]
-np.save(f"fOU_DriftSampling_{epoch}Epoch_Drifts.npy", drifts)
-np.save(f"fOU_DriftSampling_{epoch}Epoch_PathValues.npy", path_values)
-np.save(f"fOU_DriftSampling_{epoch}Epoch_DiffTimeSpace.npy", diff_time_space[:config_postmean.max_diff_steps-end_diff_idx].detach().cpu().numpy())
+np.save(f"{project_config.ROOT_DIR}/fOU_DriftSampling_{epoch}Epoch_Drifts.npy", drifts)
+np.save(f"{project_config.ROOT_DIR}/fOU_DriftSampling_{epoch}Epoch_PathValues.npy", path_values)
+np.save(f"{project_config.ROOT_DIR}/fOU_DriftSampling_{epoch}Epoch_DiffTimeSpace.npy", diff_time_space[:config_postmean.max_diff_steps-end_diff_idx].detach().cpu().numpy())
 """
 import plotly.express as px
 import plotly.graph_objects as go
