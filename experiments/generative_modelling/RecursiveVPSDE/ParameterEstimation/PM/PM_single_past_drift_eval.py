@@ -18,7 +18,7 @@ config_postmean = get_config_postmean()
 rng = np.random.default_rng()
 N = 10000
 data_shape = (N, 1, 1)
-device = "cpu"
+device = "cuda:0"
 epoch = 960
 diff_time_space = torch.linspace(start=config_postmean.end_diff_time, end=config_postmean.sample_eps,
                                  steps=config_postmean.max_diff_steps).to(device)

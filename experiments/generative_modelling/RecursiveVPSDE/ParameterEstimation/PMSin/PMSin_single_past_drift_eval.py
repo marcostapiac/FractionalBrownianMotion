@@ -98,7 +98,7 @@ drifts = drifts[sorted_idxs, :]
 np.save(f"fSin_DriftSampling_{epoch}Epoch_Drifts.npy", drifts)
 np.save(f"fSin_DriftSampling_{epoch}Epoch_PathValues.npy", path_values)
 np.save(f"fSin_DriftSampling_{epoch}Epoch_DiffTimeSpace.npy", diff_time_space[:config_postmean.max_diff_steps-end_diff_idx].detach().cpu().numpy())
-
+"""
 # Separate the pairs back into two arrays
 ax = plt.axes(projection='3d')
 x, y = np.meshgrid(diff_time_space[:config_postmean.max_diff_steps-end_diff_idx], path_values) # x is the columns, y is the rows
@@ -109,3 +109,4 @@ ax.set_xlabel('Diffusion Time', rotation=150)
 ax.set_ylabel('Path/State Value',  rotation=150)
 plt.show()
 plt.close()
+"""
