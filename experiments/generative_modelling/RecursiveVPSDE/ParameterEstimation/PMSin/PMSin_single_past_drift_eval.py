@@ -17,9 +17,9 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 config_postmean = get_config_postmean()
 
 rng = np.random.default_rng()
-N = 10000
+N = 10
 data_shape = (N, 1, 1)
-device = "cuda:0"
+device = "cpu"
 epoch = 960
 
 diff_time_space = torch.linspace(start=config_postmean.end_diff_time, end=config_postmean.sample_eps,
@@ -60,7 +60,8 @@ with torch.no_grad():
 
 for i in tqdm(range(start_time_idx,end_time_idx)):
     pathidxs = np.random.choice(true_paths.shape[0], size=Npaths, replace=False)
-    for pathidx in pathidxs:
+    for j in range(Npaths):
+        pathidx = pathidxs[j]
         path_values.append(true_paths[[pathidx], [i],:].flatten()[0])
         fixed_feature = torch.tile(features[[pathidx], [i], :].unsqueeze(0),dims=(N, 1,1))
         # Now run reverse-diffusion
@@ -87,7 +88,7 @@ for i in tqdm(range(start_time_idx,end_time_idx)):
                 diffusion_mean = torch.atleast_2d(torch.exp(-0.5*diffusion.get_eff_times(diff_times=tau[0]))).T.detach().cpu().squeeze()
                 diffusion_var = 1. - diffusion_mean2
                 drift_est = ((diffusion_var + diffusion_mean2*ts_step)/(diffusion_mean*ts_step))*score.detach().cpu() + x.detach().cpu()/(diffusion_mean*ts_step)
-                drifts[i-start_time_idx,diff_index] = torch.mean(drift_est).flatten().detach().cpu()[0]
+                drifts[Npaths*(i-start_time_idx)+j,diff_index] = torch.mean(drift_est).flatten().detach().cpu()[0]
                 z = torch.randn_like(drift)
                 x = drift + diffParam * z
 
