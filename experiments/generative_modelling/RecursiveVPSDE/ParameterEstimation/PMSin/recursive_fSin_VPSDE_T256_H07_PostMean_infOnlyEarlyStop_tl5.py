@@ -26,7 +26,7 @@ if __name__ == "__main__":
     init_experiment(config=config)
     es = []
     for train_epoch in config.max_epochs:
-        config.early_stop_idx = 15
+        config.early_stop_idx = 5
         sampling_models = ["CondAncestral","CondProbODE"]
         for sampling_model in sampling_models:
             try:
@@ -47,20 +47,19 @@ if __name__ == "__main__":
                 var_df = pd.DataFrame(cond_vars)
                 var_df.index = pd.MultiIndex.from_product(
                     [["Final Time Vars"], [i for i in range(config.dataSize)]])
-                PT = 0 if config.param_time == config.max_diff_steps - 1 else 1
                 if sampling_model == "CondAncestral":
                     sampling_type = "a"
                 elif sampling_model == "CondReverseDiffusion":
                     sampling_type = "r"
                 else:
                     sampling_type = "p"
-                path_df.to_csv(config.experiment_path + "_e{}NEp{}.csv.gzip".format(sampling_type, train_epoch),
+                path_df.to_csv(config.experiment_path + "_e2{}NEp{}.csv.gzip".format(sampling_type, train_epoch),
                                compression="gzip")
                 mean_df.to_csv(
-                    (config.experiment_path + "_e{}NEp{}_P{}.csv.gzip".format(sampling_type, train_epoch, PT)).replace(
+                    (config.experiment_path + "_e2{}NEp{}.csv.gzip".format(sampling_type, train_epoch)).replace(
                         "fSin", "fSinm"), compression="gzip")
                 var_df.to_csv(
-                    (config.experiment_path + "_e{}NEp{}_P{}.csv.gzip".format(sampling_type, train_epoch, PT)).replace(
+                    (config.experiment_path + "_e2{}NEp{}.csv.gzip".format(sampling_type, train_epoch)).replace(
                         "fSin", "fSinv"), compression="gzip")
             except FileNotFoundError as e:
                 print(e)
