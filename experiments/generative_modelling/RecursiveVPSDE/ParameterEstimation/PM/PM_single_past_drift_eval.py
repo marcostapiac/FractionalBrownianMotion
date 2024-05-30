@@ -20,7 +20,7 @@ rng = np.random.default_rng()
 N = 10000
 data_shape = (N, 1, 1)
 device = "cuda:0"
-epoch = 960
+epoch = 12920
 diff_time_space = torch.linspace(start=config_postmean.end_diff_time, end=config_postmean.sample_eps,
                                  steps=config_postmean.max_diff_steps).to(device)
 real_time_scale = torch.linspace(start=1 / config_postmean.ts_length, end=1, steps=config_postmean.ts_length).to(device)
@@ -33,8 +33,8 @@ ts_step = 1 / ts_length
 
 # In[3]:
 
-PM_960 = ConditionalLSTMTSPostMeanScoreMatching(*config_postmean.model_parameters).to(device)
-PM_960.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(epoch)))
+PM_model = ConditionalLSTMTSPostMeanScoreMatching(*config_postmean.model_parameters).to(device)
+PM_model.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(epoch)))
 
 randidxs = np.random.choice(200000, size=N, replace=False)
 true_paths = np.load(config_postmean.data_path, allow_pickle=True)[randidxs,:]
@@ -47,10 +47,10 @@ Npaths = 3
 
 drifts = np.zeros(shape=((end_time_idx-start_time_idx)*Npaths, max_diff_steps-end_diff_idx))
 path_values = []
-PM_960.eval()
+PM_model.eval()
 with torch.no_grad():
     tensor_true_paths = torch.Tensor(true_paths).to(device)
-    output, (hn, cn) = (PM_960.rnn(tensor_true_paths, None))
+    output, (hn, cn) = (PM_model.rnn(tensor_true_paths, None))
     features = output[:, :-1, :]
     # Fix a single past feature for a single time
     del tensor_true_paths, output
@@ -71,7 +71,7 @@ for i in tqdm(range(start_time_idx,end_time_idx)):
                 tau = tau * torch.ones((x.shape[0],)).to(device)
                 eff_times = diffusion.get_eff_times(diff_times=tau)
                 eff_times = eff_times.reshape(x.shape)
-                predicted_score = PM_960.forward(x, conditioner=fixed_feature, times=tau, eff_times=eff_times)
+                predicted_score = PM_model.forward(x, conditioner=fixed_feature, times=tau, eff_times=eff_times)
 
                 score, drift, diffParam = diffusion.get_conditional_reverse_diffusion(x=x,
                                                                                     predicted_score=predicted_score,
