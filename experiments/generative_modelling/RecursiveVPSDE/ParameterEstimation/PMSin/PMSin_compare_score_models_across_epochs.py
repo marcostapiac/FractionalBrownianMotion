@@ -11,7 +11,7 @@ import torch
 from tqdm import tqdm
 
 from configs.RecursiveVPSDE.recursive_PostMeanScore_fSin_T256_H07_tl_5data import get_config as get_config_postmean
-from configs.RecursiveVPSDE.recursive_fOU_T256_H07_tl_5data import get_config as get_config_score
+from configs.RecursiveVPSDE.recursive_fOU_T256_H05_tl_5data import get_config as get_config_score
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
     ConditionalLSTMTSPostMeanScoreMatching

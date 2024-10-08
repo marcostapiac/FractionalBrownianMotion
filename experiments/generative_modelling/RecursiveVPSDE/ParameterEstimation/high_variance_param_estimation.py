@@ -74,7 +74,7 @@ def estimate_SDEs(config: ConfigDict, train_epoch: int) -> None:
 
 
 if __name__ == "__main__":
-    from configs.RecursiveVPSDE.recursive_fOU_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_fOU_T256_H05_tl_5data import get_config
 
     config = get_config()
     for train_epoch in config.max_epochs:

@@ -140,7 +140,7 @@ def run_feature_drift_recursive_sampling(diffusion: VPSDEDiffusion,
 
 
 def store_score_and_feature() -> None:
-    from configs.RecursiveVPSDE.recursive_fOU_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_fOU_T256_H05_tl_5data import get_config
     config = get_config()
     assert (0 < config.hurst < 1.)
     assert (config.early_stop_idx == 0)

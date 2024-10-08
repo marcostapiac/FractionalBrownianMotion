@@ -49,7 +49,7 @@ def feature_distribution(config: ConfigDict, feature_df: pd.DataFrame) -> None:
 
 
 def path_score_feature_analysis() -> None:
-    from configs.RecursiveVPSDE.recursive_fOU_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_fOU_T256_H05_tl_5data import get_config
     config = get_config()
     # Now plot Hurst histogram for the generated samples
     for train_epoch in [960]:

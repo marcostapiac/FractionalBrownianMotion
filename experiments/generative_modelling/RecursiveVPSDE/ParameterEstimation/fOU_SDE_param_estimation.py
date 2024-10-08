@@ -76,14 +76,14 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
         exp_var *= (1. - np.power(expmeanrev, 2))
         exp_rvs = np.random.normal(loc=exp_mean, scale=np.sqrt(exp_var), size=paths.shape[0])
         pathst = paths[:, tidx]  # Paths[:, 0] corresponds to X_{t_{1}} NOT X_{t_{0}}
-        plt.hist(pathst, bins=150, density=True, label="Simulated")
-        plt.hist(exp_rvs, bins=150, density=True, label="Expected")
+        plt.hist(pathst, bins=150, density=True, alpha=0.5, label="Simulated")
+        plt.hist(exp_rvs, bins=150, density=True, alpha=0.5,label="Expected")
         plt.title(f"Marginal Distributions for paths at time {t}")# for epoch {train_epoch}")
         plt.legend()
         plt.show()
         plt.close()
     means = pd.read_csv(
-        (config.experiment_path.replace("rrrrP", "r4P") + "_{}NEp{}_P{}.csv.gzip".format(sampling_model, train_epoch,
+        (config.experiment_path.replace("rrrrP", "r4P") + "_{}NEp{}.csv.gzip".format(sampling_model, train_epoch,
                                                                                          PT)).replace("fOU",
                                                                                                       "fOUm").replace(
             "fOUm00", "m0"),
@@ -163,12 +163,12 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
 
 
 if __name__ == "__main__":
-    from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H05_tl_5data import get_config
 
     config = get_config()
     sampling_models = ["CondAncestral", "CondProbODE"]
     early_stopping = [True]
-    for train_epoch in [2920]:
+    for train_epoch in config.max_epochs:
         with open(config.scoreNet_trained_path.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as f:
             losses = np.array(pickle.load(f))
         assert (losses.shape[0] >= 1)  # max(config.max_epochs))
@@ -192,7 +192,7 @@ if __name__ == "__main__":
             else:
                 sampling_type = "p"
             for early_stop in early_stopping:
-                sampling_type = "e" + sampling_type if early_stop else sampling_type
+                sampling_type = "e2" + sampling_type if early_stop else sampling_type
                 try:
                     pd.read_csv(
                         config.experiment_path.replace("rrrrP", "r4P") + "_{}NEp{}.csv.gzip".format(sampling_type,
