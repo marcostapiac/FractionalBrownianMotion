@@ -9,8 +9,8 @@ from tqdm import tqdm
 import os
 from utils.data_processing import init_experiment
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
-    ConditionalLSTMTSPostMeanScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSScoreMatching import \
+    ConditionalLSTMTSScoreMatching
 
 # Generate value of path at time "t" by running reverse diffusion
 def single_time_sampling(config, data_shape, drift_eval_diff_time, diff_time_space, diffusion, feature, scoreModel, device, prev_path):
@@ -94,7 +94,7 @@ def run_whole_ts_recursive_diffusion(config, drift_eval_diff_time, ts_length, in
             if t == 0:
                 feature, (h, c) = scoreModel.rnn(cumsamples, None)
             else:
-                feature, (h, c) = scoreModel.rnn(cumsamples, (h, c))
+                feature, (h, c) = scoreModel.rnn(new_samples, (h, c))
         new_samples, scores, exp_scores, revSDE_paths = single_time_sampling(config=config, data_shape=data_shape, drift_eval_diff_time=drift_eval_diff_time,
                                                                              diff_time_space=diff_time_scale,
                                                                              diffusion=diffusion, scoreModel=scoreModel,
@@ -152,13 +152,15 @@ sample_eps = config_postmean.sample_eps
 mean_rev = config_postmean.mean_rev
 ts_step = 1 / config_postmean.ts_length
 
-Nepoch = config_postmean.max_epochs[4]
+Nepoch = config_postmean.max_epochs[1]
+print(Nepoch)
+print(config_postmean.scoreNet_trained_path)
 save_path = project_config.ROOT_DIR + f"experiments/results/DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor"
 # Fix the number of training epochs and training loss objective loss
-PM = ConditionalLSTMTSPostMeanScoreMatching(*config_postmean.model_parameters).to(device)
+PM = ConditionalLSTMTSScoreMatching(*config_postmean.model_parameters).to(device)
 PM.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(Nepoch)))
 # Fix the number of real times to run diffusion
-eval_ts_length = config_postmean.ts_length
+eval_ts_length = int(1.*config_postmean.ts_length)
 # Experiment for score model with fixed (Nepochs, loss scaling, drift eval time, Npaths simulated)
 initial_feature_input = torch.zeros(data_shape).to(device)
 postMean_scores, postMean_expscores, postMean_revSDEpaths, postMean_prevPaths = run_whole_ts_recursive_diffusion(
