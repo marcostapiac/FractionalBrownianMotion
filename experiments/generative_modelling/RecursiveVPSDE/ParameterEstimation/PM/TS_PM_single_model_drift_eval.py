@@ -137,7 +137,7 @@ def build_drift_estimator(config, diffusion, ts_step, ts_length, diff_time_space
     true_drifts = (-1 * config.mean_rev * prev_paths)
     return drift_est.cpu(), true_drifts.cpu()
 
-from configs.RecursiveVPSDE.recursive_fOU_T256_H05_tl_5data import get_config as get_config_postmean
+from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H05_tl_5data import get_config as get_config_postmean
 config_postmean = get_config_postmean()
 init_experiment(config=config_postmean)
 
