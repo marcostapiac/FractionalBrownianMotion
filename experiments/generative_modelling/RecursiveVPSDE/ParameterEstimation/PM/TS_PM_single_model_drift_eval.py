@@ -44,31 +44,40 @@ def single_time_sampling(config, data_shape, drift_eval_diff_time, diff_time_spa
                     eff_times = diffusion.get_eff_times(diff_times=tau)
                     eff_times = eff_times.reshape(x.shape)
                     predicted_score = scoreModel.forward(x, conditioner=feature, times=tau, eff_times=eff_times)
-
-        score, drift, diffParam = diffusion.get_conditional_reverse_diffusion(x=x,
-                                                                              predicted_score=predicted_score,
-                                                                              diff_index=torch.Tensor(
-                                                                                  [int(diff_index)]).to(device),
-                                                                              max_diff_steps=config.max_diff_steps)
-        if len(score.shape) == 3 and score.shape[-1] == 1:
-            score = score.squeeze(-1)
-        diffusion_mean2 = torch.atleast_2d(torch.exp(-diffusion.get_eff_times(diff_times=tau))).T.to(device)
-        diffusion_var = 1. - diffusion_mean2
-        exp_slope = -(1 / ((diffusion_var + diffusion_mean2 * ts_step))[0])
-        exp_const = torch.sqrt(diffusion_mean2) * (ts_step) * (-config.mean_rev * prev_path.squeeze(-1))
-        exp_score = exp_slope * (x.squeeze(-1) - exp_const)
-        if len(exp_score) == 3 and exp_score.shape[0] == 1:
-            exp_score = exp_score.squeeze(-1)
-        # Store the score, the expected score, and the revSDE paths
-        scores.append(score)
-        exp_scores.append(exp_score)
-        if len(x.shape) == 3 and x.shape[-1] == 1:
-            revSDE_paths.append(x.squeeze(-1))
+        if diff_index < config.max_diff_steps - 10:
+            score, drift, diffParam = diffusion.get_conditional_reverse_diffusion(x=x,
+                                                                                  predicted_score=predicted_score,
+                                                                                  diff_index=torch.Tensor(
+                                                                                      [int(diff_index)]).to(device),
+                                                                                  max_diff_steps=config.max_diff_steps)
+            if len(score.shape) == 3 and score.shape[-1] == 1:
+                score = score.squeeze(-1)
+            diffusion_mean2 = torch.atleast_2d(torch.exp(-diffusion.get_eff_times(diff_times=tau))).T.to(device)
+            diffusion_var = 1. - diffusion_mean2
+            exp_slope = -(1 / ((diffusion_var + diffusion_mean2 * ts_step))[0])
+            exp_const = torch.sqrt(diffusion_mean2) * (ts_step) * (-config.mean_rev * prev_path.squeeze(-1))
+            exp_score = exp_slope * (x.squeeze(-1) - exp_const)
+            if len(exp_score) == 3 and exp_score.shape[0] == 1:
+                exp_score = exp_score.squeeze(-1)
+            # Store the score, the expected score, and the revSDE paths
+            scores.append(score)
+            exp_scores.append(exp_score)
+            if len(x.shape) == 3 and x.shape[-1] == 1:
+                revSDE_paths.append(x.squeeze(-1))
+            else:
+                assert (x.shape == (data_shape[0], 1))
+                revSDE_paths.append(x)
+            z = torch.randn_like(drift)
+            x = drift + diffParam * z
         else:
-            assert (x.shape == (data_shape[0], 1))
-            revSDE_paths.append(x)
-        z = torch.randn_like(drift)
-        x = drift + diffParam * z
+            scores.append(score)
+            exp_scores.append(exp_score)
+            if len(x.shape) == 3 and x.shape[-1] == 1:
+                revSDE_paths.append(x.squeeze(-1))
+            else:
+                assert (x.shape == (data_shape[0], 1))
+                revSDE_paths.append(x)
+
     scores = torch.flip(torch.concat(scores, dim=-1).cpu(), dims=[1])
     exp_scores = torch.flip(torch.concat(exp_scores, dim=-1).cpu(), dims=[1])
     revSDE_paths = torch.flip(torch.concat(revSDE_paths, dim=-1).cpu(), dims=[1])
