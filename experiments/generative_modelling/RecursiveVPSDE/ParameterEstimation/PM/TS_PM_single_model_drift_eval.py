@@ -164,7 +164,7 @@ ts_step = 1 / config_postmean.ts_length
 Nepoch = config_postmean.max_epochs[1]
 print(Nepoch)
 print(config_postmean.scoreNet_trained_path)
-save_path = project_config.ROOT_DIR + f"experiments/results/DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor"
+save_path = project_config.ROOT_DIR + f"experiments/results/TSPM_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor"
 # Fix the number of training epochs and training loss objective loss
 PM = ConditionalLSTMTSScoreMatching(*config_postmean.model_parameters).to(device)
 PM.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(Nepoch)))
