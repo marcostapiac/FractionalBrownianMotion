@@ -18,7 +18,7 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
     scores = []
     exp_scores = []
     revSDE_paths = []
-    for diff_index in tqdm(range(10)):
+    for diff_index in tqdm(range(config.max_diff_steps)):
         tau = diff_time_space[diff_index] * torch.ones((data_shape[0],)).to(device)
         try:
             scoreModel.eval()
@@ -134,7 +134,7 @@ revDiff_time_scale = torch.linspace(start=config_postmean.end_diff_time, end=con
 real_time_scale = torch.linspace(start=1 / config_postmean.ts_length, end=1, steps=config_postmean.ts_length).to(device)
 diffusion = VPSDEDiffusion(beta_max=config_postmean.beta_max, beta_min=config_postmean.beta_min)
 
-max_diff_steps = 10#config_postmean.max_diff_steps
+max_diff_steps = config_postmean.max_diff_steps
 sample_eps = config_postmean.sample_eps
 mean_rev = config_postmean.mean_rev
 ts_step = 1 / config_postmean.ts_length
