@@ -9,11 +9,11 @@ from tqdm import tqdm
 import os
 from utils.data_processing import init_experiment
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching  import \
-    ConditionalLSTMTSPostMeanScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSScoreMatching  import \
+    ConditionalLSTMTSScoreMatching
 
 # Generate value of path at time "t" by running reverse diffusion
-def single_time_sampling(config, data_shape, drift_eval_diff_time, diff_time_space, diffusion, feature, scoreModel, device, prev_path):
+def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature, scoreModel, device, prev_path):
     x = diffusion.prior_sampling(shape=data_shape).to(device)  # Move to correct device
     scores = []
     exp_scores = []
@@ -22,28 +22,16 @@ def single_time_sampling(config, data_shape, drift_eval_diff_time, diff_time_spa
         tau = diff_time_space[diff_index] * torch.ones((data_shape[0],)).to(device)
         try:
             scoreModel.eval()
-            if diff_index == drift_eval_diff_time-1 or diff_index == drift_eval_diff_time:
-                with torch.no_grad():
-                    tau = tau * torch.ones((x.shape[0],)).to(device)
-                    predicted_score = scoreModel.forward(x, conditioner=feature, times=tau)
-            else:
-                with torch.no_grad():
-                    tau = tau * torch.ones((x.shape[0],)).to(device)
-                    predicted_score = scoreModel.forward(x, conditioner=feature, times=tau)
+            with torch.no_grad():
+                tau = tau * torch.ones((x.shape[0],)).to(device)
+                predicted_score = scoreModel.forward(x, conditioner=feature, times=tau)
         except TypeError as e:
             scoreModel.eval()
-            if diff_index == drift_eval_diff_time-1 or diff_index == drift_eval_diff_time:
-                with torch.no_grad():
-                    tau = tau * torch.ones((x.shape[0],)).to(device)
-                    eff_times = diffusion.get_eff_times(diff_times=tau)
-                    eff_times = eff_times.reshape(x.shape)
-                    predicted_score = scoreModel.forward(x, conditioner=feature, times=tau, eff_times=eff_times)
-            else:
-                with torch.no_grad():
-                    tau = tau * torch.ones((x.shape[0],)).to(device)
-                    eff_times = diffusion.get_eff_times(diff_times=tau)
-                    eff_times = eff_times.reshape(x.shape)
-                    predicted_score = scoreModel.forward(x, conditioner=feature, times=tau, eff_times=eff_times)
+            with torch.no_grad():
+                tau = tau * torch.ones((x.shape[0],)).to(device)
+                eff_times = diffusion.get_eff_times(diff_times=tau)
+                eff_times = eff_times.reshape(x.shape)
+                predicted_score = scoreModel.forward(x, conditioner=feature, times=tau, eff_times=eff_times)
 
         score, drift, diffParam = diffusion.get_conditional_reverse_diffusion(x=x,
                                                                               predicted_score=predicted_score,
@@ -79,7 +67,7 @@ def single_time_sampling(config, data_shape, drift_eval_diff_time, diff_time_spa
 # In[5]:
 
 # Generate sample paths from [0, ts_length]
-def run_whole_ts_recursive_diffusion(config, drift_eval_diff_time, ts_length, initial_feature_input, diffusion, scoreModel, device,
+def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, diffusion, scoreModel, device,
                                      diff_time_scale, data_shape):
     stored_scores = []
     stored_expscores = []
@@ -92,16 +80,15 @@ def run_whole_ts_recursive_diffusion(config, drift_eval_diff_time, ts_length, in
         scoreModel.eval()
         with torch.no_grad():
             if t == 0:
-                feature, (h, c) = scoreModel.rnn(cumsamples, None)
+                feature, (h, c) = scoreModel.rnn(initial_feature_input, None)
             else:
-                feature, (h, c) = scoreModel.rnn(cumsamples, (h, c))
-        new_samples, scores, exp_scores, revSDE_paths = single_time_sampling(config=config, data_shape=data_shape, drift_eval_diff_time=drift_eval_diff_time,
+                feature, (h, c) = scoreModel.rnn(new_samples, (h, c))
+        new_samples, scores, exp_scores, revSDE_paths = single_time_sampling(config=config, data_shape=data_shape,
                                                                              diff_time_space=diff_time_scale,
                                                                              diffusion=diffusion, scoreModel=scoreModel,
                                                                              device=device, feature=feature,
                                                                              prev_path=cumsamples)
         cumsamples = cumsamples + new_samples
-        print(cumsamples.shape)
         stored_scores.append(scores.unsqueeze(1))
         stored_expscores.append(exp_scores.unsqueeze(1))
         stored_revSDE_paths.append(revSDE_paths.unsqueeze(1))
@@ -116,7 +103,7 @@ def run_whole_ts_recursive_diffusion(config, drift_eval_diff_time, ts_length, in
 
 
 # Build drift estimator
-def build_drift_estimator(config, diffusion, ts_step, ts_length, diff_time_space, score_evals, Xtaus, prev_paths):
+def build_drift_estimator(config, diffusion, ts_step, ts_length, diff_time_space, score_evals, exp_scores, Xtaus, prev_paths):
     eff_times = diffusion.get_eff_times(torch.Tensor(diff_time_space)).cpu()#.numpy()
     beta_2_taus = torch.exp(-eff_times)
     sigma_taus = 1. - beta_2_taus
@@ -125,8 +112,9 @@ def build_drift_estimator(config, diffusion, ts_step, ts_length, diff_time_space
     c2 = torch.exp(torch.Tensor([0.5]) * eff_times)  # 1/beta_tau
     drift_est = c1 * score_evals + (c2.reshape(1, 1, -1)) * Xtaus
     drift_est /= ts_step
-    true_drifts = (-1 * config.mean_rev * prev_paths)
-    return drift_est.cpu(), true_drifts.cpu()
+    exp_drifts = c1 * exp_scores + (c2.reshape(1, 1, -1)) * Xtaus
+    exp_drifts /= ts_step
+    return drift_est.cpu(), exp_drifts.cpu()
 
 from configs.RecursiveVPSDE.recursive_fOU_T256_H05_tl_5data import get_config as get_config_postmean
 config_postmean = get_config_postmean()
@@ -134,7 +122,6 @@ init_experiment(config=config_postmean)
 
 rng = np.random.default_rng()
 num_simulated_paths = 500
-drift_eval_diff_time = int(config_postmean.max_diff_steps - 9000)
 data_shape = (num_simulated_paths, 1, 1)
 
 if config_postmean.has_cuda:
@@ -155,21 +142,21 @@ ts_step = 1 / config_postmean.ts_length
 Nepoch = config_postmean.max_epochs[0]
 save_path = project_config.ROOT_DIR + f"experiments/results/TS_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor"
 # Fix the number of training epochs and training loss objective loss
-PM = ConditionalLSTMTSPostMeanScoreMatching(*config_postmean.model_parameters).to(device)
+PM = ConditionalLSTMTSScoreMatching(*config_postmean.model_parameters).to(device)
 PM.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(Nepoch)))
 # Fix the number of real times to run diffusion
 eval_ts_length = int(1.*config_postmean.ts_length)
 # Experiment for score model with fixed (Nepochs, loss scaling, drift eval time, Npaths simulated)
 initial_feature_input = torch.zeros(data_shape).to(device)
 postMean_scores, postMean_expscores, postMean_revSDEpaths, postMean_prevPaths = run_whole_ts_recursive_diffusion(
-    drift_eval_diff_time=drift_eval_diff_time, ts_length=eval_ts_length, config=config_postmean, initial_feature_input=initial_feature_input, diffusion=diffusion,
+    ts_length=eval_ts_length, config=config_postmean, initial_feature_input=initial_feature_input, diffusion=diffusion,
     scoreModel=PM, device=device, diff_time_scale=revDiff_time_scale, data_shape=data_shape)
 
 # Compute Drift Estimators
 diff_time_space = np.linspace(sample_eps, 1, max_diff_steps)
 # Output shape is (NumPaths, NumRealTimes, NumDiffSteps)
-drift_est, true_drift = build_drift_estimator(config=config_postmean,diffusion=diffusion, score_evals=postMean_scores, \
-                                                prev_paths=postMean_prevPaths, Xtaus=postMean_revSDEpaths, ts_step=ts_step, \
+drift_est, true_drift = build_drift_estimator(config=config_postmean,diffusion=diffusion, score_evals=postMean_scores,exp_scores=postMean_expscores,
+                                                prev_paths=postMean_prevPaths, Xtaus=postMean_revSDEpaths, ts_step=ts_step,
                                                 ts_length=eval_ts_length, diff_time_space=diff_time_space)
 torch.save(drift_est, save_path + "_driftEst")
 torch.save(true_drift, save_path + "_driftTrue")
