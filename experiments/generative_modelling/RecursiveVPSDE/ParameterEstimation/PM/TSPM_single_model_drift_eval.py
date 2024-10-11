@@ -73,8 +73,6 @@ def single_time_sampling(config, data_shape,  diff_time_space, diffusion, featur
     exp_scores = torch.flip(torch.concat(exp_scores, dim=-1).cpu(), dims=[1])
     revSDE_paths = torch.flip(torch.concat(revSDE_paths, dim=-1).cpu(), dims=[1])
     return x, scores, exp_scores, revSDE_paths
-
-
 # In[5]:
 
 # Generate sample paths from [0, ts_length]
@@ -130,12 +128,12 @@ def build_drift_estimator(config, diffusion, ts_step, ts_length, diff_time_space
     exp_drifts /= ts_step
     return drift_est.cpu(), exp_drifts.cpu()
 
-from configs.RecursiveVPSDE.recursive_fOU_T256_H05_tl_5data import get_config as get_config_postmean
+from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H05_tl_5data import get_config as get_config_postmean
 config_postmean = get_config_postmean()
 init_experiment(config=config_postmean)
 
 rng = np.random.default_rng()
-num_simulated_paths = 1000
+num_simulated_paths = 500
 drift_eval_diff_time = int(config_postmean.max_diff_steps - 9000)
 data_shape = (num_simulated_paths, 1, 1)
 
