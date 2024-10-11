@@ -121,13 +121,14 @@ config_postmean = get_config_postmean()
 init_experiment(config=config_postmean)
 
 rng = np.random.default_rng()
-num_simulated_paths = 500
+num_simulated_paths = 1000
 data_shape = (num_simulated_paths, 1, 1)
 
 if config_postmean.has_cuda:
-        device = int(os.environ["LOCAL_RANK"])
+    device = int(os.environ["LOCAL_RANK"])
 else:
-        device = torch.device("cpu")
+    print("Using CPU\n")
+    device = torch.device("cpu")
 
 revDiff_time_scale = torch.linspace(start=config_postmean.end_diff_time, end=config_postmean.sample_eps,
                                  steps=config_postmean.max_diff_steps).to(device)

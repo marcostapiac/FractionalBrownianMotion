@@ -38,7 +38,7 @@ def single_time_sampling(config, data_shape,  diff_time_space, diffusion, featur
                                                                               diff_index=torch.Tensor(
                                                                                   [int(diff_index)]).to(device),
                                                                               max_diff_steps=config.max_diff_steps)
-        if diff_index < config.max_diff_steps - 10:
+        if diff_index <= config.max_diff_steps - 20:
             if len(score.shape) == 3 and score.shape[-1] == 1:
                 score = score.squeeze(-1)
             diffusion_mean2 = torch.atleast_2d(torch.exp(-diffusion.get_eff_times(diff_times=tau))).T.to(device)
@@ -132,14 +132,15 @@ config_postmean = get_config_postmean()
 init_experiment(config=config_postmean)
 
 rng = np.random.default_rng()
-num_simulated_paths = 500
+num_simulated_paths = 1000
 drift_eval_diff_time = int(config_postmean.max_diff_steps - 9000)
 data_shape = (num_simulated_paths, 1, 1)
 
 if config_postmean.has_cuda:
-        device = int(os.environ["LOCAL_RANK"])
+    device = int(os.environ["LOCAL_RANK"])
 else:
-        device = torch.device("cpu")
+    print("Using CPU\n")
+    device = torch.device("cpu")
 
 revDiff_time_scale = torch.linspace(start=config_postmean.end_diff_time, end=config_postmean.sample_eps,
                                  steps=config_postmean.max_diff_steps).to(device)
