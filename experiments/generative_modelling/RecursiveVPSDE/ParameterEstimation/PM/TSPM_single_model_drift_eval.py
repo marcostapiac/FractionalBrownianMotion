@@ -19,26 +19,27 @@ def single_time_sampling(config, data_shape,  diff_time_space, diffusion, featur
     exp_scores = []
     revSDE_paths = []
     for diff_index in tqdm(range(config.max_diff_steps)):
-        tau = diff_time_space[diff_index] * torch.ones((data_shape[0],)).to(device)
-        try:
-            scoreModel.eval()
-            with torch.no_grad():
-                tau = tau * torch.ones((x.shape[0],)).to(device)
-                predicted_score = scoreModel.forward(x, conditioner=feature, times=tau)
-        except TypeError as e:
-            scoreModel.eval()
-            with torch.no_grad():
-                tau = tau * torch.ones((x.shape[0],)).to(device)
-                eff_times = diffusion.get_eff_times(diff_times=tau)
-                eff_times = eff_times.reshape(x.shape)
-                predicted_score = scoreModel.forward(x, conditioner=feature, times=tau, eff_times=eff_times)
-
-        score, drift, diffParam = diffusion.get_conditional_reverse_diffusion(x=x,
-                                                                              predicted_score=predicted_score,
-                                                                              diff_index=torch.Tensor(
-                                                                                  [int(diff_index)]).to(device),
-                                                                              max_diff_steps=config.max_diff_steps)
         if diff_index <= config.max_diff_steps - 20:
+
+            tau = diff_time_space[diff_index] * torch.ones((data_shape[0],)).to(device)
+            try:
+                scoreModel.eval()
+                with torch.no_grad():
+                    tau = tau * torch.ones((x.shape[0],)).to(device)
+                    predicted_score = scoreModel.forward(x, conditioner=feature, times=tau)
+            except TypeError as e:
+                scoreModel.eval()
+                with torch.no_grad():
+                    tau = tau * torch.ones((x.shape[0],)).to(device)
+                    eff_times = diffusion.get_eff_times(diff_times=tau)
+                    eff_times = eff_times.reshape(x.shape)
+                    predicted_score = scoreModel.forward(x, conditioner=feature, times=tau, eff_times=eff_times)
+
+            score, drift, diffParam = diffusion.get_conditional_reverse_diffusion(x=x,
+                                                                                  predicted_score=predicted_score,
+                                                                                  diff_index=torch.Tensor(
+                                                                                      [int(diff_index)]).to(device),
+                                                                                  max_diff_steps=config.max_diff_steps)
             if len(score.shape) == 3 and score.shape[-1] == 1:
                 score = score.squeeze(-1)
             diffusion_mean2 = torch.atleast_2d(torch.exp(-diffusion.get_eff_times(diff_times=tau))).T.to(device)
@@ -59,6 +60,8 @@ def single_time_sampling(config, data_shape,  diff_time_space, diffusion, featur
             z = torch.randn_like(drift)
             x = drift + diffParam * z
         else:
+            if len(exp_score) == 3 and exp_score.shape[0] == 1:
+                exp_score = exp_score.squeeze(-1)
             scores.append(score)
             exp_scores.append(exp_score)
             if len(x.shape) == 3 and x.shape[-1] == 1:
