@@ -158,6 +158,7 @@ save_path = project_config.ROOT_DIR + f"experiments/results/TSPM_DriftEvalExp_{N
 # Fix the number of training epochs and training loss objective loss
 PM = ConditionalLSTMTSPostMeanScoreMatching(*config_postmean.model_parameters).to(device)
 PM.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(Nepoch)))
+print(Nepoch)
 # Fix the number of real times to run diffusion
 eval_ts_length = int(1.*config_postmean.ts_length)
 # Experiment for score model with fixed (Nepochs, loss scaling, drift eval time, Npaths simulated)
