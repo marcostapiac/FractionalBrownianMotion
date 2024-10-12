@@ -12,6 +12,12 @@ from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching  import \
     ConditionalLSTMTSPostMeanScoreMatching
 
+def true_cond_mean(config, prev_path):
+    if "fOU" in config.data_path:
+        return (-config.mean_rev * prev_path.squeeze(-1))
+    else:
+        return (config.mean_rev * torch.sin(prev_path.squeeze(-1)))
+
 # Generate value of path at time "t" by running reverse diffusion
 def single_time_sampling(config, data_shape,  diff_time_space, diffusion, feature, scoreModel, device, prev_path):
     x = diffusion.prior_sampling(shape=data_shape).to(device)  # Move to correct device
@@ -45,7 +51,7 @@ def single_time_sampling(config, data_shape,  diff_time_space, diffusion, featur
             diffusion_mean2 = torch.atleast_2d(torch.exp(-diffusion.get_eff_times(diff_times=tau))).T.to(device)
             diffusion_var = 1. - diffusion_mean2
             exp_slope = -(1 / ((diffusion_var + diffusion_mean2 * ts_step))[0])
-            exp_const = torch.sqrt(diffusion_mean2) * (ts_step) * (-config.mean_rev * prev_path.squeeze(-1))
+            exp_const = torch.sqrt(diffusion_mean2) * (ts_step) * true_cond_mean(config, prev_path)
             exp_score = exp_slope * (x.squeeze(-1) - exp_const)
             if len(exp_score) == 3 and exp_score.shape[0] == 1:
                 exp_score = exp_score.squeeze(-1)
@@ -134,7 +140,6 @@ init_experiment(config=config_postmean)
 
 rng = np.random.default_rng()
 num_simulated_paths = 500
-drift_eval_diff_time = int(config_postmean.max_diff_steps - 9000)
 data_shape = (num_simulated_paths, 1, 1)
 
 if config_postmean.has_cuda:
