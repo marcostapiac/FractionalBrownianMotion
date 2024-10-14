@@ -25,7 +25,7 @@ def single_time_sampling(config, data_shape,  diff_time_space, diffusion, featur
     exp_scores = []
     revSDE_paths = []
     for diff_index in tqdm(range(config.max_diff_steps)):
-        if diff_index <= config.max_diff_steps - 20:
+        if diff_index <= config.max_diff_steps - 15:
 
             tau = diff_time_space[diff_index] * torch.ones((data_shape[0],)).to(device)
             try:
@@ -134,12 +134,12 @@ def build_drift_estimator(config, diffusion, ts_step, ts_length, diff_time_space
     exp_drifts /= ts_step
     return drift_est.cpu(), exp_drifts.cpu()
 
-from configs.RecursiveVPSDE.recursive_PostMeanScore_fSin_T256_H05_tl_5data import get_config as get_config_postmean
+from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H05_tl_5data import get_config as get_config_postmean
 config_postmean = get_config_postmean()
 init_experiment(config=config_postmean)
 
 rng = np.random.default_rng()
-num_simulated_paths = 500
+num_simulated_paths = 1000
 data_shape = (num_simulated_paths, 1, 1)
 
 if config_postmean.has_cuda:
@@ -159,7 +159,7 @@ mean_rev = config_postmean.mean_rev
 ts_step = 1 / config_postmean.ts_length
 
 Nepoch = config_postmean.max_epochs[0]
-save_path = project_config.ROOT_DIR + f"experiments/results/TSPM_fSin_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor"
+save_path = project_config.ROOT_DIR + f"experiments/results/TSPM_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor"
 # Fix the number of training epochs and training loss objective loss
 PM = ConditionalLSTMTSPostMeanScoreMatching(*config_postmean.model_parameters).to(device)
 PM.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(Nepoch)))
