@@ -159,11 +159,16 @@ mean_rev = config_postmean.mean_rev
 ts_step = 1 / config_postmean.ts_length
 
 Nepoch = config_postmean.max_epochs[0]
-save_path = project_config.ROOT_DIR + f"experiments/results/TSPM_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor"
+
+if "fOU" in config_postmean.data_path:
+    save_path = project_config.ROOT_DIR + f"experiments/results/TSPM_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor"
+elif "fSin" in config_postmean.data_path:
+    save_path = project_config.ROOT_DIR + f"experiments/results/TSPM_fSin_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor"
+
 # Fix the number of training epochs and training loss objective loss
 PM = ConditionalLSTMTSPostMeanScoreMatching(*config_postmean.model_parameters).to(device)
 PM.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(Nepoch)))
-print(Nepoch)
+print(Nepoch, config_postmean.data_path)
 # Fix the number of real times to run diffusion
 eval_ts_length = int(1.*config_postmean.ts_length)
 # Experiment for score model with fixed (Nepochs, loss scaling, drift eval time, Npaths simulated)
