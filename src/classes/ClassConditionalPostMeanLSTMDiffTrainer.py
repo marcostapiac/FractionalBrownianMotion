@@ -127,6 +127,8 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
         beta_tau = torch.exp(-0.5 * eff_times)
         if self.loss_factor == 0:  # PM
             weights = (sigma_tau / beta_tau)
+        elif self.loss_factor == 1: # PMScaled (meaning not scaled)
+            weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
         elif self.loss_factor == 3:  # rPM
             tau0 = torch.Tensor([0.2904]).to(diff_times.device)
             w1 = (diff_times > tau0).unsqueeze(-1).unsqueeze(-1) * (sigma_tau / beta_tau)
