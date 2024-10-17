@@ -14,7 +14,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 
 def true_cond_mean(config, prev_path):
     if "fOU" in config.data_path:
-        return (-config.mean_rev * prev_path.squeeze(-1))
+        return (-config.mean_rev * (prev_path.squeeze(-1)-config.mean))
     else:
         return (config.mean_rev * torch.sin(prev_path.squeeze(-1)))
 
@@ -161,9 +161,9 @@ ts_step = 1 / config_postmean.ts_length
 Nepoch = config_postmean.max_epochs[0]
 
 if "fOU" in config_postmean.data_path:
-    save_path = project_config.ROOT_DIR + f"experiments/results/TSPM_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor"
+    save_path = (project_config.ROOT_DIR + f"experiments/results/TSPM_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean").replace(".", "")
 elif "fSin" in config_postmean.data_path:
-    save_path = project_config.ROOT_DIR + f"experiments/results/TSPM_fSin_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor"
+    save_path = (project_config.ROOT_DIR + f"experiments/results/TSPM_fSin_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean").replace(".", "")
 
 # Fix the number of training epochs and training loss objective loss
 PM = ConditionalLSTMTSPostMeanScoreMatching(*config_postmean.model_parameters).to(device)
