@@ -14,7 +14,7 @@ def get_config():
     config.hurst = 0.5
     config.mean_rev = 0.8
     config.diffusion = 1.
-    config.mean = .2
+    config.mean = 1.
     config.initState = 0.
     config.ts_length = 256
     config.data_path = project_config.ROOT_DIR + "data/fOU_samples_H{}_T{}_{}Rev_{}Mean_{}Diff_{}Init".format(
