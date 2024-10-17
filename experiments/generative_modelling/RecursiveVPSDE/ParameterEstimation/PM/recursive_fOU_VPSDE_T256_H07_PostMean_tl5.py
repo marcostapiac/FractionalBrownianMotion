@@ -24,6 +24,8 @@ if __name__ == "__main__":
     assert (config.tdata_mult == 5)
     assert (config.weightings == True)
     print(config.scoreNet_trained_path, config.dataSize)
+    assert ((np.abs(config.mean - 1.) < 1e-6 and np.abs(config.hurst - 0.5) < 1e-6))
+    assert (config.loss_factor == 1)
     rng = np.random.default_rng()
     scoreModel = ConditionalLSTMTSPostMeanScoreMatching(
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
@@ -58,7 +60,7 @@ if __name__ == "__main__":
     for train_epoch in config.max_epochs:
         sampling_models = ["CondReverseDiffusion", "CondAncestral", "CondProbODE"]
         for sampling_model in sampling_models:
-            config.early_stop_idx = 20
+            config.early_stop_idx = 0
             try:
                 scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))
                 print(config.scoreNet_trained_path + "_NEp" + str(train_epoch))
