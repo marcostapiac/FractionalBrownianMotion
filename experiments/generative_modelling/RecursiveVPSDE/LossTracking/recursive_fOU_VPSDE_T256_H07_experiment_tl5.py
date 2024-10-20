@@ -4,6 +4,8 @@ import numpy as np
 import pandas as pd
 import torch
 
+from experiments.generative_modelling.RecursiveVPSDE.ParameterEstimation.PM.TS_single_model_drift_eval import \
+    TS_drift_eval
 from src.classes.ClassConditionalLSTMDiffTrainer import ConditionalLSTMDiffusionModelTrainer
 from src.generative_modelling.data_processing import recursive_LSTM_reverse_sampling, \
     train_and_save_recursive_diffusion_model
@@ -15,6 +17,7 @@ from utils.data_processing import init_experiment, cleanup_experiment
 from utils.math_functions import generate_fOU
 
 if __name__ == "__main__":
+    TS_drift_eval()
     # Data parameters
     from configs.RecursiveVPSDE.recursive_fOU_T256_H05_tl_5data import get_config
 
