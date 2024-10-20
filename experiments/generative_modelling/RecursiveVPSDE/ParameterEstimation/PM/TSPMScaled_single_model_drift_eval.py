@@ -141,7 +141,7 @@ init_experiment(config=config_postmean)
 assert (config_postmean.loss_factor == 1)
 
 rng = np.random.default_rng()
-num_simulated_paths = 1000
+num_simulated_paths = 500
 data_shape = (num_simulated_paths, 1, 1)
 
 if config_postmean.has_cuda:

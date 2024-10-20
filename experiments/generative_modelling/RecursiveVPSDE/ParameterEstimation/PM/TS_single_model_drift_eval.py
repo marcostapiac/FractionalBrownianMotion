@@ -140,7 +140,7 @@ config_postmean = get_config_postmean()
 init_experiment(config=config_postmean)
 
 rng = np.random.default_rng()
-num_simulated_paths = 1000
+num_simulated_paths = 500
 data_shape = (num_simulated_paths, 1, 1)
 
 if config_postmean.has_cuda:
