@@ -160,7 +160,7 @@ sample_eps = config_postmean.sample_eps
 mean_rev = config_postmean.mean_rev
 ts_step = 1 / config_postmean.ts_length
 
-Nepoch = config_postmean.max_epochs[0]
+Nepoch = config_postmean.max_epochs[-1]
 es = 15
 if "fOU" in config_postmean.data_path:
     save_path = (project_config.ROOT_DIR + f"experiments/results/TSPMScaled_ES{es}_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean").replace(".", "")
