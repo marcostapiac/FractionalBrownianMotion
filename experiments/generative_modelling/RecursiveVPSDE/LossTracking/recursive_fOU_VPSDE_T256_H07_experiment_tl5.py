@@ -18,6 +18,7 @@ from utils.math_functions import generate_fOU
 
 if __name__ == "__main__":
     # Data parameters
+    TS_drift_eval()
     from configs.RecursiveVPSDE.recursive_fOU_T256_H05_tl_5data import get_config
 
     config = get_config()
@@ -57,7 +58,6 @@ if __name__ == "__main__":
         train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel,
                                                  trainClass=ConditionalLSTMDiffusionModelTrainer)
     cleanup_experiment()
-    TS_drift_eval()
     es = []
     for train_epoch in config.max_epochs:
         try:
