@@ -135,9 +135,10 @@ def build_drift_estimator(config, diffusion, ts_step, ts_length, diff_time_space
     exp_drifts /= ts_step
     return drift_est.cpu(), exp_drifts.cpu()
 
-from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H05_tl_5data import get_config as get_config_postmean
+from configs.RecursiveVPSDE.recursive_PostMeanScaledScore_fOU_T256_H07_tl_5data import get_config as get_config_postmean
 config_postmean = get_config_postmean()
 init_experiment(config=config_postmean)
+assert (config_postmean.loss_factor == 1)
 
 rng = np.random.default_rng()
 num_simulated_paths = 1000
@@ -162,9 +163,9 @@ ts_step = 1 / config_postmean.ts_length
 Nepoch = config_postmean.max_epochs[0]
 es = 15
 if "fOU" in config_postmean.data_path:
-    save_path = (project_config.ROOT_DIR + f"experiments/results/TSPM_ES{es}_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean").replace(".", "")
+    save_path = (project_config.ROOT_DIR + f"experiments/results/TSPMScaled_ES{es}_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean").replace(".", "")
 elif "fSin" in config_postmean.data_path:
-    save_path = (project_config.ROOT_DIR + f"experiments/results/TSPM_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean").replace(".", "")
+    save_path = (project_config.ROOT_DIR + f"experiments/results/TSPMScaled_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean").replace(".", "")
 
 # Fix the number of training epochs and training loss objective loss
 PM = ConditionalLSTMTSPostMeanScoreMatching(*config_postmean.model_parameters).to(device)
