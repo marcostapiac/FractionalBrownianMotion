@@ -19,7 +19,7 @@ def true_cond_mean(config, prev_path):
         return (config.mean_rev * torch.sin(prev_path.squeeze(-1)))
 
 # Generate value of path at time "t" by running reverse diffusion
-def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature, scoreModel, device, prev_path, es):
+def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature, scoreModel, device, prev_path, es, ts_step):
     x = diffusion.prior_sampling(shape=data_shape).to(device)  # Move to correct device
     scores = []
     exp_scores = []
@@ -86,7 +86,7 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
 
 # Generate sample paths from [0, ts_length]
 def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, diffusion, scoreModel, device,
-                                     diff_time_scale, data_shape, es):
+                                     diff_time_scale, data_shape, es, ts_step):
     stored_scores = []
     stored_expscores = []
     stored_revSDE_paths = []
@@ -105,7 +105,7 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
                                                                              diff_time_space=diff_time_scale,
                                                                              diffusion=diffusion, scoreModel=scoreModel,
                                                                              device=device, feature=feature,
-                                                                             prev_path=cumsamples, es=es)
+                                                                             prev_path=cumsamples, es=es, ts_step=ts_step)
         cumsamples = cumsamples + new_samples
         stored_scores.append(scores.unsqueeze(1))
         stored_expscores.append(exp_scores.unsqueeze(1))
@@ -179,7 +179,7 @@ def TS_drift_eval():
     postMean_scores, postMean_expscores, postMean_revSDEpaths, postMean_prevPaths = run_whole_ts_recursive_diffusion(
         ts_length=eval_ts_length, config=config_postmean, initial_feature_input=initial_feature_input,
         diffusion=diffusion,
-        scoreModel=PM, device=device, diff_time_scale=revDiff_time_scale, data_shape=data_shape, es=es)
+        scoreModel=PM, device=device, diff_time_scale=revDiff_time_scale, data_shape=data_shape, es=es, ts_step=ts_step)
 
     # Compute Drift Estimators
     diff_time_space = np.linspace(sample_eps, 1, max_diff_steps)
