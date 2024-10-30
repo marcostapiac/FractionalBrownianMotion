@@ -18,7 +18,7 @@ from utils.math_functions import generate_fOU
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.recursive_fOU_T256_H05_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_fSin_T256_H05_tl_5data import get_config
 
     config = get_config()
     assert (0 < config.hurst < 1.)
