@@ -120,7 +120,7 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
 
 
 # Build drift estimator
-def build_drift_estimator(config, diffusion, ts_step, ts_length, diff_time_space, score_evals, exp_scores, Xtaus, prev_paths):
+def build_drift_estimator(diffusion, ts_step, diff_time_space, score_evals, exp_scores, Xtaus):
     eff_times = diffusion.get_eff_times(torch.Tensor(diff_time_space)).cpu()#.numpy()
     beta_2_taus = torch.exp(-eff_times)
     sigma_taus = 1. - beta_2_taus
@@ -134,56 +134,57 @@ def build_drift_estimator(config, diffusion, ts_step, ts_length, diff_time_space
     exp_drifts = c1 * exp_scores + (c2.reshape(1, 1, -1)) * Xtaus
     exp_drifts /= ts_step
     return drift_est.cpu(), exp_drifts.cpu()
+def TSPM_drift_eval():
+    from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H05_tl_5data import get_config as get_config_postmean
+    config_postmean = get_config_postmean()
+    init_experiment(config=config_postmean)
 
-from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H05_tl_5data import get_config as get_config_postmean
-config_postmean = get_config_postmean()
-init_experiment(config=config_postmean)
+    num_simulated_paths = 500
+    data_shape = (num_simulated_paths, 1, 1)
 
-rng = np.random.default_rng()
-num_simulated_paths = 500
-data_shape = (num_simulated_paths, 1, 1)
+    if config_postmean.has_cuda:
+        device = int(os.environ["LOCAL_RANK"])
+    else:
+        print("Using CPU\n")
+        device = torch.device("cpu")
 
-if config_postmean.has_cuda:
-    device = int(os.environ["LOCAL_RANK"])
-else:
-    print("Using CPU\n")
-    device = torch.device("cpu")
+    revDiff_time_scale = torch.linspace(start=config_postmean.end_diff_time, end=config_postmean.sample_eps,
+                                     steps=config_postmean.max_diff_steps).to(device)
+    diffusion = VPSDEDiffusion(beta_max=config_postmean.beta_max, beta_min=config_postmean.beta_min)
 
-revDiff_time_scale = torch.linspace(start=config_postmean.end_diff_time, end=config_postmean.sample_eps,
-                                 steps=config_postmean.max_diff_steps).to(device)
-real_time_scale = torch.linspace(start=1 / config_postmean.ts_length, end=1, steps=config_postmean.ts_length).to(device)
-diffusion = VPSDEDiffusion(beta_max=config_postmean.beta_max, beta_min=config_postmean.beta_min)
+    max_diff_steps = config_postmean.max_diff_steps
+    sample_eps = config_postmean.sample_eps
+    ts_step = 1 / config_postmean.ts_length
 
-max_diff_steps = config_postmean.max_diff_steps
-sample_eps = config_postmean.sample_eps
-mean_rev = config_postmean.mean_rev
-ts_step = 1 / config_postmean.ts_length
+    Nepoch = config_postmean.max_epochs[0]
+    es = 15
+    if "fOU" in config_postmean.data_path:
+        save_path = (project_config.ROOT_DIR + f"experiments/results/TSPM_ES{es}_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(".", "")
+    elif "fSin" in config_postmean.data_path:
+        save_path = (project_config.ROOT_DIR + f"experiments/results/TSPM_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(".", "")
 
-Nepoch = config_postmean.max_epochs[0]
-es = 15
-if "fOU" in config_postmean.data_path:
-    save_path = (project_config.ROOT_DIR + f"experiments/results/TSPM_ES{es}_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean").replace(".", "")
-elif "fSin" in config_postmean.data_path:
-    save_path = (project_config.ROOT_DIR + f"experiments/results/TSPM_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean").replace(".", "")
+    # Fix the number of training epochs and training loss objective loss
+    PM = ConditionalLSTMTSPostMeanScoreMatching(*config_postmean.model_parameters).to(device)
+    PM.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(Nepoch)))
+    print(Nepoch, config_postmean.data_path, es, config_postmean.scoreNet_trained_path)
+    # Fix the number of real times to run diffusion
+    eval_ts_length = int(1.*config_postmean.ts_length)
+    # Experiment for score model with fixed (Nepochs, loss scaling, drift eval time, Npaths simulated)
+    initial_feature_input = torch.zeros(data_shape).to(device)
+    postMean_scores, postMean_expscores, postMean_revSDEpaths, postMean_prevPaths = run_whole_ts_recursive_diffusion(
+        ts_length=eval_ts_length, config=config_postmean, initial_feature_input=initial_feature_input, diffusion=diffusion,
+        scoreModel=PM, device=device, diff_time_scale=revDiff_time_scale, data_shape=data_shape, es=es, ts_step=ts_step)
 
-# Fix the number of training epochs and training loss objective loss
-PM = ConditionalLSTMTSPostMeanScoreMatching(*config_postmean.model_parameters).to(device)
-PM.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(Nepoch)))
-print(Nepoch, config_postmean.data_path, es, config_postmean.scoreNet_trained_path)
-# Fix the number of real times to run diffusion
-eval_ts_length = int(1.*config_postmean.ts_length)
-# Experiment for score model with fixed (Nepochs, loss scaling, drift eval time, Npaths simulated)
-initial_feature_input = torch.zeros(data_shape).to(device)
-postMean_scores, postMean_expscores, postMean_revSDEpaths, postMean_prevPaths = run_whole_ts_recursive_diffusion(
-    ts_length=eval_ts_length, config=config_postmean, initial_feature_input=initial_feature_input, diffusion=diffusion,
-    scoreModel=PM, device=device, diff_time_scale=revDiff_time_scale, data_shape=data_shape, es=es, ts_step=ts_step)
+    # Compute Drift Estimators
+    diff_time_space = np.linspace(sample_eps, 1, max_diff_steps)
+    # Output shape is (NumPaths, NumRealTimes, NumDiffSteps)
+    drift_est, true_drift = build_drift_estimator(diffusion=diffusion, score_evals=postMean_scores, exp_scores=postMean_expscores,
+                                                     Xtaus=postMean_revSDEpaths, ts_step=ts_step,
+                                                    diff_time_space=diff_time_space)
+    torch.save(drift_est, save_path + "_driftEst")
+    torch.save(true_drift, save_path + "_driftTrue")
+    torch.save(postMean_prevPaths, save_path + "_prevPaths")
 
-# Compute Drift Estimators
-diff_time_space = np.linspace(sample_eps, 1, max_diff_steps)
-# Output shape is (NumPaths, NumRealTimes, NumDiffSteps)
-drift_est, true_drift = build_drift_estimator(config=config_postmean,diffusion=diffusion, score_evals=postMean_scores, exp_scores=postMean_expscores,
-                                                prev_paths=postMean_prevPaths, Xtaus=postMean_revSDEpaths, ts_step=ts_step,
-                                                ts_length=eval_ts_length, diff_time_space=diff_time_space)
-torch.save(drift_est, save_path + "_driftEst")
-torch.save(true_drift, save_path + "_driftTrue")
-torch.save(postMean_prevPaths, save_path + "_prevPaths")
+
+if __name__ == "__main__":
+    TSPM_drift_eval()
