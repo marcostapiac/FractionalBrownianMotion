@@ -125,9 +125,9 @@ class ConditionalLSTMDiffusionModelTrainer(nn.Module):
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         if self.loss_factor == 0:
             weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
-        elif self.loss_factor == 1:
-            weights = self.diffusion.get_loss_weighting(eff_times=eff_times) / torch.pow(
-                torch.Tensor([self.ts_time_diff]).to(eff_times.device), 0.5)
+        #elif self.loss_factor == 1:
+        #    weights = self.diffusion.get_loss_weighting(eff_times=eff_times) / torch.pow(
+        #        torch.Tensor([self.ts_time_diff]).to(eff_times.device), 0.5)
         elif not self.include_weightings:
             weights = torch.ones_like(eff_times)
         return self._batch_loss_compute(outputs=weights * outputs, targets=weights * target_scores)
