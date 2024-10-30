@@ -110,6 +110,7 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
         stored_scores.append(scores.unsqueeze(1))
         stored_expscores.append(exp_scores.unsqueeze(1))
         stored_revSDE_paths.append(revSDE_paths.unsqueeze(1))
+    print(cumsamples.shape)
     stored_scores = torch.concat(stored_scores, dim=1)
     # assert(stored_scores.shape == (data_shape[0], T, config.max_diff_steps))
     stored_expscores = torch.concat(stored_expscores, dim=1)
@@ -121,7 +122,7 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
 
 
 # Build drift estimator
-def build_drift_estimator(config, diffusion, ts_step, ts_length, diff_time_space, score_evals, exp_scores, Xtaus, prev_paths):
+def build_drift_estimator(diffusion, ts_step, diff_time_space, score_evals, exp_scores, Xtaus):
     eff_times = diffusion.get_eff_times(torch.Tensor(diff_time_space)).cpu(  )  # .numpy()
     beta_2_taus = torch.exp(-eff_times)
     sigma_taus = 1. - beta_2_taus
@@ -156,16 +157,16 @@ def TS_drift_eval():
     sample_eps = config_postmean.sample_eps
     ts_step = 1 / config_postmean.ts_length
 
-    Nepoch = config_postmean.max_epochs[-1]
+    Nepoch = 12920#config_postmean.max_epochs[0]
     assert (Nepoch == 12920)
     es = 15
     if "fOU" in config_postmean.data_path:
         save_path = \
-                    (project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean").replace(
+                    (project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(
             ".", "")
     elif "fSin" in config_postmean.data_path:
         save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(
             ".", "")
 
     print(Nepoch, config_postmean.data_path, es, config_postmean.scoreNet_trained_path)
@@ -184,11 +185,10 @@ def TS_drift_eval():
     # Compute Drift Estimators
     diff_time_space = np.linspace(sample_eps, 1, max_diff_steps)
     # Output shape is (NumPaths, NumRealTimes, NumDiffSteps)
-    drift_est, true_drift = build_drift_estimator(config=config_postmean, diffusion=diffusion,
+    drift_est, true_drift = build_drift_estimator(diffusion=diffusion,
                                                   score_evals=postMean_scores, exp_scores=postMean_expscores,
-                                                  prev_paths=postMean_prevPaths, Xtaus=postMean_revSDEpaths,
-                                                  ts_step=ts_step,
-                                                  ts_length=eval_ts_length, diff_time_space=diff_time_space)
+                                                   Xtaus=postMean_revSDEpaths,
+                                                  ts_step=ts_step, diff_time_space=diff_time_space)
     torch.save(drift_est, save_path + "_driftEst")
     torch.save(true_drift, save_path + "_driftTrue")
     torch.save(postMean_prevPaths, save_path + "_prevPaths")
