@@ -136,7 +136,7 @@ def build_drift_estimator(diffusion, ts_step, diff_time_space, score_evals, exp_
     return drift_est.cpu(), exp_drifts.cpu()
 
 def TS_drift_eval():
-    from configs.RecursiveVPSDE.recursive_fOU_T256_H05_tl_5data import get_config as get_config_postmean
+    from configs.RecursiveVPSDE.recursive_fSin_T256_H05_tl_5data import get_config as get_config_postmean
     config_postmean = get_config_postmean()
     init_experiment(config=config_postmean)
 
@@ -159,14 +159,15 @@ def TS_drift_eval():
 
     Nepoch = 12920#config_postmean.max_epochs[0]
     assert (Nepoch == 12920)
+    assert (config_postmean.max_diff_steps == 10000)
     es = 15
     if "fOU" in config_postmean.data_path:
         save_path = \
-                    (project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(
+                    (project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config_postmean.mean}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(
             ".", "")
     elif "fSin" in config_postmean.data_path:
         save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config_postmean.mean_rev}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(
             ".", "")
 
     print(Nepoch, config_postmean.data_path, es, config_postmean.scoreNet_trained_path)
