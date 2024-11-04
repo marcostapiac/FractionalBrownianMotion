@@ -162,7 +162,7 @@ def TSPMScaled_drift_eval():
     if "fOU" in config_postmean.data_path:
         save_path = (project_config.ROOT_DIR + f"experiments/results/TSPMScaled_ES{es}_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(".", "")
     elif "fSin" in config_postmean.data_path:
-        save_path = (project_config.ROOT_DIR + f"experiments/results/TSPMScaled_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(".", "")
+        save_path = (project_config.ROOT_DIR + f"experiments/results/TSPMScaled_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean_rev}MeanRev_{config_postmean.max_diff_steps}DiffSteps").replace(".", "")
 
     # Fix the number of training epochs and training loss objective loss
     PM = ConditionalLSTMTSPostMeanScoreMatching(*config_postmean.model_parameters).to(device)

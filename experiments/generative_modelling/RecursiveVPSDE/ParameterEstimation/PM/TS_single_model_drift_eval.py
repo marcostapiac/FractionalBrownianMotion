@@ -167,7 +167,7 @@ def TS_drift_eval():
             ".", "")
     elif "fSin" in config_postmean.data_path:
         save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config_postmean.mean_rev}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config_postmean.mean_rev}MeanRev_{config_postmean.max_diff_steps}DiffSteps").replace(
             ".", "")
 
     print(Nepoch, config_postmean.data_path, es, config_postmean.scoreNet_trained_path)
