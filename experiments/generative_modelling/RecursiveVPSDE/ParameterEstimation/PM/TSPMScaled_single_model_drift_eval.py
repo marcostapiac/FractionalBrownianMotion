@@ -135,7 +135,7 @@ def build_drift_estimator(diffusion, ts_step, diff_time_space, score_evals, exp_
     exp_drifts /= ts_step
     return drift_est.cpu(), exp_drifts.cpu()
 def TSPMScaled_drift_eval():
-    from configs.RecursiveVPSDE.recursive_PostMeanScaledScore_fOU_T256_H05_tl_5data import get_config as get_config_postmean
+    from configs.RecursiveVPSDE.recursive_PostMeanScaledScore_fSin_T256_H05_tl_5data import get_config as get_config_postmean
     config_postmean = get_config_postmean()
     init_experiment(config=config_postmean)
     assert (config_postmean.loss_factor == 1)
