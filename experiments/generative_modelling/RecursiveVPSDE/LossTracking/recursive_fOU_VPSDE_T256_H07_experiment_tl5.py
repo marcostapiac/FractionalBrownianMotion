@@ -7,6 +7,7 @@ import torch
 from experiments.generative_modelling.RecursiveVPSDE.ParameterEstimation.PM.TS_single_model_drift_eval import \
     TS_drift_eval
 from src.classes.ClassConditionalLSTMDiffTrainer import ConditionalLSTMDiffusionModelTrainer
+from src.classes.ClassConditionalLSTMWithPositionDiffTrainer import ConditionalLSTMWithPositionDiffusionModelTrainer
 from src.generative_modelling.data_processing import recursive_LSTM_reverse_sampling, \
     train_and_save_recursive_diffusion_model
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
@@ -18,7 +19,7 @@ from utils.math_functions import generate_fOU
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.recursive_fSin_T256_H05_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_fSinWithPosition_T256_H05_tl_5data import get_config
 
     config = get_config()
     assert (0 < config.hurst < 1.)
@@ -55,7 +56,7 @@ if __name__ == "__main__":
         print(config.hurst)
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
         train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel,
-                                                 trainClass=ConditionalLSTMDiffusionModelTrainer)
+                                                 trainClass=ConditionalLSTMWithPositionDiffusionModelTrainer)
     cleanup_experiment()
     TS_drift_eval()
     es = []
