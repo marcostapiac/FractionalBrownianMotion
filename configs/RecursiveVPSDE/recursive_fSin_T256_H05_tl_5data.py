@@ -22,11 +22,11 @@ def get_config():
 
     # Training hyperparameters
     config.train_eps = 1e-4
-    config.max_diff_steps = 1000  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
+    config.max_diff_steps = 10000  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = [960, 1440]#, 1920, 2920, 6920, 12920]
+    config.max_epochs = [960, 1440, 1920, 2920, 6920, 12920]
     config.batch_size = 256
     config.isfBm = True
     config.isUnitInterval = True
