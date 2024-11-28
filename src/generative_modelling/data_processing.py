@@ -11,7 +11,7 @@ from torch.utils.data.distributed import DistributedSampler
 from torchmetrics import MeanMetric
 
 from src.classes.ClassConditionalLSTMDiffTrainer import ConditionalLSTMDiffusionModelTrainer
-from src.classes.ClassConditionalMarkovianDiffTrainer import ConditionalMarkovianDiffusionModelTrainer
+from src.classes.ClassConditionalMarkovianDiffTrainer import ConditionalMarkovianWithPositionDiffusionModelTrainer
 from src.classes.ClassConditionalPostMeanLSTMDiffTrainer import ConditionalLSTMPostMeanDiffusionModelTrainer
 from src.classes.ClassConditionalPostMeanMarkovianDiffTrainer import ConditionalPostMeanMarkovianDiffTrainer
 from src.classes.ClassConditionalSDESampler import ConditionalSDESampler
@@ -439,7 +439,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                              scoreModel: Union[
                                                  NaiveMLP, ConditionalTSScoreMatching, ConditionalTSScoreMatching, ConditionalMarkovianTSPostMeanScoreMatching, ConditionalMarkovianTSScoreMatching],
                                              trainClass: Union[ConditionalLSTMPostMeanDiffusionModelTrainer,
-                                                               ConditionalLSTMDiffusionModelTrainer, ConditionalMarkovianDiffusionModelTrainer, ConditionalPostMeanMarkovianDiffTrainer, ConditionalSignatureDiffusionModelTrainer, DiffusionModelTrainer]) -> None:
+                                                               ConditionalLSTMDiffusionModelTrainer, ConditionalMarkovianWithPositionDiffusionModelTrainer, ConditionalPostMeanMarkovianDiffTrainer, ConditionalSignatureDiffusionModelTrainer, DiffusionModelTrainer]) -> None:
     """
     Helper function to initiate training for recursive diffusion model
         :param data: Dataset
@@ -463,7 +463,6 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
     train_eps, end_diff_time, max_diff_steps, checkpoint_freq = config.train_eps, config.end_diff_time, config.max_diff_steps, config.save_freq
     try:
         # Markovian
-        ts_type = "fOU" if "fOU" in config.data_path else "fBm"
         trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                              checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
                              loss_aggregator=MeanMetric,

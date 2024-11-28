@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from src.classes.ClassConditionalMarkovianDiffTrainer import ConditionalMarkovianDiffusionModelTrainer
+from src.classes.ClassConditionalMarkovianDiffTrainer import ConditionalMarkovianWithPositionDiffusionModelTrainer
 from src.generative_modelling.data_processing import train_and_save_recursive_diffusion_model, \
     recursive_markovian_reverse_sampling
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
@@ -53,7 +53,7 @@ if __name__ == "__main__":
         assert (data.shape == (training_size, config.ts_length, config.ts_dims))
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
         train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel,
-                                                 trainClass=ConditionalMarkovianDiffusionModelTrainer)
+                                                 trainClass=ConditionalMarkovianWithPositionDiffusionModelTrainer)
     cleanup_experiment()
 
     for train_epoch in config.max_epochs:

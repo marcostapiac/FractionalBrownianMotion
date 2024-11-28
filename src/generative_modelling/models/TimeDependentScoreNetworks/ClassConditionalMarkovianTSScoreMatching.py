@@ -124,7 +124,6 @@ class ConditionalMarkovianTSScoreMatching(nn.Module):
             max_diff_steps: int,
             diff_embed_size: int,
             diff_hidden_size: int,
-            mkv_blnk: int,
             ts_dims: int,
             residual_layers: int = 10,
             residual_channels: int = 8,
@@ -139,7 +138,7 @@ class ConditionalMarkovianTSScoreMatching(nn.Module):
                                                       max_steps=max_diff_steps)  # get_timestep_embedding
 
         self.cond_upsampler = CondUpsampler(
-            target_dim=1, cond_length=mkv_blnk * ts_dims
+            target_dim=1, cond_length=ts_dims
         )
         self.residual_layers = nn.ModuleList(
             [
@@ -160,6 +159,7 @@ class ConditionalMarkovianTSScoreMatching(nn.Module):
 
     def forward(self, inputs, times, conditioner):
         # inputs = inputs.unsqueeze(1)
+        conditioner = self.conditioner
         x = self.input_projection(inputs)
         x = F.leaky_relu(x, 0.01)
 

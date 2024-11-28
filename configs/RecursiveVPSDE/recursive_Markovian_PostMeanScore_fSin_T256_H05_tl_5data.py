@@ -12,13 +12,12 @@ def get_config():
 
     # Data set parameters
     config.hurst = 0.5
-    config.mean_rev = 0.8
+    config.mean_rev = 1.
     config.diffusion = 1.
-    config.mean = 0.
     config.initState = 0.
     config.ts_length = 256
-    config.data_path = project_config.ROOT_DIR + "data/fOU_samples_H{}_T{}_{}Rev_{}Mean_{}Diff_{}Init".format(
-        str(config.hurst), config.ts_length, config.mean_rev, config.mean, config.diffusion, config.initState).replace(
+    config.data_path = project_config.ROOT_DIR + "data/fSin_samples_H{}_T{}_{}Rev_{}Diff_{}Init".format(
+        str(config.hurst), config.ts_length, config.mean_rev, config.diffusion, config.initState).replace(
         ".", "") + ".npy"
 
     # Training hyperparameters
@@ -27,13 +26,14 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = [960, 1440, 1920, 2920, 6920, 12920]
+    config.max_epochs = [960, 1440]#1920, 2920, 6920, 12920]
     config.batch_size = 256
-    config.isfOU = True
+    config.isfBm = True
     config.isUnitInterval = True
     config.hybrid = True
     config.weightings = True
     config.tdata_mult = 5
+    config.ts_dims = 1
     config.loss_factor = 0
 
     # Diffusion hyperparameters
@@ -50,29 +50,33 @@ def get_config():
     config.residual_channels = 8
     config.diff_hidden_size = 64
     config.dialation_length = 10
-    config.mkv_blnk = 1
-    config.ts_dims = 1
+    config.lstm_hiddendim = 20
+    config.lstm_numlay = 1
+    config.lstm_inputdim = 1
+    config.lstm_dropout = 0.
+    assert ((config.lstm_dropout == 0. and config.lstm_numlay == 1) or (
+            config.lstm_dropout > 0 and config.lstm_numlay > 1))
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_markvPM_MLP_{}_incs_{}_unitIntv_fOU_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_TembDim{}_EncShapes{}_tl5".format(
-        not config.isfOU, config.isUnitInterval, config.hurst,
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_markv_PM_MLP_{}_incs_{}_unitIntv_fSin_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_TembDim{}_EncShapes{}_tl5".format(
+        not config.isfBm, config.isUnitInterval, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
         config.enc_shapes).replace(".", "")
 
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_markvPM_TSM_{}_incs_{}_unitIntv_fOU_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_DiffEmbSize{}_ResLay{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Wghts_tl5".format(
-        not config.isfOU, config.isUnitInterval, config.hurst,
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_markv_PM_TSM_{}_incs_{}_unitIntv_fSin_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_DiffEmbSize{}_ResLay{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Wghts_LSTM_H{}_Nlay{}_{}_tl5".format(
+        not config.isfBm, config.isUnitInterval, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
-        config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid,
-        config.weightings).replace(".", "")
+        config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings,
+        config.lstm_hiddendim, config.lstm_numlay, config.mean_rev).replace(".", "")
 
     config.model_choice = "TSM"
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
-    config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.mkv_blnk,
-                               config.ts_dims, config.residual_layers,
+    config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.lstm_hiddendim,
+                               config.lstm_numlay, config.lstm_inputdim, config.lstm_dropout, config.residual_layers,
                                config.residual_channels, config.dialation_length] \
         if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.ts_length,
                                               config.enc_shapes,
@@ -87,7 +91,7 @@ def get_config():
     if config.hybrid: assert (config.sample_eps == config.train_eps)
     config.max_lang_steps = 0
     config.snr = 0.
-    config.predictor_model = "CondReverseDiffusion"  # vs "euler-maryuama"
+    config.predictor_model = "CondAncestral"
     config.corrector_model = "VP"  # vs "VE" vs "OUSDE"
     config.param_time = 900
 

@@ -38,7 +38,6 @@ class ConditionalPostMeanMarkovianDiffTrainer(nn.Module):
                  to_weight: bool,
                  hybrid_training: bool,
                  mkv_blnk: int,
-                 ts_data: str,
                  loss_factor: float,
                  ts_time_diff: float = 1 / 256,
                  loss_fn: callable = torch.nn.MSELoss,
@@ -62,9 +61,6 @@ class ConditionalPostMeanMarkovianDiffTrainer(nn.Module):
         self.end_diff_time = end_diff_time
         self.is_hybrid = hybrid_training
         self.include_weightings = to_weight
-        self.lookback = mkv_blnk
-        self.ts_data = ts_data
-        assert (self.ts_data == "fOU" or self.ts_data == "fBm")
         self.ts_time_diff = ts_time_diff
         assert (to_weight == True)
         # Move score network to appropriate device
@@ -158,7 +154,7 @@ class ConditionalPostMeanMarkovianDiffTrainer(nn.Module):
         for x0s in (iter(self.train_loader)):
             x0s = x0s[0].to(self.device_id)
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
-            features = self.create_historical_vectors(x0s)
+            features = self.create_feature_vectors_from_position(x0s)
             if self.is_hybrid:
                 # We select diffusion time uniformly at random for each sample at each time (i.e., size (NumBatches, TimeSeries Sequence))
                 diff_times = timesteps[torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,
@@ -239,31 +235,17 @@ class ConditionalPostMeanMarkovianDiffTrainer(nn.Module):
         except FileNotFoundError:
             print("Snapshot file does not exist\n")
 
-    def create_historical_vectors(self, batch):
+    @staticmethod
+    def create_feature_vectors_from_position(batch):
         """
         Create history vectors using LSTM architecture
             :return: History vectors for each timestamp
         """
 
         # batch shape (N_batches, Time Series Length, Input Size)
-        # The historical vector for each t in (N_batches, t, Input Size) is (N_batches, t-20:t, Input Size)
-        # Create new tensor of size (N_batches, Time Series Length, Input Size, 20, Input Size) so that each dimension
-        # of the time series has a corresponding past of size (20, 1)
-        m = self.lookback
-        # TODO: Only if fOU else no cumsum
-        if self.ts_data:
-            bbatch = batch.cumsum(dim=1)
-        else:
-            bbatch = batch
-        N, T, D = batch.size()
-        # Generate indices for slicing
-        indices = (torch.arange(m)[:, None] + torch.arange(-m, T - m)).T
-        # Use advanced indexing to extract the subarrays
-        result_tensor = bbatch[:, indices, :]
-        mask = torch.flip(~torch.triu(torch.ones(m, m), diagonal=1).bool(), dims=(0,))
-        result_tensor[:, :m, :][:, mask, :] = 0.
-        # Feature tensor is of size (Num_TimeSeries, TimeSeriesLength, LookbackWindow, TimeSeriesDim)
-        return result_tensor
+        dbatch = torch.cat([torch.zeros((batch.shape[0], 1, batch.shape[-1])).to(batch.device), batch], dim=1)
+        return dbatch.cumsum(dim=1)[:, :-1, :]
+
 
     def _save_loss(self, losses: list, filepath: str):
         """
