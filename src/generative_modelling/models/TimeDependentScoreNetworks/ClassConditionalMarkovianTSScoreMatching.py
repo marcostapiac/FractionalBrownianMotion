@@ -163,7 +163,9 @@ class ConditionalMarkovianTSScoreMatching(nn.Module):
         x = F.leaky_relu(x, 0.01)
 
         diffusion_step = self.diffusion_embedding(times)
+        print(conditioner.shape)
         cond_up = self.cond_upsampler(conditioner)
+        print(cond_up.shape)
         skip = []
         for layer in self.residual_layers:
             x, skip_connection = layer(x, conditioner=cond_up, diffusion_step=diffusion_step)
