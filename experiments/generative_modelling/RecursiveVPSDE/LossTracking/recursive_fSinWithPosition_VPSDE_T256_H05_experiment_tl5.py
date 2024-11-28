@@ -30,7 +30,7 @@ if __name__ == "__main__":
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    #init_experiment(config=config)
+    init_experiment(config=config)
     end_epoch = max(config.max_epochs)
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))
@@ -40,7 +40,7 @@ if __name__ == "__main__":
             min(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 1200000))
         print(training_size)
         try:
-            data = np.load(config.data_path+"k", allow_pickle=True)
+            data = np.load(config.data_path, allow_pickle=True)
             assert (data.shape[0] >= training_size)
         except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))

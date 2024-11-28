@@ -69,7 +69,7 @@ def get_config():
 
     config.model_choice = "TSM"
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
-    config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size,
+    config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.ts_dims,
                                 config.residual_layers,
                                config.residual_channels, config.dialation_length] \
         if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.ts_length,

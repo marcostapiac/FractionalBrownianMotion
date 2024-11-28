@@ -107,11 +107,13 @@ class ResidualBlock(nn.Module):
 class CondUpsampler(nn.Module):
     def __init__(self, cond_length, target_dim):
         super().__init__()
+        print(cond_length, target_dim)
         self.linear1 = nn.Linear(cond_length, 20, bias=False)
         self.linear2 = nn.Linear(20, int(2 * target_dim), bias=False)
         self.linear3 = nn.Linear(int(2 * target_dim), target_dim, bias=False)
 
     def forward(self, x):
+        print(x.shape)
         x = self.linear1(x)
         x = F.leaky_relu(x, 0.4)
         x = self.linear2(x)
@@ -139,7 +141,7 @@ class ConditionalMarkovianTSScoreMatching(nn.Module):
         self.diffusion_embedding = DiffusionEmbedding(diff_embed_size=diff_embed_size,
                                                       diff_hidden_size=diff_hidden_size,
                                                       max_steps=max_diff_steps)  # get_timestep_embedding
-
+        print(ts_dims)
         self.cond_upsampler = CondUpsampler(
             target_dim=1, cond_length=ts_dims
         )
