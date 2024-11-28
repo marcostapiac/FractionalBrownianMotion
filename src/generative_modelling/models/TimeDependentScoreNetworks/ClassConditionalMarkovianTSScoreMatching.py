@@ -107,13 +107,11 @@ class ResidualBlock(nn.Module):
 class CondUpsampler(nn.Module):
     def __init__(self, cond_length, target_dim):
         super().__init__()
-        print(cond_length, target_dim)
         self.linear1 = nn.Linear(cond_length, 20, bias=False)
         self.linear2 = nn.Linear(20, int(2 * target_dim), bias=False)
         self.linear3 = nn.Linear(int(2 * target_dim), target_dim, bias=False)
 
     def forward(self, x):
-        print(x.shape)
         x = self.linear1(x)
         x = F.leaky_relu(x, 0.4)
         x = self.linear2(x)
@@ -168,9 +166,7 @@ class ConditionalMarkovianTSScoreMatching(nn.Module):
         x = F.leaky_relu(x, 0.01)
 
         diffusion_step = self.diffusion_embedding(times)
-        print(conditioner.shape)
         cond_up = self.cond_upsampler(conditioner)
-        print(cond_up.shape)
         skip = []
         for layer in self.residual_layers:
             x, skip_connection = layer(x, conditioner=cond_up, diffusion_step=diffusion_step)
