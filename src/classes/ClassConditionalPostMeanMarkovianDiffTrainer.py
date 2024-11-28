@@ -37,9 +37,7 @@ class ConditionalPostMeanMarkovianDiffTrainer(nn.Module):
                  checkpoint_freq: int,
                  to_weight: bool,
                  hybrid_training: bool,
-                 mkv_blnk: int,
                  loss_factor: float,
-                 ts_time_diff: float = 1 / 256,
                  loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
         super().__init__()
@@ -61,7 +59,6 @@ class ConditionalPostMeanMarkovianDiffTrainer(nn.Module):
         self.end_diff_time = end_diff_time
         self.is_hybrid = hybrid_training
         self.include_weightings = to_weight
-        self.ts_time_diff = ts_time_diff
         assert (to_weight == True)
         # Move score network to appropriate device
         if type(self.device_id) == int:

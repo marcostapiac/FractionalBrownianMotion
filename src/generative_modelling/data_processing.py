@@ -476,7 +476,6 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
     except (AttributeError, KeyError, TypeError) as e:
         try:
             # Post Mean Markovian
-            ts_type = "fOU" if "fOU" in config.data_path else "fBm"
             trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                                  checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
                                  loss_aggregator=MeanMetric,
