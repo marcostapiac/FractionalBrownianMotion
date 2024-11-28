@@ -37,7 +37,7 @@ class ConditionalMarkovianWithPositionDiffusionModelTrainer(nn.Module):
                  checkpoint_freq: int,
                  to_weight: bool,
                  hybrid_training: bool,
-                 mkv_blnk: int,
+                 loss_factor: int,
                  loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
         super().__init__()
@@ -58,6 +58,7 @@ class ConditionalMarkovianWithPositionDiffusionModelTrainer(nn.Module):
         self.end_diff_time = end_diff_time
         self.is_hybrid = hybrid_training
         self.include_weightings = to_weight
+        self.loss_factor = loss_factor
 
         # Move score network to appropriate device
         if type(self.device_id) == int:
@@ -126,8 +127,13 @@ class ConditionalMarkovianWithPositionDiffusionModelTrainer(nn.Module):
         eff_times = eff_times.reshape(target_scores.shape)
         outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times)
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
-        weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
-        if not self.include_weightings: weights = torch.ones_like(weights)
+        if self.loss_factor == 0:
+            weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
+        #elif self.loss_factor == 1:
+        #    weights = self.diffusion.get_loss_weighting(eff_times=eff_times) / torch.pow(
+        #        torch.Tensor([self.ts_time_diff]).to(eff_times.device), 0.5)
+        elif not self.include_weightings:
+            weights = torch.ones_like(eff_times)
         return self._batch_loss_compute(outputs=weights * outputs, targets=weights * target_scores)
 
     def _run_epoch(self, epoch: int) -> list:
