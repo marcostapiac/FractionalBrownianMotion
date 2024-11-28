@@ -4,7 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from src.classes.ClassConditionalMarkovianDiffTrainer import ConditionalMarkovianWithPositionDiffusionModelTrainer
+from src.classes.ClassConditionalMarkovianWithPositionDiffTrainer import ConditionalMarkovianWithPositionDiffusionModelTrainer
 from src.generative_modelling.data_processing import train_and_save_recursive_diffusion_model, \
     recursive_markovian_reverse_sampling
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
