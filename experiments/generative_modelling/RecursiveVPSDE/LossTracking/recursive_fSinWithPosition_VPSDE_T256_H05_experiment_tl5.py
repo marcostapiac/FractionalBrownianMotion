@@ -4,9 +4,7 @@ import numpy as np
 import pandas as pd
 import torch
 
-from experiments.generative_modelling.RecursiveVPSDE.ParameterEstimation.PM.TS_single_model_drift_eval import \
-    TS_drift_eval
-from src.classes.ClassConditionalLSTMDiffTrainer import ConditionalLSTMDiffusionModelTrainer
+#from src.classes.ClassConditionalLSTMDiffTrainer import ConditionalLSTMDiffusionModelTrainer
 from src.classes.ClassConditionalLSTMWithPositionDiffTrainer import ConditionalLSTMWithPositionDiffusionModelTrainer
 from src.generative_modelling.data_processing import recursive_LSTM_reverse_sampling, \
     train_and_save_recursive_diffusion_model
@@ -32,7 +30,7 @@ if __name__ == "__main__":
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    init_experiment(config=config)
+    #init_experiment(config=config)
     end_epoch = max(config.max_epochs)
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))
@@ -42,7 +40,7 @@ if __name__ == "__main__":
             min(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 1200000))
         print(training_size)
         try:
-            data = np.load(config.data_path, allow_pickle=True)
+            data = np.load(config.data_path+"k", allow_pickle=True)
             assert (data.shape[0] >= training_size)
         except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
@@ -58,7 +56,6 @@ if __name__ == "__main__":
         train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel,
                                                  trainClass=ConditionalLSTMWithPositionDiffusionModelTrainer)
     cleanup_experiment()
-    TS_drift_eval()
     es = []
     for train_epoch in config.max_epochs:
         try:

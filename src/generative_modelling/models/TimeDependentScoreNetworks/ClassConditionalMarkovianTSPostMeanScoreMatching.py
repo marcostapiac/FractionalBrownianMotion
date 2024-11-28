@@ -107,16 +107,18 @@ class ResidualBlock(nn.Module):
 class CondUpsampler(nn.Module):
     def __init__(self, cond_length, target_dim):
         super().__init__()
-        self.linear1 = nn.Linear(cond_length, int(2 * target_dim), bias=False)
-        self.linear2 = nn.Linear(int(2 * target_dim), target_dim, bias=False)
+        self.linear1 = nn.Linear(cond_length, 20, bias=False)
+        self.linear2 = nn.Linear(20, int(2 * target_dim), bias=False)
+        self.linear3 = nn.Linear(int(2 * target_dim), target_dim, bias=False)
 
     def forward(self, x):
         x = self.linear1(x)
         x = F.leaky_relu(x, 0.4)
         x = self.linear2(x)
         x = F.leaky_relu(x, 0.4)
+        x = self.linear3(x)
+        x = F.leaky_relu(x, 0.4)
         return x
-
 
 class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
     def __init__(

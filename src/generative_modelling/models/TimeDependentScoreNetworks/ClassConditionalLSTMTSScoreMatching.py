@@ -187,6 +187,7 @@ class ConditionalLSTMTSScoreMatching(nn.Module):
         # Linear layer assumes dimension of conditioning vector to be in last dimension
         # This conditioner needs to be of shape (BatchSize, 1, NumFeatDims)
         cond_up = self.cond_upsampler(conditioner)
+        raise RuntimeError
         skip = []
         for layer in self.residual_layers:
             x, skip_connection = layer(x, conditioner=cond_up, diffusion_step=diffusion_step)
