@@ -469,7 +469,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                              snapshot_path=config.scoreNet_snapshot_path, device=device,
                              train_eps=train_eps,
                              end_diff_time=end_diff_time, max_diff_steps=max_diff_steps, to_weight=config.weightings,
-                             mkv_blnk=config.mkv_blnk, ts_data=ts_type,
+                             loss_factor=config.loss_factor,
                              hybrid_training=config.hybrid)
         # Start training
         trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
@@ -484,8 +484,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                  train_eps=train_eps,
                                  end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
                                  to_weight=config.weightings,
-                                 mkv_blnk=config.mkv_blnk, ts_data=ts_type, loss_factor=config.loss_factor,
-                                 ts_time_diff=1 / config.ts_length,
+                                 loss_factor=config.loss_factor,
                                  hybrid_training=config.hybrid)
             trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
         except (AttributeError, KeyError, TypeError) as e:
