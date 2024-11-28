@@ -159,7 +159,6 @@ class ConditionalMarkovianTSScoreMatching(nn.Module):
 
     def forward(self, inputs, times, conditioner):
         # inputs = inputs.unsqueeze(1)
-        conditioner = self.conditioner
         x = self.input_projection(inputs)
         x = F.leaky_relu(x, 0.01)
 
