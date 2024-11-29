@@ -93,7 +93,7 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
     stored_revSDE_paths = []
     prev_paths = []
     cumsamples = initial_feature_input
-    Xs = torch.linspace(-2, 2, steps=ts_length).unsqueeze(-1).unsqueeze(-1)
+    Xs = torch.linspace(-2, 2, steps=ts_length).unsqueeze(-1).unsqueeze(-1).to(device)
     for t in (range(ts_length)):
         prev_paths.append(cumsamples.cpu())
         print("Sampling at real time {}\n".format(t + 1))
