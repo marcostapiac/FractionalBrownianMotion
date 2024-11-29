@@ -135,9 +135,9 @@ def build_drift_estimator(diffusion, ts_step, diff_time_space, score_evals, exp_
     exp_drifts /= ts_step
     return drift_est.cpu(), exp_drifts.cpu()
 def TSPM_drift_eval():
-    from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H05_tl_5data import get_config as get_config_postmean
+    from configs.RecursiveVPSDE.recursive_PostMeanScore_fSin_T256_H05_tl_5data import get_config as get_config_postmean
     config_postmean = get_config_postmean()
-    init_experiment(config=config_postmean)
+    #init_experiment(config=config_postmean)
 
     num_simulated_paths = 500
     data_shape = (num_simulated_paths, 1, 1)
@@ -166,6 +166,7 @@ def TSPM_drift_eval():
     # Fix the number of training epochs and training loss objective loss
     PM = ConditionalLSTMTSPostMeanScoreMatching(*config_postmean.model_parameters).to(device)
     PM.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(Nepoch)))
+
     print(Nepoch, config_postmean.data_path, es, config_postmean.scoreNet_trained_path)
     # Fix the number of real times to run diffusion
     eval_ts_length = int(1.*config_postmean.ts_length)
