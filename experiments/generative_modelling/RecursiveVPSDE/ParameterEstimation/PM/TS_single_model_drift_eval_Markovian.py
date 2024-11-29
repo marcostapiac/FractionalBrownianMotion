@@ -159,7 +159,6 @@ def TS_drift_eval():
     ts_step = 1 / config_postmean.ts_length
 
     Nepoch = 960
-    assert (Nepoch == 12920)
     assert (config_postmean.max_diff_steps == 10000)
     es = 15
     if "fOU" in config_postmean.data_path:
