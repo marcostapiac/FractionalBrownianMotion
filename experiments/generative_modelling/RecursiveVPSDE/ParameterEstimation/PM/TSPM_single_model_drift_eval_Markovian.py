@@ -93,15 +93,13 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
     stored_revSDE_paths = []
     prev_paths = []
     cumsamples = initial_feature_input
+    Xs = torch.linspace(-2, 2, steps=ts_length).unsqueeze(-1).unsqueeze(-1)
     for t in (range(ts_length)):
         prev_paths.append(cumsamples.cpu())
         print("Sampling at real time {}\n".format(t + 1))
         scoreModel.eval()
-        with torch.no_grad():
-            if t == 0:
-                feature = initial_feature_input
-            else:
-                feature = cumsamples
+        feature = torch.stack([Xs[[t], :, :] for _ in range(data_shape[0])], dim=0)
+        assert (feature.shape == data_shape)
         new_samples, scores, exp_scores, revSDE_paths = single_time_sampling(config=config, data_shape=data_shape,
                                                                              diff_time_space=diff_time_scale,
                                                                              diffusion=diffusion, scoreModel=scoreModel,
