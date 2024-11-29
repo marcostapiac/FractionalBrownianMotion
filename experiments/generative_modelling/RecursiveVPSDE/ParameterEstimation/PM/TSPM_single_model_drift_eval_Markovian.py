@@ -104,7 +104,7 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
                                                                              diff_time_space=diff_time_scale,
                                                                              diffusion=diffusion, scoreModel=scoreModel,
                                                                              device=device, feature=feature,
-                                                                             prev_path=cumsamples, es=es
+                                                                             prev_path=feature, es=es
                                                                              , ts_step=ts_step)
         cumsamples = cumsamples + new_samples
         print(cumsamples.shape)
