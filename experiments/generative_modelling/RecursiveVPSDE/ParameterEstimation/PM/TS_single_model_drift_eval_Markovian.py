@@ -92,20 +92,18 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
     stored_revSDE_paths = []
     prev_paths = []
     cumsamples = initial_feature_input
+    Xs = torch.linspace(-2, 2, steps=ts_length).unsqueeze(-1).unsqueeze(-1).to(device)
     for t in (range(ts_length)):
         prev_paths.append(cumsamples.cpu())
         print("Sampling at real time {}\n".format(t + 1))
         scoreModel.eval()
-        with torch.no_grad():
-            if t == 0:
-                feature = initial_feature_input
-            else:
-                feature = cumsamples
+        feature = torch.stack([Xs[t, :, :] for _ in range(data_shape[0])], dim=0)
+        assert (feature.shape == data_shape)
         new_samples, scores, exp_scores, revSDE_paths = single_time_sampling(config=config, data_shape=data_shape,
                                                                              diff_time_space=diff_time_scale,
                                                                              diffusion=diffusion, scoreModel=scoreModel,
                                                                              device=device, feature=feature,
-                                                                             prev_path=cumsamples, es=es, ts_step=ts_step)
+                                                                             prev_path=feature, es=es, ts_step=ts_step)
         cumsamples = cumsamples + new_samples
         stored_scores.append(scores.unsqueeze(1))
         stored_expscores.append(exp_scores.unsqueeze(1))
@@ -160,7 +158,7 @@ def TS_drift_eval():
 
     Nepoch = 960
     assert (config_postmean.max_diff_steps == 10000)
-    es = 15
+    es = 0
     if "fOU" in config_postmean.data_path:
         save_path = \
                     (project_config.ROOT_DIR + f"experiments/results/TS_Markovian_ES{es}_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config_postmean.mean}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(
@@ -178,7 +176,7 @@ def TS_drift_eval():
     eval_ts_length = int(1. * config_postmean.ts_length)
     # Experiment for score model with fixed (Nepochs, loss scaling, drift eval time, Npaths simulated)
     initial_feature_input = torch.zeros(data_shape).to(device)
-    postMean_scores, postMean_expscores, postMean_revSDEpaths, postMean_prevPaths = run_whole_ts_recursive_diffusion(
+    postMean_scores, postMean_expscores, postMean_revSDEpaths, _ = run_whole_ts_recursive_diffusion(
         ts_length=eval_ts_length, config=config_postmean, initial_feature_input=initial_feature_input,
         diffusion=diffusion,
         scoreModel=PM, device=device, diff_time_scale=revDiff_time_scale, data_shape=data_shape, es=es, ts_step=ts_step)
@@ -192,7 +190,6 @@ def TS_drift_eval():
                                                   ts_step=ts_step, diff_time_space=diff_time_space)
     torch.save(drift_est, save_path + "_driftEst")
     torch.save(true_drift, save_path + "_driftTrue")
-    torch.save(postMean_prevPaths, save_path + "_prevPaths")
 
 
 if __name__ == "__main__":

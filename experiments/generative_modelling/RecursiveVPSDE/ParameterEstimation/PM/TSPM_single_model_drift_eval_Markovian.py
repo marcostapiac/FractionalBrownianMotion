@@ -162,7 +162,7 @@ def TSPM_drift_eval():
     ts_step = 1 / config_postmean.ts_length
 
     Nepoch = 960  # config_postmean.max_epochs[0]
-    es = 15
+    es = 0
     if "fOU" in config_postmean.data_path:
         save_path = \
             (
