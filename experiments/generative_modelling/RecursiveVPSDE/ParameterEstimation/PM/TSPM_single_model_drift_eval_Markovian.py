@@ -98,7 +98,7 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
         prev_paths.append(cumsamples.cpu())
         print("Sampling at real time {}\n".format(t + 1))
         scoreModel.eval()
-        feature = torch.stack([Xs[[t], :, :] for _ in range(data_shape[0])], dim=0)
+        feature = torch.stack([Xs[t, :, :] for _ in range(data_shape[0])], dim=0)
         print(feature.shape)
         assert (feature.shape == data_shape)
         new_samples, scores, exp_scores, revSDE_paths = single_time_sampling(config=config, data_shape=data_shape,
