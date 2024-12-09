@@ -141,7 +141,7 @@ def build_drift_estimator(diffusion, ts_step, diff_time_space, score_evals, exp_
     return drift_est.cpu(), exp_drifts.cpu()
 
 def TS_drift_eval():
-    from configs.RecursiveVPSDE.recursive_fSin_T256_H05_tl_5data import get_config as get_config_postmean
+    from configs.RecursiveVPSDE.recursive_fSinWithPosition_T256_H05_tl_5data import get_config as get_config_postmean
     config_postmean = get_config_postmean()
     init_experiment(config=config_postmean)
 
@@ -162,10 +162,10 @@ def TS_drift_eval():
     sample_eps = config_postmean.sample_eps
     ts_step = 1 / config_postmean.ts_length
 
-    Nepoch = 12920
+    Nepoch = 960
     assert (Nepoch == 12920)
     assert (config_postmean.max_diff_steps == 10000)
-    es = 8
+    es = 0
     if "fOU" in config_postmean.data_path:
         save_path = \
                     (project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config_postmean.mean}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(

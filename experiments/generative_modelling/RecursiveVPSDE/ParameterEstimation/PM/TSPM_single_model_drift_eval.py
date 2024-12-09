@@ -160,8 +160,10 @@ def TSPM_drift_eval():
     sample_eps = config_postmean.sample_eps
     ts_step = 1 / config_postmean.ts_length
 
-    Nepoch = 12920#config_postmean.max_epochs[0]
-    es = 15
+    Nepoch = 960#config_postmean.max_epochs[0]
+    es = 0
+    assert (config_postmean.max_diff_steps == 10000)
+
     if "fOU" in config_postmean.data_path:
         save_path = (project_config.ROOT_DIR + f"experiments/results/TSPM_ES{es}_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(".", "")
     elif "fSin" in config_postmean.data_path:
