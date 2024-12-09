@@ -105,7 +105,11 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
                                                                              device=device, feature=feature,
                                                                              prev_path=cumsamples, es=es,ts_step=ts_step)
         cumsamples = cumsamples + new_samples
-        print(cumsamples.shape)
+        ridx = torch.randint(low=0, high=int(new_samples.shape[0]), size=1)
+        new_samples = torch.cat([new_samples[[ridx], :, :] for _ in range(new_samples.shape[0])], dim=0)
+        scores = torch.cat([scores[[ridx], :, :] for _ in range(new_samples.shape[0])], dim=0)
+        exp_scores = torch.cat([exp_scores[[ridx], :, :] for _ in range(new_samples.shape[0])], dim=0)
+        revSDE_paths = torch.cat([revSDE_paths[[ridx], :, :] for _ in range(new_samples.shape[0])], dim=0)
         stored_scores.append(scores.unsqueeze(1))
         stored_expscores.append(exp_scores.unsqueeze(1))
         stored_revSDE_paths.append(revSDE_paths.unsqueeze(1))
