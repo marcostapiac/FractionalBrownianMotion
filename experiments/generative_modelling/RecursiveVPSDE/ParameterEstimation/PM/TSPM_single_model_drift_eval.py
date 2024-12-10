@@ -104,7 +104,6 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
                                                                              diffusion=diffusion, scoreModel=scoreModel,
                                                                              device=device, feature=feature,
                                                                              prev_path=cumsamples, es=es,ts_step=ts_step)
-        cumsamples = cumsamples + new_samples
         print(new_samples.shape, scores.shape, exp_scores.shape, revSDE_paths.shape)
         ridx = torch.randint(low=0, high=int(new_samples.shape[0]), size=(1,))
         new_samples = torch.cat([new_samples[[ridx], :, :] for _ in range(new_samples.shape[0])], dim=0)
@@ -115,6 +114,7 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
         stored_scores.append(scores.unsqueeze(1))
         stored_expscores.append(exp_scores.unsqueeze(1))
         stored_revSDE_paths.append(revSDE_paths.unsqueeze(1))
+        cumsamples = cumsamples + new_samples
     stored_scores = torch.concat(stored_scores, dim=1)
     # assert(stored_scores.shape == (data_shape[0], T, config.max_diff_steps))
     stored_expscores = torch.concat(stored_expscores, dim=1)
@@ -162,10 +162,9 @@ def TSPM_drift_eval():
     sample_eps = config_postmean.sample_eps
     ts_step = 1 / config_postmean.ts_length
 
-    Nepoch = 960#config_postmean.max_epochs[0]
-    es = 0
+    Nepoch = 12920#config_postmean.max_epochs[0]
+    es = 15
     assert (config_postmean.max_diff_steps == 10000)
-
     if "fOU" in config_postmean.data_path:
         save_path = (project_config.ROOT_DIR + f"experiments/results/TSPM_ES{es}_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(".", "")
     elif "fSin" in config_postmean.data_path:

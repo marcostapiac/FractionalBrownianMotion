@@ -165,9 +165,9 @@ def TS_drift_eval():
     sample_eps = config_postmean.sample_eps
     ts_step = 1 / config_postmean.ts_length
 
-    Nepoch = 960
+    Nepoch = 12920
     assert (config_postmean.max_diff_steps == 10000)
-    es = 0
+    es = 15
     if "fOU" in config_postmean.data_path:
         save_path = \
                     (project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config_postmean.mean}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(
