@@ -100,7 +100,7 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
             if t == 0:
                 feature, (h, c) = scoreModel.rnn(initial_feature_input, None)
             else:
-                feature, (h, c) = scoreModel.rnn(new_samples, (h, c))
+                feature, (h, c) = scoreModel.rnn(cumsamples, (h, c))
         new_samples, scores, exp_scores, revSDE_paths = single_time_sampling(config=config, data_shape=data_shape,
                                                                              diff_time_space=diff_time_scale,
                                                                              diffusion=diffusion, scoreModel=scoreModel,
