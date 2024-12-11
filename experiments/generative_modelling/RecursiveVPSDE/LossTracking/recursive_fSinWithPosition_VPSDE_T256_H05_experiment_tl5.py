@@ -3,8 +3,6 @@ import pickle
 import numpy as np
 import pandas as pd
 import torch
-
-#from src.classes.ClassConditionalLSTMDiffTrainer import ConditionalLSTMDiffusionModelTrainer
 from src.classes.ClassConditionalLSTMWithPositionDiffTrainer import ConditionalLSTMWithPositionDiffusionModelTrainer
 from src.generative_modelling.data_processing import recursive_LSTM_reverse_sampling, \
     train_and_save_recursive_diffusion_model

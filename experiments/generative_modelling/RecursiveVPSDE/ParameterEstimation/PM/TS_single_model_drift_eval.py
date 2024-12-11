@@ -7,9 +7,10 @@ import torch
 from tqdm import tqdm
 import os
 
-from src.classes.ClassConditionalLSTMWithPositionDiffTrainer import ConditionalLSTMWithPositionDiffusionModelTrainer
 from utils.data_processing import init_experiment
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSScoreMatching  import \
+    ConditionalLSTMTSScoreMatching
 
 
 def true_cond_mean(config, prev_path):
@@ -176,7 +177,7 @@ def TS_drift_eval():
 
     print(Nepoch, config_postmean.data_path, es, config_postmean.scoreNet_trained_path)
     # Fix the number of training epochs and training loss objective loss
-    PM = ConditionalLSTMWithPositionDiffusionModelTrainer(*config_postmean.model_parameters).to(device)
+    PM = ConditionalLSTMTSScoreMatching(*config_postmean.model_parameters).to(device)
     PM.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(Nepoch)))
     # Fix the number of real times to run diffusion
     eval_ts_length = int(1. * config_postmean.ts_length)
