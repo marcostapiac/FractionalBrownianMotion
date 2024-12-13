@@ -195,9 +195,8 @@ def TSPM_drift_eval():
                                                   Xtaus=postMean_revSDEpaths, ts_step=ts_step,
                                                   diff_time_space=diff_time_space)
     torch.save(drift_est, save_path + "_driftEst")
-    torch.save(true_drift, save_path + "_driftTrue")
     torch.save(postMean_prevPaths, save_path + "_prevPaths")
-
+    torch.save(true_drift, save_path + "_driftTrue")
 
 if __name__ == "__main__":
     TSPM_drift_eval()
