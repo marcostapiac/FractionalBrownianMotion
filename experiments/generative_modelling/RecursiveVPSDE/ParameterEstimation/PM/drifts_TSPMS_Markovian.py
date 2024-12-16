@@ -26,7 +26,7 @@ import matplotlib.pyplot as plt
 
 
 config = get_config()
-print(config.beta_min)
+print("Beta Min : ", config.beta_min)
 if config.has_cuda:
     device = int(os.environ["LOCAL_RANK"])
 else:
