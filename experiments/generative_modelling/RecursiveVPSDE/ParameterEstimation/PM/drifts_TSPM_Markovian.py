@@ -7,7 +7,7 @@
 #get_ipython().run_line_magic('load_ext', 'autoreload')
 #get_ipython().run_line_magic('autoreload', '2')
 
-from configs.RecursiveVPSDE.recursive_Markovian_PostMeanScaledScore_fSin_T256_H05_tl_5data import get_config as get_config
+from configs.RecursiveVPSDE.recursive_Markovian_PostMeanScore_fSin_T256_H05_tl_5data import get_config as get_config
 
 from configs import project_config
 import numpy as np
@@ -141,11 +141,11 @@ es = 0
 if "fOU" in config.data_path:
     save_path = \
         (
-                    project_config.ROOT_DIR + f"experiments/results/TSPMS_mkv_ES{es}_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
             ".", "")
 elif "fSin" in config.data_path:
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/TSPMS_mkv_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
+            project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
         ".", "")
 
 np.save(save_path + "_muhats.npy", mu_hats)
