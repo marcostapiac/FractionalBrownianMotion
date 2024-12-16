@@ -119,7 +119,7 @@ def plot_drift_estimator(mean, stds, numpy_Xs, type, toSave:bool = True):
 
 print(Xs.shape)
 try:
-    numpy_Xs = Xs.detach().numpy().flatten()
+    numpy_Xs = Xs.cpu().detach().numpy().flatten()
     #numpy_Xs = Xs[:,int(0.4*Xshape):int(0.6*Xshape)+1,:][:,:-1,:].numpy().flatten()
     #mu_hats = mu_hats[int(0.4*Xshape):int(0.6*Xshape),:,:]
 except (IndexError, AttributeError) as e:
