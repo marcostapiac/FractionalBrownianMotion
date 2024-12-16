@@ -132,6 +132,8 @@ class ConditionalPostMeanMarkovianDiffTrainer(nn.Module):
         beta_tau = torch.exp(-0.5 * eff_times)
         if self.loss_factor == 0:  # PM
             weights = (sigma_tau / beta_tau)
+        elif self.loss_factor == 1: # PMScaled (meaning not scaled)
+            weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
         return self._batch_loss_compute(outputs=weights * outputs, targets=weights * target_scores)
 
     def _run_epoch(self, epoch: int) -> list:
