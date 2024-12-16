@@ -7,9 +7,7 @@
 #get_ipython().run_line_magic('load_ext', 'autoreload')
 #get_ipython().run_line_magic('autoreload', '2')
 
-#from configs.RecursiveVPSDE.recursive_Markovian_PostMeanScaledScore_fSin_T256_H05_tl_5data import get_config as get_config
-#from configs.RecursiveVPSDE.recursive_Markovian_PostMeanScore_fSin_T256_H05_tl_5data import get_config as get_config
-from configs.RecursiveVPSDE.recursive_Markovian_fSinWithPosition_T256_H05_tl_5data import get_config as get_config
+from configs.RecursiveVPSDE.recursive_Markovian_PostMeanScaledScore_fSin_T256_H05_tl_5data import get_config as get_config
 
 from configs import project_config
 import numpy as np
@@ -19,8 +17,6 @@ from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching  import \
     ConditionalMarkovianTSPostMeanScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSScoreMatching import ConditionalMarkovianTSScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching  import \
-    ConditionalLSTMTSPostMeanScoreMatching
 from tqdm import tqdm
 
 import matplotlib.pyplot as plt
@@ -154,6 +150,7 @@ elif "fSin" in config.data_path:
 
 np.save(save_path + "_muhats.npy", mu_hats)
 np.save(save_path + "_numpyXs.npy", numpy_Xs)
+raise RuntimeError
 
 
 
