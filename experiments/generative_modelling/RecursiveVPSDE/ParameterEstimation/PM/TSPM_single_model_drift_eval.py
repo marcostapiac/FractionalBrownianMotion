@@ -141,7 +141,7 @@ def build_drift_estimator(diffusion, ts_step, diff_time_space, score_evals, exp_
 def TSPM_drift_eval():
     from configs.RecursiveVPSDE.recursive_PostMeanScore_fSin_T256_H05_tl_5data import get_config as get_config_postmean
     config_postmean = get_config_postmean()
-    #init_experiment(config=config_postmean)
+    init_experiment(config=config_postmean)
 
     num_simulated_paths = 500
     data_shape = (num_simulated_paths, 1, 1)
