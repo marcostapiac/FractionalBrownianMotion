@@ -91,7 +91,7 @@ for k in tqdm(range(num_taus)):
             Zts = Z_taus[i, :,:]
             Ss = scores[i,:,:]
             mu_hat = Zts/(ts_step*beta_taus) + ((torch.pow(sigma_taus, 2)+(torch.pow(beta_taus,2)*ts_step))/(ts_step*beta_taus))*Ss
-            mu_hats[i, difftime_idx, k] = mu_hat[0,0].detach().numpy()
+            mu_hats[i, difftime_idx, k] = mu_hat[0,0].cpu().detach().numpy()
         z = torch.randn_like(drift).to(device)
         Z_taus = drift + diffParam * z
         difftime_idx -= 1
