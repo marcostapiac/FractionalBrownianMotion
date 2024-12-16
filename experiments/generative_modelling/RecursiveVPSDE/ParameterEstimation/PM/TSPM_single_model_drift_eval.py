@@ -25,7 +25,6 @@ def single_time_sampling(config, data_shape,  diff_time_space, diffusion, featur
     exp_scores = []
     revSDE_paths = []
     assert (0 <= es <= 20)
-    es=9000
     for diff_index in tqdm(range(config.max_diff_steps)):
         if diff_index <= config.max_diff_steps - es:
 
