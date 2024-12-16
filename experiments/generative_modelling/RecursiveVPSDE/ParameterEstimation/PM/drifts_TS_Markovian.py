@@ -60,18 +60,18 @@ diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_ti
 mu_hats_mean = np.zeros((Xshape, num_taus))
 mu_hats_std = np.zeros((Xshape, num_taus))
 
-Xs = torch.linspace(-2, 2, steps=Xshape).unsqueeze(-1).unsqueeze(-1).permute(1,0,2)
+Xs = torch.linspace(-2, 2, steps=Xshape).unsqueeze(-1).unsqueeze(-1).permute(1,0,2).to(device)
 conditioner = torch.stack([Xs for _ in range(1)], dim=0).reshape(Xshape*1, 1, -1)
 B, T = Xshape, 1
 mu_hats = np.zeros((Xshape, num_diff_times, num_taus))  # Xvalues, DiffTimes, Ztaus
 PM.eval()
 for k in tqdm(range(num_taus)):
     difftime_idx = num_diff_times - 1
-    Z_taus = diffusion.prior_sampling(shape=(Xshape, 1, 1))
+    Z_taus = diffusion.prior_sampling(shape=(Xshape, 1, 1)).to(device)
     while difftime_idx >= 0:
-        d = diffusion_times[Ndiff_discretisation-(num_diff_times - 1 - difftime_idx)-1]
-        diff_times = torch.stack([d for _ in range(B)]).reshape(B*T, 1, -1).squeeze(-1).squeeze(-1).squeeze(-1)
-        eff_times = diffusion.get_eff_times(diff_times=diff_times).unsqueeze(-1).unsqueeze(-1)
+        d = diffusion_times[Ndiff_discretisation-(num_diff_times - 1 - difftime_idx)-1].to(device)
+        diff_times = torch.stack([d for _ in range(B)]).reshape(B*T, 1, -1).squeeze(-1).squeeze(-1).squeeze(-1).to(device)
+        eff_times = diffusion.get_eff_times(diff_times=diff_times).unsqueeze(-1).unsqueeze(-1).to(device)
         if k == 0 and difftime_idx < 100:
             print(d)
         with torch.no_grad():
@@ -85,17 +85,16 @@ for k in tqdm(range(num_taus)):
                                                                                           [int((num_diff_times - 1 - difftime_idx))]).to(device),
                                                                                       max_diff_steps=Ndiff_discretisation)
         #assert np.allclose((scores- predicted_score).detach(), 0)
-        beta_taus = torch.exp(-0.5 * eff_times[0,0,0])
-        sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5)
+        beta_taus = torch.exp(-0.5 * eff_times[0,0,0]).to(device)
+        sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
         for i in range(Xshape):
             Zts = Z_taus[i, :,:]
             Ss = scores[i,:,:]
             mu_hat = Zts/(ts_step*beta_taus) + ((torch.pow(sigma_taus, 2)+(torch.pow(beta_taus,2)*ts_step))/(ts_step*beta_taus))*Ss
-            mu_hats[i, difftime_idx, k] = mu_hat[0,0]
-        z = torch.randn_like(drift)
+            mu_hats[i, difftime_idx, k] = mu_hat[0,0].detach().numpy()
+        z = torch.randn_like(drift).to(device)
         Z_taus = drift + diffParam * z
         difftime_idx -= 1
-
 
 def plot_drift_estimator(mean, stds, numpy_Xs, type, toSave:bool = True):
     fig, ax = plt.subplots(figsize=(14,9))
@@ -120,7 +119,7 @@ def plot_drift_estimator(mean, stds, numpy_Xs, type, toSave:bool = True):
 
 print(Xs.shape)
 try:
-    numpy_Xs = Xs.numpy().flatten()
+    numpy_Xs = Xs.detach().numpy().flatten()
     #numpy_Xs = Xs[:,int(0.4*Xshape):int(0.6*Xshape)+1,:][:,:-1,:].numpy().flatten()
     #mu_hats = mu_hats[int(0.4*Xshape):int(0.6*Xshape),:,:]
 except (IndexError, AttributeError) as e:
