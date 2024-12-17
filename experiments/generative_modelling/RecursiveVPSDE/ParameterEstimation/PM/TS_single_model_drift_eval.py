@@ -142,49 +142,49 @@ def build_drift_estimator(diffusion, ts_step, diff_time_space, score_evals, exp_
     return drift_est.cpu(), exp_drifts.cpu()
 
 def TS_drift_eval():
-    from configs.RecursiveVPSDE.recursive_fSinWithPosition_T256_H05_tl_5data import get_config as get_config_postmean
-    config_postmean = get_config_postmean()
-    init_experiment(config=config_postmean)
+    from configs.RecursiveVPSDE.recursive_fSinWithPosition_T256_H05_tl_5data import get_config as get_config
+    config = get_config()
+    init_experiment(config=config)
 
     num_simulated_paths = 50
     data_shape = (num_simulated_paths, 1, 1)
 
-    if config_postmean.has_cuda:
+    if config.has_cuda:
         device = int(os.environ["LOCAL_RANK"])
     else:
         print("Using CPU\n")
         device = torch.device("cpu")
 
-    revDiff_time_scale = torch.linspace(start=config_postmean.end_diff_time, end=config_postmean.sample_eps,
-                                     steps=config_postmean.max_diff_steps).to(device)
-    diffusion = VPSDEDiffusion(beta_max=config_postmean.beta_max, beta_min=config_postmean.beta_min)
+    revDiff_time_scale = torch.linspace(start=config.end_diff_time, end=config.sample_eps,
+                                     steps=config.max_diff_steps).to(device)
+    diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    max_diff_steps = config_postmean.max_diff_steps
-    sample_eps = config_postmean.sample_eps
-    ts_step = 1 / config_postmean.ts_length
+    max_diff_steps = config.max_diff_steps
+    sample_eps = config.sample_eps
+    ts_step = 1 / config.ts_length
 
     Nepoch = 960
-    assert (config_postmean.max_diff_steps == 10000)
+    assert (config.max_diff_steps == 10000)
     es = 0
-    if "fOU" in config_postmean.data_path:
+    if "fOU" in config.data_path:
         save_path = \
-                    (project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config_postmean.mean}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(
+                    (project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
             ".", "")
-    elif "fSin" in config_postmean.data_path:
+    elif "fSin" in config.data_path:
         save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config_postmean.mean_rev}MeanRev_{config_postmean.max_diff_steps}DiffSteps").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
             ".", "")
 
-    print(Nepoch, config_postmean.data_path, es, config_postmean.scoreNet_trained_path)
+    print(Nepoch, config.data_path, es, config.scoreNet_trained_path)
     # Fix the number of training epochs and training loss objective loss
-    PM = ConditionalLSTMTSScoreMatching(*config_postmean.model_parameters).to(device)
-    PM.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(Nepoch)))
+    PM = ConditionalLSTMTSScoreMatching(*config.model_parameters).to(device)
+    PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
     # Fix the number of real times to run diffusion
-    eval_ts_length = int(1.3 * config_postmean.ts_length)
+    eval_ts_length = int(1.3 * config.ts_length)
     # Experiment for score model with fixed (Nepochs, loss scaling, drift eval time, Npaths simulated)
     initial_feature_input = torch.zeros(data_shape).to(device)
     postMean_scores, postMean_expscores, postMean_revSDEpaths, postMean_prevPaths = run_whole_ts_recursive_diffusion(
-        ts_length=eval_ts_length, config=config_postmean, initial_feature_input=initial_feature_input,
+        ts_length=eval_ts_length, config=config, initial_feature_input=initial_feature_input,
         diffusion=diffusion,
         scoreModel=PM, device=device, diff_time_scale=revDiff_time_scale, data_shape=data_shape, es=es, ts_step=ts_step)
 

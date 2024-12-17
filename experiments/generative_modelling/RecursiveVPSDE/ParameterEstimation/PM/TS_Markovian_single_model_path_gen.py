@@ -136,7 +136,7 @@ def TS_drift_eval():
     config_postmean = get_config_postmean()
     init_experiment(config=config_postmean)
 
-    num_simulated_paths = 50
+    num_simulated_paths = 10000
     data_shape = (num_simulated_paths, 1, 1)
 
     if config_postmean.has_cuda:
@@ -158,11 +158,11 @@ def TS_drift_eval():
     es = 0
     if "fOU" in config_postmean.data_path:
         save_path = \
-                    (project_config.ROOT_DIR + f"experiments/results/TS_mkv_ES{es}_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config_postmean.mean}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(
+                    (project_config.ROOT_DIR + f"experiments/results/TS_mkv_ES{es}_PathGen_{Nepoch}Nep_{config.loss_factor}LFactor_{config_postmean.mean}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(
             ".", "")
     elif "fSin" in config_postmean.data_path:
         save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TS_mkv_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config_postmean.mean_rev}MeanRev_{config_postmean.max_diff_steps}DiffSteps").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TS_mkv_ES{es}_fSin_PathGen_{Nepoch}Nep_{config.loss_factor}LFactor_{config_postmean.mean_rev}MeanRev_{config_postmean.max_diff_steps}DiffSteps").replace(
             ".", "")
 
     print(Nepoch, config_postmean.data_path, es, config_postmean.scoreNet_trained_path)
@@ -180,6 +180,7 @@ def TS_drift_eval():
 
     # Output shape is (NumPaths, NumRealTimes, NumDiffSteps)
     torch.save(postMean_scores, save_path + "_scores")
+    torch.save(postMean_scores, save_path + "_exp_scores")
     torch.save(postMean_revSDEpaths, save_path + "_paths")
 
 

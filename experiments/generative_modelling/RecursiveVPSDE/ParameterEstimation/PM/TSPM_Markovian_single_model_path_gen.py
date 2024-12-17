@@ -133,7 +133,7 @@ def TSPM_drift_eval():
     config_postmean = get_config_postmean()
     init_experiment(config=config_postmean)
 
-    num_simulated_paths = 50
+    num_simulated_paths = 10000
     data_shape = (num_simulated_paths, 1, 1)
 
     if config_postmean.has_cuda:
@@ -146,17 +146,16 @@ def TSPM_drift_eval():
                                      steps=config_postmean.max_diff_steps).to(device)
     diffusion = VPSDEDiffusion(beta_max=config_postmean.beta_max, beta_min=config_postmean.beta_min)
 
-    max_diff_steps = config_postmean.max_diff_steps
-    sample_eps = config_postmean.sample_eps
+
     ts_step = 1 / config_postmean.ts_length
 
     Nepoch = 960#config_postmean.max_epochs[0]
     es = 0
     assert (config_postmean.max_diff_steps == 10000)
     if "fOU" in config_postmean.data_path:
-        save_path = (project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(".", "")
+        save_path = (project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_PathGen_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean}Mean_{config_postmean.max_diff_steps}DiffSteps").replace(".", "")
     elif "fSin" in config_postmean.data_path:
-        save_path = (project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean_rev}MeanRev_{config_postmean.max_diff_steps}DiffSteps").replace(".", "")
+        save_path = (project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_fSin_PathGen_{Nepoch}Nep_{config_postmean.loss_factor}LFactor_{config_postmean.mean_rev}MeanRev_{config_postmean.max_diff_steps}DiffSteps").replace(".", "")
 
     # Fix the number of training epochs and training loss objective loss
     PM = ConditionalMarkovianTSPostMeanScoreMatching(*config_postmean.model_parameters).to(device)
@@ -173,6 +172,7 @@ def TSPM_drift_eval():
 
     # Output shape is (NumPaths, NumRealTimes, NumDiffSteps)
     torch.save(postMean_scores, save_path + "_scores")
+    torch.save(postMean_scores, save_path + "_exp_scores")
     torch.save(postMean_revSDEpaths, save_path + "_paths")
 
 
