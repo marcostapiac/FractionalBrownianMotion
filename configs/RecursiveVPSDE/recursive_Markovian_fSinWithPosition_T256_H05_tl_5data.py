@@ -38,7 +38,7 @@ def get_config():
 
     # Diffusion hyperparameters
     config.beta_max = 20.
-    config.beta_min = 0.0001#0.
+    config.beta_min = 0.
 
     # MLP Architecture parameters
     config.temb_dim = 64

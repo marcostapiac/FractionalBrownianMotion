@@ -128,15 +128,15 @@ else:
 print(type)
 
 es = 0
-assert(config.beta_min == 0.0001)
+
 if "fOU" in config.data_path:
     save_path = \
         (
-                    project_config.ROOT_DIR + f"experiments/results/TS_mkvOldBetaMin_ES{es}_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TS_mkv_ES{es}_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
             ".", "")
 elif "fSin" in config.data_path:
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/TS_mkvOldBetaMin_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
+            project_config.ROOT_DIR + f"experiments/results/TS_mkv_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
         ".", "")
 
 np.save(save_path + "_muhats.npy", mu_hats)
