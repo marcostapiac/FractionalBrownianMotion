@@ -203,6 +203,28 @@ def generate_fOU(H: float, T: int, S: int, isUnitInterval: bool, mean_rev: float
     return data
 
 
+def generate_3DLorenz(H: float, T: int, S: int, isUnitInterval: bool, initial_state: np.ndarray, beta: float,
+                      rho: float, sigma: float, diff: float):
+    assert (H == 0.5 and np.allclose(initial_state, 0.))
+    assert (diff == 1)
+    deltaT = 1. / T if isUnitInterval else 1.
+    X = initial_state[0] * np.ones(T + 1)
+    Y = initial_state[1] * np.ones(T + 1)
+    Z = initial_state[2] * np.ones(T + 1)
+    sample_paths = np.zeros((S, T, 3))
+    for s in range(S):
+        for i in tqdm(range(T)):
+            w1, w2, w3 = np.sqrt(deltaT) * np.random.normal(loc=0, scale=1, size=3)
+            X[i + 1] = X[i] + sigma * (Y[i] - X[i]) * deltaT + w1
+            Y[i + 1] = Y[i] + (X[i] * (rho - Z[i]) - Y[i]) * deltaT + w2
+            Z[i + 1] = Z[i] + (X[i] * Y[i] - beta * Z[i]) * deltaT + w3
+        sample_paths[s, :, 0] = X[1:]
+        sample_paths[s, :, 1] = Y[1:]
+        sample_paths[s, :, 2] = Z[1:]
+    assert (sample_paths.shape == (S, T, 3))
+    return sample_paths
+
+
 def generate_fSin(H: float, T: int, S: int, isUnitInterval: bool, mean_rev: float, diff: float,
                   initial_state: float,
                   rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:

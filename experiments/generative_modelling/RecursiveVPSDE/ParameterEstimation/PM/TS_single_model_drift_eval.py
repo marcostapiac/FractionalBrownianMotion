@@ -180,7 +180,7 @@ def TS_drift_eval():
     PM = ConditionalLSTMTSScoreMatching(*config_postmean.model_parameters).to(device)
     PM.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp" + str(Nepoch)))
     # Fix the number of real times to run diffusion
-    eval_ts_length = int(1. * config_postmean.ts_length)
+    eval_ts_length = int(1.3 * config_postmean.ts_length)
     # Experiment for score model with fixed (Nepochs, loss scaling, drift eval time, Npaths simulated)
     initial_feature_input = torch.zeros(data_shape).to(device)
     postMean_scores, postMean_expscores, postMean_revSDEpaths, postMean_prevPaths = run_whole_ts_recursive_diffusion(

@@ -178,6 +178,6 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
         x = self.output_projection(x)
         # For VPSDE only
         beta_tau = torch.exp(-0.5 * eff_times)
-        sigma_tau = (1. - torch.exp(-eff_times))
+        sigma2_tau = (1. - torch.exp(-eff_times))
         # Network tries to learn the posterior mean
-        return -inputs / sigma_tau + (beta_tau / sigma_tau) * x
+        return -inputs / sigma2_tau + (beta_tau / sigma2_tau) * x
