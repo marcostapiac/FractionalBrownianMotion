@@ -27,7 +27,7 @@ if __name__ == "__main__":
     es = []
     for train_epoch in config.max_epochs:
         config.early_stop_idx = 5
-        sampling_models = ["CondAncestral","CondProbODE"]
+        sampling_models = ["CondAncestral", "CondProbODE"]
         for sampling_model in sampling_models:
             try:
                 scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(train_epoch)))

@@ -10,13 +10,13 @@ import scipy
 import torch
 from tqdm import tqdm
 
+from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H05_tl_5data import get_config as get_config_postmean
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
     ConditionalLSTMTSPostMeanScoreMatching
 
 # In[2]:
 
-from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H05_tl_5data import get_config as get_config_postmean
 config_postmean = get_config_postmean()
 
 rng = np.random.default_rng()
@@ -42,7 +42,8 @@ PM_960.load_state_dict(torch.load(config_postmean.scoreNet_trained_path + "_NEp"
 
 
 # Generate value of path at time "t" by running reverse diffusion
-def single_time_sampling(config, drift_eval_diff_time, diff_time_space, diffusion, feature, scoreModel, device, prev_path):
+def single_time_sampling(config, drift_eval_diff_time, diff_time_space, diffusion, feature, scoreModel, device,
+                         prev_path):
     x = diffusion.prior_sampling(shape=data_shape).to(device)  # Move to correct device
     scores = []
     exp_scores = []
@@ -51,7 +52,7 @@ def single_time_sampling(config, drift_eval_diff_time, diff_time_space, diffusio
         tau = diff_time_space[diff_index] * torch.ones((data_shape[0],)).to(device)
         try:
             scoreModel.eval()
-            if diff_index == drift_eval_diff_time-1 or diff_index == drift_eval_diff_time:
+            if diff_index == drift_eval_diff_time - 1 or diff_index == drift_eval_diff_time:
                 with torch.no_grad():
                     tau = tau * torch.ones((x.shape[0],)).to(device)
                     predicted_score = scoreModel.forward(x, conditioner=feature, times=tau)
@@ -61,7 +62,7 @@ def single_time_sampling(config, drift_eval_diff_time, diff_time_space, diffusio
                     predicted_score = scoreModel.forward(x, conditioner=feature, times=tau)
         except TypeError as e:
             scoreModel.eval()
-            if diff_index == drift_eval_diff_time-1 or diff_index == drift_eval_diff_time:
+            if diff_index == drift_eval_diff_time - 1 or diff_index == drift_eval_diff_time:
                 with torch.no_grad():
                     tau = tau * torch.ones((x.shape[0],)).to(device)
                     eff_times = diffusion.get_eff_times(diff_times=tau)
@@ -217,7 +218,7 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
     sigma_taus = 1. - beta_2_taus
     data_means = (ts_step * -1 * mean_rev * prev_paths)[:, :, np.newaxis]
     # Plot histograms for every 100 diffusion times
-    for t in range(2,ts_length):
+    for t in range(2, ts_length):
         data_mean_t = data_means[:, t, :]
         expmeanrev = np.exp(-config.mean_rev * t)
         exp_mean = config.mean * (1. - expmeanrev)
@@ -233,15 +234,15 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
             mean = beta_taus_tau * data_mean_t
             std = np.sqrt(sigma_tau_tau + beta_taus_tau * beta_taus_tau * ts_step)
             rvs = np.random.normal(loc=mean, scale=std)
-            plt.hist(rvs, bins=150, density=True,alpha=0.5, label="Expected")
-            plt.hist(revSDE_paths[:, t, diffidx], density=True, alpha=0.5,bins=150, label="Simulated")
+            plt.hist(rvs, bins=150, density=True, alpha=0.5, label="Expected")
+            plt.hist(revSDE_paths[:, t, diffidx], density=True, alpha=0.5, bins=150, label="Simulated")
             plt.title(f"Histogram of Diffused Samples at Real Time {t + 1} and RevDiff Time {diffidx}")
             plt.legend()
             plt.show()
             plt.close()
             # Also plot their histogram against the expected data distribution at that particular time
-            plt.hist(exp_rvs, bins=150, density=True, alpha=0.5,label="Expected")
-            plt.hist(revSDE_paths[:, t, diffidx], density=True,alpha=0.5, bins=150, label="Simulated")
+            plt.hist(exp_rvs, bins=150, density=True, alpha=0.5, label="Expected")
+            plt.hist(revSDE_paths[:, t, diffidx], density=True, alpha=0.5, bins=150, label="Simulated")
             plt.title(f"Histogram against Data Distribution at Real Time {t + 1} and RevDiff Time {diffidx}")
             plt.legend()
             plt.show()
@@ -249,12 +250,12 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
 
             # Plot the reverse diffusion drift
     g2 = (diffusion.get_beta_min().cpu().numpy() + (
-                diffusion.get_beta_max().cpu().numpy() - diffusion.get_beta_min().cpu().numpy()) * diff_time_space)[
+            diffusion.get_beta_max().cpu().numpy() - diffusion.get_beta_min().cpu().numpy()) * diff_time_space)[
          np.newaxis, np.newaxis, :]
     rev_drift = g2 * scores
     rev_exp_drift = g2 * exp_scores
     rev_drift_mse = np.mean(np.power(rev_drift - rev_exp_drift, 2), axis=0)
-    for t in range(3,ts_length):
+    for t in range(3, ts_length):
         plt.plot(diff_time_space, rev_drift_mse[t, :], label=modeltype)
         plt.title(f"RevDiffDrift MSE at real time {t + 1}")
         plt.legend()
@@ -292,7 +293,7 @@ def analyse_score_models(config, ts_length, max_diff_steps, sample_eps, diffusio
                           Xtaus=revSDE_paths, prev_paths=prev_paths)
     score_hist = np.atleast_3d([np.atleast_2d(
         [np.histogram(scores[:, t, diffidx].flatten(), bins=150, density=True)[0] for diffidx in range(max_diff_steps)])
-                                for t in range(ts_length)]).transpose((2, 0, 1))
+        for t in range(ts_length)]).transpose((2, 0, 1))
     exp_score_hist = np.atleast_3d([np.atleast_2d(
         [np.histogram(exp_scores[:, t, diffidx].flatten(), bins=150, density=True)[0] for diffidx in
          range(max_diff_steps)]) for t in range(ts_length)]).transpose((2, 0, 1))
