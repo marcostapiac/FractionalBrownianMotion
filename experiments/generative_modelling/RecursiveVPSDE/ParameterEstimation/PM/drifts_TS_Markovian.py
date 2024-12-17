@@ -14,8 +14,6 @@ import numpy as np
 import torch
 import os
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching  import \
-    ConditionalMarkovianTSPostMeanScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSScoreMatching import ConditionalMarkovianTSScoreMatching
 from tqdm import tqdm
 
@@ -41,10 +39,7 @@ ts_step = 1 / config.ts_length
 
 Nepoch = 960#config.max_epochs[0]
 # Fix the number of training epochs and training loss objective loss
-if "PM" in config.scoreNet_trained_path:
-    PM = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters).to(device)
-else:
-    PM = ConditionalMarkovianTSScoreMatching(*config.model_parameters).to(device)
+PM = ConditionalMarkovianTSScoreMatching(*config.model_parameters).to(device)
 PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
 
 
@@ -75,10 +70,7 @@ for k in tqdm(range(num_taus)):
         if k == 0 and difftime_idx < 100:
             print(d)
         with torch.no_grad():
-            if "PM" in config.scoreNet_trained_path:
-                predicted_score = PM.forward(inputs=Z_taus, times=diff_times, conditioner=conditioner, eff_times=eff_times)
-            else:
-                predicted_score = PM.forward(inputs=Z_taus, times=diff_times, conditioner=conditioner)
+            predicted_score = PM.forward(inputs=Z_taus, times=diff_times, conditioner=conditioner)
             scores, drift, diffParam = diffusion.get_conditional_reverse_diffusion(x=Z_taus,
                                                                                       predicted_score=predicted_score,
                                                                                       diff_index=torch.Tensor(
@@ -136,15 +128,15 @@ else:
 print(type)
 
 es = 0
-
+assert(config.beta_min == 0.0001)
 if "fOU" in config.data_path:
     save_path = \
         (
-                    project_config.ROOT_DIR + f"experiments/results/TS_mkv_ES{es}_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TS_mkvOldBetaMin_ES{es}_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
             ".", "")
 elif "fSin" in config.data_path:
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/TS_mkv_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
+            project_config.ROOT_DIR + f"experiments/results/TS_mkvOldBetaMin_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{0}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
         ".", "")
 
 np.save(save_path + "_muhats.npy", mu_hats)
