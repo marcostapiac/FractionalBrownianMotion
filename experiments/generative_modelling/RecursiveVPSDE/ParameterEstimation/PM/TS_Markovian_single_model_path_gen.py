@@ -62,7 +62,7 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
 
 # Generate sample paths from [0, ts_length]
 def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, diffusion, scoreModel, device,
-                                     diff_time_scale, data_shape, es, ts_step):
+                                     diff_time_scale, data_shape, es):
     paths = []
     cumsamples = initial_feature_input
     for t in (range(ts_length)):
@@ -123,7 +123,7 @@ def TS_drift_eval():
         paths = run_whole_ts_recursive_diffusion(
             ts_length=eval_ts_length, config=config, initial_feature_input=initial_feature_input,
             diffusion=diffusion,
-            scoreModel=PM, device=device, diff_time_scale=revDiff_time_scale, data_shape=data_shape)
+            scoreModel=PM, device=device, diff_time_scale=revDiff_time_scale, data_shape=data_shape, es=es)
 
         # Output shape is (NumPaths, NumRealTimes, NumDiffSteps)
         torch.save(paths, save_path + "_paths")
