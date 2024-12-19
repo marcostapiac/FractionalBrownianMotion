@@ -31,7 +31,6 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
     x = diffusion.prior_sampling(shape=data_shape).to(device)  # Move to correct device
     for diff_index in tqdm(range(config.max_diff_steps)):
         if diff_index <= config.max_diff_steps - es - 1:
-
             tau = diff_time_space[diff_index] * torch.ones((data_shape[0],)).to(device)
             try:
                 scoreModel.eval()
@@ -101,7 +100,7 @@ def TSPM_drift_eval():
 
 
     Nepoch = 960
-    for es in [0, 10, 100, 200]:
+    for es in [50, 150]:
         assert (config.max_diff_steps == 10000)
         if "fOU" in config.data_path:
             save_path = (
