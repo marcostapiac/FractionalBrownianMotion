@@ -100,7 +100,7 @@ def TSPM_drift_eval():
 
 
     Nepoch = 960
-    for es in [50, 150]:
+    for es in [5, 20]:
         assert (config.max_diff_steps == 10000)
         if "fOU" in config.data_path:
             save_path = (
