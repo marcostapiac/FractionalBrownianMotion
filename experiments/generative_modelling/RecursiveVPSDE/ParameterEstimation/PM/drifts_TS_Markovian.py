@@ -24,6 +24,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 
 
 config = get_config()
+assert (config.max_diff_steps == 1000 and config.beta_min == 0.)
 print("Beta Min : ", config.beta_min)
 if config.has_cuda:
     device = int(os.environ["LOCAL_RANK"])
@@ -133,7 +134,6 @@ else:
 print(type)
 
 es = 0
-
 if "fOU" in config.data_path:
     save_path = \
         (
