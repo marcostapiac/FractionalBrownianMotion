@@ -100,7 +100,7 @@ def TS_drift_eval():
 
 
     Nepoch = 960
-    assert (config.max_diff_steps == 1000 and config.beta_min == 0,)
+    assert (config.max_diff_steps == 1000 and config.beta_min == 0.)
     for es in [0,3,5,7,10,15,20]: #0, 10, 100, 200, 5, 20, 50, 150
         if "fOU" in config.data_path:
             save_path = \
