@@ -100,8 +100,8 @@ def TSPM_drift_eval():
 
 
     Nepoch = 960
-    for es in [5, 20]:
-        assert (config.max_diff_steps == 10000)
+    assert (config.max_diff_steps == 1000 and config.beta_min == 0,)
+    for es in [0, 3, 5, 7, 10, 15, 20]:  # 0, 10, 100, 200, 5, 20, 50, 150
         if "fOU" in config.data_path:
             save_path = (
                         project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_PathGen_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
