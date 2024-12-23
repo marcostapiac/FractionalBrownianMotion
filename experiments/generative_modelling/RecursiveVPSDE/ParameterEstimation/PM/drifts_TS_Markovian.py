@@ -47,8 +47,9 @@ PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch
 
 
 Xshape = config.ts_length
-num_taus = 50
+num_taus = 500
 num_diff_times = 1000
+assert (num_diff_times * num_taus == 500000)
 Ndiff_discretisation = config.max_diff_steps
 diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_time,
                                  steps=Ndiff_discretisation).to(device)
