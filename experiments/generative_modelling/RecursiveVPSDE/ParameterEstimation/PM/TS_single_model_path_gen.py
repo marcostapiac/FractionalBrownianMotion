@@ -5,8 +5,8 @@ from tqdm import tqdm
 
 from configs import project_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTSScoreMatching import \
-    ConditionalTSScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSScoreMatching import \
+    ConditionalLSTMTSScoreMatching
 from utils.data_processing import init_experiment
 
 
@@ -109,7 +109,7 @@ def TS_drift_eval():
 
         print(Nepoch, config.data_path, es, config.scoreNet_trained_path)
         # Fix the number of training epochs and training loss objective loss
-        PM = ConditionalTSScoreMatching(*config.model_parameters).to(device)
+        PM = ConditionalLSTMTSScoreMatching(*config.model_parameters).to(device)
         PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
         # Fix the number of real times to run diffusion
         eval_ts_length = int(1.3 * config.ts_length)
