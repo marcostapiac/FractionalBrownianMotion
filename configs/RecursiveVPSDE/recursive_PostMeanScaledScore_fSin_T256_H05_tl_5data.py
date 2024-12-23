@@ -26,7 +26,7 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = [960, 1440]#, 1920, 2920, 6920, 12920]
+    config.max_epochs = [960, 1440]  # , 1920, 2920, 6920, 12920]
     config.batch_size = 256
     config.isfBm = True
     config.isUnitInterval = True
@@ -38,7 +38,7 @@ def get_config():
 
     # Diffusion hyperparameters
     config.beta_max = 20.
-    config.beta_min = 0.#0.0001
+    config.beta_min = 0.  # 0.0001
 
     # MLP Architecture parameters
     config.temb_dim = 64

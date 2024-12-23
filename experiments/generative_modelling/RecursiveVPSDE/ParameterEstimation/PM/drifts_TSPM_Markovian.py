@@ -86,7 +86,7 @@ for k in tqdm(range(num_taus)):
                                                                                    predicted_score=predicted_score,
                                                                                    diff_index=torch.Tensor(
                                                                                        [int((
-                                                                                                        num_diff_times - 1 - difftime_idx))]).to(
+                                                                                               num_diff_times - 1 - difftime_idx))]).to(
                                                                                        device),
                                                                                    max_diff_steps=Ndiff_discretisation)
         # assert np.allclose((scores- predicted_score).detach(), 0)
@@ -96,7 +96,7 @@ for k in tqdm(range(num_taus)):
             Zts = Z_taus[i, :, :]
             Ss = scores[i, :, :]
             mu_hat = Zts / (ts_step * beta_taus) + (
-                        (torch.pow(sigma_taus, 2) + (torch.pow(beta_taus, 2) * ts_step)) / (ts_step * beta_taus)) * Ss
+                    (torch.pow(sigma_taus, 2) + (torch.pow(beta_taus, 2) * ts_step)) / (ts_step * beta_taus)) * Ss
             mu_hats[i, difftime_idx, k] = mu_hat[0, 0].cpu().detach().numpy()
         z = torch.randn_like(drift).to(device)
         Z_taus = drift + diffParam * z

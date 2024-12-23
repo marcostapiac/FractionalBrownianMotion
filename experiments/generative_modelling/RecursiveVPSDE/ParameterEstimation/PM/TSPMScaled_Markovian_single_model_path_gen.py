@@ -1,11 +1,3 @@
-from configs import project_config
-import torch
-from tqdm import tqdm
-import os
-from utils.data_processing import init_experiment
-from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
-    ConditionalMarkovianTSPostMeanScoreMatching
 import os
 
 import torch
@@ -29,7 +21,7 @@ def true_cond_mean(config, prev_path):
 def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature, scoreModel, device, es):
     x = diffusion.prior_sampling(shape=data_shape).to(device)  # Move to correct device
     for diff_index in tqdm(range(config.max_diff_steps)):
-        if diff_index <= config.max_diff_steps - es -1:
+        if diff_index <= config.max_diff_steps - es - 1:
             tau = diff_time_space[diff_index] * torch.ones((data_shape[0],)).to(device)
             try:
                 scoreModel.eval()
@@ -45,10 +37,10 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
                     predicted_score = scoreModel.forward(x, conditioner=feature, times=tau, eff_times=eff_times)
 
             _, drift, diffParam = diffusion.get_conditional_reverse_diffusion(x=x,
-                                                                                  predicted_score=predicted_score,
-                                                                                  diff_index=torch.Tensor(
-                                                                                      [int(diff_index)]).to(device),
-                                                                                  max_diff_steps=config.max_diff_steps)
+                                                                              predicted_score=predicted_score,
+                                                                              diff_index=torch.Tensor(
+                                                                                  [int(diff_index)]).to(device),
+                                                                              max_diff_steps=config.max_diff_steps)
             z = torch.randn_like(drift)
             x = drift + diffParam * z
         else:
@@ -61,7 +53,6 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
 # Generate sample paths from [0, ts_length]
 def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, diffusion, scoreModel, device,
                                      diff_time_scale, data_shape, es):
-
     paths = []
     cumsamples = initial_feature_input
     for t in (range(ts_length)):
@@ -69,15 +60,14 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
         print("Sampling at real time {}\n".format(t + 1))
         scoreModel.eval()
         new_samples = single_time_sampling(config=config, data_shape=data_shape,
-                                                               diff_time_space=diff_time_scale,
-                                                               diffusion=diffusion, scoreModel=scoreModel,
-                                                               device=device, feature=cumsamples,es=es)
+                                           diff_time_space=diff_time_scale,
+                                           diffusion=diffusion, scoreModel=scoreModel,
+                                           device=device, feature=cumsamples, es=es)
 
         cumsamples = cumsamples + new_samples
     paths.append(cumsamples.cpu())
     paths = torch.concat(paths, dim=1).squeeze(-1)
     return paths.cpu()
-
 
 
 def TSPM_drift_eval():
@@ -98,14 +88,13 @@ def TSPM_drift_eval():
                                         steps=config.max_diff_steps).to(device)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-
     Nepoch = 960
     assert (config.max_diff_steps == 1000 and config.beta_min == 0.)
     for es in [0, 3, 5, 7, 10, 15, 20]:  # 0, 10, 100, 200, 5, 20, 50, 150
         if "fOU" in config.data_path:
             save_path = \
                 (
-                            project_config.ROOT_DIR + f"experiments/results/TSPMS_mkv_ES{es}_PathGen_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
+                        project_config.ROOT_DIR + f"experiments/results/TSPMS_mkv_ES{es}_PathGen_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
                     ".", "")
         elif "fSin" in config.data_path:
             save_path = (

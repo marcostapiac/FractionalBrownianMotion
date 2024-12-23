@@ -27,7 +27,7 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
     revSDE_paths = []
     assert (0 <= es <= 20)
     for diff_index in tqdm(range(config.max_diff_steps)):
-        if diff_index <= config.max_diff_steps - es -1:
+        if diff_index <= config.max_diff_steps - es - 1:
             tau = diff_time_space[diff_index] * torch.ones((data_shape[0],)).to(device)
             try:
                 scoreModel.eval()
@@ -171,7 +171,7 @@ def TS_drift_eval():
     if "fOU" in config.data_path:
         save_path = \
             (
-                        project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
                 ".", "")
     elif "fSin" in config.data_path:
         save_path = (

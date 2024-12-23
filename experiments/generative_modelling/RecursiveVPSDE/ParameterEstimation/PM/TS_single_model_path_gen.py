@@ -1,14 +1,12 @@
 import os
 
-import os
-
 import torch
 from tqdm import tqdm
 
 from configs import project_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSScoreMatching import \
-    ConditionalMarkovianTSScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTSScoreMatching import \
+    ConditionalTSScoreMatching
 from utils.data_processing import init_experiment
 
 
@@ -62,10 +60,15 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
         paths.append(cumsamples.cpu())
         print("Sampling at real time {}\n".format(t + 1))
         scoreModel.eval()
+        with torch.no_grad():
+            if t == 0:
+                feature, (h, c) = scoreModel.rnn(initial_feature_input, None)
+            else:
+                feature, (h, c) = scoreModel.rnn(cumsamples, (h, c))
         new_samples = single_time_sampling(config=config, data_shape=data_shape,
                                            diff_time_space=diff_time_scale,
                                            diffusion=diffusion, scoreModel=scoreModel,
-                                           device=device, feature=cumsamples, es=es)
+                                           device=device, feature=feature, es=es)
 
         cumsamples = cumsamples + new_samples
     paths.append(cumsamples.cpu())
@@ -74,7 +77,7 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
 
 
 def TS_drift_eval():
-    from configs.RecursiveVPSDE.recursive_Markovian_fSinWithPosition_T256_H05_tl_5data import get_config as get_config
+    from configs.RecursiveVPSDE.recursive_fSinWithPosition_T256_H05_tl_5data import get_config as get_config
     config = get_config()
     init_experiment(config=config)
 
@@ -92,8 +95,8 @@ def TS_drift_eval():
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
     Nepoch = 960
-    assert (config.max_diff_steps == 1000 and config.beta_min == 0.)
-    for es in [0, 3, 5, 7, 10, 15, 20]:  # 0, 10, 100, 200, 5, 20, 50, 150
+    assert (config.max_diff_steps == 10000 and config.beta_min == 0.)
+    for es in [0, 5, 10, 20, 50, 100, 150, 200]:
         if "fOU" in config.data_path:
             save_path = \
                 (
@@ -106,7 +109,7 @@ def TS_drift_eval():
 
         print(Nepoch, config.data_path, es, config.scoreNet_trained_path)
         # Fix the number of training epochs and training loss objective loss
-        PM = ConditionalMarkovianTSScoreMatching(*config.model_parameters).to(device)
+        PM = ConditionalTSScoreMatching(*config.model_parameters).to(device)
         PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
         # Fix the number of real times to run diffusion
         eval_ts_length = int(1.3 * config.ts_length)

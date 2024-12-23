@@ -26,7 +26,7 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = [960, 1440]#1920, 2920, 6920, 12920]
+    config.max_epochs = [960, 1440]  # 1920, 2920, 6920, 12920]
     config.batch_size = 256
     config.isfBm = True
     config.isUnitInterval = True
@@ -38,7 +38,7 @@ def get_config():
 
     # Diffusion hyperparameters
     config.beta_max = 20.
-    config.beta_min = 0. #0.0001
+    config.beta_min = 0.  # 0.0001
 
     # MLP Architecture parameters
     config.temb_dim = 64
@@ -70,7 +70,7 @@ def get_config():
     config.model_choice = "TSM"
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
     config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.ts_dims,
-                                config.residual_layers,
+                               config.residual_layers,
                                config.residual_channels, config.dialation_length] \
         if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.ts_length,
                                               config.enc_shapes,
