@@ -99,11 +99,11 @@ def TSPM_drift_eval():
     for es in [0, 5, 10, 20, 50, 100, 150, 200]:
         if "fOU" in config.data_path:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_PathGen_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_ES{es}_PathGen_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
                 ".", "")
         elif "fSin" in config.data_path:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_fSin_PathGen_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_ES{es}_fSin_PathGen_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
                 ".", "")
 
         # Fix the number of training epochs and training loss objective loss

@@ -77,7 +77,7 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
 
 
 def TS_drift_eval():
-    from configs.RecursiveVPSDE.recursive_fSinWithPosition_T256_H05_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_fSinWithPosition_T256_H05_tl_5data import get_config as get_config
     config = get_config()
     init_experiment(config=config)
 
@@ -100,11 +100,11 @@ def TS_drift_eval():
         if "fOU" in config.data_path:
             save_path = \
                 (
-                        project_config.ROOT_DIR + f"experiments/results/TS_mkv_ES{es}_PathGen_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
+                        project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_PathGen_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
                     ".", "")
         elif "fSin" in config.data_path:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TS_mkv_ES{es}_fSin_PathGen_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_fSin_PathGen_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
                 ".", "")
 
         print(Nepoch, config.data_path, es, config.scoreNet_trained_path)
