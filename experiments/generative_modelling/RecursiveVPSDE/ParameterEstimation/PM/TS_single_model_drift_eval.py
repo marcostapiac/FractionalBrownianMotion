@@ -148,7 +148,7 @@ def TS_drift_eval():
     config = get_config()
     init_experiment(config=config)
 
-    num_simulated_paths = 50
+    num_simulated_paths = 500
     data_shape = (num_simulated_paths, 1, 1)
 
     if config.has_cuda:
@@ -166,7 +166,7 @@ def TS_drift_eval():
     ts_step = 1 / config.ts_length
 
     Nepoch = 960
-    assert (config.max_diff_steps == 10000)
+    assert (config.max_diff_steps == 1000)
     es = 0
     if "fOU" in config.data_path:
         save_path = \
