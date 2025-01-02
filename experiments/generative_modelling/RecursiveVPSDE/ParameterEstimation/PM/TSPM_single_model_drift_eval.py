@@ -149,7 +149,7 @@ def TSPM_drift_eval():
     config = get_config()
     init_experiment(config=config)
 
-    num_simulated_paths = 500
+    num_simulated_paths = 50
     data_shape = (num_simulated_paths, 1, 1)
 
     if config.has_cuda:
@@ -168,7 +168,7 @@ def TSPM_drift_eval():
 
     Nepoch = 960  # config.max_epochs[0]
     es = 0
-    assert (config.max_diff_steps == 1000)
+    assert (config.max_diff_steps == 10000)
     if "fOU" in config.data_path:
         save_path = (
                 project_config.ROOT_DIR + f"experiments/results/TSPM_ES{es}_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
