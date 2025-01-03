@@ -113,15 +113,15 @@ class ConditionalMarkovianWithPositionDiffusionModelTrainer(nn.Module):
         self.opt.zero_grad()
         B, T, D = xts.shape
         assert (features.shape[:2] == (B, T) and features.shape[-1] == D)
-        M = features.shape[2]
         # Reshaping concatenates vectors in dim=1
         xts = xts.reshape(B * T, 1, D)
         # Features is originally shaped (NumTimeSeries, TimeSeriesLength, LookBackWindow, TimeSeriesDim)
         # Reshape so that we have (NumTimeSeries*TimeSeriesLength, 1, LookBackWindow, TimeSeriesDim)
-        features = features.reshape(B * T, 1, M, D)
+        f        ##features = features.reshape(B * T, 1, 1, D)
         # Now reshape again into (NumTimeSeries*TimeSeriesLength, 1, LookBackWindow*TimeSeriesDim)
         # Note this is for the simplest implementation of CondUpsampler which is simply an MLP
-        features = features.reshape(B * T, 1, M * D, 1).permute((0, 1, 3, 2)).squeeze(2)
+        ##features = features.reshape(B * T, 1, 1 * D, 1).permute((0, 1, 3, 2)).squeeze(2)
+        features = features.reshape(B*T, 1, D)
         target_scores = target_scores.reshape(B * T, 1, -1)
         diff_times = diff_times.reshape(B * T)
         eff_times = eff_times.reshape(target_scores.shape)
