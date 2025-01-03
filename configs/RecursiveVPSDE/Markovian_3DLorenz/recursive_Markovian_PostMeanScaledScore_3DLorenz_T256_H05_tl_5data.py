@@ -12,7 +12,6 @@ def get_config():
 
     # Data set parameters
     config.hurst = 0.5
-    config.mean_rev = 1.
     # Classic chaotic behaviour
     config.ts_beta = 8 / 3
     config.ts_rho = 28.
@@ -20,8 +19,9 @@ def get_config():
     config.diffusion = 1.
     config.initState = 0.
     config.ts_length = 256
-    config.data_path = project_config.ROOT_DIR + "data/3DLnz_samples_H{}_T{}_{}Rev_{}Diff_{}Init".format(
-        str(config.hurst), config.ts_length, config.mean_rev, config.diffusion, config.initState).replace(
+    config.data_path = project_config.ROOT_DIR + "data/3DLnz_samples_H{}_T{}_{}Beta_{}Rho_{}Sigma_{}Diff_{}Init".format(
+        str(config.hurst), config.ts_length, config.ts_beta, config.ts_rho, config.ts_sigma, config.diffusion,
+        config.initState).replace(
         ".", "") + ".npy"
 
     # Training hyperparameters
@@ -63,13 +63,12 @@ def get_config():
         config.temb_dim,
         config.enc_shapes).replace(".", "")
 
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_markv_PMS_TSM_{}_incs_{}_unitIntv_3DLnz_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_DiffEmbSize{}_ResLay{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Wghts_{}_tl5".format(
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_markv_PMS_TSM_{}_incs_{}_unitIntv_3DLnz_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_DiffEmbSize{}_ResLay{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Wghts_tl5".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
-        config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings,
-        config.mean_rev).replace(".", "")
+        config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings).replace(".", "")
 
     config.model_choice = "TSM"
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
