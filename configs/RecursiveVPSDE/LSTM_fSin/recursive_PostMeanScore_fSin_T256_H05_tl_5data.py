@@ -22,7 +22,7 @@ def get_config():
 
     # Training hyperparameters
     config.train_eps = 1e-4
-    config.max_diff_steps = 10000  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
+    config.max_diff_steps = 1000  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
@@ -38,7 +38,7 @@ def get_config():
 
     # Diffusion hyperparameters
     config.beta_max = 20.
-    config.beta_min = 0.  # 0.0001
+    config.beta_min = 0.
 
     # MLP Architecture parameters
     config.temb_dim = 64
