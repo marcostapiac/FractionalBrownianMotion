@@ -17,7 +17,7 @@ def get_config():
     config.ts_rho = 28.
     config.ts_sigma = 10.
     config.diffusion = 1.
-    config.initState = 0.
+    config.initState = [0.,0.,0.]
     config.ts_length = 256
     config.data_path = project_config.ROOT_DIR + "data/3DLnz_samples_H{}_T{}_{}Beta_{}Rho_{}Sigma_{}Diff_{}Init".format(
         str(config.hurst), config.ts_length, config.ts_beta, config.ts_rho, config.ts_sigma, config.diffusion,
@@ -37,7 +37,7 @@ def get_config():
     config.hybrid = True
     config.weightings = True
     config.tdata_mult = 5
-    config.ts_dims = 1
+    config.ts_dims = 3
     config.loss_factor = 1
 
     # Diffusion hyperparameters

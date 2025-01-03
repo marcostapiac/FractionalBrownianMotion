@@ -45,7 +45,7 @@ if __name__ == "__main__":
             print("Error {}; generating synthetic data\n".format(e))
             data = generate_3DLorenz(T=config.ts_length, isUnitInterval=config.isUnitInterval, S=training_size,
                                      H=config.hurst, beta=config.ts_beta, rho=config.ts_rho, sigma=config.ts_sigma,
-                                     diff=config.ts_diff,
+                                     diff=config.diffusion,
                                      initial_state=config.initState)
             np.save(config.data_path, data)
         data = np.concatenate([data[:, [0]], np.diff(data, axis=1)], axis=1)
