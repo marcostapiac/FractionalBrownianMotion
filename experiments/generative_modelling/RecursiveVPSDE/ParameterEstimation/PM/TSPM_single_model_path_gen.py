@@ -96,8 +96,8 @@ def TSPM_drift_eval():
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
     Nepoch = 960
-    assert (config.max_diff_steps == 10000 and config.beta_min == 0.)
-    for es in [0, 5, 10, 20, 50, 100, 150, 200]:
+    assert (config.max_diff_steps == 1000 and config.beta_min == 0.)
+    for es in [0, 3, 5, 7, 10, 15, 20]:  # [0, 5, 10, 20, 50, 100, 150, 200]:
         if "fOU" in config.data_path:
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_ES{es}_PathGen_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
