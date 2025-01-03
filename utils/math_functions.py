@@ -200,7 +200,7 @@ def generate_fOU(H: float, T: int, S: int, isUnitInterval: bool, mean_rev: float
          for _ in range(S)]).reshape(
         (S, T+1))
     assert (data.shape == (S, T+1))
-    return data
+    return data[:, 1:]
 
 
 def generate_3DLorenz(H: float, T: int, S: int, isUnitInterval: bool, initial_state: np.ndarray, beta: float,
@@ -222,7 +222,7 @@ def generate_3DLorenz(H: float, T: int, S: int, isUnitInterval: bool, initial_st
         sample_paths[s, :, 1] = Y
         sample_paths[s, :, 2] = Z
     assert (sample_paths.shape == (S, T+1, 3))
-    return sample_paths
+    return sample_paths[:, 1:, :]
 
 
 def generate_fSin(H: float, T: int, S: int, isUnitInterval: bool, mean_rev: float, diff: float,
@@ -251,7 +251,7 @@ def generate_fSin(H: float, T: int, S: int, isUnitInterval: bool, mean_rev: floa
                                t0=t0, t1=t1) for _ in range(S)]).reshape(
         (S, T+1))
     assert (data.shape == (S, T+1))
-    return data
+    return data[:, 1:]
 
 
 def generate_CEV(H: float, T: int, S: int, alpha: float, sigmaX: float, muU: float, muX: float, X0: float,
@@ -274,7 +274,7 @@ def generate_CEV(H: float, T: int, S: int, alpha: float, sigmaX: float, muU: flo
     data = np.zeros((S, T+1))
     for i in tqdm(range(S)):
         data[i, :] = cevGen.state_simulation(H, T, 1. / T)  # Remove initial value at t=0
-    return data
+    return data[:, 1:]
 
 
 def reduce_to_fBn(timeseries: np.ndarray, reduce: bool) -> np.ndarray:
