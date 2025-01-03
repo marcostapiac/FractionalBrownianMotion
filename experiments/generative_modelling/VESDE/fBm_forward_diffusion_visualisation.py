@@ -67,8 +67,8 @@ def run(forward_config: ConfigDict) -> None:
                                                                                   round((
                                                                                                 i + 1) / forward_config.max_diff_steps,
                                                                                         5))
-            xlabel = "fBm Dimension {}".format(dim_pair[0] + 1)
-            ylabel = "fBm Dimension {}".format(dim_pair[1] + 1)
+            xlabel = "LSTM_fBm Dimension {}".format(dim_pair[0] + 1)
+            ylabel = "LSTM_fBm Dimension {}".format(dim_pair[1] + 1)
             if i == (forward_config.max_diff_steps - 1):
                 # We compare the final forward time samples with the p_{noise} we sample from.
                 cov = eff_time * torch.eye(2)

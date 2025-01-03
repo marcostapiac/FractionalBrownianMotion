@@ -18,7 +18,7 @@ if __name__ == "__main__":
     from configs.RecursiveVPSDE.recursive_fBm_T256_H03 import get_config
 
     config = get_config()
-    assert (0 < config.hurst < 1.)
+    assert (config.hurst == 0.3)
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 10)
 

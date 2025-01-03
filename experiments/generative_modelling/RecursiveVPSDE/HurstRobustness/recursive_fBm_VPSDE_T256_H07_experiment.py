@@ -15,10 +15,10 @@ from utils.math_functions import generate_fBn
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.recursive_fBm_T256_H07 import get_config
+    from configs.RecursiveVPSDE.LSTM_fBm.recursive_fBm_T256_H07 import get_config
 
     config = get_config()
-    assert (0 < config.hurst < 1.)
+    assert (config.hurst == 0.7)
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 10)
 

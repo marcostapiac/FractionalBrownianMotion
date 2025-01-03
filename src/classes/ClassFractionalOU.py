@@ -53,4 +53,4 @@ class FractionalOU:
             Ms = self.sample_increments(H=H, N=N, gaussRvs=self.gaussIncs, isUnitInterval=isUnitInterval)
         for i in range(1, N + 1):
             Zs.append(self.increment_state(prev=Zs[i - 1], deltaT=deltaT, M=Ms[i - 1]))
-        return np.array(Zs[1:])
+        return np.array(Zs)

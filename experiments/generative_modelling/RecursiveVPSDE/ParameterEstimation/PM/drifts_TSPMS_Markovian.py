@@ -12,11 +12,11 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
+from configs.RecursiveVPSDE.Markovian_fSin.recursive_Markovian_PostMeanScaledScore_fSin_T256_H05_tl_5data import \
+    get_config as get_config
 from tqdm import tqdm
 
 from configs import project_config
-from configs.RecursiveVPSDE.recursive_Markovian_PostMeanScaledScore_fSin_T256_H05_tl_5data import \
-    get_config as get_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
     ConditionalMarkovianTSPostMeanScoreMatching

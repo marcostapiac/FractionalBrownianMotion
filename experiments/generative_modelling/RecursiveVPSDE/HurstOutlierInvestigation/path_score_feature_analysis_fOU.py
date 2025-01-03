@@ -101,7 +101,7 @@ def path_score_feature_analysis() -> None:
                 bad_time = identify_jump_index(time_series=path, eps=1.1)
                 if bad_time is not None: bad_path_times[idx] = bad_time
                 plt.plot(lsp, path, label=(idx, round(bad_hs_1.loc[idx][0], 2)))
-            plt.title("fBm Low Hurst Paths")
+            plt.title("LSTM_fBm Low Hurst Paths")
             plt.legend()
             plt.xlabel("Time")
             plt.show()
@@ -116,7 +116,7 @@ def path_score_feature_analysis() -> None:
                 bad_time = identify_jump_index(time_series=path, eps=0.8)
                 if bad_time is not None: bad_path_times[idx] = bad_time
                 plt.plot(lsp, path, label=(idx, round(bad_hs_2.loc[idx][0], 2)))
-            plt.title("fBm High Hurst Paths")
+            plt.title("LSTM_fBm High Hurst Paths")
             plt.legend()
             plt.xlabel("Time")
             plt.show()
@@ -129,7 +129,7 @@ def path_score_feature_analysis() -> None:
             for idx in good_paths_df.index:
                 path = good_paths_df.loc[idx, :]
                 plt.plot(lsp, path, label=(idx, round(good_hs.loc[idx][0], 2)))
-            plt.title("fBm Good Hurst Paths")
+            plt.title("LSTM_fBm Good Hurst Paths")
             plt.legend()
             plt.xlabel("Time")
             plt.show()
@@ -333,7 +333,7 @@ def path_score_feature_analysis() -> None:
         # Now proceed to plot feature box plots over paths and times
         try:
             sns.boxplot(data=bad_feat_df_1)
-            plt.title("fBm Features for Under-estimated Hurst")
+            plt.title("LSTM_fBm Features for Under-estimated Hurst")
             plt.legend()
             plt.xlabel("Feature Dimension")
             plt.show()
@@ -341,7 +341,7 @@ def path_score_feature_analysis() -> None:
             pass
         try:
             sns.boxplot(data=bad_feat_df_2)
-            plt.title("fBm feature path for Over-estimated Hurst")
+            plt.title("LSTM_fBm feature path for Over-estimated Hurst")
             plt.legend()
             plt.xlabel("Feature Dimension")
             plt.show()
@@ -349,7 +349,7 @@ def path_score_feature_analysis() -> None:
             pass
         try:
             sns.boxplot(data=good_feat_df)
-            plt.title("fBm feature path for correct Hurst")
+            plt.title("LSTM_fBm feature path for correct Hurst")
             plt.legend()
             plt.xlabel("Feature Dimension")
             plt.show()
@@ -357,7 +357,7 @@ def path_score_feature_analysis() -> None:
             pass
         try:
             sns.boxplot(data=exact_feat_df_all)
-            plt.title("fBm feature path for exact Hurst")
+            plt.title("LSTM_fBm feature path for exact Hurst")
             plt.legend()
             plt.xlabel("Feature Dimension")
             plt.show()

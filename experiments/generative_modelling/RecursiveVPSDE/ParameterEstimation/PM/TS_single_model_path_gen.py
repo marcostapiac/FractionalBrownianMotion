@@ -30,6 +30,7 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
                     tau = tau * torch.ones((x.shape[0],)).to(device)
                     predicted_score = scoreModel.forward(x, conditioner=feature, times=tau)
             except TypeError as e:
+                print(e)
                 scoreModel.eval()
                 with torch.no_grad():
                     tau = tau * torch.ones((x.shape[0],)).to(device)
@@ -77,7 +78,7 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
 
 
 def TS_drift_eval():
-    from configs.RecursiveVPSDE.recursive_fSinWithPosition_T256_H05_tl_5data import get_config as get_config
+    from configs.RecursiveVPSDE.LSTM_fSin.recursive_fSinWithPosition_T256_H05_tl_5data import get_config as get_config
     config = get_config()
     init_experiment(config=config)
 
@@ -96,7 +97,7 @@ def TS_drift_eval():
 
     Nepoch = 960
     assert (config.max_diff_steps == 1000 and config.beta_min == 0.)
-    for es in [0,3,5,7,10,15,20]:#[0, 5, 10, 20, 50, 100, 150, 200]:
+    for es in [0, 3, 5, 7, 10, 15, 20]:  # [0, 5, 10, 20, 50, 100, 150, 200]:
         if "fOU" in config.data_path:
             save_path = \
                 (

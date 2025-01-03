@@ -554,9 +554,9 @@ def compare_against_isotropic_Gaussian(forward_samples: np.ndarray, td: int, dif
 
 def compare_fBm_to_approximate_fBm(generated_samples: np.ndarray, h: float, td: int, rng: np.random.Generator) -> None:
     """
-    Plot tSNE comparing final reverse-time diffusion fBm samples to fBm samples generated from approximate simulation
+    Plot tSNE comparing final reverse-time diffusion LSTM_fBm samples to LSTM_fBm samples generated from approximate simulation
     methods.
-        :param generated_samples: Exact fBm samples
+        :param generated_samples: Exact LSTM_fBm samples
         :param h: Hurst index
         :param td: Dimension of each sample
         :param rng: Random number generator
@@ -577,7 +577,7 @@ def compare_fBm_to_normal(h: float, generated_samples: np.ndarray, td: int, rng:
     """
     Plot tSNE comparing reverse-time diffusion samples to standard normal samples
         :param h: Hurst index.
-        :param generated_samples: Exact fBm samples
+        :param generated_samples: Exact LSTM_fBm samples
         :param td: Dimension of each sample
         :param rng: Random number generator
         :return: None

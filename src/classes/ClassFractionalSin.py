@@ -25,9 +25,11 @@ class FractionalSin:
                                         scaleUnitInterval=isUnitInterval)  # Scale over timescale included in circulant
         return incs
 
+    @staticmethod
     def lamperti(self, x: Union[np.ndarray, float]) -> Union[np.ndarray, float]:
         return None  # np.power(self.volVol, -1) * np.log(x / self.initialVol)
 
+    @staticmethod
     def inverse_lamperti(self, Z: np.ndarray):
         return None  # self.initialVol * np.exp(self.volVol * Z)
 
@@ -54,4 +56,4 @@ class FractionalSin:
             Ms = self.sample_increments(H=H, N=N, gaussRvs=self.gaussIncs, isUnitInterval=isUnitInterval)
         for i in range(1, N + 1):
             Zs.append(self.increment_state(prev=Zs[i - 1], time=time_ax[i - 1], deltaT=deltaT, M=Ms[i - 1]))
-        return np.array(Zs[1:])
+        return np.array(Zs)

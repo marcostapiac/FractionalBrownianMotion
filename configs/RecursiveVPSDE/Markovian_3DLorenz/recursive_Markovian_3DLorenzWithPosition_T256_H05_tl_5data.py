@@ -13,20 +13,24 @@ def get_config():
     # Data set parameters
     config.hurst = 0.5
     config.mean_rev = 1.
+    # Classic chaotic behaviour
+    config.ts_beta = 8/3
+    config.ts_rho = 28.
+    config.ts_sigma = 10.
     config.diffusion = 1.
     config.initState = 0.
     config.ts_length = 256
-    config.data_path = project_config.ROOT_DIR + "data/fSin_samples_H{}_T{}_{}Rev_{}Diff_{}Init".format(
+    config.data_path = project_config.ROOT_DIR + "data/3DLnz_samples_H{}_T{}_{}Rev_{}Diff_{}Init".format(
         str(config.hurst), config.ts_length, config.mean_rev, config.diffusion, config.initState).replace(
         ".", "") + ".npy"
 
     # Training hyperparameters
     config.train_eps = 1e-4
-    config.max_diff_steps = 10000  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
+    config.max_diff_steps = 1000  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = [20]  # 1920, 2920, 6920, 12920]
+    config.max_epochs = [960, 1440]  # , 1920, 2920, 6920, 12920]
     config.batch_size = 256
     config.isfBm = True
     config.isUnitInterval = True
@@ -38,7 +42,7 @@ def get_config():
 
     # Diffusion hyperparameters
     config.beta_max = 20.
-    config.beta_min = 0.0001
+    config.beta_min = 0.
 
     # MLP Architecture parameters
     config.temb_dim = 64
@@ -52,14 +56,14 @@ def get_config():
     config.dialation_length = 10
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_markv_PM_MLP_{}_incs_{}_unitIntv_fSin_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_TembDim{}_EncShapes{}_tl5".format(
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_MLP_{}_incs_{}_unitIntv_3DLnz_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_TembDim{}_EncShapes{}_tl5".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
         config.enc_shapes).replace(".", "")
 
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_markv_PM_TSM_{}_incs_{}_unitIntv_fSin_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_DiffEmbSize{}_ResLay{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Wghts_{}_tl5_Small".format(
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_markv_TSMWP_{}_incs_{}_unitIntv_3DLnz_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_DiffEmbSize{}_ResLay{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Wghts_{}_tl5".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
@@ -87,7 +91,7 @@ def get_config():
     config.snr = 0.
     config.predictor_model = "CondAncestral"
     config.corrector_model = "VP"  # vs "VE" vs "OUSDE"
-    config.param_time = 900
+    config.param_time = 100
 
     # Experiment evaluation parameters
     config.dataSize = 40000

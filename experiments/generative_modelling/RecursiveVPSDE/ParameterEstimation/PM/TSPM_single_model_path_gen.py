@@ -30,6 +30,7 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
                     tau = tau * torch.ones((x.shape[0],)).to(device)
                     predicted_score = scoreModel.forward(x, conditioner=feature, times=tau)
             except TypeError as e:
+                print(e)
                 scoreModel.eval()
                 with torch.no_grad():
                     tau = tau * torch.ones((x.shape[0],)).to(device)
@@ -77,7 +78,7 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
 
 
 def TSPM_drift_eval():
-    from configs.RecursiveVPSDE.recursive_PostMeanScore_fSin_T256_H05_tl_5data import get_config
+    from configs.RecursiveVPSDE.LSTM_fSin.recursive_PostMeanScore_fSin_T256_H05_tl_5data import get_config
     config = get_config()
     init_experiment(config=config)
 

@@ -68,8 +68,8 @@ def run(perfect_config: ConfigDict) -> None:
                                                                                round((
                                                                                              i + 1) / perfect_config.max_diff_steps,
                                                                                      5))
-            xlabel = "fBm Dimension {}".format(dim_pair[0] + 1)
-            ylabel = "fBm Dimension {}".format(dim_pair[1] + 1)
+            xlabel = "LSTM_fBm Dimension {}".format(dim_pair[0] + 1)
+            ylabel = "LSTM_fBm Dimension {}".format(dim_pair[1] + 1)
             cov = (1. - torch.exp(-eff_time)) * torch.eye(2) + torch.exp(-eff_time) * data_cov
             plot_and_save_diffused_fBm_snapshot(samples=xts, cov=cov, save_path=save_path, x_label=xlabel,
                                                 y_label=ylabel, plot_title=plot_title)

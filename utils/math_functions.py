@@ -175,7 +175,7 @@ def generate_fBm(H: float, T: int, S: int, isUnitInterval: bool,
         :param S: Number of samples
         :param rvs: Pre-computed Gaussian random variables
         :param isUnitInterval: Whether to scale samples to unit time interval.
-        :return: fBm samples
+        :return: LSTM_fBm samples
     """
     data = generate_fBn(H=H, T=T, S=S, rvs=rvs, isUnitInterval=isUnitInterval)
     return np.cumsum(data, axis=1)
@@ -191,15 +191,15 @@ def generate_fOU(H: float, T: int, S: int, isUnitInterval: bool, mean_rev: float
         :param S: Number of samples
         :param rvs: Pre-computed Gaussian random variables
         :param isUnitInterval: Whether to scale samples to unit time interval.
-        :return: fBm samples
+        :return: LSTM_fBm samples
     """
     deltaT = 1. / T if isUnitInterval else 1.
     fOU = FractionalOU(mean_rev=mean_rev, mean=mean, diff=diff, X0=initial_state)
     data = np.array(
         [fOU.euler_simulation(H=H, N=T, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=None, Ms=None, gaussRvs=rvs)
          for _ in range(S)]).reshape(
-        (S, T))
-    assert (data.shape == (S, T))
+        (S, T+1))
+    assert (data.shape == (S, T+1))
     return data
 
 
@@ -211,17 +211,17 @@ def generate_3DLorenz(H: float, T: int, S: int, isUnitInterval: bool, initial_st
     X = initial_state[0] * np.ones(T + 1)
     Y = initial_state[1] * np.ones(T + 1)
     Z = initial_state[2] * np.ones(T + 1)
-    sample_paths = np.zeros((S, T, 3))
+    sample_paths = np.zeros((S, T+1, 3))
     for s in range(S):
         for i in tqdm(range(T)):
             w1, w2, w3 = np.sqrt(deltaT) * np.random.normal(loc=0, scale=1, size=3)
             X[i + 1] = X[i] + sigma * (Y[i] - X[i]) * deltaT + w1
             Y[i + 1] = Y[i] + (X[i] * (rho - Z[i]) - Y[i]) * deltaT + w2
             Z[i + 1] = Z[i] + (X[i] * Y[i] - beta * Z[i]) * deltaT + w3
-        sample_paths[s, :, 0] = X[1:]
-        sample_paths[s, :, 1] = Y[1:]
-        sample_paths[s, :, 2] = Z[1:]
-    assert (sample_paths.shape == (S, T, 3))
+        sample_paths[s, :, 0] = X
+        sample_paths[s, :, 1] = Y
+        sample_paths[s, :, 2] = Z
+    assert (sample_paths.shape == (S, T+1, 3))
     return sample_paths
 
 
@@ -235,7 +235,7 @@ def generate_fSin(H: float, T: int, S: int, isUnitInterval: bool, mean_rev: floa
         :param S: Number of samples
         :param rvs: Pre-computed Gaussian random variables
         :param isUnitInterval: Whether to scale samples to unit time interval.
-        :return: fBm samples
+        :return: LSTM_fBm samples
     """
     if isUnitInterval:
         deltaT = 1. / T
@@ -249,8 +249,8 @@ def generate_fSin(H: float, T: int, S: int, isUnitInterval: bool, mean_rev: floa
     data = np.array(
         [fSin.euler_simulation(H=H, N=T, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=None, Ms=None, gaussRvs=rvs,
                                t0=t0, t1=t1) for _ in range(S)]).reshape(
-        (S, T))
-    assert (data.shape == (S, T))
+        (S, T+1))
+    assert (data.shape == (S, T+1))
     return data
 
 
@@ -271,17 +271,17 @@ def generate_CEV(H: float, T: int, S: int, alpha: float, sigmaX: float, muU: flo
         :return: CEV samples
     """
     cevGen = FractionalCEV(muU=muU, alpha=alpha, sigmaX=sigmaX, muX=muX, X0=X0, U0=U0, rng=rng)
-    data = np.zeros((S, T))
+    data = np.zeros((S, T+1))
     for i in tqdm(range(S)):
-        data[i, :] = cevGen.state_simulation(H, T, 1. / T)[1:]  # Remove initial value at t=0
+        data[i, :] = cevGen.state_simulation(H, T, 1. / T)  # Remove initial value at t=0
     return data
 
 
 def reduce_to_fBn(timeseries: np.ndarray, reduce: bool) -> np.ndarray:
     """
     Tranform samples of
-        :param timeseries: fBm/fBn samples
-        :param reduce: Indicates whether timeseries is fBm (True) or fBn (false)
+        :param timeseries: LSTM_fBm/fBn samples
+        :param reduce: Indicates whether timeseries is LSTM_fBm (True) or fBn (false)
         :return: fBn samples
     """
     T = timeseries.shape[1]

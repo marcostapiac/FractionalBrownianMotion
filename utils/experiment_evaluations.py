@@ -173,7 +173,7 @@ def prepare_fBm_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, VESD
                            scoreModel: Union[NaiveMLP, TSScoreMatching],
                            rng: np.random.Generator, config: ConfigDict) -> Union[NaiveMLP, TSScoreMatching]:
     """
-    Helper function to train and / or load necessary models for fBm experiments
+    Helper function to train and / or load necessary models for LSTM_fBm experiments
         :param diffusion: Diffusion model
         :param scoreModel: Score network
         :param rng: Default random number generator
@@ -231,7 +231,7 @@ def run_fBm_experiment(dataSize: int, diffusion: Union[OUSDEDiffusion, VPSDEDiff
                        scoreModel: Union[NaiveMLP, TSScoreMatching],
                        rng: np.random.Generator, config: ConfigDict) -> None:
     """
-    Run fBm experiment
+    Run LSTM_fBm experiment
         :param dataSize: Size of output data
         :param diffusion: Diffusion model
         :param scoreModel: Trained score network
@@ -353,7 +353,7 @@ def prepare_circle_experiment(diffusion: Union[OUSDEDiffusion, VPSDEDiffusion, V
                               scoreModel: Union[NaiveMLP, TSScoreMatching], config: ConfigDict) -> Union[
     NaiveMLP, TSScoreMatching]:
     """
-        Helper function to train and / or load necessary models for fBm experiments
+        Helper function to train and / or load necessary models for LSTM_fBm experiments
             :param diffusion: Diffusion model
             :param scoreModel: Score network
             :param config: ML experiment configuration file
@@ -692,8 +692,8 @@ def run_fBm_score(dataSize: int, dim_pair: torch.Tensor, scoreModel: Union[Naive
                                                                               max_diff_steps=config.max_diff_steps)
         if i % config.gif_save_freq == 0 or i == (config.max_diff_steps - 1):
             save_path = folderPath + gifPath + "_diffIndex_{}.png".format(i + 1)
-            xlabel = "fBm Dimension {}".format(dim_pair[0] + 1)
-            ylabel = "fBm Dimension {}".format(dim_pair[1] + 1)
+            xlabel = "LSTM_fBm Dimension {}".format(dim_pair[0] + 1)
+            ylabel = "LSTM_fBm Dimension {}".format(dim_pair[1] + 1)
             plot_title = "Rev-Time {} samples $T={}$ at time {}".format(diffType, config.ts_length, round((
                                                                                                                   i + 1) / config.max_diff_steps,
                                                                                                           5))
@@ -851,8 +851,8 @@ def run_fBm_perfect_score(dataSize: int, dim_pair: torch.Tensor,
             raise ValueError("Alternative to ancestral sampling has not been implemented\n")
         if i % perfect_config.gif_save_freq == 0 or i == (perfect_config.max_diff_steps - 1):
             save_path = folderPath + gifPath + "_diffIndex_{}.png".format(i + 1)
-            xlabel = "fBm Dimension {}".format(dim_pair[0] + 1)
-            ylabel = "fBm Dimension {}".format(dim_pair[1] + 1)
+            xlabel = "LSTM_fBm Dimension {}".format(dim_pair[0] + 1)
+            ylabel = "LSTM_fBm Dimension {}".format(dim_pair[1] + 1)
             plot_title = "Rev-Time {} samples $T={}$ at time {}".format(diffType, perfect_config.ts_length, round((
                                                                                                                           i + 1) / perfect_config.max_diff_steps,
                                                                                                                   5))

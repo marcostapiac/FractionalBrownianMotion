@@ -75,9 +75,9 @@ if __name__ == "__main__":
             config.ts_length, feat_dim))
         dimspace = np.arange(1, feat_dim + 1, dtype=int)
         for t in range(1, config.ts_length):
-            plt.plot(dimspace, avg_fbm_feats[t, :], label="fBm Sig Feat")
+            plt.plot(dimspace, avg_fbm_feats[t, :], label="LSTM_fBm Sig Feat")
             plt.plot(dimspace, avg_bm_feats[t, :], label="Bm Sig Feat")
-            plt.plot(dimspace, avg_true_feat_df[t, :], label="Sim fBm Sig Feat")
+            plt.plot(dimspace, avg_true_feat_df[t, :], label="Sim LSTM_fBm Sig Feat")
 
             plt.title("Sig Feat for history of TS time {}".format(t))
             plt.legend()

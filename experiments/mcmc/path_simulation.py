@@ -6,7 +6,7 @@ from utils.plotting_functions import plt, plot
 
 def plotting_paths(save=True):
     """
-    Function to plot sample paths of fBm
+    Function to plot sample paths of LSTM_fBm
     :param save:
     :return:
     """
