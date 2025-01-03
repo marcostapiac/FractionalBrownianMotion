@@ -47,9 +47,10 @@ if "PM" in config.scoreNet_trained_path:
     PM = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters).to(device)
 else:
     PM = ConditionalMarkovianTSScoreMatching(*config.model_parameters).to(device)
-PM.load_state_dict(
-    torch.load(config.scoreNet_trained_path.replace("trained_models", "snapshots"), map_location=torch.device('cpu'))[
-        "MODEL_STATE"])  # + "_NEp" + str(Nepoch)))
+#PM.load_state_dict(
+#    torch.load(config.scoreNet_trained_path.replace("trained_models", "snapshots"), map_location=torch.device('cpu'))[
+#        "MODEL_STATE"])  # + "_NEp" + str(Nepoch)))
+PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
 # In[23]:
 
 
