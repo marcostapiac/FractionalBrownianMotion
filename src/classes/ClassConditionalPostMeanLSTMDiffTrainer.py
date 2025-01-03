@@ -120,7 +120,7 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
         features = features.reshape(B * T, 1, -1)
         target_scores = target_scores.reshape(B * T, 1, -1)
         diff_times = diff_times.reshape(B * T)
-        eff_times = eff_times.reshape(target_scores.shape)
+        eff_times = torch.cat([eff_times]*D, dim=2).reshape(target_scores.shape)
         outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times, eff_times=eff_times)
         # For times larger than tau0, use inverse_weighting
         sigma_tau = 1. - torch.exp(-eff_times)

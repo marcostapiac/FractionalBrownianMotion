@@ -120,7 +120,7 @@ class ConditionalLSTMDiffusionModelTrainer(nn.Module):
         features = features.reshape(B * T, 1, -1)
         target_scores = target_scores.reshape(B * T, 1, -1)
         diff_times = diff_times.reshape(B * T)
-        eff_times = eff_times.reshape(target_scores.shape)
+        eff_times = torch.cat([eff_times]*D, dim=2).reshape(target_scores.shape)
         outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times)
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         if self.loss_factor == 0:

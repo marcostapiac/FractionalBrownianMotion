@@ -117,14 +117,15 @@ class ConditionalMarkovianWithPositionDiffusionModelTrainer(nn.Module):
         xts = xts.reshape(B * T, 1, D)
         # Features is originally shaped (NumTimeSeries, TimeSeriesLength, LookBackWindow, TimeSeriesDim)
         # Reshape so that we have (NumTimeSeries*TimeSeriesLength, 1, LookBackWindow, TimeSeriesDim)
-        f        ##features = features.reshape(B * T, 1, 1, D)
+        ##features = features.reshape(B * T, 1, 1, D)
         # Now reshape again into (NumTimeSeries*TimeSeriesLength, 1, LookBackWindow*TimeSeriesDim)
         # Note this is for the simplest implementation of CondUpsampler which is simply an MLP
         ##features = features.reshape(B * T, 1, 1 * D, 1).permute((0, 1, 3, 2)).squeeze(2)
         features = features.reshape(B*T, 1, D)
         target_scores = target_scores.reshape(B * T, 1, -1)
         diff_times = diff_times.reshape(B * T)
-        eff_times = eff_times.reshape(target_scores.shape)
+        # We have the same diff time for each time series
+        eff_times = torch.cat([eff_times]*D, dim=2).reshape(target_scores.shape)
         outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times)
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         if self.loss_factor == 0:
