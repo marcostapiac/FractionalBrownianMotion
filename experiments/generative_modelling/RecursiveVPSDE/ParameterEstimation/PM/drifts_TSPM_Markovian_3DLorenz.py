@@ -90,7 +90,6 @@ for k in tqdm(range(num_taus)):
             print(d)
         with torch.no_grad():
             if "PM" in config.scoreNet_trained_path:
-                print(Z_taus.shape, diff_times.shape, conditioner.shape, eff_times.shape)
                 predicted_score = PM.forward(inputs=Z_taus, times=diff_times, conditioner=conditioner,
                                              eff_times=eff_times)
             else:
