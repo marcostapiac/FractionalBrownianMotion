@@ -130,7 +130,7 @@ if "fOU" in config.data_path:
         (
                 project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
             ".", "")
-elif "3DLorenz" in config.data_path:
+elif "3DLnz" in config.data_path:
     save_path = (
             project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_3DLorenz_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
         ".", "")
