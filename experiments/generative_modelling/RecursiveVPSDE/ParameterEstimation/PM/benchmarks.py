@@ -54,6 +54,7 @@ assert (prevPath_observations.shape[1] * Delta == (end_diff_time - start_diff_ti
 def compute_cv_for_bw_per_path(i, _bw, prevPath_observations, path_incs):
     N = prevPath_observations.shape[0]
     mask = np.arange(N) != i
+    print(i)
     estimator = IID_NW_estimator(
         prevPath_observations=prevPath_observations[mask, :],
         path_incs=path_incs[mask, :],
@@ -71,7 +72,7 @@ def compute_cv_for_bw_per_path(i, _bw, prevPath_observations, path_incs):
 
 def compute_cv_for_bw(_bw, prevPath_observations, path_incs):
     N = prevPath_observations.shape[0]
-    cvs = Parallel(n_jobs=1)(delayed(compute_cv_for_bw_per_path)(i, _bw, prevPath_observations, path_incs) for i in range(N))
+    cvs = Parallel(n_jobs=2)(delayed(compute_cv_for_bw_per_path)(i, _bw, prevPath_observations, path_incs) for i in range(N))
     return np.sum(cvs)
 
 
