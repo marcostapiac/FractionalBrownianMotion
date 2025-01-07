@@ -87,7 +87,6 @@ mask = np.ones(prevPath_observations.shape[0], dtype=bool)
 CVs = np.zeros(len(bws))
 for h in tqdm(range(bws.shape[0])):
     CVs[h] = compute_cv_for_bw(bws[h], prevPath_observations, path_incs)
-    break
 
 # In[ ]:
 
