@@ -23,7 +23,7 @@ mean_rev = 1.
 
 # In[4]:
 
-num_paths = 10000
+num_paths = 2000
 ddata = np.load(project_config.ROOT_DIR + "data/fSin_samples_H05_T256_10Rev_10Diff_00Init.npy")
 idxs = np.arange(ddata.shape[0])
 path_observations = ddata[:num_paths,:]
@@ -77,7 +77,7 @@ def compute_cv_for_bw(_bw, prevPath_observations, path_incs):
     N = prevPath_observations.shape[0]
     print(f"Starting: {_bw}\n")
     t0 = time.time()
-    cvs = Parallel(n_jobs=15)(delayed(compute_cv_for_bw_per_path)(i, _bw, prevPath_observations, path_incs) for i in range(N))
+    cvs = Parallel(n_jobs=35)(delayed(compute_cv_for_bw_per_path)(i, _bw, prevPath_observations, path_incs) for i in range(N))
     print(time.time()-t0)
     return np.sum(cvs)
 
@@ -87,6 +87,7 @@ mask = np.ones(prevPath_observations.shape[0], dtype=bool)
 CVs = np.zeros(len(bws))
 for h in tqdm(range(bws.shape[0])):
     CVs[h] = compute_cv_for_bw(bws[h], prevPath_observations, path_incs)
+    break
 
 # In[ ]:
 
@@ -113,4 +114,4 @@ save_path = (
         project_config.ROOT_DIR + f"experiments/results/TS_benchmark_fSin_DriftEvalExp_{round(bw, 4)}bw").replace(
     ".", "")
 # In[50]:
-np.save(save_path + "_driftHats.npy", drift_hats)
+#np.save(save_path + "_driftHats.npy", drift_hats)
