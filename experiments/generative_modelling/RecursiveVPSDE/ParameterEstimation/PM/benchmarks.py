@@ -72,7 +72,8 @@ def compute_cv_for_bw_per_path(i, _bw, prevPath_observations, path_incs):
 
 def compute_cv_for_bw(_bw, prevPath_observations, path_incs):
     N = prevPath_observations.shape[0]
-    cvs = Parallel(n_jobs=5)(delayed(compute_cv_for_bw_per_path)(i, _bw, prevPath_observations, path_incs) for i in range(N))
+    print(f"Starting: {_bw}\n")
+    cvs = Parallel(n_jobs=15)(delayed(compute_cv_for_bw_per_path)(i, _bw, prevPath_observations, path_incs) for i in range(N))
     return np.sum(cvs)
 
 
@@ -91,7 +92,7 @@ print(bw, CVs)
 # In[45]:
 
 num_Xs = 256
-num_ests = 500000
+num_ests = 50000
 Xs = np.linspace(-2, 2, num_Xs)
 drift_hats = np.zeros((num_Xs, num_ests))
 for k in tqdm(range(num_ests)):
