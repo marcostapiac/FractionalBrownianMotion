@@ -97,7 +97,7 @@ print(bw, CVs)
 # In[45]:
 
 num_Xs = 256
-num_ests = 50000
+num_ests = 500
 Xs = np.linspace(-2, 2, num_Xs)
 drift_hats = np.zeros((num_Xs, num_ests))
 for k in tqdm(range(num_ests)):
