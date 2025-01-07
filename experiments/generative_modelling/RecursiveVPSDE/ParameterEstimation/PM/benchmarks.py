@@ -3,7 +3,6 @@
 
 
 import numpy as np
-import statsmodels.api as sm
 from joblib import Parallel, delayed
 from scipy.stats import norm
 from tqdm import tqdm
@@ -32,6 +31,7 @@ prevPath_observations = np.concatenate([np.zeros((path_observations.shape[0], 1)
 path_incs = np.concatenate([path_observations[:, [0]], np.diff(path_observations, axis=1)], axis=1)
 assert (prevPath_observations.shape == path_observations.shape == path_incs.shape)
 assert (prevPath_observations.shape[1] == ts_length)
+del path_observations
 
 
 # In[5]:
@@ -51,7 +51,7 @@ assert (prevPath_observations.shape[1] * Delta == (end_diff_time - start_diff_ti
 
 # In[7]:
 
-def compute_cv_for_bw_per_path(i, _bw):
+def compute_cv_for_bw_per_path(i, _bw, prevPath_observations, path_incs):
     N = prevPath_observations.shape[0]
     mask = np.arange(N) != i
     estimator = IID_NW_estimator(
@@ -69,9 +69,9 @@ def compute_cv_for_bw_per_path(i, _bw):
     return cv
 
 
-def compute_cv_for_bw(_bw):
+def compute_cv_for_bw(_bw, prevPath_observations, path_incs):
     N = prevPath_observations.shape[0]
-    cvs = Parallel(n_jobs=-1)(delayed(compute_cv_for_bw_per_path)(i, _bw) for i in (range(N)))
+    cvs = Parallel(n_jobs=10)(delayed(compute_cv_for_bw_per_path)(i, _bw, prevPath_observations, path_incs) for i in range(N))
     return np.sum(cvs)
 
 
@@ -79,7 +79,7 @@ bws = np.logspace(-2, 0, 20)
 mask = np.ones(prevPath_observations.shape[0], dtype=bool)
 CVs = np.zeros(len(bws))
 for h in tqdm(range(bws.shape[0])):
-    CVs[h] = compute_cv_for_bw(bws[h])
+    CVs[h] = compute_cv_for_bw(bws[h], prevPath_observations, path_incs)
 
 # In[ ]:
 
@@ -98,6 +98,7 @@ for k in tqdm(range(num_ests)):
     prevPath_observations = np.concatenate([np.zeros((path_observations.shape[0], 1)), path_observations[:, :-1]],
                                            axis=1)
     path_incs = np.concatenate([path_observations[:, [0]], np.diff(path_observations, axis=1)], axis=1)
+    del path_observations
     drift_hats[:, k] = IID_NW_estimator(prevPath_observations=prevPath_observations, bw=bw, x=Xs, path_incs=path_incs,
                                         end_diff_time=end_diff_time, start_diff_time=start_diff_time)
 
