@@ -27,6 +27,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 
 
 config = get_config()
+assert("3DLnz" in config.data_path)
 assert (config.max_diff_steps == 10000 and config.beta_min == 0.)
 print("Beta Min : ", config.beta_min)
 if config.has_cuda:
@@ -125,15 +126,9 @@ print(type)
 
 es = 0
 
-if "fOU" in config.data_path:
-    save_path = \
-        (
-                project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
-            ".", "")
-elif "3DLnz" in config.data_path:
-    save_path = (
-            project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_3DLorenz_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
-        ".", "")
+save_path = (
+        project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_3DLorenz_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.max_diff_steps}DiffSteps").replace(
+    ".", "")
 
 np.save(save_path + "_muhats.npy", mu_hats)
 np.save(save_path + "_numpyXs.npy", numpy_Xs)
