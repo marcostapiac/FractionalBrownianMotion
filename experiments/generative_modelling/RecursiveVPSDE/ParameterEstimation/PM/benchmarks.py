@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # coding: utf-8
 import sys
-
+import time
 import numpy as np
 from joblib import Parallel, delayed
 from scipy.stats import norm
@@ -52,6 +52,7 @@ assert (prevPath_observations.shape[1] * Delta == (end_diff_time - start_diff_ti
 # In[7]:
 
 def compute_cv_for_bw_per_path(i, _bw, prevPath_observations, path_incs):
+    t0 = time.time()
     N = prevPath_observations.shape[0]
     mask = np.arange(N) != i
     print(i)
@@ -68,13 +69,16 @@ def compute_cv_for_bw_per_path(i, _bw, prevPath_observations, path_incs):
     cv = np.sum(residual)
     if np.isnan(cv):
         return np.inf
+    print(time.time()-t0)
     return cv
 
 
 def compute_cv_for_bw(_bw, prevPath_observations, path_incs):
     N = prevPath_observations.shape[0]
     print(f"Starting: {_bw}\n")
+    t0 = time.time()
     cvs = Parallel(n_jobs=15)(delayed(compute_cv_for_bw_per_path)(i, _bw, prevPath_observations, path_incs) for i in range(N))
+    print(time.time()-t0)
     return np.sum(cvs)
 
 
