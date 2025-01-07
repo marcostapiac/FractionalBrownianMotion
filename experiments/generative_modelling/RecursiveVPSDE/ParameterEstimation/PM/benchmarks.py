@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 # coding: utf-8
-
+import sys
 
 import numpy as np
 from joblib import Parallel, delayed
@@ -55,6 +55,7 @@ def compute_cv_for_bw_per_path(i, _bw, prevPath_observations, path_incs):
     N = prevPath_observations.shape[0]
     mask = np.arange(N) != i
     print(i)
+    sys.stdout.flush()
     estimator = IID_NW_estimator(
         prevPath_observations=prevPath_observations[mask, :],
         path_incs=path_incs[mask, :],
