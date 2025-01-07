@@ -85,6 +85,7 @@ def compute_cv_for_bw(_bw, prevPath_observations, path_incs):
 bws = np.logspace(-2, 0, 20)
 mask = np.ones(prevPath_observations.shape[0], dtype=bool)
 CVs = np.zeros(len(bws))
+print(bws.shape)
 for h in tqdm(range(bws.shape[0])):
     CVs[h] = compute_cv_for_bw(bws[h], prevPath_observations, path_incs)
 
@@ -113,4 +114,4 @@ save_path = (
         project_config.ROOT_DIR + f"experiments/results/TS_benchmark_fSin_DriftEvalExp_{round(bw, 4)}bw").replace(
     ".", "")
 # In[50]:
-#np.save(save_path + "_driftHats.npy", drift_hats)
+np.save(save_path + "_driftHats.npy", drift_hats)
