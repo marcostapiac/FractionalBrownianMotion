@@ -23,7 +23,7 @@ mean_rev = 1.
 
 # In[4]:
 
-num_paths = 2000
+num_paths = 1000
 ddata = np.load(project_config.ROOT_DIR + "data/fSin_samples_H05_T256_10Rev_10Diff_00Init.npy")
 idxs = np.arange(ddata.shape[0])
 path_observations = ddata[:num_paths,:]
