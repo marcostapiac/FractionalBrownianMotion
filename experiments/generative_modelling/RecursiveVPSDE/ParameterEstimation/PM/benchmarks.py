@@ -23,7 +23,7 @@ mean_rev = 1.
 
 # In[4]:
 
-num_paths = 100000
+num_paths = 10000
 ddata = np.load(project_config.ROOT_DIR + "data/fSin_samples_H05_T256_10Rev_10Diff_00Init.npy")
 idxs = np.arange(ddata.shape[0])
 path_observations = ddata[:num_paths,:]
@@ -72,7 +72,7 @@ def compute_cv_for_bw_per_path(i, _bw, prevPath_observations, path_incs):
 
 def compute_cv_for_bw(_bw, prevPath_observations, path_incs):
     N = prevPath_observations.shape[0]
-    cvs = Parallel(n_jobs=2)(delayed(compute_cv_for_bw_per_path)(i, _bw, prevPath_observations, path_incs) for i in range(N))
+    cvs = Parallel(n_jobs=5)(delayed(compute_cv_for_bw_per_path)(i, _bw, prevPath_observations, path_incs) for i in range(N))
     return np.sum(cvs)
 
 
