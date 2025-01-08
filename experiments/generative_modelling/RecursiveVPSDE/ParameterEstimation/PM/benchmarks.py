@@ -23,7 +23,7 @@ mean_rev = 1.
 
 # In[4]:
 
-num_paths = 1000
+num_paths = 100
 ddata = np.load(project_config.ROOT_DIR + "data/fSin_samples_H05_T256_10Rev_10Diff_00Init.npy")
 idxs = np.arange(ddata.shape[0])
 path_observations = ddata[:num_paths,:]
@@ -111,7 +111,7 @@ for k in tqdm(range(num_ests)):
                                         end_diff_time=end_diff_time, start_diff_time=start_diff_time)
 
 save_path = (
-        project_config.ROOT_DIR + f"experiments/results/TS_benchmark_fSin_DriftEvalExp_{round(bw, 4)}bw").replace(
+        project_config.ROOT_DIR + f"experiments/results/TS_benchmark_fSin_DriftEvalExp_{round(bw, 4)}bw_{num_paths}NPaths").replace(
     ".", "")
 # In[50]:
 np.save(save_path + "_driftHats.npy", drift_hats)
