@@ -62,6 +62,7 @@ assert (prevPath_observations.shape[1] * Delta == (end_diff_time - start_diff_ti
 # In[7]:
 
 def compute_cv_for_bw_per_path(i, _bw, prevPath_observations, path_incs):
+    tracemalloc.start()
     memory_check(str=f"Start of path {i} opt")
     t0 = time.time()
     N = prevPath_observations.shape[0]
