@@ -8,10 +8,20 @@ from scipy.stats import norm
 from tqdm import tqdm
 
 from configs import project_config
+import tracemalloc
 
 
 def gaussian_kernel(bw, x):
     return norm.pdf(x / bw) / bw
+
+
+def memory_check(str):
+    snapshot = tracemalloc.take_snapshot()
+    top_stats = snapshot.statistics("lineno")
+
+    print(f"{str}: [ Top 10 memory allocations ]")
+    for stat in top_stats[:10]:
+        print(stat)
 
 
 end_diff_time = 1.
@@ -22,11 +32,11 @@ Delta = 1. / ts_length
 mean_rev = 1.
 
 # In[4]:
-
-num_paths = 100
+tracemalloc.start()
+num_paths = 10000
 ddata = np.load(project_config.ROOT_DIR + "data/fSin_samples_H05_T256_10Rev_10Diff_00Init.npy")
 idxs = np.arange(ddata.shape[0])
-path_observations = ddata[:num_paths,:]
+path_observations = ddata[:num_paths, :]
 prevPath_observations = np.concatenate([np.zeros((path_observations.shape[0], 1)), path_observations[:, :-1]], axis=1)
 path_incs = np.concatenate([path_observations[:, [0]], np.diff(path_observations, axis=1)], axis=1)
 assert (prevPath_observations.shape == path_observations.shape == path_incs.shape)
@@ -52,11 +62,13 @@ assert (prevPath_observations.shape[1] * Delta == (end_diff_time - start_diff_ti
 # In[7]:
 
 def compute_cv_for_bw_per_path(i, _bw, prevPath_observations, path_incs):
+    memory_check(str=f"Start of path {i} opt")
     t0 = time.time()
     N = prevPath_observations.shape[0]
     mask = np.arange(N) != i
     print(i)
     sys.stdout.flush()
+    memory_check(str=f"Start of estimator for path {i} opt")
     estimator = IID_NW_estimator(
         prevPath_observations=prevPath_observations[mask, :],
         path_incs=path_incs[mask, :],
@@ -65,11 +77,12 @@ def compute_cv_for_bw_per_path(i, _bw, prevPath_observations, path_incs):
         end_diff_time=end_diff_time,
         start_diff_time=start_diff_time
     )
+    memory_check(str=f"End of estimator for path {i} opt")
     residual = estimator ** 2 * Delta - 2 * estimator * path_incs[i, :]
     cv = np.sum(residual)
     if np.isnan(cv):
         return np.inf
-    print(time.time()-t0)
+    print(time.time() - t0)
     return cv
 
 
@@ -77,10 +90,12 @@ def compute_cv_for_bw(_bw, prevPath_observations, path_incs):
     N = prevPath_observations.shape[0]
     print(f"Starting: {_bw}\n")
     t0 = time.time()
-    cvs = Parallel(n_jobs=35)(delayed(compute_cv_for_bw_per_path)(i, _bw, prevPath_observations, path_incs) for i in range(N))
-    print(time.time()-t0)
+    cvs = Parallel(n_jobs=35, backend="loky")(
+        delayed(compute_cv_for_bw_per_path)(i, _bw, prevPath_observations, path_incs) for i in range(N))
+    print(time.time() - t0)
     return np.sum(cvs)
 
+memory_check(str=f"BW optimatisation done")
 
 bws = np.logspace(-2, 0, 20)
 mask = np.ones(prevPath_observations.shape[0], dtype=bool)
