@@ -91,7 +91,7 @@ def compute_cv_for_bw(_bw, prevPath_observations, path_incs):
     N = prevPath_observations.shape[0]
     print(f"Starting: {_bw}\n")
     t0 = time.time()
-    cvs = Parallel(n_jobs=35, backend="loky")(
+    cvs = Parallel(n_jobs=30, backend="loky")(
         delayed(compute_cv_for_bw_per_path)(i, _bw, prevPath_observations, path_incs) for i in range(N))
     print(time.time() - t0)
     return np.sum(cvs)
