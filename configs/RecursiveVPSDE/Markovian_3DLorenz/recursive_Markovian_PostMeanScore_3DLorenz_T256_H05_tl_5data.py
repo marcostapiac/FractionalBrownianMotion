@@ -20,8 +20,7 @@ def get_config():
     config.initState = [0.,0.,0.]
     config.ts_length = 256
     config.data_path = project_config.ROOT_DIR + "data/3DLnz_samples_H{}_T{}_{}Beta_{}Rho_{}Sigma_{}Diff_{}Init".format(
-        str(config.hurst), config.ts_length, config.ts_beta, config.ts_rho, config.ts_sigma, config.diffusion,
-        config.initState).replace(
+        str(config.hurst), config.ts_length, round(config.ts_beta,3), config.ts_rho, config.ts_sigma, config.diffusion, config.initState[0]).replace(
         ".", "") + ".npy"
 
     # Training hyperparameters
