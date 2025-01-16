@@ -139,7 +139,6 @@ class ConditionalMarkovianTSScoreMatching(nn.Module):
         self.diffusion_embedding = DiffusionEmbedding(diff_embed_size=diff_embed_size,
                                                       diff_hidden_size=diff_hidden_size,
                                                       max_steps=max_diff_steps)  # get_timestep_embedding
-        print(ts_dims)
         self.cond_upsampler = CondUpsampler(
             target_dim=1, cond_length=ts_dims
         )
