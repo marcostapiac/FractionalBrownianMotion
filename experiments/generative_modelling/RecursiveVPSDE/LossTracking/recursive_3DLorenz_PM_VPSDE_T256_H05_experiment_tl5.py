@@ -14,9 +14,8 @@ from utils.math_functions import generate_3DLorenz
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.LSTM_3DLorenz.recursive_LSTM_3DLorenzWithPosition_T256_H05_tl_5data import \
+    from configs.RecursiveVPSDE.LSTM_3DLorenz.recursive_LSTM_PostMeanScore_3DLorenz_T256_H05_tl_5data import \
         get_config
-
     config = get_config()
     assert (config.hurst == 0.5)
     assert (config.early_stop_idx == 0)
