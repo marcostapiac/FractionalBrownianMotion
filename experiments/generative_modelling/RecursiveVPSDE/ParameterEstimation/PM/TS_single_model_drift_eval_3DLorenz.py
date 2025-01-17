@@ -146,7 +146,7 @@ def TS_drift_eval():
     init_experiment(config=config)
 
     num_simulated_paths = 500
-    data_shape = (num_simulated_paths, config.ts_dims, 1)
+    data_shape = (num_simulated_paths, 1, config.ts_dims)
 
     if config.has_cuda:
         device = int(os.environ["LOCAL_RANK"])
