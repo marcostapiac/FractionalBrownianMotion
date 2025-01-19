@@ -22,7 +22,6 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
     scores = []
     exp_scores = []
     revSDE_paths = []
-    assert (0 <= es <= 20)
     for diff_index in tqdm(range(config.max_diff_steps)):
         if diff_index <= config.max_diff_steps - es - 1:
             tau = diff_time_space[diff_index] * torch.ones((data_shape[0],)).to(device)
@@ -119,25 +118,17 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
         print(new_samples.shape, scores.shape, exp_scores.shape, revSDE_paths.shape, h.shape, c.shape)
         cumsamples = cumsamples + new_samples
         assert (scores.shape == exp_scores.shape)
-        if len(scores.shape) < 3:
-            stored_scores.append(scores.unsqueeze(1))
-            stored_expscores.append(exp_scores.unsqueeze(1))
-        else:
-            stored_scores.append(scores)
-            stored_expscores.append(exp_scores)
-        if len(revSDE_paths.shape) <3:
-            stored_revSDE_paths.append(revSDE_paths.unsqueeze(1))
-        else:
-            stored_revSDE_paths.append(revSDE_paths)
-
-
+        stored_scores.append(scores.unsqueeze(1))
+        stored_expscores.append(exp_scores.unsqueeze(1))
+        stored_revSDE_paths.append(revSDE_paths.unsqueeze(1))
+    print(stored_scores[0].shape, prev_paths[0].shape)
     stored_scores = torch.concat(stored_scores, dim=1)
     # assert(stored_scores.shape == (data_shape[0], T, config.max_diff_steps))
     stored_expscores = torch.concat(stored_expscores, dim=1)
     # assert(stored_expscores.shape == (data_shape[0], T, config.max_diff_steps))
     stored_revSDE_paths = torch.concat(stored_revSDE_paths, dim=1)
     # assert(stored_revSDE_paths.shape == (data_shape[0], T, config.max_diff_steps))
-    prev_paths = torch.concat(prev_paths, dim=1).squeeze(-1)
+    prev_paths = torch.concat(prev_paths, dim=1)
     return stored_scores.cpu(), stored_expscores.cpu(), stored_revSDE_paths.cpu(), prev_paths.cpu()
 
 
@@ -149,11 +140,15 @@ def build_drift_estimator(diffusion, ts_step, diff_time_space, score_evals, exp_
     # Compute the part of the score independent of data mean
     c1 = (sigma_taus + beta_2_taus * ts_step) * torch.exp(torch.Tensor([0.5]) * eff_times)  # * 1/beta_tau
     c2 = torch.exp(torch.Tensor([0.5]) * eff_times)  # 1/beta_tau
-    drift_est = c1 * score_evals + (c2.reshape(1, 1, -1)) * Xtaus
+    c1 = c1.view(1,1, c1.shape[0], 1)
+    c2 = c2.view(1,1,c2.shape[0], 1)
+    print(c1.shape, score_evals.shape, c2.shape, Xtaus.shape)
+    drift_est = c1 * score_evals + c2 * Xtaus
     drift_est /= ts_step
-    exp_drifts = c1 * exp_scores + (c2.reshape(1, 1, -1)) * Xtaus
+    exp_drifts = c1 * exp_scores + c2 * Xtaus
     exp_drifts /= ts_step
     return drift_est.cpu(), exp_drifts.cpu()
+
 
 
 def TS_drift_eval():

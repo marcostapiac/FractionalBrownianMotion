@@ -174,7 +174,7 @@ def TS_drift_eval():
 
     Nepoch = 960
     assert (config.max_diff_steps == 10000)
-    es = 9900
+    es = 0
     save_path = (
             project_config.ROOT_DIR + f"experiments/results/kkTS_ES{es}_3DLorenz_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.max_diff_steps}DiffSteps").replace(
         ".", "")
@@ -184,7 +184,7 @@ def TS_drift_eval():
     PM = ConditionalLSTMTSScoreMatching(*config.model_parameters).to(device)
     PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
     # Fix the number of real times to run diffusion
-    eval_ts_length = 3#int(1.3 * config.ts_length)
+    eval_ts_length = int(1.3 * config.ts_length)
     # Experiment for score model with fixed (Nepochs, loss scaling, drift eval time, Npaths simulated)
     initial_feature_input = torch.zeros(data_shape).to(device)
     postMean_scores, postMean_expscores, postMean_revSDEpaths, postMean_prevPaths = run_whole_ts_recursive_diffusion(
