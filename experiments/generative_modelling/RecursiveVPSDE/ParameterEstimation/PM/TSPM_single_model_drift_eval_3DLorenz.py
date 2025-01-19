@@ -6,8 +6,8 @@ from tqdm import tqdm
 
 from configs import project_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSScoreMatching import \
-    ConditionalLSTMTSScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
+    ConditionalLSTMTSPostMeanScoreMatching
 from utils.data_processing import init_experiment
 
 
@@ -153,12 +153,11 @@ def build_drift_estimator(diffusion, ts_step, diff_time_space, score_evals, exp_
     drift_est /= ts_step
     exp_drifts = c1 * exp_scores + (c2.reshape(1, 1, -1)) * Xtaus
     exp_drifts /= ts_step
-    print(drift_est.shape, c1.shape, c2.shape, exp_drifts.shape)
     return drift_est.cpu(), exp_drifts.cpu()
 
 
 def TS_drift_eval():
-    from configs.RecursiveVPSDE.LSTM_3DLorenz.recursive_LSTM_3DLorenzWithPosition_T256_H05_tl_5data import get_config as get_config
+    from configs.RecursiveVPSDE.LSTM_3DLorenz.recursive_LSTM_PostMeanScore_3DLorenz_T256_H05_tl_5data import get_config as get_config
     config = get_config()
     init_experiment(config=config)
 
@@ -183,12 +182,12 @@ def TS_drift_eval():
     assert (config.max_diff_steps == 10000)
     es = 0
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/kkTS_ES{es}_3DLorenz_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.max_diff_steps}DiffSteps").replace(
+            project_config.ROOT_DIR + f"experiments/results/TSPM_ES{es}_3DLorenz_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.max_diff_steps}DiffSteps").replace(
         ".", "")
 
     print(Nepoch, config.data_path, es, config.scoreNet_trained_path)
     # Fix the number of training epochs and training loss objective loss
-    PM = ConditionalLSTMTSScoreMatching(*config.model_parameters).to(device)
+    PM = ConditionalLSTMTSPostMeanScoreMatching(*config.model_parameters).to(device)
     PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
     # Fix the number of real times to run diffusion
     eval_ts_length = int(1.3 * config.ts_length)
