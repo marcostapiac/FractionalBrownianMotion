@@ -49,6 +49,7 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
             diffusion_mean2 = torch.atleast_2d(torch.exp(-diffusion.get_eff_times(diff_times=tau))).T.to(device)
             diffusion_var = 1. - diffusion_mean2
             exp_slope = -(1 / ((diffusion_var + diffusion_mean2 * ts_step))[0])
+            print(torch.sqrt(diffusion_mean2).shape , (ts_step) , true_cond_mean(config, prev_path).shape)
             exp_const = torch.sqrt(diffusion_mean2) * (ts_step) * true_cond_mean(config, prev_path)
             exp_score = exp_slope * (x - exp_const)
             if len(exp_score) == 3 and exp_score.shape[0] == 1:
