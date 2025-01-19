@@ -57,7 +57,7 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
             # Store the score, the expected score, and the revSDE paths
             scores.append(score)
             exp_scores.append(exp_score)
-            print(x.shape)
+            print(x.shape, drift.shape, diffParam.shape)
             if len(x.shape) == 3 and x.shape[-1] == 1:
                 revSDE_paths.append(x.squeeze(-1))
             else:
