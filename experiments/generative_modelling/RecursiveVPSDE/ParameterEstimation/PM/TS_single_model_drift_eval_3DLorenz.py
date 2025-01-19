@@ -118,16 +118,9 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
         print(new_samples.shape, scores.shape, exp_scores.shape, revSDE_paths.shape, h.shape, c.shape)
         cumsamples = cumsamples + new_samples
         assert (scores.shape == exp_scores.shape)
-        if len(scores.shape) < 3:
-            stored_scores.append(scores.unsqueeze(1))
-            stored_expscores.append(exp_scores.unsqueeze(1))
-        else:
-            stored_scores.append(scores)
-            stored_expscores.append(exp_scores)
-        if len(revSDE_paths.shape) <3:
-            stored_revSDE_paths.append(revSDE_paths.unsqueeze(1))
-        else:
-            stored_revSDE_paths.append(revSDE_paths)
+        stored_scores.append(scores.unsqueeze(1))
+        stored_expscores.append(exp_scores.unsqueeze(1))
+        stored_revSDE_paths.append(revSDE_paths.unsqueeze(1))
     print(stored_scores[0].shape, prev_paths[0].shape)
     stored_scores = torch.concat(stored_scores, dim=1)
     # assert(stored_scores.shape == (data_shape[0], T, config.max_diff_steps))
