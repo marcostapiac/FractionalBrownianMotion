@@ -33,6 +33,7 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
             except TypeError:
                 scoreModel.eval()
                 with torch.no_grad():
+                    print(tau.shape)
                     tau = tau * torch.ones(x.shape).to(device)
                     eff_times = diffusion.get_eff_times(diff_times=tau)
                     eff_times = eff_times.reshape(x.shape)
