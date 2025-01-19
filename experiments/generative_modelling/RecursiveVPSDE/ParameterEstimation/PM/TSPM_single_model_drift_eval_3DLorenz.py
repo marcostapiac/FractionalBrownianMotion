@@ -28,7 +28,7 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
             try:
                 scoreModel.eval()
                 with torch.no_grad():
-                    tau = tau * torch.ones((x.shape[0],)).to(device)
+                    #tau = tau * torch.ones((x.shape[0],)).to(device)
                     predicted_score = scoreModel.forward(x, conditioner=feature, times=tau)
             except TypeError:
                 scoreModel.eval()
