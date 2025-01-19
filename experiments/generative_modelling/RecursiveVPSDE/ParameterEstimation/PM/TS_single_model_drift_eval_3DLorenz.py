@@ -60,6 +60,9 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
             print(x.shape, drift.shape, diffParam.shape)
             if len(x.shape) == 3 and x.shape[-1] == 1:
                 revSDE_paths.append(x.squeeze(-1))
+            elif len(x.shape) == 3 and x.shape[-1] != 1:
+                assert (x.shape == (data_shape[0], 1, data_shape[2]))
+                revSDE_paths.append(x)
             else:
                 assert (x.shape == (data_shape[0], 1))
                 revSDE_paths.append(x)
@@ -117,9 +120,19 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
         c = torch.cat([c[:, [ridx], :] for _ in range(new_samples.shape[0])], dim=1)
         print(new_samples.shape, scores.shape, exp_scores.shape, revSDE_paths.shape, h.shape, c.shape)
         cumsamples = cumsamples + new_samples
-        stored_scores.append(scores.unsqueeze(1))
-        stored_expscores.append(exp_scores.unsqueeze(1))
-        stored_revSDE_paths.append(revSDE_paths.unsqueeze(1))
+        assert (scores.shape == exp_scores.shape)
+        if len(scores.shape) < 3:
+            stored_scores.append(scores.unsqueeze(1))
+            stored_expscores.append(exp_scores.unsqueeze(1))
+        else:
+            stored_scores.append(scores)
+            stored_expscores.append(exp_scores)
+        if len(revSDE_paths.shape) <3:
+            stored_revSDE_paths.append(revSDE_paths.unsqueeze(1))
+        else:
+            stored_revSDE_paths.append(revSDE_paths)
+
+
     stored_scores = torch.concat(stored_scores, dim=1)
     # assert(stored_scores.shape == (data_shape[0], T, config.max_diff_steps))
     stored_expscores = torch.concat(stored_expscores, dim=1)
