@@ -181,7 +181,7 @@ def TS_drift_eval():
 
     Nepoch = 960
     assert (config.max_diff_steps == 10000)
-    es = 0
+    es = 9900
     save_path = (
             project_config.ROOT_DIR + f"experiments/results/kkTS_ES{es}_3DLorenz_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.max_diff_steps}DiffSteps").replace(
         ".", "")
