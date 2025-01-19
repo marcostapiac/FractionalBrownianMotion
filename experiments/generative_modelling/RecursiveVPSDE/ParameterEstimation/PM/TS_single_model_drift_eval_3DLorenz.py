@@ -176,7 +176,7 @@ def TS_drift_eval():
     assert (config.max_diff_steps == 10000)
     es = 0
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/kkTS_ES{es}_3DLorenz_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.max_diff_steps}DiffSteps").replace(
+            project_config.ROOT_DIR + f"experiments/results/TS_ES{es}_3DLorenz_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.max_diff_steps}DiffSteps").replace(
         ".", "")
 
     print(Nepoch, config.data_path, es, config.scoreNet_trained_path)
