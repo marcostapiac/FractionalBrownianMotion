@@ -24,7 +24,7 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
     revSDE_paths = []
     for diff_index in tqdm(range(config.max_diff_steps)):
         if diff_index <= config.max_diff_steps - es - 1:
-            tau = diff_time_space[diff_index] * torch.ones((data_shape[0],)).to(device)
+            tau = diff_time_space[diff_index] * torch.ones(data_shape).to(device)
             try:
                 scoreModel.eval()
                 with torch.no_grad():
@@ -34,7 +34,6 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
                 scoreModel.eval()
                 with torch.no_grad():
                     print(tau.shape)
-                    tau = tau * torch.ones(x.shape).to(device)
                     eff_times = diffusion.get_eff_times(diff_times=tau)
                     eff_times = eff_times.reshape(x.shape)
                     predicted_score = scoreModel.forward(x, conditioner=feature, times=tau, eff_times=eff_times)
