@@ -128,15 +128,14 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
             stored_revSDE_paths.append(revSDE_paths.unsqueeze(1))
         else:
             stored_revSDE_paths.append(revSDE_paths)
-
-
+    print(stored_scores[0].shape, prev_paths[0].shape)
     stored_scores = torch.concat(stored_scores, dim=1)
     # assert(stored_scores.shape == (data_shape[0], T, config.max_diff_steps))
     stored_expscores = torch.concat(stored_expscores, dim=1)
     # assert(stored_expscores.shape == (data_shape[0], T, config.max_diff_steps))
     stored_revSDE_paths = torch.concat(stored_revSDE_paths, dim=1)
     # assert(stored_revSDE_paths.shape == (data_shape[0], T, config.max_diff_steps))
-    prev_paths = torch.concat(prev_paths, dim=1).squeeze(-1)
+    prev_paths = torch.concat(prev_paths, dim=1)
     return stored_scores.cpu(), stored_expscores.cpu(), stored_revSDE_paths.cpu(), prev_paths.cpu()
 
 
