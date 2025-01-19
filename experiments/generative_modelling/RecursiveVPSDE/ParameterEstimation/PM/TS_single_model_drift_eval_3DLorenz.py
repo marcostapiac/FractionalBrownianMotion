@@ -50,7 +50,7 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
             diffusion_var = 1. - diffusion_mean2
             exp_slope = -(1 / ((diffusion_var + diffusion_mean2 * ts_step))[0])
             exp_const = torch.sqrt(diffusion_mean2) * (ts_step) * true_cond_mean(config, prev_path)
-            exp_score = exp_slope * (x.squeeze(-1) - exp_const)
+            exp_score = exp_slope * (x - exp_const)
             if len(exp_score) == 3 and exp_score.shape[0] == 1:
                 exp_score = exp_score.squeeze(-1)
             # Store the score, the expected score, and the revSDE paths
@@ -80,9 +80,9 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
             else:
                 assert (x.shape == (data_shape[0], 1))
                 revSDE_paths.append(x)
-    scores = torch.flip(torch.concat(scores, dim=-1).cpu(), dims=[1])
-    exp_scores = torch.flip(torch.concat(exp_scores, dim=-1).cpu(), dims=[1])
-    revSDE_paths = torch.flip(torch.concat(revSDE_paths, dim=-1).cpu(), dims=[1])
+    scores = torch.flip(torch.concat(scores, dim=1).cpu(), dims=[1])
+    exp_scores = torch.flip(torch.concat(exp_scores, dim=1).cpu(), dims=[1])
+    revSDE_paths = torch.flip(torch.concat(revSDE_paths, dim=1).cpu(), dims=[1])
     # assert(scores.shape == (data_shape[0], config.max_diff_steps) and exp_scores.shape == (data_shape[0], config.max_diff_steps) and revSDE_paths == (data_shape[0], config.max_diff_steps))
     return x, scores, exp_scores, revSDE_paths
 
