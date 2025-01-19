@@ -72,6 +72,9 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
             exp_scores.append(exp_score)
             if len(x.shape) == 3 and x.shape[-1] == 1:
                 revSDE_paths.append(x.squeeze(-1))
+            elif len(x.shape)==3 and x.shape[-1] != 1:
+                assert (x.shape == (data_shape[0], 1, data_shape[2]))
+                revSDE_paths.append(x)
             else:
                 assert (x.shape == (data_shape[0], 1))
                 revSDE_paths.append(x)
