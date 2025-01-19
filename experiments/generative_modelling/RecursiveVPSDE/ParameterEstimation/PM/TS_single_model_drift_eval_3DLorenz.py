@@ -22,7 +22,6 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
     scores = []
     exp_scores = []
     revSDE_paths = []
-    assert (0 <= es <= 20)
     for diff_index in tqdm(range(config.max_diff_steps)):
         if diff_index <= config.max_diff_steps - es - 1:
             tau = diff_time_space[diff_index] * torch.ones((data_shape[0],)).to(device)
