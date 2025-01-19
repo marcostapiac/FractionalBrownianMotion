@@ -49,7 +49,6 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
             diffusion_mean2 = torch.atleast_2d(torch.exp(-diffusion.get_eff_times(diff_times=tau))).T.to(device)
             diffusion_var = 1. - diffusion_mean2
             exp_slope = -(1 / ((diffusion_var + diffusion_mean2 * ts_step))[0])
-            print(torch.concat([torch.sqrt(diffusion_mean2).unsqueeze(-1)]*data_shape[-1], dim=-1).shape , (ts_step) , true_cond_mean(config, prev_path).shape)
             exp_const = torch.concat([torch.sqrt(diffusion_mean2).unsqueeze(-1)]*data_shape[-1], dim=-1) * (ts_step) * true_cond_mean(config, prev_path)
             exp_score = exp_slope * (x - exp_const)
             if len(exp_score) == 3 and exp_score.shape[0] == 1:
@@ -57,7 +56,6 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
             # Store the score, the expected score, and the revSDE paths
             scores.append(score)
             exp_scores.append(exp_score)
-            print(score.shape, exp_score.shape)
             if len(x.shape) == 3 and x.shape[-1] == 1:
                 revSDE_paths.append(x.squeeze(-1))
             elif len(x.shape) == 3 and x.shape[-1] != 1:
