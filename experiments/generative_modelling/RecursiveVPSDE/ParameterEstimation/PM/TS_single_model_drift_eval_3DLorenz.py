@@ -136,15 +136,13 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
 def build_drift_estimator(diffusion, ts_step, diff_time_space, score_evals, exp_scores, Xtaus):
     eff_times = diffusion.get_eff_times(torch.Tensor(diff_time_space)).cpu()  # .numpy()
     beta_2_taus = torch.exp(-eff_times)
-    print(beta_2_taus.shape)
     sigma_taus = 1. - beta_2_taus
     # Compute the part of the score independent of data mean
     c1 = (sigma_taus + beta_2_taus * ts_step) * torch.exp(torch.Tensor([0.5]) * eff_times)  # * 1/beta_tau
     c2 = torch.exp(torch.Tensor([0.5]) * eff_times)  # 1/beta_tau
-    c1 = c1.view(1, c1.shape[0], 1)
-    c2 = c2.view(1, c2.shape[0], 1)
+    c1 = c1.view(1,1, c1.shape[0], 1)
+    c2 = c2.view(1,1,c2.shape[0], 1)
     print(c1.shape, score_evals.shape, c2.shape, Xtaus.shape)
-    print((c1 * score_evals ).shape)
     drift_est = c1 * score_evals + c2 * Xtaus
     drift_est /= ts_step
     exp_drifts = c1 * exp_scores + c2 * Xtaus
