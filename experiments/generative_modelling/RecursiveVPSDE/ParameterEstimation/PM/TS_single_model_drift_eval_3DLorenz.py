@@ -12,7 +12,7 @@ from utils.data_processing import init_experiment
 
 
 def true_cond_mean(config, prev_path):
-    return torch.concat([config.ts_beta*(prev_path[1]-prev_path[0]), prev_path[0]*(config.ts_rho-prev_path[2])-prev_path[1],prev_path[0]*prev_path[1]-config.ts_beta*prev_path[2]]).to(prev_path.device)
+    return torch.concat([config.ts_beta*(prev_path[:,:,[1]]-prev_path[:,:,[0]]), prev_path[:,:,[0]]*(config.ts_rho-prev_path[:,:,[2]])-prev_path[:,:,[1]],prev_path[:,:,[0]]*prev_path[:,:,[1]]-config.ts_beta*prev_path[:,:,[2]]]).to(prev_path.device)
 
 
 # Generate value of path at time "t" by running reverse diffusion
@@ -49,6 +49,7 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
             diffusion_mean2 = torch.atleast_2d(torch.exp(-diffusion.get_eff_times(diff_times=tau))).T.to(device)
             diffusion_var = 1. - diffusion_mean2
             exp_slope = -(1 / ((diffusion_var + diffusion_mean2 * ts_step))[0])
+            print(diffusion_mean2.shape, ts_step, true_cond_mean(config, prev_path).shape)
             exp_const = torch.sqrt(diffusion_mean2) * (ts_step) * true_cond_mean(config, prev_path)
             exp_score = exp_slope * (x.squeeze(-1) - exp_const)
             if len(exp_score) == 3 and exp_score.shape[0] == 1:
