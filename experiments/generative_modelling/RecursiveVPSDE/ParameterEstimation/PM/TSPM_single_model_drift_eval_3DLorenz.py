@@ -33,7 +33,6 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
                 scoreModel.eval()
                 with torch.no_grad():
                     eff_times = diffusion.get_eff_times(diff_times=tau)
-                    print(eff_times.shape)
                     eff_times = eff_times.view(eff_times.shape[0], 1, 1)
                     predicted_score = scoreModel.forward(x, conditioner=feature, times=tau, eff_times=eff_times)
 
