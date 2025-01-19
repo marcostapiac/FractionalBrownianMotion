@@ -150,6 +150,8 @@ def build_drift_estimator(diffusion, ts_step, diff_time_space, score_evals, exp_
     c2 = torch.exp(torch.Tensor([0.5]) * eff_times)  # 1/beta_tau
     c1 = c1.view(1, c1.shape[0], 1)
     c2 = c2.view(1, c2.shape[0], 1)
+    print(c1.shape, score_evals.shape, c2.shape, Xtaus.shape)
+    print((c1 * score_evals ).shape)
     drift_est = c1 * score_evals + c2 * Xtaus
     drift_est /= ts_step
     exp_drifts = c1 * exp_scores + c2 * Xtaus
