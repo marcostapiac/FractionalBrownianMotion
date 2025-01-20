@@ -11,6 +11,8 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 from utils.data_processing import init_experiment
 
 
+
+
 def true_cond_mean(config, prev_path):
     return torch.concat([config.ts_beta*(prev_path[:,:,[1]]-prev_path[:,:,[0]]), prev_path[:,:,[0]]*(config.ts_rho-prev_path[:,:,[2]])-prev_path[:,:,[1]],prev_path[:,:,[0]]*prev_path[:,:,[1]]-config.ts_beta*prev_path[:,:,[2]]],dim=-1).to(prev_path.device)
 
@@ -24,18 +26,16 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
     revSDE_paths = []
     for diff_index in tqdm(range(config.max_diff_steps)):
         if diff_index <= config.max_diff_steps - es - 1:
-            tau = diff_time_space[diff_index] * torch.ones((data_shape[0],)).to(device)
+            tau = diff_time_space[diff_index] * torch.ones((x.shape[0],)).to(device)
             try:
                 scoreModel.eval()
                 with torch.no_grad():
-                    tau = tau * torch.ones((x.shape[0],)).to(device)
                     predicted_score = scoreModel.forward(x, conditioner=feature, times=tau)
             except TypeError:
                 scoreModel.eval()
                 with torch.no_grad():
-                    tau = tau * torch.ones(x.shape).to(device)
                     eff_times = diffusion.get_eff_times(diff_times=tau)
-                    eff_times = eff_times.reshape(x.shape)
+                    eff_times = eff_times.view(eff_times.shape[0], 1, 1)
                     predicted_score = scoreModel.forward(x, conditioner=feature, times=tau, eff_times=eff_times)
 
             score, drift, diffParam = diffusion.get_conditional_reverse_diffusion(x=x,
@@ -176,7 +176,7 @@ def TS_drift_eval():
     assert (config.max_diff_steps == 10000)
     es = 0
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/TSPM_ES{es}_3DLorenz_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.max_diff_steps}DiffSteps").replace(
+            project_config.ROOT_DIR + f"experiments/results/TSPMS_ES{es}_3DLorenz_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.max_diff_steps}DiffSteps").replace(
         ".", "")
 
     print(Nepoch, config.data_path, es, config.scoreNet_trained_path)
