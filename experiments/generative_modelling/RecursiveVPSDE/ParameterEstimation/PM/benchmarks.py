@@ -127,7 +127,7 @@ def compute_cv_for_bw_vectorised(_bw, prevPath_observations, path_incs, bw_obs, 
 
 
 bws = np.logspace(-2, 0, 20)
-if num_paths > 1:
+if num_paths > 1000:
     bw_obs = exclude_row(prevPath_observations)
     bw_incs = exclude_row(path_incs)
     list_cvs = Parallel(n_jobs=1, backend="loky")(

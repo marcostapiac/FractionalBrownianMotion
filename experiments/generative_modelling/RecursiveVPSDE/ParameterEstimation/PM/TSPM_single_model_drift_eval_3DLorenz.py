@@ -12,7 +12,7 @@ from utils.data_processing import init_experiment
 
 
 def true_cond_mean(config, prev_path):
-    return torch.concat([config.ts_beta*(prev_path[:,:,[1]]-prev_path[:,:,[0]]), prev_path[:,:,[0]]*(config.ts_rho-prev_path[:,:,[2]])-prev_path[:,:,[1]],prev_path[:,:,[0]]*prev_path[:,:,[1]]-config.ts_beta*prev_path[:,:,[2]]],dim=-1).to(prev_path.device)
+    return torch.concat([config.ts_sigma*(prev_path[:,:,[1]]-prev_path[:,:,[0]]), prev_path[:,:,[0]]*(config.ts_rho-prev_path[:,:,[2]])-prev_path[:,:,[1]],prev_path[:,:,[0]]*prev_path[:,:,[1]]-config.ts_beta*prev_path[:,:,[2]]],dim=-1).to(prev_path.device)
 
 
 # Generate value of path at time "t" by running reverse diffusion
@@ -173,7 +173,7 @@ def TS_drift_eval():
 
     Nepoch = 960
     assert (config.max_diff_steps == 10000)
-    es = 0
+    es = 40
     save_path = (
             project_config.ROOT_DIR + f"experiments/results/TSPM_ES{es}_3DLorenz_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.max_diff_steps}DiffSteps").replace(
         ".", "")

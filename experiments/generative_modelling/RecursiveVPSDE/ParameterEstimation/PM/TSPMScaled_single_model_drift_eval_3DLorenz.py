@@ -14,7 +14,7 @@ from utils.data_processing import init_experiment
 
 
 def true_cond_mean(config, prev_path):
-    return torch.concat([config.ts_beta*(prev_path[:,:,[1]]-prev_path[:,:,[0]]), prev_path[:,:,[0]]*(config.ts_rho-prev_path[:,:,[2]])-prev_path[:,:,[1]],prev_path[:,:,[0]]*prev_path[:,:,[1]]-config.ts_beta*prev_path[:,:,[2]]],dim=-1).to(prev_path.device)
+    return torch.concat([config.ts_sigma*(prev_path[:,:,[1]]-prev_path[:,:,[0]]), prev_path[:,:,[0]]*(config.ts_rho-prev_path[:,:,[2]])-prev_path[:,:,[1]],prev_path[:,:,[0]]*prev_path[:,:,[1]]-config.ts_beta*prev_path[:,:,[2]]],dim=-1).to(prev_path.device)
 
 
 # Generate value of path at time "t" by running reverse diffusion
