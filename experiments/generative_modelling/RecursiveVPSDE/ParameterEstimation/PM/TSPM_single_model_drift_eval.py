@@ -25,7 +25,6 @@ def single_time_sampling(config, data_shape, diff_time_space, diffusion, feature
     scores = []
     exp_scores = []
     revSDE_paths = []
-    assert (0 <= es <= 20)
     for diff_index in tqdm(range(config.max_diff_steps)):
         if diff_index <= config.max_diff_steps - es - 1:
 
@@ -167,7 +166,7 @@ def TSPM_drift_eval():
     ts_step = 1 / config.ts_length
 
     Nepoch = 960  # config.max_epochs[0]
-    es = 0
+    es = 40
     assert (config.max_diff_steps == 10000)
     if "fOU" in config.data_path:
         save_path = (
