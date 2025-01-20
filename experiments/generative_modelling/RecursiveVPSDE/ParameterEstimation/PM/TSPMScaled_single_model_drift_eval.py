@@ -167,7 +167,7 @@ def TSPM_drift_eval():
 
     Nepoch = 960  # config.max_epochs[0]
     es = 10
-    assert (config.max_diff_steps == 1000)
+    assert (config.max_diff_steps == 10000)
     if "fOU" in config.data_path:
         save_path = (
                 project_config.ROOT_DIR + f"experiments/results/TSPMS_ES{es}_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(

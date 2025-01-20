@@ -165,7 +165,7 @@ def TS_drift_eval():
     ts_step = 1 / config.ts_length
 
     Nepoch = 960
-    assert (config.max_diff_steps == 1000)
+    assert (config.max_diff_steps == 10000)
     es = 10
     if "fOU" in config.data_path:
         save_path = \
