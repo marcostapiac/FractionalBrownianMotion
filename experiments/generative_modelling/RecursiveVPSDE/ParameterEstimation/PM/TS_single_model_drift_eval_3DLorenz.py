@@ -172,7 +172,7 @@ def TS_drift_eval():
     sample_eps = config.sample_eps
     ts_step = 1 / config.ts_length
 
-    Nepoch = 960
+    Nepoch = 1440
     assert (config.max_diff_steps == 10000)
     es = 10
     save_path = (
