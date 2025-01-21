@@ -148,7 +148,7 @@ def TSPM_drift_eval():
     config = get_config()
     init_experiment(config=config)
 
-    num_simulated_paths = 50
+    num_simulated_paths = 500
     data_shape = (num_simulated_paths, 1, 1)
 
     if config.has_cuda:
