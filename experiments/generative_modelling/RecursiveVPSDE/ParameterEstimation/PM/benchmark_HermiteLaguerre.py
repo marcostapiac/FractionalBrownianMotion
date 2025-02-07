@@ -26,7 +26,7 @@ config = get_config()
 # In[3]:
 
 
-num_paths = int(1e4)
+num_paths = int(1e5)
 num_time_steps = int(256)
 isUnitInterval = True
 mean_rev = config.mean_rev
