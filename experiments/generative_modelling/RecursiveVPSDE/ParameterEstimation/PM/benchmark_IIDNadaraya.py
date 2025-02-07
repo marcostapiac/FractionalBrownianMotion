@@ -202,20 +202,18 @@ def compute_cv_for_bw_per_path(i, _bw):
 
 def compute_cv_for_bw(_bw):
     N = prevPath_observations.shape[0]
-    #cvs = Parallel(n_jobs=4)(delayed(compute_cv_for_bw_per_path)(i, _bw) for i in (range(N)))
-    cvs = [compute_cv_for_bw_per_path(i, _bw) for i in range(N)]
+    cvs = Parallel(n_jobs=10, backend="loky")(delayed(compute_cv_for_bw_per_path)(i, _bw) for i in (range(N)))
+    #cvs = [compute_cv_for_bw_per_path(i, _bw) for i in range(N)]
     return np.sum(cvs)
 
 
 # In[ ]:
 
 
-import time
-bws = np.logspace(-2, -0.05, 20)
+bws = np.logspace(-2, 0., 20)
 CVs = np.zeros(len(bws))
 for h in tqdm(range(bws.shape[0])):
     CVs[h] = compute_cv_for_bw(bws[h])
-    time.sleep(5)
 
 
 # In[ ]:
@@ -223,7 +221,6 @@ for h in tqdm(range(bws.shape[0])):
 
 bw = bws[np.argmin(CVs)]
 print(CVs)
-bw
 
 
 # In[ ]:
