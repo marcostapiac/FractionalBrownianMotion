@@ -28,15 +28,15 @@ if __name__ == "__main__":
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    init_experiment(config=config)
+    #init_experiment(config=config)
     end_epoch = max(config.max_epochs)
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))
     except FileNotFoundError as e:
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
         training_size = int(
-            min(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 1200000))
-        print(training_size)
+            max(1000, min(int(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad) / (
+                        config.ts_length - 1)), 1200000)))
         try:
             data = np.load(config.data_path, allow_pickle=True)
             assert (data.shape[0] >= training_size)

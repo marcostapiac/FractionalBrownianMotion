@@ -27,7 +27,7 @@ if __name__ == "__main__":
         *config.model_parameters) if config.model_choice == "TSM" else NaiveMLP(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
-
+    print(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad) / (config.ts_length-1))
     init_experiment(config=config)
     end_epoch = max(config.max_epochs)
     try:
@@ -35,7 +35,7 @@ if __name__ == "__main__":
     except FileNotFoundError as e:
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
         training_size = int(
-            min(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 1200000))
+            max(1000,min(int(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad) / (config.ts_length-1)), 1200000)))
         print(training_size)
         try:
             data = np.load(config.data_path, allow_pickle=True)

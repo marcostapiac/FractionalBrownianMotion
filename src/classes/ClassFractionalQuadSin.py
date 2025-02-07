@@ -34,15 +34,10 @@ class FractionalQuadSin:
     def inverse_lamperti(self, Z: np.ndarray):
         return None  # self.initialVol * np.exp(self.volVol * Z)
 
-    def increment_state(self, prev: np.ndarray, time: float, deltaT: float, M: int):
-        """ Increment volatilities """
-        # ax^2+bsin(cx)
-        driftX = self.quad_coeff * np.power(prev, 2) + self.sin_coeff * np.sin(self.sin_space_scale*prev)  # gamma*sin(Xt-1)
+    def increment_state(self, prev: np.ndarray, deltaT: float, M: int):
+        # ax^2+bsin(cx) potential --> 2ax +bccos(cx) drift
+        driftX = 2.*self.quad_coeff * prev + self.sin_coeff * self.sin_space_scale*np.sin(self.sin_space_scale*prev)  # gamma*sin(Xt-1)
         diffX = self.diff * M
-        # Note we use (Weak approximation schemes for SDEs with super-linearly growing coefficients) to simulate
-        # as standard EM fails
-        driftX = driftX/(1.+deltaT*np.power(driftX, 2))
-        diffX = diffX/(1.+deltaT*np.power(driftX, 2))
         return prev + driftX * deltaT + diffX
 
     def euler_simulation(self, H: float, N: int, isUnitInterval: bool, t0: float, t1: float, deltaT: float,
@@ -68,5 +63,5 @@ class FractionalQuadSin:
             else:
                 Ms = self.gaussIncs * np.sqrt(deltaT)
         for i in (range(1, N + 1)):
-            Zs.append(self.increment_state(prev=Zs[i - 1], time=time_ax[i - 1], deltaT=deltaT, M=Ms[i - 1]))
+            Zs.append(self.increment_state(prev=Zs[i - 1], deltaT=deltaT, M=Ms[i - 1]))
         return np.array(Zs)
