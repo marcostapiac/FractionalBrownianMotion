@@ -12,11 +12,13 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from configs.RecursiveVPSDE.Markovian_fSin.recursive_Markovian_fSinWithPosition_T256_H05_tl_5data import get_config as get_config
+from configs.RecursiveVPSDE.Markovian_fSin.recursive_Markovian_PostMeanScore_fSin_T256_H05_tl_5data_Small import get_config as get_config
 from tqdm import tqdm
 
 from configs import project_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
+    ConditionalMarkovianTSPostMeanScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSScoreMatching import \
     ConditionalMarkovianTSScoreMatching
 
@@ -38,9 +40,12 @@ max_diff_steps = config.max_diff_steps
 sample_eps = config.sample_eps
 ts_step = 1 / config.ts_length
 
-Nepoch = 960  # config.max_epochs[0]
+Nepoch = 1440  # config.max_epochs[0]
 # Fix the number of training epochs and training loss objective loss
-PM = ConditionalMarkovianTSScoreMatching(*config.model_parameters).to(device)
+if "PM" in config.scoreNet_trained_path:
+    PM = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters).to(device)
+else:
+    PM = ConditionalMarkovianTSScoreMatching(*config.model_parameters).to(device)
 PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
 
 # In[23]:
@@ -48,8 +53,7 @@ PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch
 
 Xshape = config.ts_length
 num_taus = 500
-num_diff_times = 1000
-assert (num_diff_times * num_taus == 500000)
+num_diff_times = config.max_diff_steps
 Ndiff_discretisation = config.max_diff_steps
 diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_time,
                                  steps=Ndiff_discretisation).to(device)
@@ -72,7 +76,11 @@ for k in tqdm(range(num_taus)):
         if k == 0 and difftime_idx < 100:
             print(d)
         with torch.no_grad():
-            predicted_score = PM.forward(inputs=Z_taus, times=diff_times, conditioner=conditioner)
+            if "PM" in config.scoreNet_trained_path:
+                predicted_score = PM.forward(inputs=Z_taus, times=diff_times, conditioner=conditioner,
+                                             eff_times=eff_times)
+            else:
+                predicted_score = PM.forward(inputs=Z_taus, times=diff_times, conditioner=conditioner)
             scores, drift, diffParam = diffusion.get_conditional_reverse_diffusion(x=Z_taus,
                                                                                    predicted_score=predicted_score,
                                                                                    diff_index=torch.Tensor(
@@ -135,19 +143,19 @@ else:
 print(type)
 
 es = 0
+
 if "fOU" in config.data_path:
     save_path = \
         (
-                project_config.ROOT_DIR + f"experiments/results/TS_mkv_ES{es}_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
+                project_config.ROOT_DIR + f"experiments/results/TSPM_Small_mkv_ES{es}_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
             ".", "")
 elif "fSin" in config.data_path:
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/TS_mkv_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
+            project_config.ROOT_DIR + f"experiments/results/TSPM_Small_mkv_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
         ".", "")
 
 np.save(save_path + "_muhats.npy", mu_hats)
 np.save(save_path + "_numpyXs.npy", numpy_Xs)
-
 raise RuntimeError
 
 for j in range(0, num_diff_times, 10):
