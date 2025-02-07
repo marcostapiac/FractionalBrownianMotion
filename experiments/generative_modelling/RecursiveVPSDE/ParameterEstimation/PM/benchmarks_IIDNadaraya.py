@@ -151,7 +151,7 @@ print(bw, CVs)
 
 num_Xs = 256
 num_ests = 500
-Xs = np.linspace(-2, 2, num_Xs)
+Xs = np.linspace(-3, 3, num_Xs)
 drift_hats = np.zeros((num_Xs, num_ests))
 for k in tqdm(range(num_ests)):
     path_observations = ddata[np.random.choice(idxs, size=num_paths, replace=False), :]
@@ -166,4 +166,4 @@ save_path = (
         project_config.ROOT_DIR + f"experiments/results/TS_benchmark_fSin_DriftEvalExp_{round(bw, 4)}bw_{num_paths}NPaths").replace(
     ".", "")
 # In[50]:
-np.save(save_path + "_driftHats.npy", drift_hats)
+np.save(save_path + "_IIDNadaraya_driftHats.npy", drift_hats)
