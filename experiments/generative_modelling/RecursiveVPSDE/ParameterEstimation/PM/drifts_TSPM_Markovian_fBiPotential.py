@@ -12,7 +12,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from configs.RecursiveVPSDE.Markovian_fBiPotential.recursive_Markovian_PostMeanScore_fBiPotential_T256_H05_tl_5data import get_config as get_config
+from configs.RecursiveVPSDE.Markovian_fBiPot.recursive_Markovian_PostMeanScore_fBiPot_T256_H05_tl_5data import get_config as get_config
 from tqdm import tqdm
 
 from configs import project_config
@@ -116,7 +116,7 @@ def plot_drift_estimator(mean, stds, numpy_Xs, type, toSave: bool = True):
     ax.legend(loc="lower right", fontsize=18)
     if toSave:
         plt.savefig(
-            f"/Users/marcos/Library/CloudStorage/OneDrive-ImperialCollegeLondon/StatML_CDT/Year2/DiffusionModelPresentationImages/fBiPotential_{type}.png")
+            f"/Users/marcos/Library/CloudStorage/OneDrive-ImperialCollegeLondon/StatML_CDT/Year2/DiffusionModelPresentationImages/fBiPot_{type}.png")
     plt.show()
     plt.close()
 
@@ -149,9 +149,9 @@ if "fOU" in config.data_path:
         (
                 project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
             ".", "")
-elif "fBiPotential" in config.data_path:
+elif "fBiPot" in config.data_path:
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_fBiPotential_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
+            project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_fBiPot_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
         ".", "")
 
 np.save(save_path + "_muhats.npy", mu_hats)
