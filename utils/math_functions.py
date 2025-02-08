@@ -14,6 +14,7 @@ from tqdm import tqdm
 
 from configs.project_config import NoneType
 from src.classes import ClassFractionalBrownianNoise
+from src.classes.ClassFractionalBiPotential import FractionalBiPotential
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.classes.ClassFractionalCEV import FractionalCEV
 from src.classes.ClassFractionalOU import FractionalOU
@@ -278,6 +279,36 @@ def generate_fQuadSin(H: float, T: int, S: int, isUnitInterval: bool, a: float, 
     fQuadSin = FractionalQuadSin(quad_coeff=a, sin_coeff=b, sin_space_scale=c, diff=diff, X0=initial_state)
     data = np.array(
         [fQuadSin.euler_simulation(H=H, N=T, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=None, Ms=None,
+                                   gaussRvs=rvs,
+                                   t0=t0, t1=t1) for _ in range(S)]).reshape(
+        (S, T + 1))
+    assert (data.shape == (S, T + 1))
+    return data[:, 1:]
+
+
+def generate_fBiPotential(H: float, T: int, S: int, isUnitInterval: bool, a: float, b: float, c: float, diff: float,
+                      initial_state: float,
+                      rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
+    """
+    Function generates samples of fractional BiPotential SDE
+        :param H: Hurst parameter
+        :param T: Length of each sample
+        :param S: Number of samples
+        :param rvs: Pre-computed Gaussian random variables
+        :param isUnitInterval: Whether to scale samples to unit time interval.
+        :return: LSTM_fBm samples
+    """
+    if isUnitInterval:
+        deltaT = 1. / T
+        t0 = 0.
+        t1 = 1.
+    else:
+        deltaT = 1.
+        t0 = 0.
+        t1 = T
+    fBiPotential = FractionalBiPotential(quartic_coeff=a, quad_coeff=b, const=c, diff=diff, X0=initial_state)
+    data = np.array(
+        [fBiPotential.euler_simulation(H=H, N=T, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=None, Ms=None,
                                    gaussRvs=rvs,
                                    t0=t0, t1=t1) for _ in range(S)]).reshape(
         (S, T + 1))
