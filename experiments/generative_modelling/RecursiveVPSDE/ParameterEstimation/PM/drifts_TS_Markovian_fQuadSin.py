@@ -57,39 +57,44 @@ mu_hats_std = np.zeros((Xshape, num_taus))
 Xs = torch.linspace(-3, 3, steps=Xshape).unsqueeze(-1).unsqueeze(-1).permute(1, 0, 2).to(device)
 conditioner = torch.stack([Xs for _ in range(1)], dim=0).reshape(Xshape * 1, 1, -1)
 B, T = Xshape, 1
-mu_hats = np.zeros((Xshape, num_diff_times, num_taus))  # Xvalues, DiffTimes, Ztaus
+final_vec_mu_hats = np.zeros((Xshape, num_diff_times, num_taus))  # Xvalues, DiffTimes, Ztaus
 PM.eval()
-for k in tqdm(range(num_taus)):
-    difftime_idx = num_diff_times - 1
-    Z_taus = diffusion.prior_sampling(shape=(Xshape, 1, 1)).to(device)
-    while difftime_idx >= 0:
-        d = diffusion_times[Ndiff_discretisation - (num_diff_times - 1 - difftime_idx) - 1].to(device)
-        diff_times = torch.stack([d for _ in range(B)]).reshape(B * T, 1, -1).squeeze(-1).squeeze(-1).squeeze(-1).to(
-            device)
-        eff_times = diffusion.get_eff_times(diff_times=diff_times).unsqueeze(-1).unsqueeze(-1).to(device)
-        if k == 0 and difftime_idx < 100:
-            print(d)
-        with torch.no_grad():
-            predicted_score = PM.forward(inputs=Z_taus, times=diff_times, conditioner=conditioner)
-            scores, drift, diffParam = diffusion.get_conditional_reverse_diffusion(x=Z_taus,
-                                                                                   predicted_score=predicted_score,
-                                                                                   diff_index=torch.Tensor(
-                                                                                       [int((
-                                                                                               num_diff_times - 1 - difftime_idx))]).to(
-                                                                                       device),
-                                                                                   max_diff_steps=Ndiff_discretisation)
-        # assert np.allclose((scores- predicted_score).detach(), 0)
-        beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
-        sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
-        for i in range(Xshape):
-            Zts = Z_taus[i, :, :]
-            Ss = scores[i, :, :]
-            mu_hat = Zts / (ts_step * beta_taus) + (
-                    (torch.pow(sigma_taus, 2) + (torch.pow(beta_taus, 2) * ts_step)) / (ts_step * beta_taus)) * Ss
-            mu_hats[i, difftime_idx, k] = mu_hat[0, 0].cpu().detach().numpy()
-        z = torch.randn_like(drift).to(device)
-        Z_taus = drift + diffParam * z
-        difftime_idx -= 1
+vec_Z_taus = diffusion.prior_sampling(shape=(Xshape*num_taus, 1, 1)).to(device)
+difftime_idx = num_diff_times - 1
+ts = []
+while difftime_idx >= 0:
+    d = diffusion_times[Ndiff_discretisation - (num_diff_times - 1 - difftime_idx) - 1].to(device)
+    # I (will) have a RV for each x (there are B of them) and hence need a diffusion time for each one
+    diff_times = torch.stack([d for _ in range(B)]).reshape(B * T).to(device)
+    eff_times = diffusion.get_eff_times(diff_times=diff_times).unsqueeze(-1).unsqueeze(-1).to(device)
+    vec_diff_times = torch.stack([diff_times for _ in range(num_taus)], dim=0).reshape(num_taus*Xshape)
+    vec_eff_times = torch.stack([eff_times for _ in range(num_taus)], dim=0).reshape(num_taus*Xshape, 1, 1)
+    vec_conditioner = torch.stack([conditioner for _ in range(num_taus)], dim=0).reshape(num_taus*Xshape, 1, 1)
+    assert np.all([np.allclose(vec_conditioner[i*Xshape:(i+1)*Xshape,:,:], conditioner) for i in range(num_taus)])
+    with torch.no_grad():
+        if "PM" in config.scoreNet_trained_path:
+            vec_predicted_score = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
+                                         eff_times=vec_eff_times)
+        else:
+            predicted_score = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner)
+        vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
+                                                                               predicted_score=vec_predicted_score,
+                                                                               diff_index=torch.Tensor(
+                                                                                   [int((
+                                                                                           num_diff_times - 1 - difftime_idx))]).to(
+                                                                                   device),
+                                                                               max_diff_steps=Ndiff_discretisation)
+    # assert np.allclose((scores- predicted_score).detach(), 0)
+    beta_taus = torch.exp(-0.5 * d).to(device)
+    sigma_taus = torch.pow(1. - torch.pow(d, 2), 0.5).to(device)
+    final_mu_hats = (vec_Z_taus/(ts_step * beta_taus)) + ( (
+                (torch.pow(sigma_taus, 2) + (torch.pow(beta_taus, 2) * ts_step)) / (ts_step * beta_taus)) * vec_scores)
+    #print(vec_Z_taus.shape, vec_scores.shape)
+    final_vec_mu_hats[:, difftime_idx, :] = final_mu_hats.reshape((num_taus, Xshape)).T
+    vec_z = torch.randn_like(vec_drift).to(device)
+    vec_Z_taus = vec_drift + vec_diffParam * vec_z
+    difftime_idx -= 1
+
 
 
 def plot_drift_estimator(mean, stds, numpy_Xs, type, toSave: bool = True):
@@ -144,7 +149,7 @@ elif "fQuadSin" in config.data_path:
             project_config.ROOT_DIR + f"experiments/results/TS_mkv_ES{es}_fQuadSin_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
         ".", "")
 
-np.save(save_path + "_muhats.npy", mu_hats)
+np.save(save_path + "_muhats.npy", final_vec_mu_hats)
 np.save(save_path + "_numpyXs.npy", numpy_Xs)
 
 raise RuntimeError
