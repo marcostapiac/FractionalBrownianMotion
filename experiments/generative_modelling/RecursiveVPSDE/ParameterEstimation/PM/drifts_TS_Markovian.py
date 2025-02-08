@@ -134,7 +134,8 @@ else:
     type = "Standard"
 print(type)
 
-es = 0
+es = 15 if config.max_diff_steps == 10000 else 5
+
 if "fOU" in config.data_path:
     save_path = \
         (
