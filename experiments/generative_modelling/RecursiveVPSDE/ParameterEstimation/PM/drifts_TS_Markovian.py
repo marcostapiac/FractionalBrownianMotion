@@ -24,7 +24,6 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 
 
 config = get_config()
-assert (config.max_diff_steps == 1000 and config.beta_min == 0.)
 print("Beta Min : ", config.beta_min)
 if config.has_cuda:
     device = int(os.environ["LOCAL_RANK"])
@@ -48,8 +47,7 @@ PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch
 
 Xshape = config.ts_length
 num_taus = 500
-num_diff_times = 1000
-assert (num_diff_times * num_taus == 500000)
+num_diff_times = config.max_diff_steps
 Ndiff_discretisation = config.max_diff_steps
 diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_time,
                                  steps=Ndiff_discretisation).to(device)
