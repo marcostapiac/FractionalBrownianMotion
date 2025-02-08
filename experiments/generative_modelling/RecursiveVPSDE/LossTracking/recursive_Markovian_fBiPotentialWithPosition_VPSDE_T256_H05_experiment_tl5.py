@@ -43,7 +43,7 @@ if __name__ == "__main__":
         except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
             data = generate_fBiPot(T=config.ts_length, isUnitInterval=config.isUnitInterval, S=training_size,
-                                 H=config.hurst, a=config.quad_coeff,b=config.sin_coeff, c=config.sin_space_scale, diff=config.diffusion,
+                                 H=config.hurst, a=config.quartic_coeff,b=config.quad_coeff, c=config.const, diff=config.diffusion,
                                  initial_state=config.initState)
             np.save(config.data_path, data)
         data = np.concatenate([data[:, [0]], np.diff(data, axis=1)], axis=1)
