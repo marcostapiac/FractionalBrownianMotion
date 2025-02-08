@@ -11,11 +11,11 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
     ConditionalMarkovianTSScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from utils.data_processing import init_experiment, cleanup_experiment
-from utils.math_functions import generate_fBiPotential
+from utils.math_functions import generate_fBiPot
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.Markovian_fBiPotential.recursive_Markovian_fBiPotentialWithPosition_T256_H05_tl_5data import get_config
+    from configs.RecursiveVPSDE.Markovian_fBiPot.recursive_Markovian_fBiPotWithPosition_T256_H05_tl_5data import get_config
 
     config = get_config()
     assert (config.hurst == 0.5)
@@ -42,7 +42,7 @@ if __name__ == "__main__":
             assert (data.shape[0] >= training_size)
         except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
-            data = generate_fBiPotential(T=config.ts_length, isUnitInterval=config.isUnitInterval, S=training_size,
+            data = generate_fBiPot(T=config.ts_length, isUnitInterval=config.isUnitInterval, S=training_size,
                                  H=config.hurst, a=config.quad_coeff,b=config.sin_coeff, c=config.sin_space_scale, diff=config.diffusion,
                                  initial_state=config.initState)
             np.save(config.data_path, data)

@@ -286,7 +286,7 @@ def generate_fQuadSin(H: float, T: int, S: int, isUnitInterval: bool, a: float, 
     return data[:, 1:]
 
 
-def generate_fBiPotential(H: float, T: int, S: int, isUnitInterval: bool, a: float, b: float, c: float, diff: float,
+def generate_fBiPot(H: float, T: int, S: int, isUnitInterval: bool, a: float, b: float, c: float, diff: float,
                       initial_state: float,
                       rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
     """
@@ -306,9 +306,9 @@ def generate_fBiPotential(H: float, T: int, S: int, isUnitInterval: bool, a: flo
         deltaT = 1.
         t0 = 0.
         t1 = T
-    fBiPotential = FractionalBiPotential(quartic_coeff=a, quad_coeff=b, const=c, diff=diff, X0=initial_state)
+    fBiPot = FractionalBiPotential(quartic_coeff=a, quad_coeff=b, const=c, diff=diff, X0=initial_state)
     data = np.array(
-        [fBiPotential.euler_simulation(H=H, N=T, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=None, Ms=None,
+        [fBiPot.euler_simulation(H=H, N=T, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=None, Ms=None,
                                    gaussRvs=rvs,
                                    t0=t0, t1=t1) for _ in range(S)]).reshape(
         (S, T + 1))
