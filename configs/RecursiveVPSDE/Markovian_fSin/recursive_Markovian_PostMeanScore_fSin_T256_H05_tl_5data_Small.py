@@ -22,8 +22,8 @@ def get_config():
         ".", "") + ".npy"
 
     # Training hyperparameters
-    config.train_eps = 1./config.max_diff_steps
-    config.max_diff_steps = 1000  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
+    config.max_diff_steps = 1000
+    config.train_eps = 1./config.max_diff_steps  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
