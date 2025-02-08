@@ -142,7 +142,7 @@ else:
     type = "Standard"
 print(type)
 
-es = 0
+es = 40
 
 if "fOU" in config.data_path:
     save_path = \
