@@ -12,14 +12,14 @@ def get_config():
 
     # Data set parameters
     config.hurst = 0.5
-    config.quad_coeff = -1.
-    config.sin_coeff = 1.
-    config.sin_space_scale = 4.
+    config.quartic_coeff = 1
+    config.quad_coeff = 3.
+    config.const = -0.5
     config.diffusion = 1.
     config.initState = 0.
     config.ts_length = 256
     config.data_path = project_config.ROOT_DIR + "data/fBiPot_samples_H{}_T{}_{}a_{}b_{}c_{}Diff_{}Init".format(
-        str(config.hurst), config.ts_length, config.quad_coeff, config.sin_coeff, config.sin_space_scale,
+        str(config.hurst), config.ts_length, config.quartic_coeff, config.quad_coeff, config.const,
         config.diffusion, config.initState).replace(
         ".", "") + ".npy"
 
@@ -68,7 +68,7 @@ def get_config():
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings,
-        config.quad_coeff, config.sin_coeff, config.sin_space_scale, config.tdata_mult).replace(".", "")
+        config.quartic_coeff, config.quad_coeff, config.const, config.tdata_mult).replace(".", "")
 
     config.model_choice = "TSM"
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
