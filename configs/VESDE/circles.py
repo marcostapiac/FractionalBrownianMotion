@@ -18,7 +18,7 @@ def get_config():
     config.data_path = project_config.ROOT_DIR + "data/noisy_circle_samples.npy"
 
     # Training hyperparameters
-    config.train_eps = 1e-5
+    config.train_eps = 1./config.max_diff_steps
     config.max_diff_steps = 1000
     config.end_diff_time = 1.
     config.save_freq = 50

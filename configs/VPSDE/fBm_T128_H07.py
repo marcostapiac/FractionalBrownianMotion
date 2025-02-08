@@ -19,7 +19,7 @@ def get_config():
         str(config.hurst).replace(".", ""), config.ts_length)
 
     # Training hyperparameters
-    config.train_eps = 1e-4
+    config.train_eps = 1./config.max_diff_steps
     config.max_diff_steps = 10000  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 50
