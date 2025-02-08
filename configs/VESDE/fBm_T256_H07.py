@@ -70,7 +70,7 @@ def get_config():
 
     # Sampling hyperparameters
     config.early_stop_idx = 0
-    config.sample_eps = 1e-4
+    config.sample_eps = config.train_eps
     if config.hybrid: assert (config.sample_eps == config.train_eps)
     config.max_lang_steps = 0
     config.snr = 0.01

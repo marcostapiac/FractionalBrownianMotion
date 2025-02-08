@@ -22,8 +22,8 @@ def get_config():
         ".", "") + ".npy"
 
     # Training hyperparameters
-    config.train_eps = 1e-4
-    config.max_diff_steps = 10000  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
+    config.train_eps = 1e-3
+    config.max_diff_steps = 1000  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
@@ -82,7 +82,7 @@ def get_config():
 
     # Sampling hyperparameters
     config.early_stop_idx = 0
-    config.sample_eps = 1e-4
+    config.sample_eps = config.train_eps
     if config.hybrid: assert (config.sample_eps == config.train_eps)
     config.max_lang_steps = 0
     config.snr = 0.
