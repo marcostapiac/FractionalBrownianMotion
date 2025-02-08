@@ -89,7 +89,7 @@ def TSPM_drift_eval():
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
     Nepoch = 960
-    assert (config.max_diff_steps == 10000 and config.beta_min == 0.)
+    
     for es in [30, 40, 60, 70, 80]:  # 0, 10, 100, 200, 5, 20, 50, 150; 0, 3, 5, 7, 10, 15, 20
         if "fOU" in config.data_path:
             save_path = \
