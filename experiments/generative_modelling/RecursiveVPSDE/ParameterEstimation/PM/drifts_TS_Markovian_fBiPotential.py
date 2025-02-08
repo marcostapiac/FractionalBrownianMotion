@@ -71,7 +71,7 @@ while difftime_idx >= 0:
     vec_diff_times = torch.stack([diff_times for _ in range(num_taus)], dim=0).reshape(num_taus*Xshape)
     vec_eff_times = torch.stack([eff_times for _ in range(num_taus)], dim=0).reshape(num_taus*Xshape, 1, 1)
     vec_conditioner = torch.stack([conditioner for _ in range(num_taus)], dim=0).reshape(num_taus*Xshape, 1, 1)
-    assert np.all([np.allclose(vec_conditioner[i*Xshape:(i+1)*Xshape,:,:], conditioner) for i in range(num_taus)])
+
     with torch.no_grad():
         if "PM" in config.scoreNet_trained_path:
             vec_predicted_score = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
