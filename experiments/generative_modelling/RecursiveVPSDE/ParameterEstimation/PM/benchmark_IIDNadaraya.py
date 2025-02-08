@@ -111,7 +111,7 @@ def rmse_ignore_nans(y_true, y_pred):
 # In[4]:
 
 
-num_paths = 100000
+num_paths = 1000
 t0 = 0.
 ts_length = 256
 deltaT = 1./256

@@ -33,7 +33,7 @@ def rmse_ignore_nans(y_true, y_pred):
 # In[40]:
 
 
-num_paths = 100000
+num_paths = 1000
 num_time_steps = int(256)
 isUnitInterval = True
 mean_rev = config.mean_rev
