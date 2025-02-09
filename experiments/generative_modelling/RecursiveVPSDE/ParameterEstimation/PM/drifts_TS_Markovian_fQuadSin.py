@@ -146,7 +146,7 @@ if "fOU" in config.data_path:
             ".", "")
 elif "fQuadSin" in config.data_path:
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/TS_mkv_ES{es}_fQuadSin_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.quartic_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.max_diff_steps}DiffSteps").replace(
+            project_config.ROOT_DIR + f"experiments/results/TS_mkv_ES{es}_fQuadSin_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.max_diff_steps}DiffSteps").replace(
         ".", "")
 
 np.save(save_path + "_muhats.npy", final_vec_mu_hats)
