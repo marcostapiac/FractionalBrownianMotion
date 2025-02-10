@@ -187,6 +187,6 @@ basis = hermite_basis(R=R, paths=Xs)
 bhat = construct_drift(basis=basis, coefficients=coeffs)
 
 save_path = (
-        project_config.ROOT_DIR + f"experiments/results/TS_Hermite_fSin_DriftEvalExp_{R}R_{num_paths}NPaths").replace(
+        project_config.ROOT_DIR + f"experiments/results/TS_Hermite_fQuadSin_DriftEvalExp_{R}R_{num_paths}NPaths").replace(
     ".", "")
 np.save(save_path + "_Hermite_unifdriftHats.npy", bhat)
