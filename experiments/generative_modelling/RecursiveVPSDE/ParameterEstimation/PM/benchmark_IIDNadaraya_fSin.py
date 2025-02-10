@@ -13,13 +13,7 @@ from configs import project_config
 from src.classes.ClassFractionalSin import FractionalSin
 from src.classes.ClassFractionalBiPotential import FractionalBiPotential
 from src.classes.ClassFractionalQuadSin import FractionalQuadSin
-# from configs.RecursiveVPSDE.Markovian_fSin.recursive_Markovian_fSinWithPosition_T256_H05_tl_5data import get_config
-from configs.RecursiveVPSDE.Markovian_fQuadSin.recursive_Markovian_fQuadSinWithPosition_T256_H05_tl_5data import \
-    get_config
-
-
-# from configs.RecursiveVPSDE.Markovian_fBiPot.recursive_Markovian_fBiPotWithPosition_T256_H05_tl_5data import get_config
-
+from configs.RecursiveVPSDE.Markovian_fSin.recursive_Markovian_fSinWithPosition_T256_H05_tl_5data import get_config
 
 # In[2]:
 
@@ -39,7 +33,7 @@ def rmse_ignore_nans(y_true, y_pred):
 
 
 config = get_config()
-num_paths = 101#52
+num_paths = 10152
 t0 = 0.
 ts_length = 256
 deltaT = 1. / 256
