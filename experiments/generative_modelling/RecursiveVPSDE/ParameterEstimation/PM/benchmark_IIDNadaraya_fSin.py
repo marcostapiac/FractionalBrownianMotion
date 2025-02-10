@@ -128,7 +128,7 @@ def compute_cv_for_bw_per_path(i, _bw):
 
 def compute_cv_for_bw(_bw):
     N = prevPath_observations.shape[0]
-    cvs = Parallel(n_jobs=4)(delayed(compute_cv_for_bw_per_path)(i, _bw) for i in (range(N)))
+    cvs = Parallel(n_jobs=14)(delayed(compute_cv_for_bw_per_path)(i, _bw) for i in (range(N)))
     # cvs = [compute_cv_for_bw_per_path(i, _bw) for i in range(N)]
     return np.sum(cvs)
 
