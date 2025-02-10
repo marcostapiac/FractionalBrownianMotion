@@ -19,8 +19,7 @@ def get_config():
     config.initState = 0.
     config.ts_length = 256
     config.data_path = project_config.ROOT_DIR + "data/fQuadSin_samples_H{}_T{}_{}a_{}b_{}c_{}Diff_{}Init".format(
-        str(config.hurst), config.ts_length, config.quad_coeff, config.sin_coeff, config.sin_space_scale,
-        config.diffusion, config.initState).replace(
+        str(config.hurst), config.ts_length, config.quad_coeff, config.sin_coeff, config.sin_space_scale, config.diffusion, config.initState).replace(
         ".", "") + ".npy"
 
     # Training hyperparameters
@@ -29,19 +28,19 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = [960, 1440]  # 1920, 2920, 6920, 12920]
+    config.max_epochs = [60, 100, 150, 300, 960, 1440]  # , 1920, 2920, 6920, 12920]
     config.batch_size = 256
     config.isfBm = True
     config.isUnitInterval = True
     config.hybrid = True
     config.weightings = True
-    config.tdata_mult = 5
+    config.tdata_mult = 110
     config.ts_dims = 1
     config.loss_factor = 0
 
     # Diffusion hyperparameters
     config.beta_max = 20.
-    config.beta_min = 0.  # 0.0001
+    config.beta_min = 0.
 
     # MLP Architecture parameters
     config.temb_dim = 64
@@ -55,14 +54,14 @@ def get_config():
     config.dialation_length = 10
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_markv_PM_MLP_{}_incs_{}_unitIntv_fQuadSin_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_TembDim{}_EncShapes{}_tl5".format(
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_mkv_MLP_{}_incs_{}_unitIntv_fQuadSin_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_TembDim{}_EncShapes{}_tl{}".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
-        config.enc_shapes).replace(".", "")
+        config.enc_shapes,config.tdata_mult).replace(".", "")
 
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_markv_PM_TSM_{}_incs_{}_unitIntv_fQuadSin_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_DiffEmbSize{}_ResLay{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Wghts_{}a_{}b_{}c_tl{}".format(
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_markv_TSMWP_{}_incs_{}_unitIntv_fQuadSin_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_DiffEmbSize{}_ResLay{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Wghts_{}a_{}b_{}c_tl{}".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
@@ -90,7 +89,7 @@ def get_config():
     config.snr = 0.
     config.predictor_model = "CondAncestral"
     config.corrector_model = "VP"  # vs "VE" vs "OUSDE"
-    config.param_time = 900
+    config.param_time = 100
 
     # Experiment evaluation parameters
     config.dataSize = 40000
