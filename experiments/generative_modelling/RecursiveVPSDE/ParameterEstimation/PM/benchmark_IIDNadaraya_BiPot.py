@@ -154,7 +154,7 @@ elif "fSin" in config.data_path:
     minx = -3
 maxx = -minx
 Xs = np.linspace(minx, maxx, numXs)
-num_dhats = 500
+num_dhats = 50
 for bw in bws:
     unif_is_drift_hats = np.zeros((numXs, num_dhats))
 
