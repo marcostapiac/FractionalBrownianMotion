@@ -177,16 +177,16 @@ maxx = -minx
 
 # In[9]:
 
+for R in [4, 8, 12, 16, 24]:
+    basis = hermite_basis(R=R, paths=paths)
+    coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None))
 
-basis = hermite_basis(R=R, paths=paths)
-coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None))
+    fig, ax = plt.subplots(figsize=(14, 9))
+    Xs = np.linspace(minx, maxx, num_time_steps).reshape(1, -1)
+    basis = hermite_basis(R=R, paths=Xs)
+    bhat = construct_drift(basis=basis, coefficients=coeffs)
 
-fig, ax = plt.subplots(figsize=(14, 9))
-Xs = np.linspace(minx, maxx, num_time_steps).reshape(1, -1)
-basis = hermite_basis(R=R, paths=Xs)
-bhat = construct_drift(basis=basis, coefficients=coeffs)
-
-save_path = (
-        project_config.ROOT_DIR + f"experiments/results/TS_Hermite_fQuadSin_DriftEvalExp_{R}R_{num_paths}NPaths").replace(
-    ".", "")
-np.save(save_path + "_Hermite_unifdriftHats.npy", bhat)
+    save_path = (
+            project_config.ROOT_DIR + f"experiments/results/TS_Hermite_fQuadSin_DriftEvalExp_{R}R_{num_paths}NPaths").replace(
+        ".", "")
+    np.save(save_path + "_Hermite_unifdriftHats.npy", bhat)

@@ -138,12 +138,12 @@ def compute_cv_for_bw(_bw):
 
 
 bws = np.logspace(-2, -0.05, 20)
-CVs = np.zeros(len(bws))
-for h in tqdm(range(bws.shape[0])):
-    CVs[h] = compute_cv_for_bw(bws[h])
+#CVs = np.zeros(len(bws))
+#for h in tqdm(range(bws.shape[0])):
+#    CVs[h] = compute_cv_for_bw(bws[h])
 
-bw = bws[np.argmin(CVs)]
-print(CVs)
+#bw = bws[np.argmin(CVs)]
+#print(CVs)
 
 numXs = 256
 if "fQuadSin" in config.data_path:
@@ -155,20 +155,20 @@ elif "fSin" in config.data_path:
 maxx = -minx
 Xs = np.linspace(minx, maxx, numXs)
 num_dhats = 500
+for bw in bws:
+    unif_is_drift_hats = np.zeros((numXs, num_dhats))
 
-unif_is_drift_hats = np.zeros((numXs, num_dhats))
+    for k in tqdm(range(num_dhats)):
+        is_ss_path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False), :]
+        is_prevPath_observations = is_ss_path_observations[:, 1:-1]
+        is_path_incs = np.diff(is_ss_path_observations, axis=1)[:, 1:]
+        unif_is_drift_hats[:, k] = IID_NW_estimator(prevPath_observations=is_prevPath_observations, bw=bw, x=Xs,
+                                                    path_incs=is_path_incs, t1=t1, t0=t0, truncate=True)
 
-for k in tqdm(range(num_dhats)):
-    is_ss_path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False), :]
-    is_prevPath_observations = is_ss_path_observations[:, 1:-1]
-    is_path_incs = np.diff(is_ss_path_observations, axis=1)[:, 1:]
-    unif_is_drift_hats[:, k] = IID_NW_estimator(prevPath_observations=is_prevPath_observations, bw=bw, x=Xs,
-                                                path_incs=is_path_incs, t1=t1, t0=t0, truncate=True)
-
-save_path = (
-        project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fBiPot_DriftEvalExp_{round(bw, 4)}bw_{num_paths}NPaths").replace(
-    ".", "")
-np.save(save_path + "_IIDNadaraya_isdriftHats.npy", unif_is_drift_hats)
+    save_path = (
+            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fBiPot_DriftEvalExp_{round(bw, 4)}bw_{num_paths}NPaths").replace(
+        ".", "")
+    np.save(save_path + "_IIDNadaraya_isdriftHats.npy", unif_is_drift_hats)
 
 # In[ ]:
 
