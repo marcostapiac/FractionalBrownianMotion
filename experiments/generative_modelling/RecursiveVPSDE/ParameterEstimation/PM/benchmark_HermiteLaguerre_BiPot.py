@@ -9,8 +9,13 @@ from scipy.special import eval_laguerre
 from src.classes.ClassFractionalSin import FractionalSin
 from src.classes.ClassFractionalBiPotential import FractionalBiPotential
 from src.classes.ClassFractionalQuadSin import FractionalQuadSin
-from configs.RecursiveVPSDE.Markovian_fQuadSin.recursive_Markovian_fQuadSinWithPosition_T256_H05_tl_5data import \
-    get_config
+from configs.RecursiveVPSDE.Markovian_fBiPot.recursive_Markovian_fBiPotWithPosition_T256_H05_tl_5data import get_config
+
+
+# # From Nonparametric drift estimation for IID paths of SDE (Comte et al 2020)
+
+# In[2]:
+
 
 config = get_config()
 

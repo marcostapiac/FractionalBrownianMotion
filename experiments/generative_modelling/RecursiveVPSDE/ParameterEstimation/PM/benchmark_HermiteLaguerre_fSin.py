@@ -9,13 +9,9 @@ from scipy.special import eval_laguerre
 from src.classes.ClassFractionalSin import FractionalSin
 from src.classes.ClassFractionalBiPotential import FractionalBiPotential
 from src.classes.ClassFractionalQuadSin import FractionalQuadSin
-from configs.RecursiveVPSDE.Markovian_fQuadSin.recursive_Markovian_fQuadSinWithPosition_T256_H05_tl_5data import \
-    get_config
+from configs.RecursiveVPSDE.Markovian_fSin.recursive_Markovian_fSinWithPosition_T256_H05_tl_5data import get_config
 
 config = get_config()
-
-# In[3]:
-
 
 num_paths = 10152
 num_time_steps = int(256)
