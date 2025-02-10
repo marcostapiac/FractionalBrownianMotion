@@ -12,7 +12,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from configs.RecursiveVPSDE.Markovian_fBiPot.recursive_Markovian_PostMeanScore_fBiPot_T256_H05_tl_5data import get_config as get_config
+from configs.RecursiveVPSDE.Markovian_fBiPot.recursive_Markovian_PostMeanScore_fBiPot_T256_H05_tl_110data import get_config as get_config
 from tqdm import tqdm
 
 from configs import project_config
@@ -40,7 +40,7 @@ max_diff_steps = config.max_diff_steps
 sample_eps = config.sample_eps
 ts_step = 1 / config.ts_length
 
-Nepoch = 1440  # config.max_epochs[0]
+Nepoch = 960  # config.max_epochs[0]
 # Fix the number of training epochs and training loss objective loss
 if "PM" in config.scoreNet_trained_path:
     PM = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters).to(device)
