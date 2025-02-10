@@ -41,7 +41,7 @@ Nepoch = 300  # config.max_epochs[0]
 # Fix the number of training epochs and training loss objective loss
 PM = ConditionalMarkovianTSScoreMatching(*config.model_parameters).to(device)
 PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
-
+print(config.scoreNet_trained_path)
 # In[23]:
 
 
