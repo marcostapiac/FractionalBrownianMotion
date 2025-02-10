@@ -52,7 +52,7 @@ PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch
 
 
 Xshape = config.ts_length
-num_taus = 500
+num_taus = 5
 num_diff_times = config.max_diff_steps
 Ndiff_discretisation = config.max_diff_steps
 diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_time,
@@ -76,7 +76,6 @@ while difftime_idx >= 0:
     vec_diff_times = torch.stack([diff_times for _ in range(num_taus)], dim=0).reshape(num_taus*Xshape)
     vec_eff_times = torch.stack([eff_times for _ in range(num_taus)], dim=0).reshape(num_taus*Xshape, 1, 1)
     vec_conditioner = torch.stack([conditioner for _ in range(num_taus)], dim=0).reshape(num_taus*Xshape, 1, 1)
-
     with torch.no_grad():
         if "PM" in config.scoreNet_trained_path:
             vec_predicted_score = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
@@ -92,7 +91,7 @@ while difftime_idx >= 0:
                                                                                max_diff_steps=Ndiff_discretisation)
     # assert np.allclose((scores- predicted_score).detach(), 0)
     beta_taus = torch.exp(-0.5 * d).to(device)
-    sigma_taus = torch.pow(1. - torch.pow(d, 2), 0.5).to(device)
+    sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
     final_mu_hats = (vec_Z_taus/(ts_step * beta_taus)) + ( (
                 (torch.pow(sigma_taus, 2) + (torch.pow(beta_taus, 2) * ts_step)) / (ts_step * beta_taus)) * vec_scores)
     #print(vec_Z_taus.shape, vec_scores.shape)
