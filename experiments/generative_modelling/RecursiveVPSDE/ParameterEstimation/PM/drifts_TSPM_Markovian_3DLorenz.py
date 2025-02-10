@@ -53,6 +53,7 @@ else:
 #        "MODEL_STATE"])  # + "_NEp" + str(Nepoch)))
 PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
 # In[23]:
+print(config.scoreNet_trained_path)
 
 
 Xshape = config.ts_length
@@ -122,13 +123,12 @@ elif "PM" in config.scoreNet_trained_path:
     type = "PM"
 else:
     type = "Standard"
-print(type)
 
 es = 0
 
 save_path = (
         project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_3DLorenz_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.max_diff_steps}DiffSteps").replace(
     ".", "")
-
-np.save(save_path + "_muhats.npy", final_vec_mu_hats)
+print(save_path)
+np.save(save_path + "_muhats.npy", mu_hats)
 np.save(save_path + "_numpyXs.npy", numpy_Xs)

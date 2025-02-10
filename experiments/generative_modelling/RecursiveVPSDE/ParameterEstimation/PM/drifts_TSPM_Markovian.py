@@ -46,6 +46,7 @@ if "PM" in config.scoreNet_trained_path:
 else:
     PM = ConditionalMarkovianTSScoreMatching(*config.model_parameters).to(device)
 PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
+print(config.scoreNet_trained_path)
 
 # In[23]:
 
@@ -153,7 +154,7 @@ elif "fSin" in config.data_path:
     save_path = (
             project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
         ".", "")
-
+print(save_path)
 np.save(save_path + "_muhats.npy", final_vec_mu_hats)
 np.save(save_path + "_numpyXs.npy", numpy_Xs)
 raise RuntimeError
