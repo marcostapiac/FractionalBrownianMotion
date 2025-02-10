@@ -20,7 +20,7 @@ if __name__ == "__main__":
     config = get_config()
     assert (config.hurst == 0.5)
     assert (config.early_stop_idx == 0)
-    assert (config.tdata_mult == 5)
+    assert (config.tdata_mult == 110)
     print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()
     scoreModel = ConditionalMarkovianTSPostMeanScoreMatching(
