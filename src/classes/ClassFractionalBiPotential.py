@@ -35,11 +35,13 @@ class FractionalBiPotential:
         return None  # self.initialVol * np.exp(self.volVol * Z)
 
     def increment_state(self, prev: np.ndarray, deltaT: float, M: int):
-        driftX = 4.*self.quartic_coeff * np.power(prev, 3) + self.quad_coeff * self.const  # gamma*sin(Xt-1)
+        # driftX = -V'(x) where V(x) = ax^4+bx^2+cx
+        driftX = -(4.*self.quartic_coeff * np.power(prev, 3) + 2.*self.quad_coeff * prev + self.const)  # gamma*sin(Xt-1)
         diffX = self.diff * M
-        # See (Weak approximation schemes for SDEs with super-linearly growing coefficients) for weak solution
-        driftX = driftX/(1.+deltaT*driftX)
-        diffX = diffX/(1.+deltaT*driftX)
+        ## See (Weak approximation schemes for SDEs with super-linearly growing coefficients, 2023) for weak solution
+        #diffX = diffX/(1.+deltaT*driftX)
+        # See Tamed Euler
+        driftX = driftX/(1.+deltaT*np.abs(driftX))
         return prev + driftX * deltaT + diffX
 
     def euler_simulation(self, H: float, N: int, isUnitInterval: bool, t0: float, t1: float, deltaT: float,
