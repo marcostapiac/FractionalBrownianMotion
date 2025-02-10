@@ -52,7 +52,7 @@ print(config.scoreNet_trained_path)
 
 
 Xshape = config.ts_length
-num_taus = 500
+num_taus = 5
 num_diff_times = config.max_diff_steps
 Ndiff_discretisation = config.max_diff_steps
 diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_time,
@@ -90,7 +90,7 @@ while difftime_idx >= 0:
                                                                                    device),
                                                                                max_diff_steps=Ndiff_discretisation)
     # assert np.allclose((scores- predicted_score).detach(), 0)
-    beta_taus = torch.exp(-0.5 * d).to(device)
+    beta_taus = torch.exp(-0.5 * eff_times[0,0,0]).to(device)
     sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
     final_mu_hats = (vec_Z_taus/(ts_step * beta_taus)) + ( (
                 (torch.pow(sigma_taus, 2) + (torch.pow(beta_taus, 2) * ts_step)) / (ts_step * beta_taus)) * vec_scores)
