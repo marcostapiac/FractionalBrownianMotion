@@ -112,6 +112,8 @@ class CondUpsampler(nn.Module):
         self.linear3 = nn.Linear(int(2 * target_dim), target_dim, bias=False)
 
     def forward(self, x):
+        # CondUpSampler applies transformations on a 3D tensor of dimensions [A, B, C] on the "C" dimension, in batch
+        # across [A, B]
         x = self.linear1(x)
         x = F.leaky_relu(x, 0.4)
         x = self.linear2(x)
@@ -168,6 +170,8 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
         cond_up = self.cond_upsampler(conditioner)
         skip = []
         for layer in self.residual_layers:
+            if cond_up.shape[1] != 1:
+                cond_up = cond_up.reshape(cond_up.shape[0]*cond_up.shape[1], 1, -1)
             x, skip_connection = layer(x, conditioner=cond_up, diffusion_step=diffusion_step)
             x = F.leaky_relu(x, 0.01)
             skip.append(skip_connection)

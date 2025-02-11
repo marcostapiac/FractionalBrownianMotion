@@ -13,8 +13,8 @@ from torchmetrics import MeanMetric
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
-    ConditionalMarkovianTSPostMeanScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
+    ConditionalLSTMTSPostMeanScoreMatching
 
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
@@ -22,23 +22,13 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 # Tutorial: https://www.youtube.com/watch?v=-LAtx9Q6DA8
 
 
-class ConditionalPostMeanMarkovianDiffTrainer(nn.Module):
+class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
 
-    def __init__(self,
-                 diffusion: Union[VESDEDiffusion, OUSDEDiffusion, VPSDEDiffusion],
-                 score_network: Union[ConditionalMarkovianTSPostMeanScoreMatching],
-                 train_data_loader: torch.utils.data.dataloader.DataLoader,
-                 train_eps: float,
-                 end_diff_time: float,
-                 max_diff_steps: int,
-                 optimiser: torch.optim.Optimizer,
-                 snapshot_path: str,
-                 device: Union[torch.device, int],
-                 checkpoint_freq: int,
-                 to_weight: bool,
-                 hybrid_training: bool,
-                 loss_factor: float,
-                 loss_fn: callable = torch.nn.MSELoss,
+    def __init__(self, diffusion: Union[VPSDEDiffusion, OUSDEDiffusion, VESDEDiffusion], score_network: Union[
+        ConditionalLSTMTSPostMeanScoreMatching], train_data_loader: torch.utils.data.dataloader.DataLoader,
+                 train_eps: float, end_diff_time: float, max_diff_steps: int, optimiser: torch.optim.Optimizer,
+                 snapshot_path: str, device: Union[torch.device, int], checkpoint_freq: int, to_weight: bool,
+                 hybrid_training: bool,init_state: torch.Tensor, loss_factor: float, loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
         super().__init__()
         self.device_id = device
@@ -46,6 +36,7 @@ class ConditionalPostMeanMarkovianDiffTrainer(nn.Module):
         self.score_network = score_network
         self.epochs_run = 0
 
+        self.init_state = init_state
         self.opt = optimiser
         self.save_every = checkpoint_freq  # Specifies how often we choose to save our model during training
         self.train_loader = train_data_loader
@@ -112,29 +103,24 @@ class ConditionalPostMeanMarkovianDiffTrainer(nn.Module):
         """
         self.opt.zero_grad()
         B, T, D = xts.shape
-        assert (features.shape[:2] == (B, T) and features.shape[-1] == D)
         # Reshaping concatenates vectors in dim=1
-        xts = xts.reshape(B * T, 1, D)
-        # Features is originally shaped (NumTimeSeries, TimeSeriesLength, LookBackWindow, TimeSeriesDim)
-        # Reshape so that we have (NumTimeSeries*TimeSeriesLength, 1, LookBackWindow, TimeSeriesDim)
-        ##features = features.reshape(B * T, 1, 1, D)
-        # Now reshape again into (NumTimeSeries*TimeSeriesLength, 1, LookBackWindow*TimeSeriesDim)
-        # Note this is for the simplest implementation of CondUpsampler which is simply an MLP
-        ##features = features.reshape(B * T, 1, 1 * D, 1).permute((0, 1, 3, 2)).squeeze(2)
-        features = features.reshape(B*T, 1, D)
+        xts = xts.reshape(B * T, 1, -1)
+        features = features.reshape(B * T, 1, -1)
         target_scores = target_scores.reshape(B * T, 1, -1)
         diff_times = diff_times.reshape(B * T)
         eff_times = torch.cat([eff_times]*D, dim=2).reshape(target_scores.shape)
         outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times, eff_times=eff_times)
-        # Outputs should be (NumBatches, TimeSeriesLength, 1)
         # For times larger than tau0, use inverse_weighting
         sigma_tau = 1. - torch.exp(-eff_times)
         beta_tau = torch.exp(-0.5 * eff_times)
-        if self.loss_factor == 0:  # PM
+        if not self.include_weightings:
+            weights = torch.ones_like(eff_times)
+        elif self.loss_factor == 0:  # PM
             weights = (sigma_tau / beta_tau)
         elif self.loss_factor == 1: # PMScaled (meaning not scaled)
             weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
-        return self._batch_loss_compute(outputs=weights * outputs, targets=weights * target_scores)
+        # Outputs should be (NumBatches, TimeSeriesLength, 1)
+        return self._batch_loss_compute(outputs=outputs * weights, targets=target_scores * weights)
 
     def _run_epoch(self, epoch: int) -> list:
         """
@@ -153,7 +139,7 @@ class ConditionalPostMeanMarkovianDiffTrainer(nn.Module):
         for x0s in (iter(self.train_loader)):
             x0s = x0s[0].to(self.device_id)
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
-            features = self.create_feature_vectors_from_position(x0s)
+            features = self.create_historical_vectors(x0s)
             if self.is_hybrid:
                 # We select diffusion time uniformly at random for each sample at each time (i.e., size (NumBatches, TimeSeries Sequence))
                 diff_times = timesteps[torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,
@@ -234,17 +220,23 @@ class ConditionalPostMeanMarkovianDiffTrainer(nn.Module):
         except FileNotFoundError:
             print("Snapshot file does not exist\n")
 
-    @staticmethod
-    def create_feature_vectors_from_position(batch):
+    def create_historical_vectors(self, batch):
         """
         Create history vectors using LSTM architecture
             :return: History vectors for each timestamp
         """
-
+        # dbatch = torch.cat([torch.zeros((batch.shape[0], 1, batch.shape[-1])).to(batch.device), batch], dim=1)
         # batch shape (N_batches, Time Series Length, Input Size)
-        dbatch = torch.cat([torch.zeros((batch.shape[0], 1, batch.shape[-1])).to(batch.device), batch], dim=1)
-        return dbatch.cumsum(dim=1)[:, :-1, :]
-
+        # hidden states: (D*NumLayers, N, Hidden Dims), D is 2 if bidirectional, else 1.
+        init_state = self.init_state.to(batch.device).view(1, 1, batch.shape[-1])  # Reshape to (1, 1, D)
+        init_state = init_state.expand(batch.shape[0], -1, -1)  # Expand to (B, 1, D)
+        dbatch = torch.cat([init_state, batch], dim=1)
+        dbatch = dbatch.cumsum(dim=1)
+        if type(self.device_id) == int:
+            output, (hn, cn) = (self.score_network.module.rnn(dbatch, None))
+        else:
+            output, (hn, cn) = (self.score_network.rnn(dbatch, None))
+        return output[:, :-1, :]
 
     def _save_loss(self, losses: list, filepath: str):
         """
@@ -283,7 +275,6 @@ class ConditionalPostMeanMarkovianDiffTrainer(nn.Module):
         self.score_network.train()
         all_losses_per_epoch = self._load_loss_tracker(model_filename)  # This will contain synchronised losses
         end_epoch = max(max_epochs)
-        print(len(all_losses_per_epoch), end_epoch, max_epochs)
         for epoch in range(self.epochs_run, end_epoch):
             t0 = time.time()
             device_epoch_losses = self._run_epoch(epoch)
@@ -298,7 +289,6 @@ class ConditionalPostMeanMarkovianDiffTrainer(nn.Module):
             # Obtain epoch loss averaged over devices
             average_loss_per_epoch = torch.mean(torch.stack(all_gpus_losses), dim=0)
             all_losses_per_epoch.append(float(average_loss_per_epoch.cpu().numpy()))
-
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
             # see  https://github.com/Lightning-AI/torchmetrics/issues/626
             print("Device {} :: Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format(

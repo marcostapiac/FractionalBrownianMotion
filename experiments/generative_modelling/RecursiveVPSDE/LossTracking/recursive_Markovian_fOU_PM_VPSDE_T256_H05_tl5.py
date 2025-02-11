@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 import torch
 
-from src.classes.ClassConditionalPostMeanMarkovianDiffTrainer import ConditionalPostMeanMarkovianDiffTrainer
+from src.classes.ClassConditionalMarkovianPostMeanDiffTrainer import ConditionalPostMeanMarkovianDiffTrainer
 from src.generative_modelling.data_processing import train_and_save_recursive_diffusion_model
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \

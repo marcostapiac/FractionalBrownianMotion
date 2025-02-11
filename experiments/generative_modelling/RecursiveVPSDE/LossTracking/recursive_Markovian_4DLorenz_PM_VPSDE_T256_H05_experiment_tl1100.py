@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 import torch
 
-from src.classes.ClassConditionalPostMeanMarkovianDiffTrainer import ConditionalPostMeanMarkovianDiffTrainer
+from src.classes.ClassConditionalMarkovianPostMeanDiffTrainer import ConditionalPostMeanMarkovianDiffTrainer
 from src.generative_modelling.data_processing import train_and_save_recursive_diffusion_model
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
@@ -21,6 +21,7 @@ if __name__ == "__main__":
     assert (config.hurst == 0.5)
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 1100)
+    assert (config.ndims == 4)
     print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()
     scoreModel = ConditionalMarkovianTSPostMeanScoreMatching(
@@ -45,10 +46,10 @@ if __name__ == "__main__":
             print("Error {}; generating synthetic data\n".format(e))
             data = generate_Lorenz96(H=config.hurst, T=config.ts_length, S=training_size,
                                      isUnitInterval=config.isUnitInterval, initial_state=config.initState,
-                                     beta=config.ts_beta, rho=config.ts_rho, sigma=config.ts_sigma,
-                                     diff=config.diffusion, ndims=4)
+                                     forcing_const=config.forcing_const,
+                                     diff=config.diffusion, ndims=config.ndims)
             np.save(config.data_path, data)
-        data = np.concatenate([data[:, [0]], np.diff(data, axis=1)], axis=1)
+        data = np.concatenate([data[:, [0], :], np.diff(data, axis=1)], axis=1)
         data = np.atleast_3d(data[:training_size, :,:])
         assert (data.shape == (training_size, config.ts_length, config.ts_dims))
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)

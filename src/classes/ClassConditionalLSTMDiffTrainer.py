@@ -24,30 +24,18 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 
 class ConditionalLSTMDiffusionModelTrainer(nn.Module):
 
-    def __init__(self,
-                 diffusion: Union[VESDEDiffusion, OUSDEDiffusion, VPSDEDiffusion],
-                 score_network: Union[
-                     ConditionalLSTMTSScoreMatching],
-                 train_data_loader: torch.utils.data.dataloader.DataLoader,
-                 train_eps: float,
-                 end_diff_time: float,
-                 max_diff_steps: int,
-                 optimiser: torch.optim.Optimizer,
-                 snapshot_path: str,
-                 device: Union[torch.device, int],
-                 checkpoint_freq: int,
-                 to_weight: bool,
-                 hybrid_training: bool,
-                 loss_factor: int,
-                 ts_time_diff: float = 1 / 256,
-                 loss_fn: callable = torch.nn.MSELoss,
+    def __init__(self, diffusion: Union[VESDEDiffusion, OUSDEDiffusion, VPSDEDiffusion], score_network: Union[
+        ConditionalLSTMTSScoreMatching], train_data_loader: torch.utils.data.dataloader.DataLoader, train_eps: float,
+                 end_diff_time: float, max_diff_steps: int, optimiser: torch.optim.Optimizer, snapshot_path: str,
+                 device: Union[torch.device, int], checkpoint_freq: int, to_weight: bool, hybrid_training: bool,
+                 loss_factor: int, init_state: torch.Tensor, loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
         super().__init__()
         self.device_id = device
         assert (self.device_id == torch.device("cpu") or self.device_id == int(os.environ["LOCAL_RANK"]))
         self.score_network = score_network
         self.epochs_run = 0
-
+        self.init_state = init_state
         self.opt = optimiser
         self.save_every = checkpoint_freq  # Specifies how often we choose to save our model during training
         self.train_loader = train_data_loader
@@ -60,7 +48,6 @@ class ConditionalLSTMDiffusionModelTrainer(nn.Module):
         self.end_diff_time = end_diff_time
         self.is_hybrid = hybrid_training
         self.include_weightings = to_weight
-        self.ts_time_diff = ts_time_diff
         self.loss_factor = loss_factor
 
         # Move score network to appropriate device
@@ -125,9 +112,6 @@ class ConditionalLSTMDiffusionModelTrainer(nn.Module):
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         if self.loss_factor == 0:
             weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
-        #elif self.loss_factor == 1:
-        #    weights = self.diffusion.get_loss_weighting(eff_times=eff_times) / torch.pow(
-        #        torch.Tensor([self.ts_time_diff]).to(eff_times.device), 0.5)
         elif not self.include_weightings:
             weights = torch.ones_like(eff_times)
         return self._batch_loss_compute(outputs=weights * outputs, targets=weights * target_scores)
@@ -236,9 +220,12 @@ class ConditionalLSTMDiffusionModelTrainer(nn.Module):
             :return: History vectors for each timestamp
         """
 
+        # dbatch = torch.cat([torch.zeros((batch.shape[0], 1, batch.shape[-1])).to(batch.device), batch], dim=1)
         # batch shape (N_batches, Time Series Length, Input Size)
         # hidden states: (D*NumLayers, N, Hidden Dims), D is 2 if bidirectional, else 1.
-        dbatch = torch.cat([torch.zeros((batch.shape[0], 1, batch.shape[-1])).to(batch.device), batch], dim=1)
+        init_state = self.init_state.to(batch.device).view(1, 1, batch.shape[-1])  # Reshape to (1, 1, D)
+        init_state = init_state.expand(batch.shape[0], -1, -1)  # Expand to (B, 1, D)
+        dbatch = torch.cat([init_state, batch], dim=1)
         if type(self.device_id) == int:
             output, (hn, cn) = (self.score_network.module.rnn(dbatch, None))
         else:

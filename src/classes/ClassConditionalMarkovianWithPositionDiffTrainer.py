@@ -38,6 +38,7 @@ class ConditionalMarkovianWithPositionDiffusionModelTrainer(nn.Module):
                  to_weight: bool,
                  hybrid_training: bool,
                  loss_factor: int,
+                 init_state: torch.Tensor,
                  loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
         super().__init__()
@@ -46,6 +47,7 @@ class ConditionalMarkovianWithPositionDiffusionModelTrainer(nn.Module):
         self.score_network = score_network
         self.epochs_run = 0
 
+        self.init_state = init_state
         self.opt = optimiser
         self.save_every = checkpoint_freq  # Specifies how often we choose to save our model during training
         self.train_loader = train_data_loader
@@ -130,9 +132,6 @@ class ConditionalMarkovianWithPositionDiffusionModelTrainer(nn.Module):
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         if self.loss_factor == 0:
             weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
-        #elif self.loss_factor == 1:
-        #    weights = self.diffusion.get_loss_weighting(eff_times=eff_times) / torch.pow(
-        #        torch.Tensor([self.ts_time_diff]).to(eff_times.device), 0.5)
         elif not self.include_weightings:
             weights = torch.ones_like(eff_times)
         return self._batch_loss_compute(outputs=weights * outputs, targets=weights * target_scores)
@@ -234,15 +233,17 @@ class ConditionalMarkovianWithPositionDiffusionModelTrainer(nn.Module):
             # os.remove(self.snapshot_path)  # Do NOT remove snapshot path yet eventhough training is done
         except FileNotFoundError:
             print("Snapshot file does not exist\n")
-    @staticmethod
-    def create_feature_vectors_from_position(batch):
+
+    def create_feature_vectors_from_position(self,batch):
         """
         Set
             :return: History vectors for each timestamp
         """
-
+        # dbatch = torch.cat([torch.zeros((batch.shape[0], 1, batch.shape[-1])).to(batch.device), batch], dim=1)
         # batch shape (N_batches, Time Series Length, Input Size)
-        dbatch = torch.cat([torch.zeros((batch.shape[0], 1, batch.shape[-1])).to(batch.device), batch], dim=1)
+        init_state = self.init_state.to(batch.device).view(1, 1, batch.shape[-1])  # Reshape to (1, 1, D)
+        init_state = init_state.expand(batch.shape[0], -1, -1)  # Expand to (B, 1, D)
+        dbatch = torch.cat([init_state, batch], dim=1)
         return dbatch.cumsum(dim=1)[:, :-1, :]
 
     def _save_loss(self, losses: list, filepath: str):
