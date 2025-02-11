@@ -32,7 +32,7 @@ def get_config():
     config.isUnitInterval = True
     config.hybrid = True
     config.weightings = True
-    config.tdata_mult = 5
+    config.tdata_mult = 110
     config.ts_dims = 1
     config.loss_factor = 0
 
