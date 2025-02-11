@@ -12,7 +12,7 @@ import os
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from configs.RecursiveVPSDE.Markovian_3DLorenz.recursive_Markovian_PostMeanScore_3DLorenz_T256_H05_tl_5data import \
+from configs.RecursiveVPSDE.Markovian_4DLorenz.recursive_Markovian_PostMeanScore_4DLorenz_T256_H05_tl_110data import \
     get_config as get_config
 from tqdm import tqdm
 

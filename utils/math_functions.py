@@ -17,6 +17,7 @@ from src.classes import ClassFractionalBrownianNoise
 from src.classes.ClassFractionalBiPotential import FractionalBiPotential
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.classes.ClassFractionalCEV import FractionalCEV
+from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
 from src.classes.ClassFractionalOU import FractionalOU
 from src.classes.ClassFractionalQuadSin import FractionalQuadSin
 from src.classes.ClassFractionalSin import FractionalSin
@@ -205,25 +206,24 @@ def generate_fOU(H: float, T: int, S: int, isUnitInterval: bool, mean_rev: float
     return data[:, 1:]
 
 
-def generate_3DLorenz(H: float, T: int, S: int, isUnitInterval: bool, initial_state: np.ndarray, beta: float,
-                      rho: float, sigma: float, diff: float):
-    assert (H == 0.5 and np.allclose(initial_state, 0.))
-    assert (diff == 1)
-    deltaT = 1. / T if isUnitInterval else 1.
-    X = initial_state[0] * np.ones(T + 1)
-    Y = initial_state[1] * np.ones(T + 1)
-    Z = initial_state[2] * np.ones(T + 1)
-    sample_paths = np.zeros((S, T + 1, 3))
-    for s in range(S):
-        for i in tqdm(range(T)):
-            w1, w2, w3 = np.sqrt(deltaT) * np.random.normal(loc=0, scale=1, size=3)
-            X[i + 1] = X[i] + sigma * (Y[i] - X[i]) * deltaT + w1
-            Y[i + 1] = Y[i] + (X[i] * (rho - Z[i]) - Y[i]) * deltaT + w2
-            Z[i + 1] = Z[i] + (X[i] * Y[i] - beta * Z[i]) * deltaT + w3
-        sample_paths[s, :, 0] = X
-        sample_paths[s, :, 1] = Y
-        sample_paths[s, :, 2] = Z
-    assert (sample_paths.shape == (S, T + 1, 3))
+def generate_Lorenz96(H: float, T: int, S: int, isUnitInterval: bool, initial_state: np.ndarray, forcing_const:float, diff: float, ndims:int):
+    assert (H == 0.5 and len(initial_state) == ndims)
+    # and np.allclose(initial_state, 0.))
+    assert (diff == 1.)
+    if isUnitInterval:
+        deltaT = 1. / T
+        t0 = 0.
+        t1 = 1.
+    else:
+        deltaT = 1.
+        t0 = 0.
+        t1 = T
+    f4DL = FractionalLorenz96(X0=np.array(initial_state), diff=diff, forcing_const=forcing_const,
+                              num_dims=ndims)
+    sample_paths = np.array([f4DL.euler_simulation(H=H, N=T, t0=t0, t1=t1, deltaT=deltaT,
+                                            isUnitInterval=isUnitInterval, X0=np.array(initial_state)).reshape(-1, 1) for _ in
+                      range(S)]).reshape((S, T + 1, ndims))
+    assert (sample_paths.shape == (S, T + 1, ndims))
     return sample_paths[:, 1:, :]
 
 

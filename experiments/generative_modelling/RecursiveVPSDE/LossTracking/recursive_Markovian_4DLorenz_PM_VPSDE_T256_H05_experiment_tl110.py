@@ -10,17 +10,17 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
     ConditionalMarkovianTSPostMeanScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from utils.data_processing import init_experiment, cleanup_experiment
-from utils.math_functions import generate_3DLorenz
+from utils.math_functions import generate_Lorenz96
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.Markovian_3DLorenz.recursive_Markovian_PostMeanScaledScore_3DLorenz_T256_H05_tl_5data import \
+    from configs.RecursiveVPSDE.Markovian_4DLorenz.recursive_Markovian_PostMeanScore_4DLorenz_T256_H05_tl_110data import \
         get_config
 
     config = get_config()
     assert (config.hurst == 0.5)
     assert (config.early_stop_idx == 0)
-    assert (config.tdata_mult == 5)
+    assert (config.tdata_mult == 110)
     print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()
     scoreModel = ConditionalMarkovianTSPostMeanScoreMatching(
@@ -28,24 +28,25 @@ if __name__ == "__main__":
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    init_experiment(config=config)
+    #init_experiment(config=config)
     end_epoch = max(config.max_epochs)
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))
     except FileNotFoundError as e:
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
         training_size = int(
-            min(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), 1200000))
+            max(1000, min(int(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad) / (
+                        config.ts_length - 1)), 1200000)))
         print(training_size)
         try:
             data = np.load(config.data_path, allow_pickle=True)
             assert (data.shape[0] >= training_size)
         except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
-            data = generate_3DLorenz(T=config.ts_length, isUnitInterval=config.isUnitInterval, S=training_size,
-                                     H=config.hurst, beta=config.ts_beta, rho=config.ts_rho, sigma=config.ts_sigma,
-                                     diff=config.diffusion,
-                                     initial_state=config.initState)
+            data = generate_Lorenz96(H=config.hurst, T=config.ts_length, S=training_size,
+                                     isUnitInterval=config.isUnitInterval, initial_state=config.initState,
+                                     beta=config.ts_beta, rho=config.ts_rho, sigma=config.ts_sigma,
+                                     diff=config.diffusion, ndims=4)
             np.save(config.data_path, data)
         data = np.concatenate([data[:, [0]], np.diff(data, axis=1)], axis=1)
         data = np.atleast_3d(data[:training_size, :,:])

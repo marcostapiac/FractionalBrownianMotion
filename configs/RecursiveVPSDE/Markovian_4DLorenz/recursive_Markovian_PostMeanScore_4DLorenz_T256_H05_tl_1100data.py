@@ -12,36 +12,35 @@ def get_config():
 
     # Data set parameters
     config.hurst = 0.5
-    # Classic chaotic behaviour
-    config.ts_beta = 8/3
-    config.ts_rho = 28.
-    config.ts_sigma = 10.
+    # Classic stable behaviour (forcing_const < 1)
+    config.ndims = 4
+    config.forcing_const = .75
     config.diffusion = 1.
-    config.initState = [0.,0.,0.]
+    config.initState = ([0., .5, 1., 1.5])
     config.ts_length = 256
-    config.data_path = project_config.ROOT_DIR + "data/3DLnz_samples_H{}_T{}_{}Beta_{}Rho_{}Sigma_{}Diff_{}Init".format(
-        str(config.hurst), config.ts_length, round(config.ts_beta,3), config.ts_rho, config.ts_sigma, config.diffusion, config.initState[0]).replace(
+    config.data_path = project_config.ROOT_DIR + "data/{}DLnz_samples_H{}_T{}_{}FConst_{}Diff".format(config.ndims,
+        str(config.hurst), config.ts_length, config.forcing_const, config.diffusion).replace(
         ".", "") + ".npy"
 
     # Training hyperparameters
     config.max_diff_steps = 10000
-    config.train_eps = 1./config.max_diff_steps  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
+    config.train_eps = 1./config.max_diff_steps
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = [960, 1440]  # , 1920, 2920, 6920, 12920]
+    config.max_epochs = [60, 100, 150, 300, 960, 1440]  # 1920, 2920, 6920, 12920]
     config.batch_size = 256
     config.isfBm = True
     config.isUnitInterval = True
     config.hybrid = True
     config.weightings = True
-    config.tdata_mult = 5
-    config.ts_dims = 3
+    config.tdata_mult = 1100
+    config.ts_dims = config.ndims
     config.loss_factor = 0
 
     # Diffusion hyperparameters
     config.beta_max = 20.
-    config.beta_min = 0.
+    config.beta_min = 0.  # 0.0001
 
     # MLP Architecture parameters
     config.temb_dim = 64
@@ -55,14 +54,14 @@ def get_config():
     config.dialation_length = 10
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_mkv_MLP_{}_incs_{}_unitIntv_3DLnz_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_TembDim{}_EncShapes{}_tl5".format(
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_markv_PM_MLP_{}_incs_{}_unitIntv_3DLnz_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_TembDim{}_EncShapes{}_tl5".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
         config.enc_shapes).replace(".", "")
 
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_markv_TSMWP_{}_incs_{}_unitIntv_3DLnz_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_DiffEmbSize{}_ResLay{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Wghts_tl5".format(
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_markv_PM_TSM_{}_incs_{}_unitIntv_3DLnz_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_DiffEmbSize{}_ResLay{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Wghts_tl5".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
@@ -89,7 +88,7 @@ def get_config():
     config.snr = 0.
     config.predictor_model = "CondAncestral"
     config.corrector_model = "VP"  # vs "VE" vs "OUSDE"
-    config.param_time = 100
+    config.param_time = 900
 
     # Experiment evaluation parameters
     config.dataSize = 40000
