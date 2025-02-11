@@ -133,12 +133,12 @@ def compute_cv_for_bw(_bw):
 
 
 bws = np.logspace(-2, -0.05, 20)
-CVs = np.zeros(len(bws))
-for h in tqdm(range(bws.shape[0])):
-    CVs[h] = compute_cv_for_bw(bws[h])
+#CVs = np.zeros(len(bws))
+#for h in tqdm(range(bws.shape[0])):
+#    CVs[h] = compute_cv_for_bw(bws[h])
 
-bw = bws[np.argmin(CVs)]
-print(CVs)
+#bw = bws[np.argmin(CVs)]
+#print(CVs)
 
 numXs = 256
 if "fQuadSin" in config.data_path:
