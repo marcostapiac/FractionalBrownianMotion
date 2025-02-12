@@ -27,7 +27,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 
 
 config = get_config()
-assert("3DLnz" in config.data_path)
+assert("4DLnz" in config.data_path)
 
 print("Beta Min : ", config.beta_min)
 if config.has_cuda:
@@ -58,7 +58,7 @@ print(config.scoreNet_trained_path)
 
 Xshape = config.ts_length
 num_taus = 50
-num_diff_times = 10000
+num_diff_times = config.max_diff_steps
 assert (num_diff_times * num_taus == 500000)
 Ndiff_discretisation = config.max_diff_steps
 diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_time,
@@ -127,7 +127,7 @@ else:
 es = 0
 
 save_path = (
-        project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_3DLorenz_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.max_diff_steps}DiffSteps").replace(
+        project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_4DLorenz_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.max_diff_steps}DiffSteps").replace(
     ".", "")
 print(save_path)
 np.save(save_path + "_muhats.npy", mu_hats)

@@ -91,7 +91,6 @@ class ResidualBlock(nn.Module):
     def forward(self, x, conditioner, diffusion_step):
         diffusion_step = self.diffusion_projection(diffusion_step).unsqueeze(-1)
         conditioner = self.conditioner_projection(conditioner)
-
         y = x + diffusion_step
         y = self.dilated_conv(y) + conditioner
 
