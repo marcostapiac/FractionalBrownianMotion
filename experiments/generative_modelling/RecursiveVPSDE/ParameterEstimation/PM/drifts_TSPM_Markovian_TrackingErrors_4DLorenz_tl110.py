@@ -119,7 +119,7 @@ for i in tqdm(range(1, num_time_steps+1)):
 
 
 save_path = (
-        project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_{config.ndims}DLorenz_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.max_diff_steps}DiffSteps").replace(
+        project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_{config.ndims}DLorenz_DriftEvalExp_{Nepoch}Nep_tl{config.tdata_mult}_{config.max_diff_steps}DiffSteps").replace(
     ".", "")
 print(save_path)
 np.save(save_path + "_true_states.npy", true_states)
