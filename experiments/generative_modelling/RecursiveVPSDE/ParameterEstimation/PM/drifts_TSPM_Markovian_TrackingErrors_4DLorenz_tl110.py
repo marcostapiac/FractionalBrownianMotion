@@ -38,7 +38,7 @@ num_diff_times = 1000
 PM = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters).to(device)
 PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
 
-num_paths = 100
+num_paths = 10
 num_time_steps = 50
 deltaT = 1. / 256
 initial_state = np.repeat(np.array(config.initState)[np.newaxis, np.newaxis, :], num_paths, axis=0)
