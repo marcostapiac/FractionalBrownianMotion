@@ -66,7 +66,7 @@ def true_drift(prev, num_paths, config):
 
 
 def score_based_drift(score_model, num_diff_times, diffusion, num_paths, prev, ts_step, config, device):
-    num_taus = 50
+    num_taus = 500
     Ndiff_discretisation = config.max_diff_steps
     assert (prev.shape == (num_paths, config.ndims))
     conditioner = torch.Tensor(prev[:, np.newaxis, :]).to(device) # TODO: Check this is how we condition wheen D>1
@@ -117,12 +117,12 @@ for i in tqdm(range(1, num_time_steps+1)):
                              + true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config) * deltaT \
                              + eps
     local_mean = score_based_drift(score_model=PM, num_diff_times=num_diff_times,diffusion=diffusion, num_paths=num_paths, ts_step=deltaT,config=config, device=device, prev=true_states[:, i - 1, :])
-    local_states[:, [i], :] = true_states[:, [i - 1], :] \
-                              + local_mean * deltaT + eps
+    print("\n\n")
+    print(local_mean.shape)
+    print("\n\n")
+    local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
     global_mean = score_based_drift(score_model=PM,num_diff_times=num_diff_times,diffusion=diffusion, num_paths=num_paths, ts_step=deltaT,config=config, device=device, prev=global_states[:, i - 1, :])
-
-    global_states[:, [i], :] = global_states[:, [i - 1], :] \
-                               + global_mean*deltaT+ eps
+    global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean*deltaT + eps
 
 
 save_path = (
