@@ -44,7 +44,7 @@ initial_state = np.repeat(np.array(config.initState)[np.newaxis, np.newaxis, :],
 assert (initial_state.shape == (num_paths, 1, config.ndims))
 
 true_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
-local_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+local_states = np.zeros(shape=(num_diff_times, num_paths, 1 + num_time_steps, config.ndims))
 #global_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
 
 # Initialise the "true paths"
