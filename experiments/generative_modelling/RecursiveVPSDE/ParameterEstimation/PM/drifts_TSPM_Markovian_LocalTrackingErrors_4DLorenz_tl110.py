@@ -89,7 +89,7 @@ def local_score_based_drift(score_model, num_diff_times, diffusion, num_paths, p
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
                                                                                            predicted_score=vec_predicted_score,
                                                                                            diff_index=torch.Tensor(
-                                                                                               [int(num_diff_times - 1 - difftime_idx)]).to(device),
+                                                                                               [int(Ndiff_discretisation - 1 - difftime_idx)]).to(device),
                                                                                            max_diff_steps=Ndiff_discretisation)
         # assert np.allclose((scores- predicted_score).detach(), 0)
         beta_taus = torch.exp(-0.5 * eff_times).to(device)
