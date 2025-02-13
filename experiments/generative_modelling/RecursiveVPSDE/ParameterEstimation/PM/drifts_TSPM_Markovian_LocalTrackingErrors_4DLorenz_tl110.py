@@ -34,7 +34,7 @@ else:
 diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
 Nepoch = 960  # config.max_epochs[0]
-num_diff_times = 1000
+num_diff_times = config.max_diff_steps - 500
 # Fix the number of training epochs and training loss objective loss
 PM = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters).to(device)
 PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
