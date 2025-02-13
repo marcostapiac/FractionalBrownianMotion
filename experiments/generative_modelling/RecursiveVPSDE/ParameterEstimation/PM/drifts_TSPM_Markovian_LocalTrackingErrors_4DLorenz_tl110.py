@@ -110,8 +110,6 @@ def local_score_based_drift(score_model, num_diff_times, diffusion, num_paths, p
         vec_z = torch.randn_like(vec_drift).to(device)
         vec_Z_taus = vec_drift + vec_diffParam * vec_z
         difftime_idx -= 1
-        print(difftime_idx, Ndiff_discretisation - num_diff_times, time.time() - t0)
-
     return mean_drifts
 
 
