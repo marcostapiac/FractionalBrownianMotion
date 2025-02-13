@@ -120,8 +120,9 @@ for i in tqdm(range(1, num_time_steps+1)):
     local_mean = local_score_based_drift(score_model=PM, num_diff_times=num_diff_times, diffusion=diffusion,
                                    num_paths=num_paths, ts_step=deltaT, config=config, device=device,
                                    prev=true_states[:, i - 1, :])
-    local_states[:, [i], :] = true_states[:, [i - 1], :] \
-                              + local_mean * deltaT + eps
+    local_states[:, :, [i], :] = np.repeat(true_states[:, [i - 1], :][np.newaxis, :, :, :], num_diff_times,
+                                           axis=0) + local_mean * deltaT + np.repeat(eps[np.newaxis, :, :, :],
+                                                                                     num_diff_times, axis=0)
     #global_mean = score_based_drift(score_model=PM, num_diff_times=num_diff_times, diffusion=diffusion,
     #                                num_paths=num_paths, ts_step=deltaT, config=config, device=device,
     #                                prev=global_states[:, i - 1, :])
