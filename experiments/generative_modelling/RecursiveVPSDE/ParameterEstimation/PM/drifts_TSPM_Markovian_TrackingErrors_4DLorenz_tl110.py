@@ -6,7 +6,7 @@
 
 # get_ipython().run_line_magic('load_ext', 'autoreload')
 # get_ipython().run_line_magic('autoreload', '2')
-
+import time
 import os
 import numpy as np
 import torch
@@ -66,7 +66,7 @@ def true_drift(prev, num_paths, config):
 
 
 def score_based_drift(score_model, num_diff_times, diffusion, num_paths, prev, ts_step, config, device):
-    num_taus = 500
+    num_taus = 50
     Ndiff_discretisation = config.max_diff_steps
     assert (prev.shape == (num_paths, config.ndims))
     conditioner = torch.Tensor(prev[:, np.newaxis, :]).to(device) # TODO: Check this is how we condition wheen D>1
@@ -77,6 +77,7 @@ def score_based_drift(score_model, num_diff_times, diffusion, num_paths, prev, t
     diffusion_times = torch.linspace(config.sample_eps, 1., config.max_diff_steps)
     difftime_idx = Ndiff_discretisation - 1
     while difftime_idx >= Ndiff_discretisation- num_diff_times:
+        t0 = time.time()
         d = diffusion_times[difftime_idx].to(device)
         diff_times = torch.Tensor([d]).to(device)
         eff_times = diffusion.get_eff_times(diff_times).to(device)
@@ -103,11 +104,13 @@ def score_based_drift(score_model, num_diff_times, diffusion, num_paths, prev, t
         vec_z = torch.randn_like(vec_drift).to(device)
         vec_Z_taus = vec_drift + vec_diffParam * vec_z
         difftime_idx -= 1
+        print(difftime_idx, Ndiff_discretisation - num_diff_times, time.time()-t0)
+
     return mean_drifts
 
 
 # Euler-Maruyama Scheme for Tracking Errors
-for i in tqdm(range(1, 3)):
+for i in tqdm(range(1, num_time_steps+1)):
     eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT)
     assert (eps.shape == (num_paths, 1, config.ndims))
     true_states[:, [i], :] = true_states[:, [i - 1], :] \
