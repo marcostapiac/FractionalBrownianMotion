@@ -6,7 +6,6 @@
 
 # get_ipython().run_line_magic('load_ext', 'autoreload')
 # get_ipython().run_line_magic('autoreload', '2')
-import time
 import os
 import numpy as np
 import torch
@@ -34,7 +33,7 @@ else:
 diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
 Nepoch = 960  # config.max_epochs[0]
-num_diff_times = config.max_diff_steps - 500
+num_diff_times = 1000
 # Fix the number of training epochs and training loss objective loss
 PM = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters).to(device)
 PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
@@ -47,14 +46,11 @@ assert (initial_state.shape == (num_paths, 1, config.ndims))
 
 true_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
 local_states = np.zeros(shape=(num_diff_times, num_paths, 1 + num_time_steps, config.ndims))
-#global_states = np.zeros(shape=(num_diff_times, num_paths, 1 + num_time_steps, config.ndims))
 
 # Initialise the "true paths"
 true_states[:, [0], :] = initial_state
 # Initialise the "local drift approximation paths"
 local_states[:, :, [0], :] = np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
-# Initialise the "global score-based drift paths"
-#global_states[:, :, [0], :] = np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
 
 
 def true_drift(prev, num_paths, config):
@@ -79,7 +75,6 @@ def local_score_based_drift(score_model, num_diff_times, diffusion, num_paths, p
     diffusion_times = torch.linspace(config.sample_eps, 1., config.max_diff_steps)
     difftime_idx = Ndiff_discretisation - 1
     while difftime_idx >= Ndiff_discretisation - num_diff_times:
-        t0 = time.time()
         d = diffusion_times[difftime_idx].to(device)
         diff_times = torch.Tensor([d]).to(device)
         eff_times = diffusion.get_eff_times(diff_times).to(device)
@@ -94,7 +89,7 @@ def local_score_based_drift(score_model, num_diff_times, diffusion, num_paths, p
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
                                                                                            predicted_score=vec_predicted_score,
                                                                                            diff_index=torch.Tensor(
-                                                                                               [int(0)]).to(device),
+                                                                                               [int(num_diff_times - 1 - difftime_idx)]).to(device),
                                                                                            max_diff_steps=Ndiff_discretisation)
         # assert np.allclose((scores- predicted_score).detach(), 0)
         beta_taus = torch.exp(-0.5 * eff_times).to(device)
@@ -126,13 +121,10 @@ for i in tqdm(range(1, num_time_steps + 1)):
     local_states[:, :, [i], :] = np.repeat(true_states[:, [i - 1], :][np.newaxis, :, :, :], num_diff_times,
                                            axis=0) + local_mean * deltaT + np.repeat(eps[np.newaxis, :, :, :],
                                                                                      num_diff_times, axis=0)
-    # global_mean = global_score_based_drift(score_model=PM,num_diff_times=num_diff_times,diffusion=diffusion, num_paths=num_paths, ts_step=deltaT,config=config, device=device, prev=global_states[:, :, i - 1, :])
-    # global_states[:,:, [i], :] = global_states[:, :, [i - 1], :] + global_mean*deltaT + np.repeat(eps[np.newaxis,:,:,:], num_diff_times, axis=0)
 
 save_path = (
         project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_{config.ndims}DLorenz_DriftEvalExp_{Nepoch}Nep_tl{config.tdata_mult}data_{config.max_diff_steps}DiffSteps").replace(
     ".", "")
 print(save_path)
-np.save(save_path + "_true_states.npy", true_states)
+np.save(save_path + "_local_true_states.npy", true_states)
 np.save(save_path + "_local_states.npy", local_states)
-# np.save(save_path + "_global_states.npy", global_states)
