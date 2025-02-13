@@ -50,7 +50,7 @@ local_states = np.zeros(shape=(num_diff_times, num_paths, 1 + num_time_steps, co
 # Initialise the "true paths"
 true_states[:, [0], :] = initial_state
 # Initialise the "local drift approximation paths"
-local_states[:, [0], :] = np.repeat(initial_state[np.newaxis,:], num_diff_times, axis=0)
+local_states[:,:, [0], :] = np.repeat(initial_state[np.newaxis,:], num_diff_times, axis=0)
 # Initialise the "global score-based drift paths"
 #global_states[:, [0], :] = np.repeat(initial_state[np.newaxis,:], num_diff_times, axis=0)
 
