@@ -10,7 +10,7 @@ import time
 import os
 import numpy as np
 import torch
-from configs.RecursiveVPSDE.Markovian_4DLorenz.recursive_Markovian_PostMeanScore_4DLorenz_T256_H05_tl_110data import \
+from configs.RecursiveVPSDE.Markovian_4DLorenz.recursive_Markovian_PostMeanScore_4DLorenz_T256_H05_tl_1100data import \
     get_config as get_config
 from configs import project_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
@@ -121,6 +121,7 @@ for i in tqdm(range(1, num_time_steps + 1)):
 save_path = (
         project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_{config.ndims}DLorenz_DriftEvalExp_{Nepoch}Nep_tl{config.tdata_mult}data_{config.max_diff_steps}DiffSteps_{end_diff_time}EDT").replace(
     ".", "")
+
 print(save_path)
 np.save(save_path + "_global_true_states.npy", true_states)
 np.save(save_path + "_global_states.npy", global_states)
