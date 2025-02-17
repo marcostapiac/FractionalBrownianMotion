@@ -163,7 +163,9 @@ def basis_number_selection(paths, num_paths, num_time_steps, deltaT, t1):
 
 #R = basis_number_selection(paths=paths, num_paths=num_paths, num_time_steps=num_time_steps, deltaT=deltaT, t1=t1)
 #print(R)
-if "fQuadSin" in config.data_path:
+if "fQuadSinHF" in config.data_path:
+    minx = -2.5
+elif "fQuadSin" in config.data_path:
     minx = -1.7
 elif "fBiPot" in config.data_path:
     minx = -2

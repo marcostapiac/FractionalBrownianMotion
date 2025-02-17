@@ -146,7 +146,9 @@ bws = np.logspace(-2, -0.05, 20)
 #print(CVs)
 
 numXs = 256
-if "fQuadSin" in config.data_path:
+if "fQuadSinHF" in config.data_path:
+    minx = -2.5
+elif "fQuadSin" in config.data_path:
     minx = -1.7
 elif "fBiPot" in config.data_path:
     minx = -2
