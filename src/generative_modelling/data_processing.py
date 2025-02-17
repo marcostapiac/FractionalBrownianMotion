@@ -461,6 +461,13 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
 
     # Define trainer
     train_eps, end_diff_time, max_diff_steps, checkpoint_freq = config.train_eps, config.end_diff_time, config.max_diff_steps, config.save_freq
+    print(isinstance(config.initState, float))
+    if isinstance(config.initState, float):
+        init_state = torch.Tensor([config.initState])
+    else:
+        init_state = torch.Tensor(config.initState)
+
+        
     try:
         # Markovian
         trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
@@ -470,7 +477,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                              train_eps=train_eps,
                              end_diff_time=end_diff_time, max_diff_steps=max_diff_steps, to_weight=config.weightings,
                              loss_factor=config.loss_factor,
-                             hybrid_training=config.hybrid, init_state=torch.Tensor(config.initState))
+                             hybrid_training=config.hybrid, init_state=init_state)
         # Start training
         trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
     except (AttributeError, KeyError, TypeError) as e:
@@ -484,7 +491,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                  end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
                                  to_weight=config.weightings,
                                  loss_factor=config.loss_factor,
-                                 hybrid_training=config.hybrid, init_state=torch.Tensor(config.initState))
+                                 hybrid_training=config.hybrid, init_state=init_state)
             trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
         except (AttributeError, KeyError, TypeError) as e:
             try:
@@ -497,7 +504,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                      train_eps=train_eps,
                                      end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
                                      to_weight=config.weightings,
-                                     hybrid_training=config.hybrid, init_state=torch.Tensor(config.initState))
+                                     hybrid_training=config.hybrid, init_state=init_state)
                 # Start training
                 trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path,
                               ts_dims=config.ts_dims)
@@ -512,7 +519,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                          end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
                                          to_weight=config.weightings,
                                          loss_factor=config.loss_factor,
-                                         hybrid_training=config.hybrid, init_state=torch.Tensor(config.initState))
+                                         hybrid_training=config.hybrid, init_state=init_state)
 
                     # Start training
                     trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
@@ -526,7 +533,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                          end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
                                          to_weight=config.weightings,
                                          hybrid_training=config.hybrid, loss_factor=config.loss_factor,
-                                        init_state=torch.Tensor(config.initState))
+                                        init_state=init_state)
 
                     # Start training
                     trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
