@@ -12,7 +12,7 @@ def get_config():
 
     # Data set parameters
     config.hurst = 0.5
-    config.quartic_coeff = -0.25
+    config.quartic_coeff = 0.25
     config.quad_coeff = -0.5
     config.const = 0.
     config.diffusion = 1.
