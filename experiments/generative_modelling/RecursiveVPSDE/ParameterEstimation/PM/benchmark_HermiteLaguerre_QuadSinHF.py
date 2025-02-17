@@ -179,12 +179,12 @@ maxx = -minx
 
 # In[9]:
 
-for R in [9,10,11]:#[4, 8, 12, 16, 24]:
+for R in [4, 8, 9,10,11]:#[4, 8, 12, 16, 24]:
     basis = hermite_basis(R=R, paths=paths)
     coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None))
 
     fig, ax = plt.subplots(figsize=(14, 9))
-    Xs = np.linspace(minx, maxx, num_time_steps).reshape(1, -1)
+    Xs = np.linspace(minx, maxx, int(2*num_time_steps)).reshape(1, -1)
     basis = hermite_basis(R=R, paths=Xs)
     bhat = construct_drift(basis=basis, coefficients=coeffs)
 

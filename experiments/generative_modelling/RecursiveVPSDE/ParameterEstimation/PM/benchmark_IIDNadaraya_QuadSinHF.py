@@ -139,7 +139,7 @@ bws = np.logspace(-2, -0.05, 20)
 #bw = bws[np.argmin(CVs)]
 #print(CVs)
 
-numXs = 256
+numXs = 512
 if "fQuadSinHF" in config.data_path:
     minx = -2.5
 elif "fQuadSin" in config.data_path:

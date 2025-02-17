@@ -45,7 +45,7 @@ print(config.scoreNet_trained_path)
 # In[23]:
 
 
-Xshape = config.ts_length
+Xshape = 512#config.ts_length
 num_taus = 500
 num_diff_times = config.max_diff_steps
 Ndiff_discretisation = config.max_diff_steps
