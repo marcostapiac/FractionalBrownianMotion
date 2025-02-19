@@ -15,6 +15,9 @@ def get_config():
     # Data set parameters
     config.hurst = 0.9
     config.ts_length = 256
+    config.t0 = 0.
+    config.deltaT = 1. / (256)
+    config.t1 = config.deltaT*config.ts_length
     config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(
         str(config.hurst).replace(".", ""), config.ts_length)
 

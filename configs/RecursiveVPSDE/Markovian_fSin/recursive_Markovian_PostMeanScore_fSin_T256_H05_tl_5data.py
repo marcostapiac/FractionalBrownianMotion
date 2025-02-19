@@ -16,6 +16,9 @@ def get_config():
     config.diffusion = 1.
     config.initState = 0.
     config.ts_length = 256
+    config.t0 = 0.
+    config.deltaT = 1. / (256)
+    config.t1 = config.deltaT*config.ts_length
     config.data_path = project_config.ROOT_DIR + "data/fSin_samples_H{}_T{}_{}Rev_{}Diff_{}Init".format(
         str(config.hurst), config.ts_length, config.mean_rev, config.diffusion, config.initState).replace(
         ".", "") + ".npy"

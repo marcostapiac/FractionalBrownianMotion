@@ -18,6 +18,9 @@ def get_config():
     config.diffusion = 1.
     config.initState = 0.
     config.ts_length = 256
+    config.t0 = 0.
+    config.deltaT = 1. / (256)
+    config.t1 = config.deltaT*config.ts_length
     config.data_path = project_config.ROOT_DIR + "data/fQuadSinHF_samples_H{}_T{}_{}a_{}b_{}c_{}Diff_{}Init".format(
         str(config.hurst), config.ts_length, config.quad_coeff, config.sin_coeff, config.sin_space_scale, config.diffusion, config.initState).replace(
         ".", "") + ".npy"
