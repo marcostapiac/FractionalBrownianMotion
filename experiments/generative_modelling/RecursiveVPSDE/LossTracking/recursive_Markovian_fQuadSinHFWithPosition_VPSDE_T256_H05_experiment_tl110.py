@@ -42,7 +42,7 @@ if __name__ == "__main__":
             assert (data.shape[0] >= training_size)
         except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
-            data = generate_fQuadSin(T=config.ts_length, isUnitInterval=config.isUnitInterval, S=training_size,
+            data = generate_fQuadSin(config=config,T=config.ts_length, isUnitInterval=config.isUnitInterval, S=training_size,
                                  H=config.hurst, a=config.quad_coeff,b=config.sin_coeff, c=config.sin_space_scale, diff=config.diffusion,
                                  initial_state=config.initState)
             np.save(config.data_path, data)
