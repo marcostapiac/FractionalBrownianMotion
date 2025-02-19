@@ -227,7 +227,7 @@ def generate_Lorenz96(H: float, T: int, S: int, isUnitInterval: bool, initial_st
     return sample_paths[:, 1:, :]
 
 
-def generate_fSin(H: float, T: int, S: int, isUnitInterval: bool, mean_rev: float, diff: float,
+def generate_fSin(config,H: float, T: int, S: int, isUnitInterval: bool, mean_rev: float, diff: float,
                   initial_state: float,
                   rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
     """
@@ -239,14 +239,19 @@ def generate_fSin(H: float, T: int, S: int, isUnitInterval: bool, mean_rev: floa
         :param isUnitInterval: Whether to scale samples to unit time interval.
         :return: LSTM_fBm samples
     """
-    if isUnitInterval:
-        deltaT = 1. / T
-        t0 = 0.
-        t1 = 1.
-    else:
-        deltaT = 1.
-        t0 = 0.
-        t1 = T
+    try:
+        deltaT = config.deltaT
+        t0 = config.t0
+        t1 = config.t1
+    except AttributeError:
+        if isUnitInterval:
+            deltaT = 1. / T
+            t0 = 0.
+            t1 = 1.
+        else:
+            deltaT = 1.
+            t0 = 0.
+            t1 = T
     fSin = FractionalSin(mean_rev=mean_rev, diff=diff, X0=initial_state)
     data = np.array(
         [fSin.euler_simulation(H=H, N=T, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=None, Ms=None, gaussRvs=rvs,
@@ -256,7 +261,7 @@ def generate_fSin(H: float, T: int, S: int, isUnitInterval: bool, mean_rev: floa
     return data[:, 1:]
 
 
-def generate_fQuadSin(H: float, T: int, S: int, isUnitInterval: bool, a: float, b: float, c: float, diff: float,
+def generate_fQuadSin(config, H: float, T: int, S: int, isUnitInterval: bool, a: float, b: float, c: float, diff: float,
                       initial_state: float,
                       rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
     """
@@ -268,14 +273,19 @@ def generate_fQuadSin(H: float, T: int, S: int, isUnitInterval: bool, a: float, 
         :param isUnitInterval: Whether to scale samples to unit time interval.
         :return: LSTM_fBm samples
     """
-    if isUnitInterval:
-        deltaT = 1. / T
-        t0 = 0.
-        t1 = 1.
-    else:
-        deltaT = 1.
-        t0 = 0.
-        t1 = T
+    try:
+        deltaT = config.deltaT
+        t0 = config.t0
+        t1 = config.t1
+    except AttributeError:
+        if isUnitInterval:
+            deltaT = 1. / T
+            t0 = 0.
+            t1 = 1.
+        else:
+            deltaT = 1.
+            t0 = 0.
+            t1 = T
     fQuadSin = FractionalQuadSin(quad_coeff=a, sin_coeff=b, sin_space_scale=c, diff=diff, X0=initial_state)
     data = np.array(
         [fQuadSin.euler_simulation(H=H, N=T, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=None, Ms=None,
@@ -286,7 +296,7 @@ def generate_fQuadSin(H: float, T: int, S: int, isUnitInterval: bool, a: float, 
     return data[:, 1:]
 
 
-def generate_fBiPot(H: float, T: int, S: int, isUnitInterval: bool, a: float, b: float, c: float, diff: float,
+def generate_fBiPot(config, H: float, T: int, S: int, isUnitInterval: bool, a: float, b: float, c: float, diff: float,
                       initial_state: float,
                       rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
     """
@@ -298,14 +308,19 @@ def generate_fBiPot(H: float, T: int, S: int, isUnitInterval: bool, a: float, b:
         :param isUnitInterval: Whether to scale samples to unit time interval.
         :return: LSTM_fBm samples
     """
-    if isUnitInterval:
-        deltaT = 1. / T
-        t0 = 0.
-        t1 = 1.
-    else:
-        deltaT = 1.
-        t0 = 0.
-        t1 = T
+    try:
+        deltaT = config.deltaT
+        t0 = config.t0
+        t1 = config.t1
+    except AttributeError:
+        if isUnitInterval:
+            deltaT = 1. / T
+            t0 = 0.
+            t1 = 1.
+        else:
+            deltaT = 1.
+            t0 = 0.
+            t1 = T
     fBiPot = FractionalBiPotential(quartic_coeff=a, quad_coeff=b, const=c, diff=diff, X0=initial_state)
     data = np.array(
         [fBiPot.euler_simulation(H=H, N=T, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=None, Ms=None,
