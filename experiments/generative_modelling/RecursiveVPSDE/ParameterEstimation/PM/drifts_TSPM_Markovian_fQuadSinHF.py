@@ -40,7 +40,7 @@ max_diff_steps = config.max_diff_steps
 sample_eps = config.sample_eps
 ts_step = 1 / config.ts_length
 
-Nepoch = 300  # config.max_epochs[0]
+Nepoch = 960  # config.max_epochs[0]
 # Fix the number of training epochs and training loss objective loss
 if "PM" in config.scoreNet_trained_path:
     PM = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters).to(device)
@@ -52,7 +52,7 @@ print(config.scoreNet_trained_path)
 # In[23]:
 
 
-Xshape = 512#config.ts_length
+Xshape = config.ts_length
 num_taus = 500
 
 num_diff_times = config.max_diff_steps
