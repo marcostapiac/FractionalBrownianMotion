@@ -158,7 +158,7 @@ elif "fQuadSinHF" in config.data_path:
         ".", "")
 print(save_path)
 
-np.save(save_path + "_muhats.npy", final_vec_mu_hats)
+np.save(save_path + "_muhats.npy", final_vec_mu_hats[:,[-1],:])
 np.save(save_path + "_numpyXs.npy", numpy_Xs)
 raise RuntimeError
 
