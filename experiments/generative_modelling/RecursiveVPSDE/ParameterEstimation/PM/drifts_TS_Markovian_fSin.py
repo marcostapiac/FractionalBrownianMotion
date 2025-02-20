@@ -1,17 +1,21 @@
+
 import os
+
+import matplotlib.pyplot as plt
 import numpy as np
 import torch
-from configs.RecursiveVPSDE.Markovian_fBiPotSmall.recursive_Markovian_PostMeanScore_fBiPotSmall_T256_H05_tl_110data import get_config as get_config
+from configs.RecursiveVPSDE.Markovian_fSin.recursive_Markovian_fSinWithPosition_T256_H05_tl_110data_Small import get_config as get_config
+from tqdm import tqdm
+
 from configs import project_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
-    ConditionalMarkovianTSPostMeanScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSScoreMatching import \
+    ConditionalMarkovianTSScoreMatching
 
 # In[22]:
 
 
 config = get_config()
-
 print("Beta Min : ", config.beta_min)
 if config.has_cuda:
     device = int(os.environ["LOCAL_RANK"])
@@ -27,9 +31,8 @@ ts_step = 1 / config.ts_length
 
 Nepoch = 960  # config.max_epochs[0]
 # Fix the number of training epochs and training loss objective loss
-PM = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters).to(device)
+PM = ConditionalMarkovianTSScoreMatching(*config.model_parameters).to(device)
 PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
-print(config.scoreNet_trained_path)
 
 # In[23]:
 
@@ -43,7 +46,7 @@ diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_ti
 mu_hats_mean = np.zeros((Xshape, num_taus))
 mu_hats_std = np.zeros((Xshape, num_taus))
 
-Xs = torch.linspace(-2, 2, steps=Xshape).unsqueeze(-1).unsqueeze(-1).permute(1, 0, 2).to(device)
+Xs = torch.linspace(-3, 3, steps=Xshape).unsqueeze(-1).unsqueeze(-1).permute(1, 0, 2).to(device)
 conditioner = torch.stack([Xs for _ in range(1)], dim=0).reshape(Xshape * 1, 1, -1)
 B, T = Xshape, 1
 final_vec_mu_hats = np.zeros((Xshape, num_diff_times, num_taus))  # Xvalues, DiffTimes, Ztaus
@@ -61,8 +64,7 @@ while difftime_idx >= 0:
     vec_conditioner = torch.stack([conditioner for _ in range(num_taus)], dim=0).reshape(num_taus*Xshape, 1, 1)
 
     with torch.no_grad():
-        vec_predicted_score = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
-                                         eff_times=vec_eff_times)
+        vec_predicted_score = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner)
     vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
                                                                            predicted_score=vec_predicted_score,
                                                                            diff_index=torch.Tensor(
@@ -81,13 +83,13 @@ while difftime_idx >= 0:
     vec_Z_taus = vec_drift + vec_diffParam * vec_z
     difftime_idx -= 1
 
-type = "PM"
-assert (type in config.scoreNet_trained_path)
+
+
+type = "Standard"
+assert ("PM" not in config.scoreNet_trained_path)
 print(type)
-
 save_path = (
-            project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_fBiPotSmall_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.max_diff_steps}DiffSteps").replace(
+            project_config.ROOT_DIR + f"experiments/results/TS_mkv_fSin_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
         ".", "")
-print(save_path)
 
-np.save(save_path + "_muhats.npy", final_vec_mu_hats[:, [-1],:])
+np.save(save_path + "_muhats.npy", final_vec_mu_hats)

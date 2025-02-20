@@ -1,20 +1,8 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[21]:
-
-
-# get_ipython().run_line_magic('load_ext', 'autoreload')
-# get_ipython().run_line_magic('autoreload', '2')
 
 import os
-
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from configs.RecursiveVPSDE.Markovian_fQuadSin.recursive_Markovian_fQuadSinWithPosition_T256_H05_tl_110data import get_config as get_config
-from tqdm import tqdm
-
 from configs import project_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSScoreMatching import \
@@ -72,17 +60,14 @@ while difftime_idx >= 0:
     vec_conditioner = torch.stack([conditioner for _ in range(num_taus)], dim=0).reshape(num_taus*Xshape, 1, 1)
 
     with torch.no_grad():
-        if "PM" in config.scoreNet_trained_path:
-            vec_predicted_score = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner, eff_times=vec_eff_times)
-        else:
-            vec_predicted_score = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner)
-        vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
-                                                                               predicted_score=vec_predicted_score,
-                                                                               diff_index=torch.Tensor(
-                                                                                   [int((
-                                                                                           num_diff_times - 1 - difftime_idx))]).to(
-                                                                                   device),
-                                                                               max_diff_steps=Ndiff_discretisation)
+        vec_predicted_score = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner)
+    vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
+                                                                           predicted_score=vec_predicted_score,
+                                                                           diff_index=torch.Tensor(
+                                                                               [int((
+                                                                                       num_diff_times - 1 - difftime_idx))]).to(
+                                                                               device),
+                                                                           max_diff_steps=Ndiff_discretisation)
     # assert np.allclose((scores- predicted_score).detach(), 0)
     beta_taus = torch.exp(-0.5 * eff_times[0,0,0]).to(device)
     sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
@@ -93,37 +78,11 @@ while difftime_idx >= 0:
     vec_z = torch.randn_like(vec_drift).to(device)
     vec_Z_taus = vec_drift + vec_diffParam * vec_z
     difftime_idx -= 1
-
-
-print(Xs.shape)
-try:
-    numpy_Xs = Xs.cpu().detach().numpy().flatten()
-    # numpy_Xs = Xs[:,int(0.4*Xshape):int(0.6*Xshape)+1,:][:,:-1,:].numpy().flatten()
-    # mu_hats = mu_hats[int(0.4*Xshape):int(0.6*Xshape),:,:]
-except (IndexError, AttributeError) as e:
-    print(e)
-    assert (numpy_Xs.shape[1] == Xshape)
-    pass
-
-if "PMS" in config.scoreNet_trained_path:
-    type = "PMS"
-elif "PM" in config.scoreNet_trained_path:
-    type = "PM"
-else:
-    type = "Standard"
+type = "Standard"
+assert ("PM" not in config.scoreNet_trained_path)
 print(type)
-
-es = 15 if config.max_diff_steps == 10000 else 5
-
-if "fOU" in config.data_path:
-    save_path = \
-        (
-                project_config.ROOT_DIR + f"experiments/results/TS_mkv_ES{es}_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
-            ".", "")
-elif "fQuadSin" in config.data_path:
-    save_path = (
-            project_config.ROOT_DIR + f"experiments/results/TS_mkv_ES{es}_fQuadSin_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.max_diff_steps}DiffSteps").replace(
+save_path = (
+            project_config.ROOT_DIR + f"experiments/results/TS_mkv_fQuadSin_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.max_diff_steps}DiffSteps").replace(
         ".", "")
 print(save_path)
 np.save(save_path + "_muhats.npy", final_vec_mu_hats)
-np.save(save_path + "_numpyXs.npy", numpy_Xs)

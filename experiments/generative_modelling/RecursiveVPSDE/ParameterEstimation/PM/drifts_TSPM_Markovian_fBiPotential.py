@@ -1,19 +1,9 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[21]:
-
-
-# get_ipython().run_line_magic('load_ext', 'autoreload')
-# get_ipython().run_line_magic('autoreload', '2')
-
 import os
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from configs.RecursiveVPSDE.Markovian_fBiPot.recursive_Markovian_PostMeanScore_fBiPot_T256_H05_tl_110data import get_config as get_config
-from tqdm import tqdm
 
 from configs import project_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
@@ -40,7 +30,7 @@ max_diff_steps = config.max_diff_steps
 sample_eps = config.sample_eps
 ts_step = 1 / config.ts_length
 
-Nepoch = 1440  # config.max_epochs[0]
+Nepoch = 960  # config.max_epochs[0]
 # Fix the number of training epochs and training loss objective loss
 if "PM" in config.scoreNet_trained_path:
     PM = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters).to(device)
@@ -102,59 +92,12 @@ while difftime_idx >= 0:
     vec_Z_taus = vec_drift + vec_diffParam * vec_z
     difftime_idx -= 1
 
-
-
-def plot_drift_estimator(mean, stds, numpy_Xs, type, toSave: bool = True):
-    fig, ax = plt.subplots(figsize=(14, 9))
-    rmse = np.power(np.mean(np.power(np.sin(numpy_Xs) - mean, 2)), 0.5)
-    ax.scatter(numpy_Xs, np.sin(numpy_Xs), color="red", label="True Drift")
-
-    ax.errorbar(numpy_Xs, mean, fmt="o", yerr=2 * stds, label="Drift Estimator with 2 Std")
-    ax.set_title(rf"RMSE {round(rmse, 3)} of estimator $\bar{{\mu}}(x)$", fontsize=20)
-    ax.tick_params("x", labelsize=18)
-    ax.tick_params("y", labelsize=18)
-    ax.set_xlabel("State $x$", fontsize=18)
-    ax.set_ylabel("Drift Value", fontsize=18)
-    ax.legend(loc="lower right", fontsize=18)
-    if toSave:
-        plt.savefig(
-            f"/Users/marcos/Library/CloudStorage/OneDrive-ImperialCollegeLondon/StatML_CDT/Year2/DiffusionModelPresentationImages/fBiPot_{type}.png")
-    plt.show()
-    plt.close()
-
-
-# In[25]:
-
-
-print(Xs.shape)
-try:
-    numpy_Xs = Xs.cpu().detach().numpy().flatten()
-    # numpy_Xs = Xs[:,int(0.4*Xshape):int(0.6*Xshape)+1,:][:,:-1,:].numpy().flatten()
-    # mu_hats = mu_hats[int(0.4*Xshape):int(0.6*Xshape),:,:]
-except (IndexError, AttributeError) as e:
-    print(e)
-    assert (numpy_Xs.shape[1] == Xshape)
-    pass
-
-if "PMS" in config.scoreNet_trained_path:
-    type = "PMS"
-elif "PM" in config.scoreNet_trained_path:
-    type = "PM"
-else:
-    type = "Standard"
+type = "PM"
+assert (type in config.scoreNet_trained_path)
 print(type)
-
-es = 40 if config.max_diff_steps == 10000 else 10
-
-if "fOU" in config.data_path:
-    save_path = \
-        (
-                project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
-            ".", "")
-elif "fBiPot" in config.data_path:
-    save_path = (
-            project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_fBiPot_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.max_diff_steps}DiffSteps").replace(
-        ".", "")
+save_path = (
+        project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_fBiPot_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.max_diff_steps}DiffSteps").replace(
+    ".", "")
 print(save_path)
 
 np.save(save_path + "_muhats.npy", final_vec_mu_hats[:, [-1],:])

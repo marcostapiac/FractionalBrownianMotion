@@ -1,15 +1,4 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[21]:
-
-
-# get_ipython().run_line_magic('load_ext', 'autoreload')
-# get_ipython().run_line_magic('autoreload', '2')
-
 import os
-
-import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from configs.RecursiveVPSDE.Markovian_4DLorenz.recursive_Markovian_PostMeanScore_4DLorenz_T256_H05_tl_110data import \
@@ -20,10 +9,6 @@ from configs import project_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
     ConditionalMarkovianTSPostMeanScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSScoreMatching import \
-    ConditionalMarkovianTSScoreMatching
-
-# In[22]:
 
 
 config = get_config()
@@ -44,15 +29,8 @@ ts_step = 1 / config.ts_length
 
 Nepoch = 960  # config.max_epochs[0]
 # Fix the number of training epochs and training loss objective loss
-if "PM" in config.scoreNet_trained_path:
-    PM = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters).to(device)
-else:
-    PM = ConditionalMarkovianTSScoreMatching(*config.model_parameters).to(device)
-#PM.load_state_dict(
-#    torch.load(config.scoreNet_trained_path.replace("trained_models", "snapshots"), map_location=torch.device('cpu'))[
-#        "MODEL_STATE"])  # + "_NEp" + str(Nepoch)))
+PM = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters).to(device)
 PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
-# In[23]:
 print(config.scoreNet_trained_path)
 
 
@@ -88,22 +66,17 @@ for k in tqdm(range(num_taus)):
             device)
         eff_times = torch.cat([diffusion.get_eff_times(diff_times=diff_times).unsqueeze(-1).unsqueeze(-1)] * D,
                               dim=2).to(device)
-        if k == 0 and difftime_idx < 100:
-            print(d)
         with torch.no_grad():
-            if "PM" in config.scoreNet_trained_path:
-                predicted_score = PM.forward(inputs=Z_taus, times=diff_times, conditioner=conditioner,
+            predicted_score = PM.forward(inputs=Z_taus, times=diff_times, conditioner=conditioner,
                                              eff_times=eff_times)
-            else:
-                predicted_score = PM.forward(inputs=Z_taus, times=diff_times, conditioner=conditioner)
-            scores, drift, diffParam = diffusion.get_conditional_reverse_diffusion(x=Z_taus,
-                                                                                   predicted_score=predicted_score,
-                                                                                   diff_index=torch.Tensor(
-                                                                                       [int((
-                                                                                               num_diff_times - 1 - difftime_idx))]).to(
-                                                                                       device),
-                                                                                   max_diff_steps=Ndiff_discretisation)
-        # assert np.allclose((scores- predicted_score).detach(), 0)
+
+        scores, drift, diffParam = diffusion.get_conditional_reverse_diffusion(x=Z_taus,
+                                                                               predicted_score=predicted_score,
+                                                                               diff_index=torch.Tensor(
+                                                                                   [int((
+                                                                                           num_diff_times - 1 - difftime_idx))]).to(
+                                                                                   device),
+                                                                               max_diff_steps=Ndiff_discretisation)
         beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
         sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
         for i in range(Xshape):
@@ -116,19 +89,12 @@ for k in tqdm(range(num_taus)):
         Z_taus = drift + diffParam * z
         difftime_idx -= 1
 
-numpy_Xs = Xs.squeeze(0).cpu().detach().numpy()
-if "PMS" in config.scoreNet_trained_path:
-    type = "PMS"
-elif "PM" in config.scoreNet_trained_path:
-    type = "PM"
-else:
-    type = "Standard"
 
-es = 0
-
+type = "PM"
+assert (type in config.scoreNet_trained_path)
+print(type)
 save_path = (
-        project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_4DLorenz_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.max_diff_steps}DiffSteps").replace(
+        project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_4DLorenz_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.max_diff_steps}DiffSteps").replace(
     ".", "")
 print(save_path)
-np.save(save_path + "_muhats.npy", mu_hats)
-np.save(save_path + "_numpyXs.npy", numpy_Xs)
+np.save(save_path + "_muhats.npy", mu_hats[:,:,[-1],:])

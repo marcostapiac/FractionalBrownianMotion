@@ -1,12 +1,3 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[21]:
-
-
-# get_ipython().run_line_magic('load_ext', 'autoreload')
-# get_ipython().run_line_magic('autoreload', '2')
-import time
 import os
 import numpy as np
 import torch
@@ -125,4 +116,3 @@ save_path = (
 print(save_path)
 np.save(save_path + "_global_true_states.npy", true_states)
 np.save(save_path + "_global_states.npy", global_states)
-# np.save(save_path + "_global_states.npy", global_states)

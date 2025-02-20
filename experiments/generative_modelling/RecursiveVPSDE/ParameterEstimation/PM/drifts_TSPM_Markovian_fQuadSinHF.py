@@ -1,26 +1,14 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[21]:
-
-
-# get_ipython().run_line_magic('load_ext', 'autoreload')
-# get_ipython().run_line_magic('autoreload', '2')
-
 import os
 
 import matplotlib.pyplot as plt
 import numpy as np
 import torch
 from configs.RecursiveVPSDE.Markovian_fQuadSinHF.recursive_Markovian_PostMeanScore_fQuadSinHF_T256_H05_tl_110data import get_config as get_config
-from tqdm import tqdm
 
 from configs import project_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
     ConditionalMarkovianTSPostMeanScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSScoreMatching import \
-    ConditionalMarkovianTSScoreMatching
 
 # In[22]:
 
@@ -78,18 +66,15 @@ while difftime_idx >= 0:
     vec_conditioner = torch.stack([conditioner for _ in range(num_taus)], dim=0).reshape(num_taus*Xshape, 1, 1)
 
     with torch.no_grad():
-        if "PM" in config.scoreNet_trained_path:
-            vec_predicted_score = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
+        vec_predicted_score = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
                                          eff_times=vec_eff_times)
-        else:
-            vec_predicted_score = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner)
-        vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
-                                                                               predicted_score=vec_predicted_score,
-                                                                               diff_index=torch.Tensor(
-                                                                                   [int((
-                                                                                           num_diff_times - 1 - difftime_idx))]).to(
-                                                                                   device),
-                                                                               max_diff_steps=Ndiff_discretisation)
+    vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
+                                                                           predicted_score=vec_predicted_score,
+                                                                           diff_index=torch.Tensor(
+                                                                               [int((
+                                                                                       num_diff_times - 1 - difftime_idx))]).to(
+                                                                               device),
+                                                                           max_diff_steps=Ndiff_discretisation)
     # assert np.allclose((scores- predicted_score).detach(), 0)
     beta_taus = torch.exp(-0.5 * eff_times[0,0,0]).to(device)
     sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
@@ -102,50 +87,11 @@ while difftime_idx >= 0:
     difftime_idx -= 1
 
 
-
-def plot_drift_estimator(mean, stds, numpy_Xs, type, toSave: bool = True):
-    fig, ax = plt.subplots(figsize=(14, 9))
-    rmse = np.power(np.mean(np.power(np.sin(numpy_Xs) - mean, 2)), 0.5)
-    ax.scatter(numpy_Xs, np.sin(numpy_Xs), color="red", label="True Drift")
-
-    ax.errorbar(numpy_Xs, mean, fmt="o", yerr=2 * stds, label="Drift Estimator with 2 Std")
-    ax.set_title(rf"RMSE {round(rmse, 3)} of estimator $\bar{{\mu}}(x)$", fontsize=20)
-    ax.tick_params("x", labelsize=18)
-    ax.tick_params("y", labelsize=18)
-    ax.set_xlabel("State $x$", fontsize=18)
-    ax.set_ylabel("Drift Value", fontsize=18)
-    ax.legend(loc="lower right", fontsize=18)
-    if toSave:
-        plt.savefig(
-            f"/Users/marcos/Library/CloudStorage/OneDrive-ImperialCollegeLondon/StatML_CDT/Year2/DiffusionModelPresentationImages/fQuadSin_{type}.png")
-    plt.show()
-    plt.close()
-
-
-# In[25]:
-
-
-print(Xs.shape)
-try:
-    numpy_Xs = Xs.cpu().detach().numpy().flatten()
-    # numpy_Xs = Xs[:,int(0.4*Xshape):int(0.6*Xshape)+1,:][:,:-1,:].numpy().flatten()
-    # mu_hats = mu_hats[int(0.4*Xshape):int(0.6*Xshape),:,:]
-except (IndexError, AttributeError) as e:
-    print(e)
-    assert (numpy_Xs.shape[1] == Xshape)
-    pass
-
-if "PMS" in config.scoreNet_trained_path:
-    type = "PMS"
-elif "PM" in config.scoreNet_trained_path:
-    type = "PM"
-else:
-    type = "Standard"
+type = "PM"
+assert (type in config.scoreNet_trained_path)
 print(type)
-
 save_path = (
         project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_fQuadSinHF_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.t0}t0_{config.deltaT}deltaT_{config.ts_length}T_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.max_diff_steps}DiffSteps").replace(
     ".", "")
 print(save_path)
-
 np.save(save_path + "_muhats.npy", final_vec_mu_hats[:, [-1],:])
