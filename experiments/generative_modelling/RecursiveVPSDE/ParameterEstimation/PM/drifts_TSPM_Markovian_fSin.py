@@ -60,7 +60,8 @@ PM.eval()
 vec_Z_taus = diffusion.prior_sampling(shape=(Xshape*num_taus, 1, 1)).to(device)
 difftime_idx = num_diff_times - 1
 ts = []
-while difftime_idx >= 0:
+es = 1
+while difftime_idx >= num_diff_times - es:
     d = diffusion_times[Ndiff_discretisation - (num_diff_times - 1 - difftime_idx) - 1].to(device)
     # I (will) have a RV for each x (there are B of them) and hence need a diffusion time for each one
     diff_times = torch.stack([d for _ in range(B)]).reshape(B * T).to(device)
@@ -93,85 +94,15 @@ while difftime_idx >= 0:
     vec_Z_taus = vec_drift + vec_diffParam * vec_z
     difftime_idx -= 1
 
-
-
-def plot_drift_estimator(mean, stds, numpy_Xs, type, toSave: bool = True):
-    fig, ax = plt.subplots(figsize=(14, 9))
-    rmse = np.power(np.mean(np.power(np.sin(numpy_Xs) - mean, 2)), 0.5)
-    ax.scatter(numpy_Xs, np.sin(numpy_Xs), color="red", label="True Drift")
-
-    ax.errorbar(numpy_Xs, mean, fmt="o", yerr=2 * stds, label="Drift Estimator with 2 Std")
-    ax.set_title(rf"RMSE {round(rmse, 3)} of estimator $\bar{{\mu}}(x)$", fontsize=20)
-    ax.tick_params("x", labelsize=18)
-    ax.tick_params("y", labelsize=18)
-    ax.set_xlabel("State $x$", fontsize=18)
-    ax.set_ylabel("Drift Value", fontsize=18)
-    ax.legend(loc="lower right", fontsize=18)
-    if toSave:
-        plt.savefig(
-            f"/Users/marcos/Library/CloudStorage/OneDrive-ImperialCollegeLondon/StatML_CDT/Year2/DiffusionModelPresentationImages/fSin_{type}.png")
-    plt.show()
-    plt.close()
-
-
-# In[25]:
-
-
-print(Xs.shape)
-try:
-    numpy_Xs = Xs.cpu().detach().numpy().flatten()
-    # numpy_Xs = Xs[:,int(0.4*Xshape):int(0.6*Xshape)+1,:][:,:-1,:].numpy().flatten()
-    # mu_hats = mu_hats[int(0.4*Xshape):int(0.6*Xshape),:,:]
-except (IndexError, AttributeError) as e:
-    print(e)
-    assert (numpy_Xs.shape[1] == Xshape)
-    pass
-
-if "PMS" in config.scoreNet_trained_path:
-    type = "PMS"
-elif "PM" in config.scoreNet_trained_path:
-    type = "PM"
-else:
-    type = "Standard"
+# In
+type = "PM"
+assert (type in config.scoreNet_trained_path)
 print(type)
 
-es = 40 if config.max_diff_steps == 10000 else 10
-
-if "fOU" in config.data_path:
-    save_path = \
-        (
-                project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
-            ".", "")
-elif "fSin" in config.data_path:
-    save_path = (
-            project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_fSin_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
+save_path = (
+            project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_fSin_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
         ".", "")
-print(save_path)
-np.save(save_path + "_muhats.npy", final_vec_mu_hats)
-np.save(save_path + "_numpyXs.npy", numpy_Xs)
-raise RuntimeError
-
-for j in range(0, num_diff_times, 10):
-    mhats = mu_hats[:, j, :]
-    mhats = mhats.reshape(mhats.shape[0], np.prod(mhats.shape[1:]))
-    mean = mhats.mean(axis=-1)
-    stds = mhats.std(axis=-1)
-    plot_drift_estimator(mean, stds, numpy_Xs, type=type, toSave=False)
-
-# In[34]:
-
-
-mean = np.array([mu_hats[i, 10:200, :].flatten().mean(axis=-1) for i in range(Xshape)])
-stds = np.array([mu_hats[i, 10:200, :].flatten().std(axis=-1) for i in range(Xshape)])
-plot_drift_estimator(mean, stds, numpy_Xs, type=type, toSave=False)
-
-# In[ ]:
-
-
-# In[21]:
-
-
-# In[ ]:
-
-
-# In[7]:
+if es == 1:
+    np.save(save_path + "_muhats.npy", final_vec_mu_hats[:, [-1], :])
+else:
+    np.save(save_path + "_muhats.npy", final_vec_mu_hats[:, -es:, :])

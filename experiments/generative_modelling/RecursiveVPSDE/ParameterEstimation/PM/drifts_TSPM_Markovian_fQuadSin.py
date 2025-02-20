@@ -57,7 +57,8 @@ PM.eval()
 vec_Z_taus = diffusion.prior_sampling(shape=(Xshape * num_taus, 1, 1)).to(device)
 difftime_idx = num_diff_times - 1
 ts = []
-while difftime_idx >= 0:
+es = 100
+while difftime_idx >= num_diff_times - es:
     d = diffusion_times[Ndiff_discretisation - (num_diff_times - 1 - difftime_idx) - 1].to(device)
     # I (will) have a RV for each x (there are B of them) and hence need a diffusion time for each one
     diff_times = torch.stack([d for _ in range(B)]).reshape(B * T).to(device)
@@ -98,4 +99,9 @@ save_path = (
         project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_fQuadSin_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.max_diff_steps}DiffSteps").replace(
     ".", "")
 print(save_path)
-np.save(save_path + "_muhats.npy", final_vec_mu_hats[:, [-1], :])
+if es == 1:
+    np.save(save_path + "_muhats.npy", final_vec_mu_hats[:, [-1], :])
+else:
+    np.save(save_path + "_muhats.npy", final_vec_mu_hats[:, -es:, :])
+
+

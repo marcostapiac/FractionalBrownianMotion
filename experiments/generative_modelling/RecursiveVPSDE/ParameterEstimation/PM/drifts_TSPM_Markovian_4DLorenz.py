@@ -97,4 +97,7 @@ save_path = (
         project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_4DLorenz_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.max_diff_steps}DiffSteps").replace(
     ".", "")
 print(save_path)
-np.save(save_path + "_muhats.npy", mu_hats[:,:,[-1],:])
+if es == 1:
+    np.save(save_path + "_muhats.npy", mu_hats[:,:, [-1], :])
+else:
+    np.save(save_path + "_muhats.npy", mu_hats[:,:, -es:, :])
