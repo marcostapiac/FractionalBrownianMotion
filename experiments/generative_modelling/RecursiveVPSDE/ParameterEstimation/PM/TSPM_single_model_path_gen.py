@@ -77,7 +77,7 @@ def run_whole_ts_recursive_diffusion(config, ts_length, initial_feature_input, d
 
 
 def TSPM_drift_eval():
-    from configs.RecursiveVPSDE.LSTM_fSin.recursive_PostMeanScore_fSin_T256_H05_tl_5data import get_config
+    from configs.RecursiveVPSDE.LSTM_fSin.recursive_LSTM_PostMeanScore_fSin_T256_H05_tl_5data import get_config
     config = get_config()
     init_experiment(config=config)
 

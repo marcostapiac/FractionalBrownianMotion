@@ -12,15 +12,18 @@ def get_config():
 
     # Data set parameters
     config.hurst = 0.5
-    config.mean_rev = 1.
+    config.quad_coeff = -0.5
+    config.sin_coeff = 1./4.
+    config.sin_space_scale = 4.
     config.diffusion = 1.
     config.initState = 0.
     config.ts_length = 256
     config.t0 = 0.
-    config.deltaT = 1. / (256)
+    config.deltaT = 1./(256)
     config.t1 = config.deltaT*config.ts_length
-    config.data_path = project_config.ROOT_DIR + "data/fSin_samples_H{}_T{}_{}Rev_{}Diff_{}Init".format(
-        str(config.hurst), config.ts_length, config.mean_rev, config.diffusion, config.initState).replace(
+    config.data_path = project_config.ROOT_DIR + "data/fQuadSinHF_samples_t0{:g}_dT{:.3e}_T{}_{}a_{}b_{}c_{}Diff_{}Init".format(
+        config.t0, config.deltaT, config.ts_length, config.quad_coeff, config.sin_coeff, config.sin_space_scale,
+        config.diffusion, config.initState).replace(
         ".", "") + ".npy"
 
     # Training hyperparameters
@@ -29,19 +32,19 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = [960, 1440]  # 1920, 2920, 6920, 12920]
+    config.max_epochs = [60, 100, 150, 300, 960, 1440]  # , 1920, 2920, 6920, 12920]
     config.batch_size = 256
     config.isfBm = True
     config.isUnitInterval = True
     config.hybrid = True
     config.weightings = True
-    config.tdata_mult = 5
+    config.tdata_mult = 110
     config.ts_dims = 1
     config.loss_factor = 0
 
     # Diffusion hyperparameters
     config.beta_max = 20.
-    config.beta_min = 0.
+    config.beta_min = 0.  # 0.0001
 
     # MLP Architecture parameters
     config.temb_dim = 64
@@ -61,25 +64,25 @@ def get_config():
             config.lstm_dropout > 0 and config.lstm_numlay > 1))
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_PM_MLP_{}_incs_{}_unitIntv_fSin_VPSDE_model_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_TembDim{}_EncShapes{}_tl5".format(
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_PM_MLP_{}_incs_{}_unitIntv_fQuadSinHF_VPSDE_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_TembDim{}_EncShapes{}_tl110".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
         config.enc_shapes).replace(".", "")
 
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_PM_TSM_{}_incs_{}_unitIntv_fSin_VPSDE_model_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybrid_{}Wghts_t0{:g}_dT{:.3e}_LSTM_H{}_Nlay{}_{}_tl5".format(
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_PM_TSM_{}_incs_{}_unitIntv_fQuadSinHF_VPSDE_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybrid_{}Wghts_t0{:g}_dT{:.3e}_{}a_{}b_{}c_LSTM_H{}_Nlay{}_tl{}".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings, config.t0, config.deltaT,
-        config.lstm_hiddendim, config.lstm_numlay, config.mean_rev).replace(".", "")
+        config.quad_coeff, config.sin_coeff, config.sin_space_scale, config.lstm_hidden_dim, config.lstm_numlay, config.tdata_mult).replace(".", "")
 
     config.model_choice = "TSM"
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
-    config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.lstm_hiddendim,
-                               config.lstm_numlay, config.lstm_inputdim, config.lstm_dropout, config.residual_layers,
+    config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.ts_dims,
+                               config.residual_layers,
                                config.residual_channels, config.dialation_length] \
         if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.ts_length,
                                               config.enc_shapes,

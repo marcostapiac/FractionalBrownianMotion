@@ -163,7 +163,7 @@ def estimate_SDEs(config: ConfigDict, sampling_model: str, train_epoch: int) -> 
 
 
 if __name__ == "__main__":
-    from configs.RecursiveVPSDE.recursive_PostMeanScore_fOU_T256_H05_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_LSTM_PostMeanScore_fOU_T256_H05_tl_5data import get_config
 
     config = get_config()
     sampling_models = ["CondAncestral", "CondProbODE"]

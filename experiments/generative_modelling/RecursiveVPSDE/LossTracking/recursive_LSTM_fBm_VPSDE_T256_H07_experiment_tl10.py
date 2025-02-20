@@ -14,12 +14,12 @@ from utils.math_functions import generate_fBn
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.LSTM_fBm.recursive_fBm_T256_H07_tl_2data import get_config
+    from configs.RecursiveVPSDE.LSTM_fBm.recursive_LSTM_fBm_T256_H07_tl_10data import get_config
 
     config = get_config()
     assert (config.hurst == 0.7)
     assert (config.early_stop_idx == 0)
-    assert (config.tdata_mult == 2)
+    assert (config.tdata_mult == 10)
 
     rng = np.random.default_rng()
     scoreModel = ConditionalLSTMTSScoreMatching(
@@ -53,4 +53,5 @@ if __name__ == "__main__":
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
         train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel,
                                                  trainClass=ConditionalLSTMDiffusionModelTrainer)
+
     cleanup_experiment()

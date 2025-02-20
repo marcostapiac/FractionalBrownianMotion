@@ -143,7 +143,7 @@ def build_drift_estimator(diffusion, ts_step, diff_time_space, score_evals, exp_
 
 
 def TS_drift_eval():
-    from configs.RecursiveVPSDE.LSTM_fSin.recursive_fSinWithPosition_T256_H05_tl_5data import get_config as get_config
+    from configs.RecursiveVPSDE.LSTM_fSin.recursive_LSTM_fSinWithPosition_T256_H05_tl_5data import get_config as get_config
     config = get_config()
     init_experiment(config=config)
 

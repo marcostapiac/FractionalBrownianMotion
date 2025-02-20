@@ -9,7 +9,7 @@ import numpy as np
 import torch
 from tqdm import tqdm
 
-from configs.RecursiveVPSDE.recursive_PostMeanScaledScore_fOU_T256_H05_tl_5data import \
+from configs.RecursiveVPSDE.recursive_LSTM_PostMeanScaledScore_fOU_T256_H05_tl_5data import \
     get_config as get_config_postmeanscaled
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
