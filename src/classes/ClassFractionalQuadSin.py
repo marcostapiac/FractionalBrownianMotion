@@ -35,8 +35,8 @@ class FractionalQuadSin:
         return None  # self.initialVol * np.exp(self.volVol * Z)
 
     def increment_state(self, prev: np.ndarray, deltaT: float, M: int):
-        # driftX = -V'(x) where V'(x) = -(ax^2-b*cos(cx)) potential --> 2ax+bcsin(cx) drift
-        driftX = 2.*self.quad_coeff * prev + self.sin_coeff * self.sin_space_scale*np.sin(self.sin_space_scale*prev)  # gamma*sin(Xt-1)
+        # driftX = -V'(x) where V'(x) = (ax^2+b*cos(cx)) potential --> 2ax- b*c *sin(cx) drift
+        driftX = -2.*self.quad_coeff * prev + self.sin_coeff * self.sin_space_scale*np.sin(self.sin_space_scale*prev)  # gamma*sin(Xt-1)
         diffX = self.diff * M
         return prev + driftX * deltaT + diffX
 
