@@ -13,13 +13,13 @@ def get_config():
     # Data set parameters
     config.hurst = 0.5
     config.quad_coeff = -0.5
-    config.sin_coeff = 1.
+    config.sin_coeff = 1./4.
     config.sin_space_scale = 4.
     config.diffusion = 1.
     config.initState = 0.
     config.ts_length = 256
     config.t0 = 0.
-    config.deltaT = 1./(256)
+    config.deltaT = 2./(256)
     config.t1 = config.deltaT*config.ts_length
     config.data_path = project_config.ROOT_DIR + "data/fQuadSinHF_samples_t0{:g}_dT{:.3e}_T{}_{}a_{}b_{}c_{}Diff_{}Init".format(
         config.t0, config.deltaT, config.ts_length, config.quad_coeff, config.sin_coeff, config.sin_space_scale,
