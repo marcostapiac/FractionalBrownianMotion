@@ -157,31 +157,4 @@ elif "fBiPot" in config.data_path:
         ".", "")
 print(save_path)
 
-np.save(save_path + "_muhats.npy", final_vec_mu_hats)
-np.save(save_path + "_numpyXs.npy", numpy_Xs)
-raise RuntimeError
-
-for j in range(0, num_diff_times, 10):
-    mhats = mu_hats[:, j, :]
-    mhats = mhats.reshape(mhats.shape[0], np.prod(mhats.shape[1:]))
-    mean = mhats.mean(axis=-1)
-    stds = mhats.std(axis=-1)
-    plot_drift_estimator(mean, stds, numpy_Xs, type=type, toSave=False)
-
-# In[34]:
-
-
-mean = np.array([mu_hats[i, 10:200, :].flatten().mean(axis=-1) for i in range(Xshape)])
-stds = np.array([mu_hats[i, 10:200, :].flatten().std(axis=-1) for i in range(Xshape)])
-plot_drift_estimator(mean, stds, numpy_Xs, type=type, toSave=False)
-
-# In[ ]:
-
-
-# In[21]:
-
-
-# In[ ]:
-
-
-# In[7]:
+np.save(save_path + "_muhats.npy", final_vec_mu_hats[:, [-1],:])

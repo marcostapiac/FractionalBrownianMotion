@@ -42,12 +42,10 @@ ts_step = 1 / config.ts_length
 
 Nepoch = 960  # config.max_epochs[0]
 # Fix the number of training epochs and training loss objective loss
-if "PM" in config.scoreNet_trained_path:
-    PM = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters).to(device)
-else:
-    PM = ConditionalMarkovianTSScoreMatching(*config.model_parameters).to(device)
+PM = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters).to(device)
 PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
 print(config.scoreNet_trained_path)
+
 
 # In[23]:
 
@@ -62,7 +60,7 @@ diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_ti
 mu_hats_mean = np.zeros((Xshape, num_taus))
 mu_hats_std = np.zeros((Xshape, num_taus))
 
-Xs = torch.linspace(-2.5, 2.5, steps=Xshape).unsqueeze(-1).unsqueeze(-1).permute(1, 0, 2).to(device)
+Xs = torch.linspace(-0.4, 0.4, steps=Xshape).unsqueeze(-1).unsqueeze(-1).permute(1, 0, 2).to(device)
 conditioner = torch.stack([Xs for _ in range(1)], dim=0).reshape(Xshape * 1, 1, -1)
 B, T = Xshape, 1
 final_vec_mu_hats = np.zeros((Xshape, num_diff_times, num_taus))  # Xvalues, DiffTimes, Ztaus
@@ -145,44 +143,9 @@ else:
     type = "Standard"
 print(type)
 
-es = 40 if config.max_diff_steps == 10000 else 10
-
-if "fOU" in config.data_path:
-    save_path = \
-        (
-                project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean}Mean_{config.max_diff_steps}DiffSteps").replace(
-            ".", "")
-elif "fQuadSinHF" in config.data_path:
-    save_path = (
-            project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_ES{es}_fQuadSinHF_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.max_diff_steps}DiffSteps").replace(
-        ".", "")
+save_path = (
+        project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_fQuadSinHF_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.t0}t0_{config.deltaT}deltaT_{config.ts_length}T_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.max_diff_steps}DiffSteps").replace(
+    ".", "")
 print(save_path)
 
-np.save(save_path + "_muhats.npy", final_vec_mu_hats[:,[-1],:])
-np.save(save_path + "_numpyXs.npy", numpy_Xs)
-raise RuntimeError
-
-for j in range(0, num_diff_times, 10):
-    mhats = mu_hats[:, j, :]
-    mhats = mhats.reshape(mhats.shape[0], np.prod(mhats.shape[1:]))
-    mean = mhats.mean(axis=-1)
-    stds = mhats.std(axis=-1)
-    plot_drift_estimator(mean, stds, numpy_Xs, type=type, toSave=False)
-
-# In[34]:
-
-
-mean = np.array([mu_hats[i, 10:200, :].flatten().mean(axis=-1) for i in range(Xshape)])
-stds = np.array([mu_hats[i, 10:200, :].flatten().std(axis=-1) for i in range(Xshape)])
-plot_drift_estimator(mean, stds, numpy_Xs, type=type, toSave=False)
-
-# In[ ]:
-
-
-# In[21]:
-
-
-# In[ ]:
-
-
-# In[7]:
+np.save(save_path + "_muhats.npy", final_vec_mu_hats[:, [-1],:])
