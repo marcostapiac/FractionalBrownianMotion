@@ -44,7 +44,7 @@ def get_config():
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.temb_dim,
         config.enc_shapes, config.hybrid, config.weightings).replace(".", "")
 
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_noisy_circle_OUSDE_model_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_DiffEmbSize{}_ResLay{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Wghts".format(
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_noisy_circle_OUSDE_model_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybrid_{}Wghts".format(
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid,
         config.weightings).replace(".", "")

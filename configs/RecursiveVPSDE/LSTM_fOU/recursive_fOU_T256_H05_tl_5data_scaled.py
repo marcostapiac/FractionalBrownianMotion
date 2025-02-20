@@ -62,19 +62,19 @@ def get_config():
             config.lstm_dropout > 0 and config.lstm_numlay > 1))
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_MLP_{}_incs_{}_unitIntv_fOU_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_TembDim{}_EncShapes{}_tl5".format(
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_MLP_{}_incs_{}_unitIntv_fOU_VPSDE_model_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_TembDim{}_EncShapes{}_tl5".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
         config.enc_shapes).replace(".", "")
 
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_sc_TSM_{}_incs_{}_unitIntv_fOU_VPSDE_model_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_DiffEmbSize{}_ResLay{}_ResChan{}_DiffHiddenSize{}_{}Hybrid_{}Wghts_LSTM_H{}_Nlay{}_fOU{}_tl5".format(
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_sc_TSM_{}_incs_{}_unitIntv_fOU_VPSDE_model_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybrid_{}Wghts_LSTM_H{}_Nlay{}_fOU{}_tl5".format(
         not config.isfBm, config.isUnitInterval, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
-        config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings,
+        config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings, config.t0, config.deltaT,
         config.lstm_hiddendim, config.lstm_numlay, config.mean).replace(".", "")
 
     config.model_choice = "TSM"
