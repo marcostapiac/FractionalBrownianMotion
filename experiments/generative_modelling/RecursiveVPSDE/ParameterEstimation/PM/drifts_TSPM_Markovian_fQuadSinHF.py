@@ -28,7 +28,7 @@ max_diff_steps = config.max_diff_steps
 sample_eps = config.sample_eps
 ts_step = 1 / config.ts_length
 
-Nepoch = 300  # config.max_epochs[0]
+Nepoch = 960  # config.max_epochs[0]
 # Fix the number of training epochs and training loss objective loss
 PM = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters).to(device)
 PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
