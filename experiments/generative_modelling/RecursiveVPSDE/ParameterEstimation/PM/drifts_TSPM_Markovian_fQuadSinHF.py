@@ -28,7 +28,7 @@ max_diff_steps = config.max_diff_steps
 sample_eps = config.sample_eps
 ts_step = 1 / config.ts_length
 
-Nepoch = 960  # config.max_epochs[0]
+Nepoch = 300  # config.max_epochs[0]
 # Fix the number of training epochs and training loss objective loss
 PM = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters).to(device)
 PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
@@ -48,7 +48,7 @@ diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_ti
 mu_hats_mean = np.zeros((Xshape, num_taus))
 mu_hats_std = np.zeros((Xshape, num_taus))
 
-Xs = torch.linspace(-1.7,1.7, steps=Xshape).unsqueeze(-1).unsqueeze(-1).permute(1, 0, 2).to(device)
+Xs = torch.linspace(-1.7, 1.7, steps=Xshape).unsqueeze(-1).unsqueeze(-1).permute(1, 0, 2).to(device)
 conditioner = torch.stack([Xs for _ in range(1)], dim=0).reshape(Xshape * 1, 1, -1)
 B, T = Xshape, 1
 final_vec_mu_hats = np.zeros((Xshape, num_diff_times, num_taus))  # Xvalues, DiffTimes, Ztaus
