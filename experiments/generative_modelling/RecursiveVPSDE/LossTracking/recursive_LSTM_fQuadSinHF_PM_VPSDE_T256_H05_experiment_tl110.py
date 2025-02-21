@@ -48,7 +48,7 @@ if __name__ == "__main__":
                                      diff=config.diffusion,
                                      initial_state=config.initState)
             #np.save(config.data_path, data)
-        data = np.concatenate([data[:, [0]], np.diff(data, axis=1)], axis=1)
+        data = np.concatenate([data[:, [0]]-config.initState, np.diff(data, axis=1)], axis=1)
         data = np.atleast_3d(data[:training_size, :])
         assert (data.shape == (training_size, config.ts_length, config.ts_dims))
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)

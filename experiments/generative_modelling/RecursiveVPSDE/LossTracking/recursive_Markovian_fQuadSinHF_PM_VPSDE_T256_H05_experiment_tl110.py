@@ -28,7 +28,7 @@ if __name__ == "__main__":
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     print(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad) / (config.ts_length-1))
-    init_experiment(config=config)
+    #init_experiment(config=config)
     end_epoch = max(config.max_epochs)
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))
@@ -37,6 +37,7 @@ if __name__ == "__main__":
         training_size = int(
             max(1000,min(int(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad) / (config.ts_length-1)), 1200000)))
         print(training_size)
+        training_size = 1000
         try:
             data = np.load(config.data_path, allow_pickle=True)
             assert (data.shape[0] >= training_size)
@@ -46,7 +47,7 @@ if __name__ == "__main__":
                                  H=config.hurst,a=config.quad_coeff,b=config.sin_coeff, c=config.sin_space_scale, diff=config.diffusion,
                                  initial_state=config.initState)
             np.save(config.data_path, data)
-        data = np.concatenate([data[:, [0]], np.diff(data, axis=1)], axis=1)
+        data = np.concatenate([data[:, [0]]-config.initState, np.diff(data, axis=1)], axis=1)
         data = np.atleast_3d(data[:training_size, :])
         assert (data.shape == (training_size, config.ts_length, config.ts_dims))
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
