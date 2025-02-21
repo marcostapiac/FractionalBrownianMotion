@@ -32,7 +32,7 @@ if __name__ == "__main__":
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))
     except FileNotFoundError as e:
-        print("Error {}; no valid trained model fSinnd; proceeding to training\n".format(e))
+        print("Error {}; no valid trained model fQuadSinHF; proceeding to training\n".format(e))
         training_size = int(
             max(1000, min(int(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad) / (
                         config.ts_length - 1)), 1200000)))
@@ -47,7 +47,7 @@ if __name__ == "__main__":
                                      H=config.hurst, a=config.quad_coeff, b=config.sin_coeff, c=config.sin_space_scale,
                                      diff=config.diffusion,
                                      initial_state=config.initState)
-            #np.save(config.data_path, data)
+            np.save(config.data_path, data)
         data = np.concatenate([data[:, [0]]-config.initState, np.diff(data, axis=1)], axis=1)
         data = np.atleast_3d(data[:training_size, :])
         assert (data.shape == (training_size, config.ts_length, config.ts_dims))
