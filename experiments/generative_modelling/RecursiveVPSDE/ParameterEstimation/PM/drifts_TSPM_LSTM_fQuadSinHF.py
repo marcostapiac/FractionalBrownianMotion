@@ -84,7 +84,7 @@ PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch
 print(config.scoreNet_trained_path)
 
 Xshape = config.ts_length
-num_taus = 500
+num_taus = 100
 
 num_diff_times = config.max_diff_steps
 Ndiff_discretisation = config.max_diff_steps
