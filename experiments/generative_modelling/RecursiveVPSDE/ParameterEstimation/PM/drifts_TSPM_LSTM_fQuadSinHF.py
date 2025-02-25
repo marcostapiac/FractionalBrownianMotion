@@ -98,7 +98,7 @@ features = find_LSTM_feature_vectors(Xs=Xs, PM=PM, device=device, config=config)
 num_feats_per_x = {x.item(): features[x.item()].shape[0] for x in Xs}
 list_num_feats_per_x = list(num_feats_per_x.values())
 tot_num_feats = np.sum(list(num_feats_per_x.values()))
-features_tensor = torch.concat(list(features.values()), dim=0) # [num_features_per_x, 1, 20]
+features_tensor = torch.concat(list(features.values()), dim=0).to(device) # [num_features_per_x, 1, 20]
 assert (features_tensor.shape[0] == tot_num_feats)
 final_vec_mu_hats = np.zeros((Xshape, num_diff_times, num_taus, config.ts_dims))  # Xvalues, DiffTimes, Ztaus, Ts_Dims
 
