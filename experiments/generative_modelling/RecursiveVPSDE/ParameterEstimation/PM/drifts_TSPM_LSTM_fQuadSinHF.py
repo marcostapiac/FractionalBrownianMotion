@@ -96,7 +96,7 @@ features = find_LSTM_feature_vectors(Xs=Xs, PM=PM, device=device, config=config)
 num_feats_per_x = {x.item(): features[x.item()].shape[0] for x in Xs}
 list_num_feats_per_x = list(num_feats_per_x.values())
 tot_num_feats = np.sum(list(num_feats_per_x.values()))
-features_tensor = torch.concat(list(features.values()), dim=0).to(device) # [num_features_per_x, 1, 20]
+features_tensor = torch.concat(list(features.values()), dim=0).to(device)  # [num_features_per_x, 1, 20]
 assert (features_tensor.shape[0] == tot_num_feats)
 final_vec_mu_hats = np.zeros((Xshape, num_diff_times, num_taus, config.ts_dims))  # Xvalues, DiffTimes, Ztaus, Ts_Dims
 
@@ -114,14 +114,15 @@ while difftime_idx >= num_diff_times - es:
     eff_times = diffusion.get_eff_times(diff_times=diff_times).unsqueeze(-1).unsqueeze(-1).to(device)
     vec_diff_times = torch.stack([diff_times for _ in range(num_taus)], dim=0).reshape(num_taus * tot_num_feats)
     vec_eff_times = torch.stack([eff_times for _ in range(num_taus)], dim=0).reshape(num_taus * tot_num_feats, 1, 1)
-    vec_conditioner = torch.stack([features_tensor for _ in range(num_taus)], dim=0).reshape(num_taus * tot_num_feats, 1, -1)
-    assert (all([torch.allclose(vec_conditioner[j::tot_num_feats,:,:],vec_conditioner[j,:,:]) for j in range(Xshape)]))
-    vec_c_mat = vec_conditioner.reshape((num_taus, tot_num_feats, vec_conditioner.shape[-1])).cpu()
-    for j in range(Xshape):
-        c = vec_c_mat[:, sum(list_num_feats_per_x[:j]):sum(list_num_feats_per_x[:j+1]), :]
-        assert torch.allclose(c, c[0, :, :])
-        assert torch.allclose(c[0, :, :], features[Xs[j].item()].squeeze(1))
-    del vec_c_mat
+    vec_conditioner = torch.stack([features_tensor for _ in range(num_taus)], dim=0).reshape(num_taus * tot_num_feats,
+                                                                                             1, -1)
+    # assert (all([torch.allclose(vec_conditioner[j::tot_num_feats,:,:],vec_conditioner[j,:,:]) for j in range(Xshape)]))
+    # vec_c_mat = vec_conditioner.reshape((num_taus, tot_num_feats, vec_conditioner.shape[-1])).cpu()
+    # for j in range(Xshape):
+    #    c = vec_c_mat[:, sum(list_num_feats_per_x[:j]):sum(list_num_feats_per_x[:j+1]), :]
+    #    assert torch.allclose(c, c[0, :, :])
+    #    assert torch.allclose(c[0, :, :], features[Xs[j].item()].squeeze(1))
+    # del vec_c_mat
     with torch.no_grad():
         vec_predicted_score = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
                                          eff_times=vec_eff_times)
@@ -137,10 +138,10 @@ while difftime_idx >= num_diff_times - es:
     sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
     final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
                                                                     (torch.pow(sigma_taus, 2) + (
-                                                                                torch.pow(beta_taus, 2) * ts_step)) / (
-                                                                                ts_step * beta_taus)) * vec_scores)
+                                                                            torch.pow(beta_taus, 2) * ts_step)) / (
+                                                                            ts_step * beta_taus)) * vec_scores)
 
-    assert (final_mu_hats.shape == (num_taus*tot_num_feats, 1, config.ts_dims))
+    assert (final_mu_hats.shape == (num_taus * tot_num_feats, 1, config.ts_dims))
     A = final_mu_hats.reshape((num_taus, tot_num_feats, config.ts_dims))
     split_tensors = torch.split(A, list(num_feats_per_x.values()), dim=1)
     # Compute means along the column dimension
@@ -161,7 +162,7 @@ save_path = (
 print(save_path)
 print(final_vec_mu_hats.shape)
 assert (final_vec_mu_hats.shape == (Xshape, num_diff_times, num_taus, config.ts_dims))
-k = final_vec_mu_hats[:, [-1], :, 0]
+k = final_vec_mu_hats[:, -es:, :, 0]
 print(k.shape)
 assert config.ts_dims == 1
 if es == 1:
