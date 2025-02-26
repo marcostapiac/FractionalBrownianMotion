@@ -91,7 +91,7 @@ Ndiff_discretisation = config.max_diff_steps
 diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_time,
                                  steps=Ndiff_discretisation).to(device)
 
-Xs = torch.linspace(-.4, .4, steps=Xshape)
+Xs = torch.linspace(-1.2, 1.2, steps=Xshape)
 features = find_LSTM_feature_vectors(Xs=Xs, PM=PM, device=device, config=config)
 num_feats_per_x = {x.item(): features[x.item()].shape[0] for x in Xs}
 list_num_feats_per_x = list(num_feats_per_x.values())
