@@ -84,7 +84,7 @@ PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch
 print(config.scoreNet_trained_path)
 
 Xshape = config.ts_length
-num_taus = 100
+num_taus = 200
 
 num_diff_times = config.max_diff_steps
 Ndiff_discretisation = config.max_diff_steps
@@ -106,7 +106,7 @@ PM.eval()
 #vec_Z_taus = diffusion.prior_sampling(shape=(Xshape * num_taus, 1, 1)).to(device)
 vec_Z_taus = diffusion.prior_sampling(shape=(tot_num_feats * num_taus, 1, config.ts_dims)).to(device)
 ts = []
-es = 10
+es = 1
 mu_hats_mean = np.zeros((tot_num_feats, num_taus))
 mu_hats_std = np.zeros((tot_num_feats, num_taus))
 
