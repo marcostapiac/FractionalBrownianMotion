@@ -56,7 +56,7 @@ PM.eval()
 vec_Z_taus = diffusion.prior_sampling(shape=(Xshape*num_taus, 1, 1)).to(device)
 difftime_idx = num_diff_times - 1
 ts = []
-es = 100
+es = 1
 while difftime_idx >= num_diff_times - es:
     d = diffusion_times[Ndiff_discretisation - (num_diff_times - 1 - difftime_idx) - 1].to(device)
     # I (will) have a RV for each x (there are B of them) and hence need a diffusion time for each one
