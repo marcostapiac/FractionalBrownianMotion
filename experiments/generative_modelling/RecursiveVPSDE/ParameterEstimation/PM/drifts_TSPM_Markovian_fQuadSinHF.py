@@ -81,7 +81,6 @@ while difftime_idx >= num_diff_times - es:
     sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
     final_mu_hats = (vec_Z_taus/(ts_step * beta_taus)) + ( (
                 (torch.pow(sigma_taus, 2) + (torch.pow(beta_taus, 2) * ts_step)) / (ts_step * beta_taus)) * vec_scores)
-    #print(vec_Z_taus.shape, vec_scores.shape)
     final_vec_mu_hats[:, difftime_idx, :] = final_mu_hats.reshape((num_taus, Xshape)).T.cpu().numpy()
     vec_z = torch.randn_like(vec_drift).to(device)
     vec_Z_taus = vec_drift + vec_diffParam * vec_z

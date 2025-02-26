@@ -100,14 +100,13 @@ features_tensor = torch.concat(list(features.values()), dim=0).to(device)  # [nu
 assert (features_tensor.shape[0] == tot_num_feats)
 final_vec_mu_hats = np.zeros((Xshape, num_diff_times, num_taus, config.ts_dims))  # Xvalues, DiffTimes, Ztaus, Ts_Dims
 
-PM.eval()
 vec_Z_taus = diffusion.prior_sampling(shape=(tot_num_feats * num_taus, 1, config.ts_dims)).to(device)
 ts = []
 es = 1
 mu_hats_mean = np.zeros((tot_num_feats, num_taus))
 mu_hats_std = np.zeros((tot_num_feats, num_taus))
-
 difftime_idx = num_diff_times - 1
+PM.eval()
 while difftime_idx >= num_diff_times - es:
     d = diffusion_times[Ndiff_discretisation - (num_diff_times - 1 - difftime_idx) - 1].to(device)
     diff_times = torch.stack([d for _ in range(tot_num_feats)]).reshape(tot_num_feats * 1).to(device)
