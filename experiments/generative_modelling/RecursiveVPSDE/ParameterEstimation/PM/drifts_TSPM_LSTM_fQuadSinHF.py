@@ -161,6 +161,8 @@ save_path = (
 print(save_path)
 print(final_vec_mu_hats.shape)
 assert (final_vec_mu_hats.shape == (Xshape, num_diff_times, num_taus, config.ts_dims))
+k = final_vec_mu_hats[:, [-1], :, 0]
+print(k.shape)
 assert config.ts_dims == 1
 if es == 1:
     np.save(save_path + "_muhats.npy", final_vec_mu_hats[:, [-1], :, 0])
