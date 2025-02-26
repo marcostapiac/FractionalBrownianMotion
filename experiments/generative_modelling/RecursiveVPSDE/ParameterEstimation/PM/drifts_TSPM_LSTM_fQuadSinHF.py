@@ -116,6 +116,7 @@ while difftime_idx >= num_diff_times - es:
     vec_eff_times = torch.stack([eff_times for _ in range(num_taus)], dim=0).reshape(num_taus * tot_num_feats, 1, 1)
     vec_conditioner = torch.stack([features_tensor for _ in range(num_taus)], dim=0).reshape(num_taus * tot_num_feats,
                                                                                              1, -1)
+
     # assert (all([torch.allclose(vec_conditioner[j::tot_num_feats,:,:],vec_conditioner[j,:,:]) for j in range(Xshape)]))
     # vec_c_mat = vec_conditioner.reshape((num_taus, tot_num_feats, vec_conditioner.shape[-1])).cpu()
     # for j in range(Xshape):

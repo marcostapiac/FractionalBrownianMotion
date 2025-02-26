@@ -52,11 +52,12 @@ Xs = torch.linspace(-1.2, 1.2, steps=Xshape).unsqueeze(-1).unsqueeze(-1).permute
 conditioner = torch.stack([Xs for _ in range(1)], dim=0).reshape(Xshape * 1, 1, -1)
 B, T = Xshape, 1
 final_vec_mu_hats = np.zeros((Xshape, num_diff_times, num_taus))  # Xvalues, DiffTimes, Ztaus
-PM.eval()
 vec_Z_taus = diffusion.prior_sampling(shape=(Xshape*num_taus, 1, 1)).to(device)
-difftime_idx = num_diff_times - 1
 ts = []
 es = 1
+difftime_idx = num_diff_times - 1
+
+PM.eval()
 while difftime_idx >= num_diff_times - es:
     d = diffusion_times[Ndiff_discretisation - (num_diff_times - 1 - difftime_idx) - 1].to(device)
     # I (will) have a RV for each x (there are B of them) and hence need a diffusion time for each one
