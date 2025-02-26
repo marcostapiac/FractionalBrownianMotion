@@ -76,7 +76,6 @@ while difftime_idx >= num_diff_times - es:
                                                                                        num_diff_times - 1 - difftime_idx))]).to(
                                                                                device),
                                                                            max_diff_steps=Ndiff_discretisation)
-    # assert np.allclose((scores- predicted_score).detach(), 0)
     beta_taus = torch.exp(-0.5 * eff_times[0,0,0]).to(device)
     sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
     final_mu_hats = (vec_Z_taus/(ts_step * beta_taus)) + ( (
