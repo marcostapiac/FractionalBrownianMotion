@@ -91,7 +91,4 @@ save_path = (
         ".", "")
 print(save_path)
 
-if es == 1:
-    np.save(save_path + "_muhats.npy", final_vec_mu_hats[:, [-1], :])
-else:
-    np.save(save_path + "_muhats.npy", final_vec_mu_hats[:, -es:, :])
+np.save(save_path + "_muhats.npy", final_vec_mu_hats[:, -es:, :])
