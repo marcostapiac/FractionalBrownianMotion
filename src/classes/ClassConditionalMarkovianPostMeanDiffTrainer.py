@@ -246,7 +246,8 @@ class ConditionalPostMeanMarkovianDiffTrainer(nn.Module):
         init_state = self.init_state.to(batch.device).view(1, 1, batch.shape[-1])  # Reshape to (1, 1, D)
         init_state = init_state.expand(batch.shape[0], -1, -1)  # Expand to (B, 1, D)
         dbatch = torch.cat([init_state, batch], dim=1)
-        return dbatch.cumsum(dim=1)[:, :-1, :]
+        dbatch = dbatch.cumsum(dim=1)[:, :-1,:]
+        return dbatch
 
 
     def _save_loss(self, losses: list, filepath: str):
