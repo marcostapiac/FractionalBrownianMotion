@@ -31,7 +31,7 @@ diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
 max_diff_steps = config.max_diff_steps
 sample_eps = config.sample_eps
-ts_step = 1 / config.ts_length
+ts_step = config.deltaT
 
 Nepoch = 960  # config.max_epochs[0]
 # Fix the number of training epochs and training loss objective loss
