@@ -84,7 +84,7 @@ PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch
 print(config.scoreNet_trained_path)
 
 Xshape = config.ts_length
-num_taus = 250
+num_taus = 200
 
 num_diff_times = config.max_diff_steps
 Ndiff_discretisation = config.max_diff_steps
@@ -93,8 +93,6 @@ diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_ti
 
 Xs = torch.linspace(-1.2, 1.2, steps=Xshape)
 features = find_LSTM_feature_vectors(Xs=Xs, PM=PM, device=device, config=config)
-#Xs = Xs.unsqueeze(-1).unsqueeze(-1).permute(1, 0, 2).to(device)
-#conditioner = torch.stack([Xs for _ in range(1)], dim=0).reshape(Xshape * 1, 1, -1)
 num_feats_per_x = {x.item(): features[x.item()].shape[0] for x in Xs}
 list_num_feats_per_x = list(num_feats_per_x.values())
 tot_num_feats = np.sum(list(num_feats_per_x.values()))
@@ -103,7 +101,6 @@ assert (features_tensor.shape[0] == tot_num_feats)
 final_vec_mu_hats = np.zeros((Xshape, num_diff_times, num_taus, config.ts_dims))  # Xvalues, DiffTimes, Ztaus, Ts_Dims
 
 PM.eval()
-#vec_Z_taus = diffusion.prior_sampling(shape=(Xshape * num_taus, 1, 1)).to(device)
 vec_Z_taus = diffusion.prior_sampling(shape=(tot_num_feats * num_taus, 1, config.ts_dims)).to(device)
 ts = []
 es = 1
@@ -113,12 +110,8 @@ mu_hats_std = np.zeros((tot_num_feats, num_taus))
 difftime_idx = num_diff_times - 1
 while difftime_idx >= num_diff_times - es:
     d = diffusion_times[Ndiff_discretisation - (num_diff_times - 1 - difftime_idx) - 1].to(device)
-    #diff_times = torch.stack([d for _ in range(B)]).reshape(B * T).to(device)
     diff_times = torch.stack([d for _ in range(tot_num_feats)]).reshape(tot_num_feats * 1).to(device)
     eff_times = diffusion.get_eff_times(diff_times=diff_times).unsqueeze(-1).unsqueeze(-1).to(device)
-    #vec_diff_times = torch.stack([diff_times for _ in range(num_taus)], dim=0).reshape(num_taus * Xshape)
-    #vec_eff_times = torch.stack([eff_times for _ in range(num_taus)], dim=0).reshape(num_taus * Xshape, 1, 1)
-    #vec_conditioner = torch.stack([conditioner for _ in range(num_taus)], dim=0).reshape(num_taus * Xshape, 1, -1)
     vec_diff_times = torch.stack([diff_times for _ in range(num_taus)], dim=0).reshape(num_taus * tot_num_feats)
     vec_eff_times = torch.stack([eff_times for _ in range(num_taus)], dim=0).reshape(num_taus * tot_num_feats, 1, 1)
     vec_conditioner = torch.stack([features_tensor for _ in range(num_taus)], dim=0).reshape(num_taus * tot_num_feats, 1, -1)
@@ -166,6 +159,9 @@ save_path = (
         project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fQuadSinHF_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.max_diff_steps}DiffSteps").replace(
     ".", "")
 print(save_path)
+print(final_vec_mu_hats.shape)
+assert (final_vec_mu_hats.shape == (Xshape, num_diff_times, num_taus, config.ts_dims))
+assert config.ts_dims == 1
 if es == 1:
     np.save(save_path + "_muhats.npy", final_vec_mu_hats[:, [-1], :, 0])
 else:
