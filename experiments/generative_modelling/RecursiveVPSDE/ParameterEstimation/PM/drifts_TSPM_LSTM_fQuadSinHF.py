@@ -91,7 +91,7 @@ Ndiff_discretisation = config.max_diff_steps
 diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_time,
                                  steps=Ndiff_discretisation).to(device)
 
-Xs = torch.linspace(-1.2, 1.2, steps=Xshape)
+Xs = torch.linspace(-.4, .4, steps=Xshape)
 features = find_LSTM_feature_vectors(Xs=Xs, PM=PM, device=device, config=config)
 num_feats_per_x = {x.item(): features[x.item()].shape[0] for x in Xs}
 list_num_feats_per_x = list(num_feats_per_x.values())
@@ -162,6 +162,5 @@ save_path = (
     ".", "")
 print(save_path)
 assert (final_vec_mu_hats.shape == (Xshape, num_diff_times, num_taus, config.ts_dims))
-k = final_vec_mu_hats[:, -es:, :, 0]
 assert config.ts_dims == 1
 np.save(save_path + "_muhats.npy", final_vec_mu_hats[:, -es:, :, 0])
