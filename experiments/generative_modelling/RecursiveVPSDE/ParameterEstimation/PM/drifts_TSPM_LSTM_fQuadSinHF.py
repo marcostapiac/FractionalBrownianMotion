@@ -159,7 +159,7 @@ assert (type in config.scoreNet_trained_path)
 print(type)
 
 save_path = (
-        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fQuadSinHF_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.max_diff_steps}DiffSteps").replace(
+        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fQuadSinHF2_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.max_diff_steps}DiffSteps").replace(
     ".", "")
 print(save_path)
 assert (final_vec_mu_hats.shape == (Xshape, num_diff_times, num_taus, config.ts_dims))
