@@ -20,7 +20,7 @@ def get_config():
     config.initState = 0.
     config.ts_length = 256
     config.t0 = 0.
-    config.deltaT = 1./(64)
+    config.deltaT = 1./(256)
     config.t1 = config.deltaT*config.ts_length
 
     config.data_path = project_config.ROOT_DIR + "data/fQuadSinHF_samples_t0{:g}_dT{:.3e}_T{}_{}a_{}b_{}c_{}Diff_{}Init".format(
@@ -45,7 +45,7 @@ def get_config():
     config.loss_factor = 0
 
     # Diffusion hyperparameters
-    config.beta_max = 20.
+    config.beta_max = 40.
     config.beta_min = 0.  # 0.0001
 
     # MLP Architecture parameters
