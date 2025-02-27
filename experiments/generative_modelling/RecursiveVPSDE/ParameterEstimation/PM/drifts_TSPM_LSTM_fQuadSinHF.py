@@ -19,8 +19,8 @@ from tqdm import tqdm
 def find_LSTM_feature_vectors(Xs, PM, config, device):
     sim_data = np.load(config.data_path, allow_pickle=True)
     sim_data_tensor = torch.tensor(sim_data, dtype=torch.float)
-    dX = np.diff(Xs)[0] / 200
-    assert ((Xs[1] - Xs[0]) / 200 == dX)
+    dX = np.diff(Xs)[0] / 2000
+    assert ((Xs[1] - Xs[0]) / 2000 == dX)
 
     def process_single_threshold(x):
         xmin = x - dX
@@ -77,7 +77,7 @@ max_diff_steps = config.max_diff_steps
 sample_eps = config.sample_eps
 ts_step = config.deltaT
 
-Nepoch = 300
+Nepoch = 960
 # Fix the number of training epochs and training loss objective loss
 PM = ConditionalLSTMTSPostMeanScoreMatching(*config.model_parameters).to(device)
 PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
@@ -91,7 +91,7 @@ Ndiff_discretisation = config.max_diff_steps
 diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_time,
                                  steps=Ndiff_discretisation).to(device)
 
-Xs = torch.linspace(-1.2, 1.2, steps=Xshape)
+Xs = torch.linspace(-.4, .4, steps=Xshape)
 features = find_LSTM_feature_vectors(Xs=Xs, PM=PM, device=device, config=config)
 num_feats_per_x = {x.item(): features[x.item()].shape[0] for x in Xs}
 list_num_feats_per_x = list(num_feats_per_x.values())
