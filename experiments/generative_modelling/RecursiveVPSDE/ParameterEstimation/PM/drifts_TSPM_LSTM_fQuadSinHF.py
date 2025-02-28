@@ -19,7 +19,6 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
     sim_data_tensor = torch.tensor(sim_data, dtype=torch.float)
     dX = np.diff(Xs)[0] / 250
     assert (((Xs[1] - Xs[0]) / 250) ==  dX)
-
     def process_single_threshold(x):
         xmin = x - dX
         xmax = x + dX
