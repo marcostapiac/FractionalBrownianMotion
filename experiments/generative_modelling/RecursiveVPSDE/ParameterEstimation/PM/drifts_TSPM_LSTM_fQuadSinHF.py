@@ -59,9 +59,7 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
 
     return features_Xs
 
-
 config = get_config()
-
 print("Beta Min : ", config.beta_min)
 if config.has_cuda:
     device = int(os.environ["LOCAL_RANK"])
