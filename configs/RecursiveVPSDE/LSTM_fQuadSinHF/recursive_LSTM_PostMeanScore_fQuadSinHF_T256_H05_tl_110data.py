@@ -12,10 +12,10 @@ def get_config():
 
     # Data set parameters
     config.hurst = 0.5
-    config.quad_coeff = .5
+    config.quad_coeff = 1.
     assert(config.quad_coeff > 0.)
-    config.sin_coeff = 1./25.
-    config.sin_space_scale = 25.
+    config.sin_coeff = 1.
+    config.sin_space_scale = 4.
     config.diffusion = 1.
     config.initState = 0.
     config.ts_length = 256
