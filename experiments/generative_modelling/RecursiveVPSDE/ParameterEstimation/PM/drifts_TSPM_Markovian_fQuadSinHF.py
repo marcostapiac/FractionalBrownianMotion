@@ -11,7 +11,6 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 
 # In[22]:
 
-
 config = get_config()
 
 print("Beta Min : ", config.beta_min)
