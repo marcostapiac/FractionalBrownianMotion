@@ -48,7 +48,10 @@ diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_ti
 mu_hats_mean = np.zeros((Xshape, num_taus))
 mu_hats_std = np.zeros((Xshape, num_taus))
 
-Xs = torch.linspace(-1.2, 1.2, steps=Xshape).unsqueeze(-1).unsqueeze(-1).permute(1, 0, 2).to(device)
+if config.deltaT > 1/(32*256):
+    Xs = torch.linspace(-1.2, 1.2, steps=Xshape).unsqueeze(-1).unsqueeze(-1).permute(1, 0, 2).to(device)
+else:
+    Xs = torch.linspace(-.4, .4, steps=Xshape).unsqueeze(-1).unsqueeze(-1).permute(1, 0, 2).to(device)
 conditioner = torch.stack([Xs for _ in range(1)], dim=0).reshape(Xshape * 1, 1, -1)
 B, T = Xshape, 1
 final_vec_mu_hats = np.zeros((Xshape, num_diff_times, num_taus))  # Xvalues, DiffTimes, Ztaus
@@ -91,7 +94,7 @@ type = "PM"
 assert (type in config.scoreNet_trained_path)
 print(type)
 save_path = (
-        project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_fQuadSinHF_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.max_diff_steps}DiffSteps").replace(
+        project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_fQuadSinHF_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.deltaT:.3e}dT_{config.beta_max:.1e}betaMax").replace(
     ".", "")
 print(save_path)
 np.save(save_path + "_muhats.npy", final_vec_mu_hats[:, -es:, :])
