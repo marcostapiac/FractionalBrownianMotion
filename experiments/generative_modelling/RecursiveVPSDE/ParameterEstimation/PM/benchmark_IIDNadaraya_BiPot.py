@@ -10,16 +10,8 @@ from tqdm import tqdm
 from scipy.stats import norm
 
 from configs import project_config
-from src.classes.ClassFractionalSin import FractionalSin
 from src.classes.ClassFractionalBiPotential import FractionalBiPotential
-from src.classes.ClassFractionalQuadSin import FractionalQuadSin
-from configs.RecursiveVPSDE.Markovian_fBiPot.recursive_Markovian_fBiPotWithPosition_T256_H05_tl_5data import get_config
-
-
-
-
-
-# In[2]:
+from configs.RecursiveVPSDE.LSTM_fBiPot.recursive_LSTM_PostMeanScore_fBiPot_T256_H05_tl_110data import get_config
 
 
 def gaussian_kernel(bw, x):
@@ -37,44 +29,24 @@ def rmse_ignore_nans(y_true, y_pred):
 
 
 config = get_config()
-num_paths = 10152
-t0 = 0.
-ts_length = 256
-deltaT = 1. / 256
-t1 = deltaT * ts_length
-# Drift parameters
+
+num_paths = 10952
+num_time_steps = config.ts_length
 isUnitInterval = True
-diff = 1.
+diff = config.diffusion
 initial_state = 0.
 rvs = None
-H = 0.5
-
-# In[19]:
-
-
-if "QuadSin" in config.data_path:
-    fQuadSin = FractionalQuadSin(quad_coeff=config.quad_coeff, sin_coeff=config.sin_coeff,
-                                 sin_space_scale=config.sin_space_scale, diff=diff, X0=initial_state)
-    is_path_observations = np.array(
-        [fQuadSin.euler_simulation(H=H, N=ts_length, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=initial_state,
-                                   Ms=None, gaussRvs=rvs,
-                                   t0=t0, t1=t1) for _ in (range(num_paths * 10))]).reshape(
-        (num_paths * 10, ts_length + 1))
-elif "fSin" in config.data_path:
-    fSin = FractionalSin(mean_rev=config.mean_rev, space_scale=1, diff=diff, X0=initial_state)
-    is_path_observations = np.array(
-        [fSin.euler_simulation(H=H, N=ts_length, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=initial_state,
-                               Ms=None, gaussRvs=rvs,
-                               t0=t0, t1=t1) for _ in (range(num_paths * 10))]).reshape(
-        (num_paths * 10, ts_length + 1))
-elif "fBiPot" in config.data_path:
-    fBiPot = FractionalBiPotential(const=config.const, quartic_coeff=config.quartic_coeff, quad_coeff=config.quad_coeff,
-                                   diff=diff, X0=initial_state)
-    is_path_observations = np.array(
-        [fBiPot.euler_simulation(H=H, N=ts_length, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=initial_state,
-                                 Ms=None, gaussRvs=rvs,
-                                 t0=t0, t1=t1) for _ in (range(num_paths * 10))]).reshape(
-        (num_paths * 10, ts_length + 1))
+H = config.hurst
+deltaT = config.deltaT
+t0 = config.t0
+t1 = deltaT * num_time_steps
+fBiPot = FractionalBiPotential(const=config.const, quartic_coeff=config.quartic_coeff, quad_coeff=config.quad_coeff,
+                               diff=diff, X0=initial_state)
+is_path_observations = np.array(
+    [fBiPot.euler_simulation(H=H, N=num_time_steps, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=initial_state,
+                             Ms=None, gaussRvs=rvs,
+                             t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
+    (num_paths * 10, num_time_steps + 1))
 
 is_idxs = np.arange(is_path_observations.shape[0])
 path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False), :]
@@ -86,7 +58,7 @@ prevPath_observations = path_observations[:, 1:-1]
 # We compute the path incs with respect to the prevPath_observations (since X_{t_{0}} != X_{0})
 path_incs = np.diff(path_observations, axis=1)[:, 1:]
 assert (prevPath_observations.shape == path_incs.shape)
-assert (path_incs.shape[1] == ts_length - 1)
+assert (path_incs.shape[1] == config.ts_length - 1)
 assert (path_observations.shape[1] == prevPath_observations.shape[1] + 2)
 
 
@@ -107,7 +79,7 @@ assert (prevPath_observations.shape[1] * deltaT == (t1 - t0))
 
 # Note that because b(x) = sin(x) is bounded, we take \epsilon = 0 hence we have following h_max
 eps = 0.
-log_h_min = np.log10(np.power(float(ts_length - 1), -(1. / (2. - eps))))
+log_h_min = np.log10(np.power(float(config.ts_length - 1), -(1. / (2. - eps))))
 print(log_h_min)
 
 
@@ -138,28 +110,20 @@ def compute_cv_for_bw(_bw):
 
 
 bws = np.logspace(-2, -0.05, 20)
-#CVs = np.zeros(len(bws))
-#for h in tqdm(range(bws.shape[0])):
+# CVs = np.zeros(len(bws))
+# for h in tqdm(range(bws.shape[0])):
 #    CVs[h] = compute_cv_for_bw(bws[h])
 
-#bw = bws[np.argmin(CVs)]
-#print(CVs)
+# bw = bws[np.argmin(CVs)]
+# print(CVs)
 
 numXs = 256
-if "fQuadSinHF" in config.data_path:
-    minx = -2.5
-elif "fQuadSin" in config.data_path:
-    minx = -1.7
-elif "fBiPot" in config.data_path:
-    minx = -2
-elif "fSin" in config.data_path:
-    minx = -3
+minx = -1.5
 maxx = -minx
 Xs = np.linspace(minx, maxx, numXs)
 num_dhats = 50
 for bw in bws:
     unif_is_drift_hats = np.zeros((numXs, num_dhats))
-
     for k in tqdm(range(num_dhats)):
         is_ss_path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False), :]
         is_prevPath_observations = is_ss_path_observations[:, 1:-1]
@@ -168,9 +132,9 @@ for bw in bws:
                                                     path_incs=is_path_incs, t1=t1, t0=t0, truncate=True)
 
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fBiPot_DriftEvalExp_{round(bw, 4)}bw_{num_paths}NPaths").replace(
+            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fBiPot_DriftEvalExp_{round(bw, 4)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(
         ".", "")
-    np.save(save_path + "_IIDNadaraya_isdriftHats.npy", unif_is_drift_hats)
+    np.save(save_path + "_isdriftHats.npy", unif_is_drift_hats)
 
 # In[ ]:
 
