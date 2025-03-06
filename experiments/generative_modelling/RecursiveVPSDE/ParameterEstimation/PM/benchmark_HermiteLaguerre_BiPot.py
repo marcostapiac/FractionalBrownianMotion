@@ -2,13 +2,10 @@
 # coding: utf-8
 from configs import project_config
 import matplotlib.pyplot as plt
-from tqdm import tqdm
 import numpy as np
 import math
 from scipy.special import eval_laguerre
-from src.classes.ClassFractionalSin import FractionalSin
 from src.classes.ClassFractionalBiPotential import FractionalBiPotential
-from src.classes.ClassFractionalQuadSin import FractionalQuadSin
 from configs.RecursiveVPSDE.LSTM_fBiPot.recursive_LSTM_PostMeanScore_fBiPot_T256_H05_tl_110data import get_config
 
 

@@ -45,7 +45,7 @@ fBiPot = FractionalBiPotential(const=config.const, quartic_coeff=config.quartic_
 is_path_observations = np.array(
     [fBiPot.euler_simulation(H=H, N=num_time_steps, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=initial_state,
                              Ms=None, gaussRvs=rvs,
-                             t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
+                             t0=t0, t1=t1) for _ in (range(num_paths*10))]).reshape(
     (num_paths * 10, num_time_steps + 1))
 
 is_idxs = np.arange(is_path_observations.shape[0])
