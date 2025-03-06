@@ -76,7 +76,7 @@ def get_config():
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings, config.t0, config.deltaT,
-        config.quad_coeff, config.sin_coeff, config.sin_space_scale, config.lstm_hiddendim, config.lstm_numlay, config.tdata_mult).replace(".", "")
+        config.quartic_coeff, config.quad_coeff, config.const, config.lstm_hiddendim, config.lstm_numlay, config.tdata_mult).replace(".", "")
 
     config.model_choice = "TSM"
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
