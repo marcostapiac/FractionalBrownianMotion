@@ -36,7 +36,7 @@ class FractionalBiPotential:
 
     def increment_state(self, prev: np.ndarray, deltaT: float, M: int):
         # driftX = -V'(x) where V(x) = ax^4+bx^2+cx
-        driftX = -(4.*self.quartic_coeff * np.power(prev, 3) + 2.*self.quad_coeff * prev + self.const)  # gamma*sin(Xt-1)
+        driftX = -(4.*self.quartic_coeff * np.power(prev, 3) + 2.*self.quad_coeff * prev + self.const)
         diffX = self.diff * M
         ## See (Weak approximation schemes for SDEs with super-linearly growing coefficients, 2023) for weak solution
         #diffX = diffX/(1.+deltaT*driftX)
