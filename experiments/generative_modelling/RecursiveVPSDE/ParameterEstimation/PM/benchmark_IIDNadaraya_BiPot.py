@@ -117,7 +117,7 @@ bws = np.logspace(-2, -0.05, 20)
 # bw = bws[np.argmin(CVs)]
 # print(CVs)
 
-numXs = 256
+numXs = config.ts_length
 minx = -1.5
 maxx = -minx
 Xs = np.linspace(minx, maxx, numXs)
