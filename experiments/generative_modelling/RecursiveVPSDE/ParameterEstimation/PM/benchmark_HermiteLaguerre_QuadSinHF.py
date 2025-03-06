@@ -2,55 +2,35 @@
 # coding: utf-8
 from configs import project_config
 import matplotlib.pyplot as plt
-from tqdm import tqdm
 import numpy as np
 import math
 from scipy.special import eval_laguerre
-from src.classes.ClassFractionalSin import FractionalSin
-from src.classes.ClassFractionalBiPotential import FractionalBiPotential
 from src.classes.ClassFractionalQuadSin import FractionalQuadSin
-from configs.RecursiveVPSDE.Markovian_fQuadSinHF.recursive_Markovian_fQuadSinHFWithPosition_T256_H05_tl_110data import \
+from configs.RecursiveVPSDE.LSTM_fQuadSinHF.recursive_LSTM_PostMeanScore_fQuadSinHF_T256_H05_tl_110data import \
     get_config
 
 config = get_config()
 
 # In[3]:
 
-
-num_paths = 10152
-num_time_steps = int(256)
+num_paths = 10952
+num_time_steps = config.ts_length
 isUnitInterval = True
 diff = config.diffusion
 initial_state = 0.
 rvs = None
 H = config.hurst
-deltaT = 1. / (256)
-t0 = 0.
+deltaT = config.deltaT
+t0 = config.t0
 t1 = deltaT * num_time_steps
-space_scale = 1.
-if "QuadSin" in config.data_path:
-    fQuadSin = FractionalQuadSin(quad_coeff=config.quad_coeff, sin_coeff=config.sin_coeff,
-                                 sin_space_scale=config.sin_space_scale, diff=diff, X0=initial_state)
-    paths = np.array(
-        [fQuadSin.euler_simulation(H=H, N=num_time_steps, deltaT=deltaT, isUnitInterval=isUnitInterval,
-                                   X0=initial_state, Ms=None, gaussRvs=rvs,
-                                   t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
-        (num_paths, num_time_steps + 1))
-elif "fSin" in config.data_path:
-    fSin = FractionalSin(mean_rev=config.mean_rev, space_scale=1, diff=diff, X0=initial_state)
-    paths = np.array(
-        [fSin.euler_simulation(H=H, N=num_time_steps, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=initial_state,
-                               Ms=None, gaussRvs=rvs,
+
+fQuadSin = FractionalQuadSin(quad_coeff=config.quad_coeff, sin_coeff=config.sin_coeff,
+                             sin_space_scale=config.sin_space_scale, diff=diff, X0=initial_state)
+paths = np.array(
+    [fQuadSin.euler_simulation(H=H, N=num_time_steps, deltaT=deltaT, isUnitInterval=isUnitInterval,
+                               X0=initial_state, Ms=None, gaussRvs=rvs,
                                t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
-        (num_paths, num_time_steps + 1))
-elif "fBiPot" in config.data_path:
-    fBiPot = FractionalBiPotential(const=config.const, quartic_coeff=config.quartic_coeff, quad_coeff=config.quad_coeff,
-                                   diff=diff, X0=initial_state)
-    paths = np.array(
-        [fBiPot.euler_simulation(H=H, N=num_time_steps, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=initial_state,
-                                 Ms=None, gaussRvs=rvs,
-                                 t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
-        (num_paths, num_time_steps + 1))
+    (num_paths, num_time_steps + 1))
 
 
 def hermite_basis(R, paths):
@@ -167,28 +147,22 @@ def basis_number_selection(paths, num_paths, num_time_steps, deltaT, t1):
 
 R = basis_number_selection(paths=paths, num_paths=num_paths, num_time_steps=num_time_steps, deltaT=deltaT, t1=t1)
 print(R)
-if "fQuadSinHF" in config.data_path:
-    minx = -2.5
-elif "fQuadSin" in config.data_path:
-    minx = -1.7
-elif "fBiPot" in config.data_path:
-    minx = -2
-elif "fSin" in config.data_path:
-    minx = -3
+numXs = config.ts_length
+minx = -1.2
 maxx = -minx
 
 # In[9]:
 
-for R in [4, 8, 9,10,11]:#[4, 8, 12, 16, 24]:
+for R in [4, 8, 9,10,11]:
     basis = hermite_basis(R=R, paths=paths)
     coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None))
 
     fig, ax = plt.subplots(figsize=(14, 9))
-    Xs = np.linspace(minx, maxx, int(2*num_time_steps)).reshape(1, -1)
+    Xs = np.linspace(minx, maxx, numXs).reshape(1, -1)
     basis = hermite_basis(R=R, paths=Xs)
     bhat = construct_drift(basis=basis, coefficients=coeffs)
 
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/TS_Hermite_fQuadSinHF_DriftEvalExp_{R}R_{num_paths}NPaths").replace(
+            project_config.ROOT_DIR + f"experiments/results/Hermite_fQuadSinHF_DriftEvalExp_{R}R_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.deltaT:.3e}dT").replace(
         ".", "")
-    np.save(save_path + "_Hermite_unifdriftHats.npy", bhat)
+    np.save(save_path + "_unifdriftHats.npy", bhat)
