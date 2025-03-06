@@ -74,7 +74,7 @@ max_diff_steps = config.max_diff_steps
 sample_eps = config.sample_eps
 ts_step = config.deltaT
 
-Nepoch = 1920
+Nepoch = 12920
 # Fix the number of training epochs and training loss objective loss
 PM = ConditionalLSTMTSPostMeanScoreMatching(*config.model_parameters).to(device)
 PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
