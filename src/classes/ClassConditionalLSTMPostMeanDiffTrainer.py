@@ -43,7 +43,7 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
         self.loss_fn = loss_fn  # If callable, need to ensure we allow for gradient computation
         self.loss_aggregator = loss_aggregator().to(self.device_id)
         self.loss_factor = loss_factor
-        self.deltaT = deltaT
+        self.deltaT = torch.Tensor([deltaT], dtype=torch.float32).to(self.device_id)
 
         self.diffusion = diffusion
         self.train_eps = train_eps
@@ -121,7 +121,7 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
         elif self.loss_factor == 1: # PMScaled (meaning not scaled)
             weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
         elif self.loss_factor == 2:  # PM with deltaT scaling
-            weights = (sigma_tau / (beta_tau*self.deltaT))
+            weights = (sigma_tau / (beta_tau*torch.sqrt(self.deltaT)))
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         return self._batch_loss_compute(outputs=outputs * weights, targets=target_scores * weights)
 

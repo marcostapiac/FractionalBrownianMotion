@@ -54,7 +54,7 @@ class ConditionalPostMeanMarkovianDiffTrainer(nn.Module):
         self.loss_fn = loss_fn  # If callable, need to ensure we allow for gradient computation
         self.loss_aggregator = loss_aggregator().to(self.device_id)
         self.loss_factor = loss_factor
-        self.deltaT = deltaT
+        self.deltaT = torch.Tensor([deltaT], dtype=torch.float32).to(self.device_id)
 
         self.diffusion = diffusion
         self.train_eps = train_eps
