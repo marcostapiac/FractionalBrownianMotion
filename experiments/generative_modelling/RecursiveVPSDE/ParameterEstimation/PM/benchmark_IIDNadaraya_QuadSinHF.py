@@ -60,7 +60,7 @@ prevPath_observations = path_observations[:, 1:-1]
 # We compute the path incs with respect to the prevPath_observations (since X_{t_{0}} != X_{0})
 path_incs = np.diff(path_observations, axis=1)[:, 1:]
 assert (prevPath_observations.shape == path_incs.shape)
-assert (path_incs.shape[1] == ts_length - 1)
+assert (path_incs.shape[1] == config.ts_length - 1)
 assert (path_observations.shape[1] == prevPath_observations.shape[1] + 2)
 
 
