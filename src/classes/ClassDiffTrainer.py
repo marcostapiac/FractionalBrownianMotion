@@ -35,6 +35,7 @@ class DiffusionModelTrainer:
                  checkpoint_freq: int,
                  to_weight: bool,
                  hybrid_training: bool,
+                 deltaT: float,
                  loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
 
@@ -48,6 +49,7 @@ class DiffusionModelTrainer:
         self.train_loader = train_data_loader
         self.loss_fn = loss_fn  # If callable, need to ensure we allow for gradient computation
         self.loss_aggregator = loss_aggregator().to(self.device_id)
+        self.deltaT = deltaT
 
         self.diffusion = diffusion
         self.train_eps = train_eps
@@ -55,6 +57,7 @@ class DiffusionModelTrainer:
         self.end_diff_time = end_diff_time
         self.is_hybrid = hybrid_training
         self.include_weightings = to_weight
+
 
         # Move score network to appropriate device
         if type(self.device_id) == int:

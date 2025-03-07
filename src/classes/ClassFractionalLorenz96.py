@@ -1,9 +1,7 @@
-from typing import Union
 
 import numpy as np
 
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
-from tqdm import tqdm
 
 
 class FractionalLorenz96:
@@ -35,15 +33,12 @@ class FractionalLorenz96:
         return driftX
 
     def increment_state(self, prev: np.ndarray, deltaT: float, M: int):
-        # driftX = -V'(x) where V'(x) = -(ax^2-b*cos(cx)) potential --> 2ax+bcsin(cx) drift
         driftX = self.drift_X(prev=prev)
         diffX = self.diff * M
         return prev + driftX * deltaT + diffX
 
-    def euler_simulation(self, H: float, N: int, isUnitInterval: bool, t0: float, t1: float, deltaT: float,
-                         X0: np.ndarray, Ms: np.ndarray = None,
-                         gaussRvs: np.ndarray = None):
-        # assert ((isUnitInterval and t0 == 0. and t1 == 1.) or ((not isUnitInterval) and t0 == 0. and t1 != 1.))
+    def euler_simulation(self, H: float, N: int, t0: float, t1: float, deltaT: float, X0: np.ndarray,
+                         Ms: np.ndarray = None, gaussRvs: np.ndarray = None):
         time_ax = np.arange(start=t0, stop=t1 + deltaT, step=deltaT)
         assert (time_ax[-1] == t1 and time_ax[0] == t0)
         if X0 is None:

@@ -11,10 +11,19 @@ def get_config():
     config.has_cuda = torch.cuda.is_available()
 
     # Data set parameters
-    config.hurst = 0.7
-    config.ts_length = 16
-    config.data_path = project_config.ROOT_DIR + "data/fBn_samples_H{}_T{}.npy".format(
-        str(config.hurst).replace(".", ""), config.ts_length)
+    config.hurst = 0.5
+    # Classic stable behaviour (forcing_const < 1)
+    config.ndims = 4
+    config.forcing_const = .75
+    config.diffusion = 1.
+    config.initState = ([0., .5, 1., 1.5])
+    config.ts_length = 256
+    config.t0 = 0.
+    config.deltaT = 1. / (256)
+    config.t1 = config.deltaT*config.ts_length
+    config.data_path = project_config.ROOT_DIR + "data/{}DLnz_samples_t0{:g}_dT{:.3e}_T{}_{}FConst_{}Diff".format(config.ndims,
+        config.t0, config.deltaT, config.ts_length, config.forcing_const, config.diffusion).replace(
+        ".", "") + ".npy"
 
     # Training hyperparameters
     config.max_diff_steps = 10000
@@ -22,16 +31,19 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = 7060
+    config.max_epochs = [60, 100, 150, 300, 960, 1440]  # 1920, 2920, 6920, 12920]
     config.batch_size = 256
     config.isfBm = True
     config.isUnitInterval = True
     config.hybrid = True
-    config.weightings = False
+    config.weightings = True
+    config.tdata_mult = 110
+    config.ts_dims = config.ndims
+    config.loss_factor = 0
 
     # Diffusion hyperparameters
     config.beta_max = 20.
-    config.beta_min = 0.0001
+    config.beta_min = 0.  # 0.0001
 
     # MLP Architecture parameters
     config.temb_dim = 64
@@ -41,28 +53,34 @@ def get_config():
     # TSM Architecture parameters
     config.residual_layers = 10
     config.residual_channels = 8
-    config.diff_hidden_size = 256
+    config.diff_hidden_size = 64
     config.dialation_length = 10
+    config.lstm_hiddendim = 20
+    config.lstm_numlay = 1
+    config.lstm_inputdim = config.ts_dims
+    config.lstm_dropout = 0.
+    assert ((config.lstm_dropout == 0. and config.lstm_numlay == 1) or (
+            config.lstm_dropout > 0 and config.lstm_numlay > 1))
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_{}LFac_fBm_VPSDE_model_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_TembDim{}_EncShapes{}".format(
-        config.loss_factor, config.hurst,
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_PM_MLP_{}LFac_{}DLnz_VPSDE_model_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_TembDim{}_EncShapes{}_tl{}".format(
+        not config.isfBm, config.isUnitInterval, config.ndims, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
-        config.enc_shapes).replace(".", "")
+        config.enc_shapes, config.tdata_mult).replace(".", "")
 
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_{}LFac_fBm_VPSDE_model_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts".format(
-        config.loss_factor, config.hurst,
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_PM_TSM_{}LFac_{}DLnz_VPSDE_model_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_LSTM_H{}_Nly{}_tl{}".format(
+        not config.isfBm, config.isUnitInterval, config.ndims, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
-        config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid,
-        config.weightings).replace(".", "")
+        config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings,config.t0, config.deltaT,config.lstm_hiddendim, config.lstm_numlay,config.tdata_mult).replace(".", "")
 
     config.model_choice = "TSM"
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
-    config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.residual_layers,
+    config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.ts_dims,
+                               config.residual_layers,
                                config.residual_channels, config.dialation_length] \
         if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.ts_length,
                                               config.enc_shapes,
@@ -77,8 +95,9 @@ def get_config():
     if config.hybrid: assert (config.sample_eps == config.train_eps)
     config.max_lang_steps = 0
     config.snr = 0.
-    config.predictor_model = "Ancestral"  # vs "euler-maryuama"
+    config.predictor_model = "CondAncestral"
     config.corrector_model = "VP"  # vs "VE" vs "OUSDE"
+    config.param_time = 900
 
     # Experiment evaluation parameters
     config.dataSize = 40000
@@ -105,7 +124,8 @@ def get_config():
     config.disc_lstm_max_epochs = 5000
     config.pd_lstm_batch_size = 128
     config.disc_lstm_trained_path = config.scoreNet_trained_path.replace(
-        "src/generative_modelling/trained_models/trained_", "src/evaluation_pipeline/trained_models/trained_discLSTM_")
+        "src/generative_modelling/trained_models/trained_",
+        "src/evaluation_pipeline/trained_models/rec_trained_discLSTM_")
     config.disc_lstm_snapshot_path = config.disc_lstm_trained_path.replace("trained_models/", "snapshots/")
     config.pred_lstm_trained_path = config.disc_lstm_trained_path.replace("disc", "pred")
     config.pred_lstm_snapshot_path = config.disc_lstm_snapshot_path.replace("disc", "pred")

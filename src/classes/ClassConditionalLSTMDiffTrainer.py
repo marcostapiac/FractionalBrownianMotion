@@ -27,7 +27,7 @@ class ConditionalLSTMDiffusionModelTrainer(nn.Module):
     def __init__(self, diffusion: Union[VESDEDiffusion, OUSDEDiffusion, VPSDEDiffusion], score_network: Union[
         ConditionalLSTMTSScoreMatching], train_data_loader: torch.utils.data.dataloader.DataLoader, train_eps: float,
                  end_diff_time: float, max_diff_steps: int, optimiser: torch.optim.Optimizer, snapshot_path: str,
-                 device: Union[torch.device, int], checkpoint_freq: int, to_weight: bool, hybrid_training: bool,
+                 device: Union[torch.device, int], checkpoint_freq: int, to_weight: bool, deltaT:float,hybrid_training: bool,
                  loss_factor: int, init_state: torch.Tensor, loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
         super().__init__()
@@ -41,6 +41,7 @@ class ConditionalLSTMDiffusionModelTrainer(nn.Module):
         self.train_loader = train_data_loader
         self.loss_fn = loss_fn  # If callable, need to ensure we allow for gradient computation
         self.loss_aggregator = loss_aggregator().to(self.device_id)
+        self.deltaT = deltaT
 
         self.diffusion = diffusion
         self.train_eps = train_eps

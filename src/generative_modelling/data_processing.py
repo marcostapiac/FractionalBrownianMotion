@@ -477,7 +477,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                              train_eps=train_eps,
                              end_diff_time=end_diff_time, max_diff_steps=max_diff_steps, to_weight=config.weightings,
                              loss_factor=config.loss_factor,
-                             hybrid_training=config.hybrid, init_state=init_state)
+                             hybrid_training=config.hybrid, init_state=init_state, deltaT=config.deltaT)
         # Start training
         trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
     except (AttributeError, KeyError, TypeError) as e:
@@ -491,7 +491,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                  end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
                                  to_weight=config.weightings,
                                  loss_factor=config.loss_factor,
-                                 hybrid_training=config.hybrid, init_state=init_state)
+                                 hybrid_training=config.hybrid, init_state=init_state, deltaT=config.deltaT)
             trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
         except (AttributeError, KeyError, TypeError) as e:
             try:
@@ -504,7 +504,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                      train_eps=train_eps,
                                      end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
                                      to_weight=config.weightings,
-                                     hybrid_training=config.hybrid, init_state=init_state)
+                                     hybrid_training=config.hybrid, init_state=init_state, deltaT=config.deltaT)
                 # Start training
                 trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path,
                               ts_dims=config.ts_dims)
@@ -519,7 +519,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                          end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
                                          to_weight=config.weightings,
                                          loss_factor=config.loss_factor,
-                                         hybrid_training=config.hybrid, init_state=init_state)
+                                         hybrid_training=config.hybrid, init_state=init_state, deltaT=config.deltaT)
 
                     # Start training
                     trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
@@ -533,7 +533,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                          end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
                                          to_weight=config.weightings,
                                          hybrid_training=config.hybrid, loss_factor=config.loss_factor,
-                                        init_state=init_state)
+                                        init_state=init_state, deltaT=config.deltaT)
 
                     # Start training
                     trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
