@@ -457,6 +457,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
     # Preprocess data
     trainLoader = prepare_recursive_scoreModel_data(data=data, batch_size=config.batch_size, config=config)
     # Define optimiser
+    print(f"Learning Rate\n: {config.lr}")
     optimiser = torch.optim.Adam((scoreModel.parameters()), lr=config.lr)  # TODO: Do we not need DDP?
 
     # Define trainer
