@@ -86,6 +86,7 @@ class ConditionalMarkovianWithPositionDiffusionModelTrainer(nn.Module):
             :return: Batch Loss
         """
         loss.backward()  # single gpu functionality
+        self.opt.optimizer.step()
         self.opt.step()
         # Detach returns the loss as a Tensor that does not require gradients, so you can manipulate it
         # independently of the original value, which does require gradients
@@ -114,7 +115,7 @@ class ConditionalMarkovianWithPositionDiffusionModelTrainer(nn.Module):
             :param eff_times: Effective diffusion times
             :return: Batch Loss
         """
-        self.opt.zero_grad()
+        self.opt.optimizer.zero_grad()
         B, T, D = xts.shape
         assert (features.shape[:2] == (B, T) and features.shape[-1] == D)
         # Reshaping concatenates vectors in dim=1

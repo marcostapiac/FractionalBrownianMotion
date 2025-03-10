@@ -73,6 +73,7 @@ class ConditionalLSTMDiffusionModelTrainer(nn.Module):
             :return: Batch Loss
         """
         loss.backward()  # single gpu functionality
+        self.opt.optimizer.step()
         self.opt.step()
         # Detach returns the loss as a Tensor that does not require gradients, so you can manipulate it
         # independently of the original value, which does require gradients
@@ -101,7 +102,7 @@ class ConditionalLSTMDiffusionModelTrainer(nn.Module):
             :param eff_times: Effective diffusion times
             :return: Batch Loss
         """
-        self.opt.zero_grad()
+        self.opt.optimizer.zero_grad()
         B, T, D = xts.shape
         # Reshaping concatenates vectors in dim=1
         xts = xts.reshape(B * T, 1, -1)

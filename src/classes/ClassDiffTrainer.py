@@ -78,6 +78,7 @@ class DiffusionModelTrainer:
             :return: None
         """
         loss.backward()  # single gpu functionality
+        self.opt.optimizer.step()
         self.opt.step()
         # Detach returns the loss as a Tensor that does not require gradients, so you can manipulate it
         # independently of the original value, which does require gradients
@@ -104,7 +105,7 @@ class DiffusionModelTrainer:
             :param eff_times: Effective diffusion times
             :return: None
         """
-        self.opt.zero_grad()
+        self.opt.optimizer.zero_grad()
         outputs = self.score_network.forward(inputs=xts, times=diff_times.squeeze(-1)).squeeze(1)
         weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
         if not self.include_weightings: weights = torch.ones_like(weights)

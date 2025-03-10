@@ -56,6 +56,7 @@ class PredictiveLSTMTrainer:
             :return: None
         """
         loss.backward()  # single gpu functionality
+        self.opt.optimizer.step()
         self.opt.step()
         self.loss_aggregator.update(loss.detach().item())
 
@@ -76,7 +77,7 @@ class PredictiveLSTMTrainer:
             :param targets: 1 step prediction targets for each batch element (time-series)
             :return: None
         """
-        self.opt.zero_grad()
+        self.opt.optimizer.zero_grad()
         outputs = self.model.forward(input=input_batch)
         self._batch_loss_compute(outputs=outputs, targets=targets[:, -1, :])
 
