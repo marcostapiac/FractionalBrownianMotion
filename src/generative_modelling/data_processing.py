@@ -6,6 +6,7 @@ import torch
 import torchmetrics
 from ml_collections import ConfigDict
 from torch.distributed.elastic.multiprocessing.errors import record
+from torch.optim.lr_scheduler import OneCycleLR
 from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from torchmetrics import MeanMetric
@@ -459,7 +460,12 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
     # Define optimiser
     print(f"Learning Rate\n: {config.lr}")
     optimiser = torch.optim.Adam((scoreModel.parameters()), lr=config.lr)  # TODO: Do we not need DDP?
-
+    optimiser = OneCycleLR(
+        optimiser,
+        max_lr=config.lr*10,
+        steps_per_epoch=data.shape[0]//config.batch_size,
+        epochs=config.max_epochs[-1],
+    )
     # Define trainer
     train_eps, end_diff_time, max_diff_steps, checkpoint_freq = config.train_eps, config.end_diff_time, config.max_diff_steps, config.save_freq
     print(isinstance(config.initState, float))
