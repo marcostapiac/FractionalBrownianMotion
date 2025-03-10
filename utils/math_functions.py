@@ -206,23 +206,27 @@ def generate_fOU(H: float, T: int, S: int, isUnitInterval: bool, mean_rev: float
     return data[:, 1:]
 
 
-def generate_Lorenz96(H: float, T: int, S: int, isUnitInterval: bool, initial_state: np.ndarray, forcing_const:float, diff: float, ndims:int):
+def generate_Lorenz96(H: float, T: int, S: int, config, isUnitInterval:bool, initial_state: np.ndarray, forcing_const:float, diff: float, ndims:int):
     assert (H == 0.5 and len(initial_state) == ndims)
-    # and np.allclose(initial_state, 0.))
     assert (diff == 1.)
-    if isUnitInterval:
-        deltaT = 1. / T
-        t0 = 0.
-        t1 = 1.
-    else:
-        deltaT = 1.
-        t0 = 0.
-        t1 = T
+    try:
+        deltaT = config.deltaT
+        t0 = config.t0
+        t1 = config.t1
+    except AttributeError:
+        if isUnitInterval:
+            deltaT = 1. / T
+            t0 = 0.
+            t1 = 1.
+        else:
+            deltaT = 1.
+            t0 = 0.
+            t1 = T
     f4DL = FractionalLorenz96(X0=np.array(initial_state), diff=diff, forcing_const=forcing_const,
                               num_dims=ndims)
     sample_paths = np.array([f4DL.euler_simulation(H=H, N=T, t0=t0, t1=t1, deltaT=deltaT,
-                                            isUnitInterval=isUnitInterval, X0=np.array(initial_state)).reshape(-1, 1) for _ in
-                      range(S)]).reshape((S, T + 1, ndims))
+                                                   X0=np.array(initial_state)).reshape(-1, 1) for _ in
+                             range(S)]).reshape((S, T + 1, ndims))
     assert (sample_paths.shape == (S, T + 1, ndims))
     return sample_paths[:, 1:, :]
 

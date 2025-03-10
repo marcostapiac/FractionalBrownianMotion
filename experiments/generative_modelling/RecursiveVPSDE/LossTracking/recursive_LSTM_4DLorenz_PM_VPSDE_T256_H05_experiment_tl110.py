@@ -44,12 +44,12 @@ if __name__ == "__main__":
             assert (data.shape[0] >= training_size)
         except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
-            data = generate_Lorenz96(H=config.hurst, T=config.ts_length, S=training_size,
-                                     isUnitInterval=config.isUnitInterval, initial_state=config.initState,
+            data = generate_Lorenz96(config=config,H=config.hurst, T=config.ts_length, S=training_size, isUnitInterval=config.isUnitInterval,
+                                     initial_state=config.initState,
                                      forcing_const=config.forcing_const,
                                      diff=config.diffusion, ndims=config.ndims)
             np.save(config.data_path, data)
-        data = np.concatenate([data[:, [0], :], np.diff(data, axis=1)], axis=1)
+        data = np.concatenate([data[:, [0], :] - np.array(config.initState).reshape((1, 1, config.ndims)), np.diff(data, axis=1)], axis=1)
         data = np.atleast_3d(data[:training_size, :,:])
         assert (data.shape == (training_size, config.ts_length, config.ts_dims))
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
