@@ -129,14 +129,14 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
 
     def _compute_stable_targets(self, batch: torch.Tensor, eff_times: torch.Tensor, ref_batch: torch.Tensor):
         print(batch.shape, ref_batch.shape, eff_times.shape)
-        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # shape: [B1, T, D]
-        pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :]  # shape: [B2, T, D]
+        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :].to(self.device_id)  # shape: [B1, T, D]
+        pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :].to(self.device_id)  # shape: [B2, T, D]
         assert pos_batch.shape == batch.shape, "pos_batch must match batch shape"
         pos_ref_batch = pos_ref_batch.reshape(-1, pos_ref_batch.shape[-1])
-        pos_batch = pos_batch.reshape(-1, pos_batch.shape[-1])
-        ref_batch = ref_batch.reshape(-1, ref_batch.shape[-1])
-        batch = batch.reshape(-1, batch.shape[-1])
-        eff_times = eff_times.reshape(-1, eff_times.shape[-1])
+        pos_batch = pos_batch.reshape(-1, pos_batch.shape[-1]).to(self.device_id)
+        ref_batch = ref_batch.reshape(-1, ref_batch.shape[-1]).to(self.device_id)
+        batch = batch.reshape(-1, batch.shape[-1]).to(self.device_id)
+        eff_times = eff_times.reshape(-1, eff_times.shape[-1]).to(self.device_id)
         tds = -(torch.pow(pos_batch, 3) - pos_batch)/256
 
         # For every increment (a value) in batch, I want to find a set of increments (values) in the ref_batch
@@ -177,7 +177,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             weights /= torch.sum(weights)
             stable_scores.append(torch.sum(weights * Zs))
         stable_scores = torch.Tensor(stable_scores)#.reshape(batch.shape).to(self.device_id)
-        errs1 = torch.pow(stable_scores.squeeze() - tds.squeeze(), 2)
+        errs1 = torch.pow(stable_scores.squeeze().cpu() - tds.squeeze().cpu(), 2)
         print(f"Errs1: {torch.mean(errs1), torch.std(errs1)}")
 
         target_x = pos_batch  # [B2*T, D]
