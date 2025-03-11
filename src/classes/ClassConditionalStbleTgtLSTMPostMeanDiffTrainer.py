@@ -129,7 +129,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
 
     def _compute_stable_targets(self, batch: torch.Tensor, eff_times: torch.Tensor, ref_batch: torch.Tensor):
         print(batch.shape, ref_batch.shape, eff_times.shape)
-        import time
+        import time, gc
         dX = 1 / 1000.
         t0 = time.time()
         pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # shape: [B1, T, D]
@@ -183,6 +183,9 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         print(f"Errs1: {torch.mean(errs1), torch.std(errs1)}")"""
         t0 = time.time()
         pos_batch, pos_ref_batch, batch, ref_batch, eff_times = pos_batch.cpu(), pos_ref_batch.cpu(), batch.cpu(), ref_batch.cpu(), eff_times.cpu()
+        for obj in gc.get_objects():
+            if isinstance(obj, torch.Tensor) and obj.is_cuda:
+                print(obj.shape, obj.dtype, obj.device)
         print(torch.zeros(size=(pos_batch.shape[0]*256, pos_ref_batch.shape[0]*256, 1)).to(self.device_id))
         print(f"Time to move to CPU {time.time()-t0}\n")
         target_x = pos_batch  # [B2*T, D]
