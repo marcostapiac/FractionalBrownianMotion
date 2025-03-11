@@ -41,6 +41,7 @@ H = config.hurst
 deltaT = config.deltaT
 t0 = config.t0
 t1 = deltaT * num_time_steps
+print(deltaT, t0, t1)
 
 fQuadSin = FractionalQuadSin(quad_coeff=config.quad_coeff, sin_coeff=config.sin_coeff,
                                  sin_space_scale=config.sin_space_scale, diff=diff, X0=initial_state)
@@ -50,6 +51,7 @@ is_path_observations = np.array(
                                    t0=t0, t1=t1) for _ in (range(num_paths * 10))]).reshape(
         (num_paths * 10, config.ts_length + 1))
 
+raise RuntimeError
 is_idxs = np.arange(is_path_observations.shape[0])
 path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False), :]
 # We note that we DO NOT evaluate the drift at time t_{0}=0
@@ -111,7 +113,7 @@ def compute_cv_for_bw(_bw):
     return np.sum(cvs)
 
 
-bws = np.logspace(-4, -2, 10)#np.logspace(-2, -0.05, 20)
+bws = np.logspace(-2, -0.05, 10)#np.logspace(-2, -0.05, 20)
 #CVs = np.zeros(len(bws))
 #for h in tqdm(range(bws.shape[0])):
 #    CVs[h] = compute_cv_for_bw(bws[h])
