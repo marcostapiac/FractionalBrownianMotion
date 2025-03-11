@@ -133,7 +133,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         B2, T, D = ref_batch.shape
         import time, gc
         dX = 1 / 1000.
-        t0 = time.time()
+
         pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # shape: [B1, T, D]
         pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :]  # shape: [B2, T, D]
         assert pos_batch.shape == batch.shape, "pos_batch must match batch shape"
@@ -142,7 +142,6 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         ref_batch = ref_batch.reshape(-1, ref_batch.shape[-1])
         batch = batch.reshape(-1, batch.shape[-1])
         eff_times = eff_times.reshape(-1, eff_times.shape[-1])
-        print(f"Time to reshape everything {time.time()-t0}\n")
 
         """# For every increment (a value) in batch, I want to find a set of increments (values) in the ref_batch
         # whose preceding position in
@@ -183,8 +182,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         stable_targets = torch.Tensor(stable_scores)#.reshape(batch.shape).to(self.device_id)
         errs1 = torch.pow(stable_targets.squeeze().cpu() - tds.squeeze().cpu(), 2)
         print(f"Errs1: {torch.mean(errs1), torch.std(errs1)}")"""
-        t0 = time.time()
-        print(f"Time to move to CPU {time.time()-t0}\n")
+
         target_x = pos_batch  # [B2*T, D]
         target_x_exp = target_x.unsqueeze(1)  # [B2*T, 1, D]
         candidate_x = pos_ref_batch.unsqueeze(0)  # [1, B1*T, D]
@@ -202,44 +200,74 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         target_beta_tau = beta_tau.unsqueeze(1)  # [B2*T, 1, D]
         target_sigma_tau = sigma_tau.unsqueeze(1)  # [B2*T, 1, D]
 
-        t0 = time.time()
-        print(f"Starting mask computation\n")
-        mask = ((candidate_x.cpu() >= (target_x_exp.cpu() - dX)) & (
+
+        """mask = ((candidate_x.cpu() >= (target_x_exp.cpu() - dX)) & (
                 candidate_x.cpu() <= (target_x_exp.cpu() + dX))).float()
-        print(f"Time to compute mask {time.time() - t0}\n")
-        print(mask.shape)
-        indices = mask.nonzero(as_tuple=False).to(self.device_id)
-        print(indices.shape)
-        print(candidate_Z.shape)
-        print(candidate_Z[tuple(indices.t())].shape)
 
-
-        values = target_beta_tau * candidate_Z[tuple(indices.t())]
-
-        # Create a sparse tensor with the same shape as candidate_Z.
-        sparse_dist_mean = torch.sparse_coo_tensor(indices.t(), values, candidate_Z.size())
-        print(sparse_dist_mean)
-
-        t0 = time.time()
         dist_mean = target_beta_tau.cpu() * candidate_Z.cpu()
-        print(f"Time to compute dist mean {time.time()-t0}\n")
         dist = torch.distributions.Normal(dist_mean,
                                           torch.sqrt(target_sigma_tau).cpu())
-        print(f"Time to instantiate dist {time.time()-t0}\n")
 
         del target_beta_tau, target_sigma_tau
-        t0 = time.time()
         weights = dist.log_prob(target_noised_z.cpu()).exp()  # [B2*T, B1*T, D]
-        print(f"Time to evaluate weights {time.time()-t0}\n")
         del target_noised_z
 
         weights_masked = weights * mask  # [B2*T, B1*T, D]
         del mask
         weight_sum = weights_masked.sum(dim=1).to(self.device_id)  # [B2*T, D]
         weighted_Z_sum = (weights_masked * candidate_Z).sum(dim=1).to(self.device_id)  # [B2*T, D]
-        stable_targets = weighted_Z_sum / (weight_sum)  # [B2*T, D]
+        stable_targets = weighted_Z_sum / (weight_sum)  # [B2*T, D]"""
+
+        chunk_size = 1024  # Adjust as needed based on your available memory.
+        stable_targets_chunks = []
+
+        # Loop over the target tensors in chunks
+        for i in range(0, target_x_exp.shape[0], chunk_size):
+            i_end = min(i + chunk_size, target_x_exp.shape[0])
+
+            # Extract the current chunk of target tensors.
+            target_chunk = target_x_exp[i:i_end]  # [chunk, 1, D]
+            noised_z_chunk = target_noised_z[i:i_end]  # [chunk, 1, D]
+            beta_tau_chunk = target_beta_tau[i:i_end]  # [chunk, 1, D]
+            sigma_tau_chunk = target_sigma_tau[i:i_end]  # [chunk, 1, D]
+
+            # --- Compute the mask ---
+            # For each target point, we want candidate positions within +/- dX.
+            # Broadcasting: candidate_x is [1, B1*T, D] and target_chunk is [chunk, 1, D].
+            mask_chunk = ((candidate_x >= (target_chunk - dX)) &
+                          (candidate_x <= (target_chunk + dX))).float()
+            # mask_chunk has shape: [chunk, B1*T, D]
+
+            # --- Compute the distribution parameters (chunk) ---
+            # Compute dist_mean for this chunk: target_beta_tau_chunk * candidate_Z
+            dist_mean_chunk = beta_tau_chunk * candidate_Z  # [chunk, B1*T, D]
+
+            # Create a Normal distribution with mean=dist_mean_chunk and std = sqrt(sigma_tau_chunk).
+            dist_chunk = torch.distributions.Normal(dist_mean_chunk, torch.sqrt(sigma_tau_chunk))
+
+            # Compute weights via the log probability of noised_z_chunk, then exponentiate.
+            weights_chunk = dist_chunk.log_prob(noised_z_chunk).exp()  # [chunk, B1*T, D]
+
+            # Apply the mask to zero out values that are not in the desired range.
+            weights_masked_chunk = weights_chunk * mask_chunk  # [chunk, B1*T, D]
+
+            # --- Aggregate weights and candidate_Z contributions ---
+            # Sum over the candidate dimension (dim=1) to get total weights per target element.
+            weight_sum_chunk = weights_masked_chunk.sum(dim=1)  # [chunk, D]
+            weighted_Z_sum_chunk = (weights_masked_chunk * candidate_Z).sum(dim=1)  # [chunk, D]
+
+            # Compute stable target estimates for this chunk.
+            # Add a small epsilon to avoid division by zero.
+            epsilon = 0.
+            stable_targets_chunk = weighted_Z_sum_chunk / (weight_sum_chunk + epsilon)  # [chunk, D]
+            stable_targets_chunks.append(stable_targets_chunk)
+
+        # Concatenate all chunks to form the full result.
+        stable_targets = torch.cat(stable_targets_chunks, dim=0)  # [B2*T, D]
 
         return stable_targets.to(self.device_id)
+
+
 
     def _run_epoch(self, epoch: int, batch_size: int) -> list:
         """
