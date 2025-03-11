@@ -216,7 +216,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         weighted_Z_sum = (weights_masked * candidate_Z).sum(dim=1).to(self.device_id)  # [B2*T, D]
         stable_targets = weighted_Z_sum / (weight_sum)  # [B2*T, D]"""
 
-        chunk_size = 4096  # Adjust as needed based on your available memory.
+        chunk_size = 2048  # Adjust as needed based on your available memory.
         stable_targets_chunks = []
 
         # Loop over the target tensors in chunks
