@@ -129,7 +129,6 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
 
     def _compute_stable_targets(self, batch: torch.Tensor, eff_times: torch.Tensor, ref_batch: torch.Tensor):
 
-        print(batch.shape, ref_batch.shape, eff_times.shape)
         B1, T, D = batch.shape
         B2, T, D = ref_batch.shape
         dX = 1 / 1000.
@@ -279,10 +278,8 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                                        steps=self.max_diff_steps)
         for x0s in (iter(self.train_loader)):
             ref_x0s = x0s[0].to(self.device_id)
-            print(ref_x0s.shape)
             indices = torch.randperm(ref_x0s.shape[0])[:batch_size]
             x0s = ref_x0s[indices, :, :]
-            print(x0s.shape)
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
             features = self.create_historical_vectors(x0s)
             if self.is_hybrid:
