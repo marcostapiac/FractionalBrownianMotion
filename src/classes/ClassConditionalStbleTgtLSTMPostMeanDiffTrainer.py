@@ -111,6 +111,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         features = features.reshape(B * T, 1, -1)
         diff_times = diff_times.reshape(B * T)
         eff_times = torch.cat([eff_times] * D, dim=2).reshape(stable_targets.shape)
+        print(xts.shape, features.shape, diff_times.shape, eff_times.shape)
         outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times, eff_times=eff_times)
         # For times larger than tau0, use inverse_weighting
         sigma_tau = 1. - torch.exp(-eff_times)  # This is sigma2
@@ -260,6 +261,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         # Concatenate all chunks to form the full result.
         stable_targets = torch.cat(stable_targets_chunks, dim=0)  # [B1*T, D]
         assert (stable_targets.shape == (B1*T, D))
+        del pos_batch, pos_ref_batch, mask_chunk, dist_mean_chunk, stable_targets_chunks, target_noised_z, target_beta_tau, target_sigma_tau
         return stable_targets.to(self.device_id)
 
 
@@ -303,17 +305,9 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             eff_times = self.diffusion.get_eff_times(diff_times)
             # Each eff time entry corresponds to the effective diffusion time for timeseries "b" at time "t"
             xts, _ = self.diffusion.noising_process(x0s, eff_times)
-            #self.score_network = self.score_network.cpu()
-            #xts, batch, ref_batch, eff_times = xts.cpu(), x0s.cpu(), ref_x0s.cpu(), eff_times.cpu()
 
             stable_targets = self._compute_stable_targets(batch=x0s, ref_batch=ref_x0s, eff_times=eff_times)
-            #self.score_network = self.score_network.to(self.device_id)
-            #xts, batch, ref_batch, eff_times = xts.to(self.device_id), x0s.to(self.device_id), ref_x0s.to(self.device_id), eff_times.to(self.device_id)
 
-            # For each timeseries "b", at time "t",
-            # we want the score p(timeseries_b_attime_t_diffusedTo_efftime|time_series_b_attime_t)
-            # So target score should be size (NumBatches, Time Series Length, 1)
-            # And xts should be size (NumBatches, TimeSeriesLength, NumDimensions)
             batch_loss = self._run_batch(xts=xts, features=features, stable_targets=stable_targets,
                                          diff_times=diff_times,
                                          eff_times=eff_times)
