@@ -188,14 +188,13 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         target_x_exp = target_x.unsqueeze(1)  # [B2*T, 1, D]
         candidate_x = pos_ref_batch.unsqueeze(0)  # [1, B1*T, D]
 
-        candidate_Z = ref_batch.unsqueeze(0)  # [1, B1*T, D]
-
         t0 = time.time()
+        candidate_Z = ref_batch.unsqueeze(0).to(self.device_id)  # [1, B1*T, D]
         noised_z, _ = self.diffusion.noising_process(batch.to(self.device_id), eff_times.to(self.device_id))
         print(f"Time to compute noising {time.time()-t0}\n")
         assert (noised_z.shape == (batch.shape[0], batch.shape[-1]))
-        beta_tau = torch.exp(-0.5 * eff_times)
-        sigma_tau = 1. - torch.exp(-eff_times)
+        beta_tau = torch.exp(-0.5 * eff_times).to(self.device_id)
+        sigma_tau = 1. - torch.exp(-eff_times).to(self.device_id)
         target_noised_z = noised_z.unsqueeze(1)  # [B2*T, 1, D]
         target_beta_tau = beta_tau.unsqueeze(1)  # [B2*T, 1, D]
         target_sigma_tau = sigma_tau.unsqueeze(1)  # [B2*T, 1, D]
