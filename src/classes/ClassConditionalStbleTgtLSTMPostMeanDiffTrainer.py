@@ -109,7 +109,6 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         # Reshaping concatenates vectors in dim=1
         xts = xts.reshape(B * T, 1, -1)
         features = features.reshape(B * T, 1, -1)
-        stable_targets = stable_targets.reshape(B * T, 1, -1)
         diff_times = diff_times.reshape(B * T)
         eff_times = torch.cat([eff_times] * D, dim=2).reshape(stable_targets.shape)
         outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times, eff_times=eff_times)
@@ -125,14 +124,14 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         # Now implement the stable target field
         outputs = (outputs + xts / sigma_tau) * (sigma_tau / beta_tau)  # This gives us the network D_theta
-        print(outputs)
+        print("Outputs done\n")
         return self._batch_loss_compute(outputs=outputs * weights, targets=stable_targets * weights)
 
     def _compute_stable_targets(self, batch: torch.Tensor, eff_times: torch.Tensor, ref_batch: torch.Tensor):
+
         print(batch.shape, ref_batch.shape, eff_times.shape)
         B1, T, D = batch.shape
         B2, T, D = ref_batch.shape
-        import time, gc
         dX = 1 / 1000.
 
         pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # shape: [B1, T, D]
@@ -185,12 +184,12 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         print(f"Errs1: {torch.mean(errs1), torch.std(errs1)}")"""
 
         target_x = pos_batch  # [B2*T, D]
+        print(target_x.shape[0])
         target_x_exp = target_x.unsqueeze(1)  # [B2*T, 1, D]
         candidate_x = pos_ref_batch.unsqueeze(0)  # [1, B1*T, D]
         candidate_Z = ref_batch.unsqueeze(0)  # [1, B1*T, D]
 
         noised_z, _ = self.diffusion.noising_process(batch, eff_times)
-        del pos_ref_batch, pos_batch
         assert (noised_z.shape == (B1*T, D))
         beta_tau = torch.exp(-0.5 * eff_times)
         sigma_tau = 1. - torch.exp(-eff_times)
@@ -207,15 +206,12 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         dist = torch.distributions.Normal(dist_mean,
                                           torch.sqrt(target_sigma_tau).cpu())
 
-        del target_beta_tau, target_sigma_tau
         weights = dist.log_prob(target_noised_z.cpu()).exp()  # [B2*T, B1*T, D]
-        del target_noised_z
 
         weights_masked = weights * mask  # [B2*T, B1*T, D]
-        del mask
         weight_sum = weights_masked.sum(dim=1).to(self.device_id)  # [B2*T, D]
         weighted_Z_sum = (weights_masked * candidate_Z).sum(dim=1).to(self.device_id)  # [B2*T, D]
-        stable_targets = weighted_Z_sum / (weight_sum)  # [B2*T, D]"""
+        stable_targets2 = weighted_Z_sum / (weight_sum)  # [B2*T, D]"""
 
         chunk_size = 2048  # Adjust as needed based on your available memory.
         stable_targets_chunks = []
@@ -262,7 +258,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             stable_targets_chunks.append(stable_targets_chunk)
 
         # Concatenate all chunks to form the full result.
-        stable_targets = torch.cat(stable_targets_chunks, dim=0)  # [B2*T, D]
+        stable_targets = torch.cat(stable_targets_chunks, dim=0)  # [B1*T, D]
         assert (stable_targets.shape == (B1*T, D))
         return stable_targets.to(self.device_id)
 
