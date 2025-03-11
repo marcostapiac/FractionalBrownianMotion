@@ -178,7 +178,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         stable_targets = torch.Tensor(stable_scores)#.reshape(batch.shape).to(self.device_id)
         errs1 = torch.pow(stable_targets.squeeze().cpu() - tds.squeeze().cpu(), 2)
         print(f"Errs1: {torch.mean(errs1), torch.std(errs1)}")"""
-
+        pos_batch, pos_ref_batch, batch, ref_batch = pos_batch.cpu(), pos_ref_batch.cpu(), batch.cpu(), ref_batch.cpu()
         target_x = pos_batch  # [B2*T, D]
         target_x_exp = target_x.unsqueeze(1)  # [B2*T, 1, D]
         candidate_x = pos_ref_batch.unsqueeze(0)  # [1, B1*T, D]
@@ -202,15 +202,14 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         target_beta_tau = beta_tau.unsqueeze(1)  # [B2*T, 1, D]
         target_sigma_tau = sigma_tau.unsqueeze(1)  # [B2*T, 1, D]
 
-        pos_batch, pos_ref_batch, batch, ref_batch = pos_batch.cpu(), pos_ref_batch.cpu(), batch.cpu(), ref_batch.cpu()
-        dist = torch.distributions.Normal(target_beta_tau * candidate_Z,
-                                          torch.sqrt(target_sigma_tau))
+        dist = torch.distributions.Normal(target_beta_tau.to(self.device_id) * candidate_Z.to(self.device_id),
+                                          torch.sqrt(target_sigma_tau).to(self.device_id))
         del target_beta_tau, target_sigma_tau
         # Evaluate the log probability at target_noised_z:
-        weights = dist.log_prob(target_noised_z).exp()  # [B2*T, B1*T, D]
+        weights = dist.log_prob(target_noised_z.to(self.device_id)).exp()  # [B2*T, B1*T, D]
         del target_noised_z
         # Only consider valid candidates by applying the mask.
-        weights_masked = weights * mask  # [B2*T, B1*T, D]
+        weights_masked = weights * mask.to(self.device_id)  # [B2*T, B1*T, D]
         del mask
         # --- Reduce over candidate dimension ---
         # For each target element (b2, t, d), we sum over all candidates (dimension b1).
