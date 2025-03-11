@@ -445,7 +445,6 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                 float(
                     self.loss_aggregator.compute().item()), float(time.time() - t0)))
             if self.device_id == 0 or type(self.device_id) == torch.device:
-                print(all_losses_per_epoch)
                 print("Stored Running Mean {} vs Aggregator Mean {}\n".format(
                     float(torch.mean(torch.tensor(all_losses_per_epoch[self.epochs_run:])).cpu().numpy()), float(
                         self.loss_aggregator.compute().item())))
