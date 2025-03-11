@@ -183,6 +183,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         print(f"Errs1: {torch.mean(errs1), torch.std(errs1)}")"""
         t0 = time.time()
         pos_batch, pos_ref_batch, batch, ref_batch, eff_times = pos_batch.cpu(), pos_ref_batch.cpu(), batch.cpu(), ref_batch.cpu(), eff_times.cpu()
+        print(torch.zeros(size=(pos_batch.shape[0]*256, pos_ref_batch.shape[0]*256, 1)).to(self.device_id))
         print(f"Time to move to CPU {time.time()-t0}\n")
         target_x = pos_batch  # [B2*T, D]
         target_x_exp = target_x.unsqueeze(1)  # [B2*T, 1, D]
@@ -190,7 +191,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
 
         t0 = time.time()
         candidate_Z = ref_batch.unsqueeze(0).to(self.device_id)  # [1, B1*T, D]
-        noised_z, _ = self.diffusion.noising_process(batch, eff_times)
+        noised_z, _ = self.diffusion.noising_process(batch.to(self.device_id), eff_times.to(self.device_id))
         print(f"Time to compute noising {time.time()-t0}\n")
         assert (noised_z.shape == (batch.shape[0], batch.shape[-1]))
         beta_tau = torch.exp(-0.5 * eff_times).to(self.device_id)
