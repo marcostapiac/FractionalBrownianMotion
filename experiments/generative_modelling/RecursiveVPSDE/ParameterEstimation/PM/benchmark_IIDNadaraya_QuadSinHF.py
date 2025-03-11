@@ -125,7 +125,7 @@ numXs = config.ts_length
 minx = -1.2
 maxx = -minx
 Xs = np.linspace(minx, maxx, numXs)
-num_dhats = 50
+num_dhats = 10
 
 for bw in bws:
     unif_is_drift_hats = np.zeros((numXs, num_dhats))
