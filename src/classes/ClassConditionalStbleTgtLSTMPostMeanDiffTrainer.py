@@ -184,24 +184,21 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         errs1 = torch.pow(stable_targets.squeeze().cpu() - tds.squeeze().cpu(), 2)
         print(f"Errs1: {torch.mean(errs1), torch.std(errs1)}")"""
         t0 = time.time()
-        for obj in gc.get_objects():
-            if isinstance(obj, torch.Tensor) and obj.is_cuda:
-                print(obj.shape, obj.dtype, obj.device)
-        print(torch.zeros(size=(B1*256, B2*256, 1)).to(self.device_id))
         print(f"Time to move to CPU {time.time()-t0}\n")
         target_x = pos_batch  # [B2*T, D]
         target_x_exp = target_x.unsqueeze(1)  # [B2*T, 1, D]
         candidate_x = pos_ref_batch.unsqueeze(0)  # [1, B1*T, D]
-        candidate_Z = ref_batch.unsqueeze(0).to(self.device_id)  # [1, B1*T, D]
+        candidate_Z = ref_batch.unsqueeze(0)  # [1, B1*T, D]
 
         t0 = time.time()
-        noised_z, _ = self.diffusion.noising_process(batch.to(self.device_id), eff_times.to(self.device_id))
+        noised_z, _ = self.diffusion.noising_process(batch, eff_times)
         del pos_ref_batch, pos_batch
         print(f"Time to compute noising {time.time()-t0}\n")
         assert (noised_z.shape == (B1, D))
-        beta_tau = torch.exp(-0.5 * eff_times).to(self.device_id)
-        sigma_tau = 1. - torch.exp(-eff_times).to(self.device_id)
-        target_noised_z = noised_z.unsqueeze(1).to(self.device_id)  # [B2*T, 1, D]
+        beta_tau = torch.exp(-0.5 * eff_times)
+        sigma_tau = 1. - torch.exp(-eff_times)
+
+        target_noised_z = noised_z.unsqueeze(1)  # [B2*T, 1, D]
         target_beta_tau = beta_tau.unsqueeze(1)  # [B2*T, 1, D]
         target_sigma_tau = sigma_tau.unsqueeze(1)  # [B2*T, 1, D]
 
@@ -212,20 +209,17 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
 
         del target_beta_tau, target_sigma_tau
         t0 = time.time()
-        weights = dist.log_prob(target_noised_z.to(self.device_id)).exp()  # [B2*T, B1*T, D]
+        weights = dist.log_prob(target_noised_z).exp()  # [B2*T, B1*T, D]
         print(f"Time to evaluate weights {time.time()-t0}\n")
         del target_noised_z
         t0 = time.time()
         print(f"Starting mask computation\n")
-        mask = ((candidate_x.to(self.device_id) >= (target_x_exp.to(self.device_id) - dX)) & (candidate_x.to(self.device_id) <= (target_x_exp.to(self.device_id) + dX))).float().cpu()
+        mask = ((candidate_x >= (target_x_exp - dX)) & (candidate_x <= (target_x_exp + dX))).float()
         print(f"Time to compute mask {time.time()-t0}\n")
 
-        weights_masked = weights.cpu() * mask  # [B2*T, B1*T, D]
+        weights_masked = weights * mask  # [B2*T, B1*T, D]
         del mask
-        weights_masked = weights_masked.to(self.device_id)
-
-        weight_sum = weights_masked.sum(dim=1)  # [B2*T, D]
-        weights_masked = weights_masked.cpu()
+        weight_sum = weights_masked.sum(dim=1).to(self.device_id)  # [B2*T, D]
         weighted_Z_sum = (weights_masked * candidate_Z).sum(dim=1).to(self.device_id)  # [B2*T, D]
         stable_targets = weighted_Z_sum / (weight_sum)  # [B2*T, D]
 
@@ -270,12 +264,12 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             eff_times = self.diffusion.get_eff_times(diff_times)
             # Each eff time entry corresponds to the effective diffusion time for timeseries "b" at time "t"
             xts, _ = self.diffusion.noising_process(x0s, eff_times)
-            self.score_network = self.score_network.cpu()
-            xts, batch, ref_batch, eff_times = xts.cpu(), x0s.cpu(), ref_x0s.cpu(), eff_times.cpu()
+            #self.score_network = self.score_network.cpu()
+            #xts, batch, ref_batch, eff_times = xts.cpu(), x0s.cpu(), ref_x0s.cpu(), eff_times.cpu()
 
             stable_targets = self._compute_stable_targets(batch=x0s, ref_batch=ref_x0s, eff_times=eff_times)
-            self.score_network = self.score_network.to(self.device_id)
-            xts, batch, ref_batch, eff_times = xts.to(self.device_id), x0s.to(self.device_id), ref_x0s.to(self.device_id), eff_times.to(self.device_id)
+            #self.score_network = self.score_network.to(self.device_id)
+            #xts, batch, ref_batch, eff_times = xts.to(self.device_id), x0s.to(self.device_id), ref_x0s.to(self.device_id), eff_times.to(self.device_id)
 
             # For each timeseries "b", at time "t",
             # we want the score p(timeseries_b_attime_t_diffusedTo_efftime|time_series_b_attime_t)
