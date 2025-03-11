@@ -198,4 +198,5 @@ class ConditionalLSTMTSPostMeanScoreMatching(nn.Module):
         beta_tau = torch.exp(-0.5 * eff_times)
         sigma_tau = (1. - torch.exp(-eff_times))
         # Network tries to learn the posterior mean
+        print(inputs.shape, sigma_tau.shape, beta_tau.shape, x.shape)
         return -inputs / sigma_tau + (beta_tau / sigma_tau) * x

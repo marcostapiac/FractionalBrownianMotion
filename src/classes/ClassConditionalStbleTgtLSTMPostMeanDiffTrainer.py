@@ -185,7 +185,6 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         print(f"Errs1: {torch.mean(errs1), torch.std(errs1)}")"""
 
         target_x = pos_batch  # [B2*T, D]
-        print(target_x.shape[0])
         target_x_exp = target_x.unsqueeze(1)  # [B2*T, 1, D]
         candidate_x = pos_ref_batch.unsqueeze(0)  # [1, B1*T, D]
         candidate_Z = ref_batch.unsqueeze(0)  # [1, B1*T, D]
@@ -257,7 +256,6 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             epsilon = 0.
             stable_targets_chunk = weighted_Z_sum_chunk / (weight_sum_chunk + epsilon)  # [chunk, D]
             stable_targets_chunks.append(stable_targets_chunk)
-
         # Concatenate all chunks to form the full result.
         stable_targets = torch.cat(stable_targets_chunks, dim=0)  # [B1*T, D]
         assert (stable_targets.shape == (B1*T, D))
