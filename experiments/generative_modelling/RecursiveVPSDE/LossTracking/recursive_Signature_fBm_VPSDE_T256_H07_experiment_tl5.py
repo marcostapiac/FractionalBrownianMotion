@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 import torch
 
-from src.classes.ClassConditionalSignatureDiffTrainer import ConditionalSignatureDiffusionModelTrainer
+from src.classes.ClassConditionalSignatureDiffTrainer import ConditionalSignatureDiffTrainer
 from src.generative_modelling.data_processing import train_and_save_recursive_diffusion_model
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalSignatureTSScoreMatching import \
@@ -53,5 +53,5 @@ if __name__ == "__main__":
         init_experiment(config=config)
         train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion,
                                                  scoreModel=scoreModel,
-                                                 trainClass=ConditionalSignatureDiffusionModelTrainer)
+                                                 trainClass=ConditionalSignatureDiffTrainer)
         cleanup_experiment()

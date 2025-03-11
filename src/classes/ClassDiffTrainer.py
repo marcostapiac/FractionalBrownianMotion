@@ -20,7 +20,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTSScoreMatc
 # Tutorial: https://www.youtube.com/watch?v=-LAtx9Q6DA8
 
 
-class DiffusionModelTrainer:
+class DiffTrainer:
 
     def __init__(self,
                  diffusion: Union[VESDEDiffusion, OUSDEDiffusion, VPSDEDiffusion],

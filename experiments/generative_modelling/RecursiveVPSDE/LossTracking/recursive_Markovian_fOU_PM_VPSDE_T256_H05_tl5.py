@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 import torch
 
-from src.classes.ClassConditionalMarkovianPostMeanDiffTrainer import ConditionalPostMeanMarkovianDiffTrainer
+from src.classes.ClassConditionalMarkovianPostMeanDiffTrainer import ConditionalMarkovianPostMeanDiffTrainer
 from src.generative_modelling.data_processing import train_and_save_recursive_diffusion_model
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
@@ -49,5 +49,5 @@ if __name__ == "__main__":
         assert (data.shape == (training_size, config.ts_length, config.ts_dims))
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
         train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel,
-                                                 trainClass=ConditionalPostMeanMarkovianDiffTrainer)
+                                                 trainClass=ConditionalMarkovianPostMeanDiffTrainer)
     cleanup_experiment()

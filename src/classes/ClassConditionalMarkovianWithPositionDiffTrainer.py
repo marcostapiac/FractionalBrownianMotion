@@ -22,7 +22,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 # Tutorial: https://www.youtube.com/watch?v=-LAtx9Q6DA8
 
 
-class ConditionalMarkovianWithPositionDiffusionModelTrainer(nn.Module):
+class ConditionalMarkovianWithPositionDiffTrainer(nn.Module):
 
     def __init__(self,
                  diffusion: Union[VESDEDiffusion, OUSDEDiffusion, VPSDEDiffusion],
@@ -237,17 +237,22 @@ class ConditionalMarkovianWithPositionDiffusionModelTrainer(nn.Module):
         except FileNotFoundError:
             print("Snapshot file does not exist\n")
 
-    def create_feature_vectors_from_position(self,batch):
-        """
-        Set
-            :return: History vectors for each timestamp
-        """
+    def _from_incs_to_positions(self, batch):
         # dbatch = torch.cat([torch.zeros((batch.shape[0], 1, batch.shape[-1])).to(batch.device), batch], dim=1)
         # batch shape (N_batches, Time Series Length, Input Size)
+        # hidden states: (D*NumLayers, N, Hidden Dims), D is 2 if bidirectional, else 1.
         init_state = self.init_state.to(batch.device).view(1, 1, batch.shape[-1])  # Reshape to (1, 1, D)
         init_state = init_state.expand(batch.shape[0], -1, -1)  # Expand to (B, 1, D)
         dbatch = torch.cat([init_state, batch], dim=1)
-        return dbatch.cumsum(dim=1)[:, :-1, :]
+        dbatch = dbatch.cumsum(dim=1)
+        return dbatch
+
+    def create_historical_vectors(self, batch):
+        """
+        Create history vectors using Markovian architecture
+            :return: History vectors for each timestamp
+        """
+        return self._from_incs_to_positions(batch)[:, :-1, :]
 
     def _save_loss(self, losses: list, filepath: str):
         """

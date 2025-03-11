@@ -22,13 +22,14 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 # Tutorial: https://www.youtube.com/watch?v=-LAtx9Q6DA8
 
 
-class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
+class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
 
     def __init__(self, diffusion: Union[VPSDEDiffusion, OUSDEDiffusion, VESDEDiffusion], score_network: Union[
         ConditionalLSTMTSPostMeanScoreMatching], train_data_loader: torch.utils.data.dataloader.DataLoader,
                  train_eps: float, end_diff_time: float, max_diff_steps: int, optimiser: torch.optim.Optimizer,
                  snapshot_path: str, device: Union[torch.device, int], checkpoint_freq: int, to_weight: bool,
-                 hybrid_training: bool,init_state: torch.Tensor, loss_factor: float, deltaT:float,loss_fn: callable = torch.nn.MSELoss,
+                 hybrid_training: bool, init_state: torch.Tensor, loss_factor: float, deltaT: float,
+                 loss_fn: callable = torch.nn.MSELoss,
                  loss_aggregator: torchmetrics.aggregation = MeanMetric):
         super().__init__()
         self.device_id = device
@@ -92,7 +93,7 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
         loss = self.loss_fn()(outputs, targets)
         return self._batch_update(loss)
 
-    def _run_batch(self, xts: torch.Tensor, features: torch.Tensor, target_scores: torch.Tensor,
+    def _run_batch(self, xts: torch.Tensor, features: torch.Tensor, stable_targets: torch.Tensor,
                    diff_times: torch.Tensor,
                    eff_times: torch.Tensor) -> float:
         """
@@ -108,25 +109,132 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
         # Reshaping concatenates vectors in dim=1
         xts = xts.reshape(B * T, 1, -1)
         features = features.reshape(B * T, 1, -1)
-        target_scores = target_scores.reshape(B * T, 1, -1)
+        stable_targets = stable_targets.reshape(B * T, 1, -1)
         diff_times = diff_times.reshape(B * T)
-        eff_times = torch.cat([eff_times]*D, dim=2).reshape(target_scores.shape)
+        eff_times = torch.cat([eff_times] * D, dim=2).reshape(stable_targets.shape)
         outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times, eff_times=eff_times)
         # For times larger than tau0, use inverse_weighting
-        sigma_tau = 1. - torch.exp(-eff_times)
+        sigma_tau = 1. - torch.exp(-eff_times)  # This is sigma2
         beta_tau = torch.exp(-0.5 * eff_times)
-        if not self.include_weightings:
+        if self.loss_factor == 0:  # PM
             weights = torch.ones_like(eff_times)
-        elif self.loss_factor == 0:  # PM
-            weights = (sigma_tau / beta_tau)
-        elif self.loss_factor == 1: # PMScaled (meaning not scaled)
+        elif self.loss_factor == 1:  # PMScaled (meaning not scaled)
             weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
         elif self.loss_factor == 2:  # PM with deltaT scaling
-            weights = (sigma_tau / (beta_tau*torch.sqrt(self.deltaT)))
+            weights = torch.ones_like(eff_times) / torch.sqrt(self.deltaT)
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
-        return self._batch_loss_compute(outputs=outputs * weights, targets=target_scores * weights)
+        # Now implement the stable target field
+        outputs = (outputs + xts / sigma_tau) * (sigma_tau / beta_tau)  # This gives us the network D_theta
+        return self._batch_loss_compute(outputs=outputs * weights, targets=stable_targets * weights)
 
-    def _run_epoch(self, epoch: int) -> list:
+    def _compute_stable_targets(self, batch: torch.Tensor, eff_times: torch.Tensor, ref_batch: torch.Tensor):
+        print(batch.shape, ref_batch.shape, eff_times.shape)
+        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # shape: [B1, T, D]
+        pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :]  # shape: [B2, T, D]
+        assert pos_batch.shape == batch.shape, "pos_batch must match batch shape"
+        pos_ref_batch = pos_ref_batch.reshape(-1, pos_ref_batch.shape[-1])
+        pos_batch = pos_batch.reshape(-1, pos_batch.shape[-1])
+        ref_batch = ref_batch.reshape(-1, ref_batch.shape[-1])
+        batch = batch.reshape(-1, batch.shape[-1])
+        eff_times = eff_times.reshape(-1, eff_times.shape[-1])
+        tds = -(torch.pow(pos_batch, 3) - pos_batch)/256
+
+        # For every increment (a value) in batch, I want to find a set of increments (values) in the ref_batch
+        # whose preceding position in
+        dX = 1 / 1000.
+        stable_scores = []
+        from tqdm import tqdm
+        for i in tqdm(range(pos_batch.shape[0])):
+            x = pos_batch[i, :].squeeze()
+            z = batch[i, :].squeeze()
+            # (z, x) are the increment, position pair
+            eff_tau = eff_times[i, :].squeeze()
+            noised_z, _ = self.diffusion.noising_process(z, eff_tau)
+            beta_tau = torch.exp(-0.5 * eff_tau)
+            sigma_tau = 1. - torch.exp(-eff_tau)
+            # Now find ALL positions in position reference batch which are close to our current position
+            xmin = x - dX
+            xmax = x + dX
+            # Compute the mask over the entire sim_data matrix
+            mask = ((pos_ref_batch >= xmin) & (pos_ref_batch <= xmax)).float()
+            # Get indices where mask is True (each index is [i, j])
+            indices = mask.nonzero(as_tuple=False)
+            assert (indices.shape[0] > 0)
+            weights = []
+            Zs = []
+            # Now find the next increment corresponding to those positions in position reference batch
+            for idx in indices:
+                # Uncomment two lines below if we are using pos_ref_batch[:, :, :]
+                # if idx[1] < ref_batch.shape[1] - 1:
+                # candidate_Z = ref_batch[idx[0], idx[1] + 1, idx[2]]
+                assert (idx[1] == 0)
+                candidate_Z = ref_batch[idx[0], idx[1]]
+                Zs.append(candidate_Z)
+                weights.append(torch.distributions.Normal(beta_tau * candidate_Z, torch.sqrt(sigma_tau)).log_prob(
+                    noised_z).exp())
+            Zs = torch.Tensor(Zs).to(self.device_id)
+            weights = torch.Tensor(weights).to(self.device_id)
+            weights /= torch.sum(weights)
+            stable_scores.append(torch.sum(weights * Zs))
+        stable_scores = torch.Tensor(stable_scores)#.reshape(batch.shape).to(self.device_id)
+        errs1 = torch.pow(stable_scores.squeeze() - tds.squeeze(), 2)
+        print(f"Errs1: {torch.mean(errs1), torch.std(errs1)}")
+
+        target_x = pos_batch  # [B2*T, D]
+        target_x_exp = target_x.unsqueeze(1)  # [B2*T, 1, D]
+        candidate_x = pos_ref_batch.unsqueeze(0)  # [1, B1*T, D]
+
+        # Create a Boolean mask: for each target (b2, t, d), which candidates (b1, t, d)
+        # satisfy: candidate_x ∈ [target_x - dX, target_x + dX] ?
+        mask = ((candidate_x >= (target_x_exp - dX)) & (candidate_x <= (target_x_exp + dX))).float()
+        # mask shape: [B2*T,B1*T, D]
+        """for i in range(pos_batch.shape[0]):
+                x = pos_batch[i, :].squeeze()
+                xmin = x - dX
+                xmax = x + dX
+                # Compute the mask over the entire sim_data matrix
+                maskk = ((pos_ref_batch >= xmin) & (pos_ref_batch <= xmax)).float()
+                assert torch.all(mask[i, :, 0] == maskk[:, 0])"""
+
+        # --- Gather candidate increments ---
+        # For every candidate position in ref_batch that might be valid, we want its corresponding increment.
+        # ref_batch has shape [B1*T, D]. We un-squeeze it to [1, B1, T, D] so that it aligns with mask.
+        candidate_Z = ref_batch.unsqueeze(0)  # [1, B1*T, D]
+
+        # Define the Normal distribution for each (target, candidate) pair:
+        # Mean: target_beta_tau * candidate_Z  ; Std: sqrt(target_sigma_tau)
+        noised_z, _ = self.diffusion.noising_process(batch, eff_times)
+        assert (noised_z.shape == (batch.shape[0], batch.shape[-1]))
+        beta_tau = torch.exp(-0.5 * eff_times)
+        sigma_tau = 1. - torch.exp(-eff_times)
+        # First, expand the target diffusion quantities so they broadcast with the candidate dimension.
+        target_noised_z = noised_z.unsqueeze(1)  # [B2*T, 1, D]
+        target_beta_tau = beta_tau.unsqueeze(1)  # [B2*T, 1, D]
+        target_sigma_tau = sigma_tau.unsqueeze(1)  # [B2*T, 1, D]
+
+        dist = torch.distributions.Normal(target_beta_tau * candidate_Z,
+                                          torch.sqrt(target_sigma_tau))
+        del target_beta_tau, target_sigma_tau
+        # Evaluate the log probability at target_noised_z:
+        weights = dist.log_prob(target_noised_z).exp()  # [B2*T, B1*T, D]
+        del target_noised_z
+        # Only consider valid candidates by applying the mask.
+        weights_masked = weights * mask  # [B2*T, B1*T, D]
+
+        # --- Reduce over candidate dimension ---
+        # For each target element (b2, t, d), we sum over all candidates (dimension b1).
+        # We compute the normalized weighted sum of candidate_Z values.
+        weight_sum = weights_masked.sum(dim=1)  # [B2*T, D]
+        weighted_Z_sum = (weights_masked * candidate_Z).sum(dim=1)  # [B2*T, D]
+
+        stable_scores2 = weighted_Z_sum / (weight_sum)  # [B2*T, D]
+        errs2 = torch.pow(stable_scores2.squeeze() - tds.squeeze(), 2)
+        print(torch.mean(errs2), torch.std(errs2))
+        print(stable_scores, stable_scores2)
+        raise RuntimeError("Reached")
+        return stable_scores
+
+    def _run_epoch(self, epoch: int, batch_size: int) -> list:
         """
         Single epoch run
             :param epoch: Epoch index
@@ -141,11 +249,16 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
             timesteps = torch.linspace(self.train_eps, end=self.end_diff_time,
                                        steps=self.max_diff_steps)
         for x0s in (iter(self.train_loader)):
-            x0s = x0s[0].to(self.device_id)
+            ref_x0s = x0s[0].to(self.device_id)
+            print(ref_x0s.shape)
+            indices = torch.randperm(ref_x0s.shape[0])[:batch_size]
+            x0s = ref_x0s[indices, :, :]
+            print(x0s.shape)
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
             features = self.create_historical_vectors(x0s)
             if self.is_hybrid:
-                # We select diffusion time uniformly at random for each sample at each time (i.e., size (NumBatches, TimeSeries Sequence))
+                # We select diffusion time uniformly at random
+                # for each sample at each time (i.e., size (NumBatches, TimeSeries Sequence))
                 diff_times = timesteps[torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,
                                                      size=x0s.shape[0:2]).long()].view(x0s.shape[0], x0s.shape[1],
                                                                                        *([1] * len(x0s.shape[2:]))).to(
@@ -159,11 +272,14 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
             # so that each (b, t, 1) entry corresponds to the diffusion time for timeseries "b" at time "t"
             eff_times = self.diffusion.get_eff_times(diff_times)
             # Each eff time entry corresponds to the effective diffusion time for timeseries "b" at time "t"
-            xts, target_scores = self.diffusion.noising_process(x0s, eff_times)
-            # For each timeseries "b", at time "t", we want the score p(timeseries_b_attime_t_diffusedTo_efftime|time_series_b_attime_t)
+            xts, _ = self.diffusion.noising_process(x0s, eff_times)
+            stable_targets = self._compute_stable_targets(batch=x0s, ref_batch=ref_x0s, eff_times=eff_times)
+            # For each timeseries "b", at time "t",
+            # we want the score p(timeseries_b_attime_t_diffusedTo_efftime|time_series_b_attime_t)
             # So target score should be size (NumBatches, Time Series Length, 1)
             # And xts should be size (NumBatches, TimeSeriesLength, NumDimensions)
-            batch_loss = self._run_batch(xts=xts, features=features, target_scores=target_scores, diff_times=diff_times,
+            batch_loss = self._run_batch(xts=xts, features=features, stable_targets=stable_targets,
+                                         diff_times=diff_times,
                                          eff_times=eff_times)
             device_epoch_losses.append(batch_loss)
         return device_epoch_losses
@@ -224,11 +340,7 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
         except FileNotFoundError:
             print("Snapshot file does not exist\n")
 
-    def create_historical_vectors(self, batch):
-        """
-        Create history vectors using LSTM architecture
-            :return: History vectors for each timestamp
-        """
+    def _from_incs_to_positions(self, batch):
         # dbatch = torch.cat([torch.zeros((batch.shape[0], 1, batch.shape[-1])).to(batch.device), batch], dim=1)
         # batch shape (N_batches, Time Series Length, Input Size)
         # hidden states: (D*NumLayers, N, Hidden Dims), D is 2 if bidirectional, else 1.
@@ -236,10 +348,18 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
         init_state = init_state.expand(batch.shape[0], -1, -1)  # Expand to (B, 1, D)
         dbatch = torch.cat([init_state, batch], dim=1)
         dbatch = dbatch.cumsum(dim=1)
+        return dbatch
+
+    def create_historical_vectors(self, batch):
+        """
+        Create history vectors using LSTM architecture
+            :return: History vectors for each timestamp
+        """
+        pos_batch = self._from_incs_to_positions(batch)
         if type(self.device_id) == int:
-            output, (hn, cn) = (self.score_network.module.rnn(dbatch, None))
+            output, (hn, cn) = (self.score_network.module.rnn(pos_batch, None))
         else:
-            output, (hn, cn) = (self.score_network.rnn(dbatch, None))
+            output, (hn, cn) = (self.score_network.rnn(pos_batch, None))
         return output[:, :-1, :]
 
     def _save_loss(self, losses: list, filepath: str):
@@ -268,7 +388,7 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
         except FileNotFoundError:
             return []
 
-    def train(self, max_epochs: list, model_filename: str) -> None:
+    def train(self, max_epochs: list, model_filename: str, batch_size: int) -> None:
         """
         Run training for model
             :param max_epochs: List of maximum number of epochs (to allow for iterative training)
@@ -281,7 +401,7 @@ class ConditionalLSTMPostMeanDiffusionModelTrainer(nn.Module):
         end_epoch = max(max_epochs)
         for epoch in range(self.epochs_run, end_epoch):
             t0 = time.time()
-            device_epoch_losses = self._run_epoch(epoch)
+            device_epoch_losses = self._run_epoch(epoch=epoch, batch_size=batch_size)
             # Average epoch loss for each device over batches
             epoch_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_losses)).item())
             if type(self.device_id) == int:

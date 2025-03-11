@@ -22,7 +22,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 # Tutorial: https://www.youtube.com/watch?v=-LAtx9Q6DA8
 
 
-class ConditionalSignatureDiffusionModelTrainer(nn.Module):
+class ConditionalSignatureDiffTrainer(nn.Module):
 
     def __init__(self,
                  diffusion: Union[VESDEDiffusion, OUSDEDiffusion, VPSDEDiffusion],

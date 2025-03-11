@@ -11,14 +11,17 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from torchmetrics import MeanMetric
 
-from src.classes.ClassConditionalLSTMDiffTrainer import ConditionalLSTMDiffusionModelTrainer
-from src.classes.ClassConditionalMarkovianWithPositionDiffTrainer import ConditionalMarkovianWithPositionDiffusionModelTrainer
-from src.classes.ClassConditionalLSTMPostMeanDiffTrainer import ConditionalLSTMPostMeanDiffusionModelTrainer
-from src.classes.ClassConditionalMarkovianPostMeanDiffTrainer import ConditionalPostMeanMarkovianDiffTrainer
+from src.classes.ClassConditionalLSTMDiffTrainer import ConditionalLSTMDiffTrainer
+from src.classes.ClassConditionalLSTMWithPositionDiffTrainer import ConditionalLSTMWithPositionDiffTrainer
+from src.classes.ClassConditionalMarkovianWithPositionDiffTrainer import ConditionalMarkovianWithPositionDiffTrainer
+from src.classes.ClassConditionalLSTMPostMeanDiffTrainer import ConditionalLSTMPostMeanDiffTrainer
+from src.classes.ClassConditionalMarkovianPostMeanDiffTrainer import ConditionalMarkovianPostMeanDiffTrainer
 from src.classes.ClassConditionalSDESampler import ConditionalSDESampler
-from src.classes.ClassConditionalSignatureDiffTrainer import ConditionalSignatureDiffusionModelTrainer
+from src.classes.ClassConditionalSignatureDiffTrainer import ConditionalSignatureDiffTrainer
+from src.classes.ClassConditionalStbleTgtLSTMPostMeanDiffTrainer import \
+    ConditionalStbleTgtLSTMPostMeanDiffTrainer
 from src.classes.ClassCorrector import VESDECorrector, VPSDECorrector
-from src.classes.ClassDiffTrainer import DiffusionModelTrainer
+from src.classes.ClassDiffTrainer import DiffTrainer
 from src.classes.ClassPredictor import AncestralSamplingPredictor, \
     ConditionalAncestralSamplingPredictor, ConditionalReverseDiffusionSamplingPredictor, \
     ConditionalProbODESamplingPredictor
@@ -89,13 +92,13 @@ def train_and_save_diffusion_model(data: np.ndarray,
     train_eps, end_diff_time, max_diff_steps, checkpoint_freq = config.train_eps, config.end_diff_time, config.max_diff_steps, config.save_freq
 
     # TODO: When using DDP, set device = rank passed by mp.spawn OR by torchrun
-    trainer = DiffusionModelTrainer(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
-                                    checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
-                                    loss_aggregator=torchmetrics.aggregation.MeanMetric,
-                                    snapshot_path=config.scoreNet_snapshot_path, device=device,
-                                    train_eps=train_eps,
-                                    end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
-                                    to_weight=config.weightings, hybrid_training=config.hybrid)
+    trainer = DiffTrainer(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
+                          checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
+                          loss_aggregator=torchmetrics.aggregation.MeanMetric,
+                          snapshot_path=config.scoreNet_snapshot_path, device=device,
+                          train_eps=train_eps,
+                          end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
+                          to_weight=config.weightings, hybrid_training=config.hybrid)
 
     # Start training
     trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
@@ -303,7 +306,8 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
                 print("fSin\n")
                 print("Expected drift {}\n".format(config.mean_rev * torch.sin(prev_path)))
                 print(torch.mean(est_mean), torch.std(est_mean), torch.mean(prev_path), torch.std(prev_path),
-                      torch.mean(config.mean_rev * torch.sin(prev_path)), torch.std(config.mean_rev * torch.sin(prev_path)))
+                      torch.mean(config.mean_rev * torch.sin(prev_path)),
+                      torch.std(config.mean_rev * torch.sin(prev_path)))
             elif "fOU" in config.data_path:
                 print("fOU\n")
                 print("Expected drift {}\n".format(-config.mean_rev * (prev_path)))
@@ -439,8 +443,8 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                              diffusion: VPSDEDiffusion,
                                              scoreModel: Union[
                                                  NaiveMLP, ConditionalTSScoreMatching, ConditionalTSScoreMatching, ConditionalMarkovianTSPostMeanScoreMatching, ConditionalMarkovianTSScoreMatching],
-                                             trainClass: Union[ConditionalLSTMPostMeanDiffusionModelTrainer,
-                                                               ConditionalLSTMDiffusionModelTrainer, ConditionalMarkovianWithPositionDiffusionModelTrainer, ConditionalPostMeanMarkovianDiffTrainer, ConditionalSignatureDiffusionModelTrainer, DiffusionModelTrainer]) -> None:
+                                             trainClass: Union[ConditionalLSTMPostMeanDiffTrainer,
+                                                               ConditionalLSTMDiffTrainer, ConditionalMarkovianWithPositionDiffTrainer, ConditionalMarkovianPostMeanDiffTrainer, ConditionalSignatureDiffTrainer, DiffTrainer]) -> None:
     """
     Helper function to initiate training for recursive diffusion model
         :param data: Dataset
@@ -456,16 +460,28 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
         device = torch.device("cpu")
 
     # Preprocess data
-    trainLoader = prepare_recursive_scoreModel_data(data=data, batch_size=config.batch_size, config=config)
+    if isinstance(trainClass, type) and issubclass(trainClass, ConditionalStbleTgtLSTMPostMeanDiffTrainer):
+        trainLoader = prepare_recursive_scoreModel_data(data=data, batch_size=config.ref_batch_size, config=config)
+    else:
+        trainLoader = prepare_recursive_scoreModel_data(data=data, batch_size=config.batch_size, config=config)
+
     # Define optimiser
     print(f"Learning Rate\n: {config.lr}")
-    optimiser = torch.optim.Adam((scoreModel.parameters()), lr=config.lr)  # TODO: Do we not need DDP?
-    optimiser = OneCycleLR(
-        optimiser,
-        max_lr=config.lr*10,
-        steps_per_epoch=data.shape[0]//config.batch_size,
-        epochs=config.max_epochs[-1],
-    )
+    optimiser = torch.optim.Adam((scoreModel.parameters()), lr=config.lr)
+    if isinstance(trainClass, type) and issubclass(trainClass, ConditionalStbleTgtLSTMPostMeanDiffTrainer):
+        optimiser = OneCycleLR(
+            optimiser,
+            max_lr=config.lr * 10,
+            steps_per_epoch=data.shape[0] // config.ref_batch_size,
+            epochs=config.max_epochs[-1],
+        )
+    else:
+        optimiser = OneCycleLR(
+            optimiser,
+            max_lr=config.lr * 10,
+            steps_per_epoch=data.shape[0] // config.batch_size,
+            epochs=config.max_epochs[-1],
+        )
     # Define trainer
     train_eps, end_diff_time, max_diff_steps, checkpoint_freq = config.train_eps, config.end_diff_time, config.max_diff_steps, config.save_freq
     print(isinstance(config.initState, float))
@@ -474,9 +490,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
     else:
         init_state = torch.Tensor(config.initState)
 
-        
-    try:
-        # Markovian
+    if isinstance(trainClass, type) and issubclass(trainClass, ConditionalMarkovianWithPositionDiffTrainer):
         trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                              checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
                              loss_aggregator=MeanMetric,
@@ -487,23 +501,18 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                              hybrid_training=config.hybrid, init_state=init_state, deltaT=config.deltaT)
         # Start training
         trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
-    except (AttributeError, KeyError, TypeError) as e:
-        try:
-            # Post Mean Markovian
-            trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
-                                 checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
-                                 loss_aggregator=MeanMetric,
-                                 snapshot_path=config.scoreNet_snapshot_path, device=device,
-                                 train_eps=train_eps,
-                                 end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
-                                 to_weight=config.weightings,
-                                 loss_factor=config.loss_factor,
-                                 hybrid_training=config.hybrid, init_state=init_state, deltaT=config.deltaT)
-            trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
-        except (AttributeError, KeyError, TypeError) as e:
-            try:
-                # Signature
-                assert (config.sig_trunc)
+    elif isinstance(trainClass, type) and issubclass(trainClass, ConditionalMarkovianPostMeanDiffTrainer):
+        trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
+                             checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
+                             loss_aggregator=MeanMetric,
+                             snapshot_path=config.scoreNet_snapshot_path, device=device,
+                             train_eps=train_eps,
+                             end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
+                             to_weight=config.weightings,
+                             loss_factor=config.loss_factor,
+                             hybrid_training=config.hybrid, init_state=init_state, deltaT=config.deltaT)
+        trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
+    elif isinstance(trainClass, type) and issubclass(trainClass, ConditionalSignatureDiffTrainer):
                 trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                                      checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
                                      loss_aggregator=MeanMetric,
@@ -515,32 +524,45 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                 # Start training
                 trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path,
                               ts_dims=config.ts_dims)
-            except (AttributeError, KeyError, TypeError) as e:
-                # LSTM
-                try:
-                    trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
-                                         checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
-                                         loss_aggregator=MeanMetric,
-                                         snapshot_path=config.scoreNet_snapshot_path, device=device,
-                                         train_eps=train_eps,
-                                         end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
-                                         to_weight=config.weightings,
-                                         loss_factor=config.loss_factor,
-                                         hybrid_training=config.hybrid, init_state=init_state, deltaT=config.deltaT)
+    elif isinstance(trainClass, type) and issubclass(trainClass, ConditionalLSTMWithPositionDiffTrainer):
+        trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
+                             checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
+                             loss_aggregator=MeanMetric,
+                             snapshot_path=config.scoreNet_snapshot_path, device=device,
+                             train_eps=train_eps,
+                             end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
+                             to_weight=config.weightings,
+                             loss_factor=config.loss_factor,
+                             hybrid_training=config.hybrid, init_state=init_state, deltaT=config.deltaT)
 
-                    # Start training
-                    trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
-                except (AttributeError, KeyError, TypeError) as e:
-                    # Post Mean LSTM
-                    trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
-                                         checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
-                                         loss_aggregator=MeanMetric,
-                                         snapshot_path=config.scoreNet_snapshot_path, device=device,
-                                         train_eps=train_eps,
-                                         end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
-                                         to_weight=config.weightings,
-                                         hybrid_training=config.hybrid, loss_factor=config.loss_factor,
-                                        init_state=init_state, deltaT=config.deltaT)
+        # Start training
+        trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
+    elif isinstance(trainClass, type) and issubclass(trainClass, ConditionalLSTMPostMeanDiffTrainer):
+        trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
+                             checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
+                             loss_aggregator=MeanMetric,
+                             snapshot_path=config.scoreNet_snapshot_path, device=device,
+                             train_eps=train_eps,
+                             end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
+                             to_weight=config.weightings,
+                             hybrid_training=config.hybrid, loss_factor=config.loss_factor,
+                             init_state=init_state, deltaT=config.deltaT)
 
-                    # Start training
-                    trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
+        # Start training
+        trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
+    elif isinstance(trainClass, type) and issubclass(trainClass, ConditionalStbleTgtLSTMPostMeanDiffTrainer):
+        trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
+                             checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
+                             loss_aggregator=MeanMetric,
+                             snapshot_path=config.scoreNet_snapshot_path, device=device,
+                             train_eps=train_eps,
+                             end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
+                             to_weight=config.weightings,
+                             hybrid_training=config.hybrid, loss_factor=config.loss_factor,
+                             init_state=init_state, deltaT=config.deltaT)
+
+        # Start training
+        trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path, batch_size=config.batch_size)
+
+    else:
+        raise RuntimeError("Invalid Diffusion Training Class\n")

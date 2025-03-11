@@ -22,7 +22,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 # Tutorial: https://www.youtube.com/watch?v=-LAtx9Q6DA8
 
 
-class ConditionalLSTMDiffusionModelTrainer(nn.Module):
+class ConditionalLSTMDiffTrainer(nn.Module):
 
     def __init__(self, diffusion: Union[VESDEDiffusion, OUSDEDiffusion, VPSDEDiffusion], score_network: Union[
         ConditionalLSTMTSScoreMatching], train_data_loader: torch.utils.data.dataloader.DataLoader, train_eps: float,
