@@ -125,6 +125,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         # Now implement the stable target field
         outputs = (outputs + xts / sigma_tau) * (sigma_tau / beta_tau)  # This gives us the network D_theta
+        print(outputs)
         return self._batch_loss_compute(outputs=outputs * weights, targets=stable_targets * weights)
 
     def _compute_stable_targets(self, batch: torch.Tensor, eff_times: torch.Tensor, ref_batch: torch.Tensor):
