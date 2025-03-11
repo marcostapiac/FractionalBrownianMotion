@@ -131,6 +131,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         print(batch.shape, ref_batch.shape, eff_times.shape)
         import time
         dX = 1 / 1000.
+        t0 = time.time()
         pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # shape: [B1, T, D]
         pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :]  # shape: [B2, T, D]
         assert pos_batch.shape == batch.shape, "pos_batch must match batch shape"
@@ -139,6 +140,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         ref_batch = ref_batch.reshape(-1, ref_batch.shape[-1])
         batch = batch.reshape(-1, batch.shape[-1])
         eff_times = eff_times.reshape(-1, eff_times.shape[-1])
+        print(f"Time to reshape everything {time.time()-t0}\n")
 
         """# For every increment (a value) in batch, I want to find a set of increments (values) in the ref_batch
         # whose preceding position in
@@ -179,30 +181,26 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         stable_targets = torch.Tensor(stable_scores)#.reshape(batch.shape).to(self.device_id)
         errs1 = torch.pow(stable_targets.squeeze().cpu() - tds.squeeze().cpu(), 2)
         print(f"Errs1: {torch.mean(errs1), torch.std(errs1)}")"""
+        t0 = time.time()
         pos_batch, pos_ref_batch, batch, ref_batch = pos_batch.cpu(), pos_ref_batch.cpu(), batch.cpu(), ref_batch.cpu()
+        print(f"Time to move to CPU {time.time()-t0}\n")
         target_x = pos_batch  # [B2*T, D]
         target_x_exp = target_x.unsqueeze(1)  # [B2*T, 1, D]
         candidate_x = pos_ref_batch.unsqueeze(0)  # [1, B1*T, D]
-        # Create a Boolean mask: for each target (b2, t, d), which candidates (b1, t, d)
-        # satisfy: candidate_x ∈ [target_x - dX, target_x + dX] ?
+
         t0 = time.time()
+        print(f"Starting mask computation\n")
         mask = ((candidate_x >= (target_x_exp - dX)) & (candidate_x <= (target_x_exp + dX))).float()
         print(f"Time to compute mask {time.time()-t0}\n")
-        # mask shape: [B2*T,B1*T, D]
-        # --- Gather candidate increments ---
-        # For every candidate position in ref_batch that might be valid, we want its corresponding increment.
-        # ref_batch has shape [B1*T, D]. We un-squeeze it to [1, B1, T, D] so that it aligns with mask.
+
         candidate_Z = ref_batch.unsqueeze(0)  # [1, B1*T, D]
 
-        # Define the Normal distribution for each (target, candidate) pair:
-        # Mean: target_beta_tau * candidate_Z  ; Std: sqrt(target_sigma_tau)
         t0 = time.time()
         noised_z, _ = self.diffusion.noising_process(batch.to(self.device_id), eff_times.to(self.device_id))
         print(f"Time to compute noising {time.time()-t0}\n")
         assert (noised_z.shape == (batch.shape[0], batch.shape[-1]))
         beta_tau = torch.exp(-0.5 * eff_times)
         sigma_tau = 1. - torch.exp(-eff_times)
-        # First, expand the target diffusion quantities so they broadcast with the candidate dimension.
         target_noised_z = noised_z.unsqueeze(1)  # [B2*T, 1, D]
         target_beta_tau = beta_tau.unsqueeze(1)  # [B2*T, 1, D]
         target_sigma_tau = sigma_tau.unsqueeze(1)  # [B2*T, 1, D]
@@ -213,23 +211,17 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         print(f"Time to instantiate dist {time.time()-t0}\n")
 
         del target_beta_tau, target_sigma_tau
-        # Evaluate the log probability at target_noised_z:
         t0 = time.time()
         weights = dist.log_prob(target_noised_z.to(self.device_id)).exp()  # [B2*T, B1*T, D]
         print(f"Time to evaluate weights {time.time()-t0}\n")
         del target_noised_z
-        # Only consider valid candidates by applying the mask.
         weights_masked = weights.cpu() * mask  # [B2*T, B1*T, D]
         del mask
         weights_masked = weights_masked.to(self.device_id)
-        # --- Reduce over candidate dimension ---
-        # For each target element (b2, t, d), we sum over all candidates (dimension b1).
-        # We compute the normalized weighted sum of candidate_Z values.
+
         weight_sum = weights_masked.sum(dim=1)  # [B2*T, D]
         weights_masked = weights_masked.cpu()
-
         weighted_Z_sum = (weights_masked * candidate_Z).sum(dim=1).to(self.device_id)  # [B2*T, D]
-
         stable_targets = weighted_Z_sum / (weight_sum)  # [B2*T, D]
         pos_batch, pos_ref_batch, batch, ref_batch, stable_targets = pos_batch.to(self.device_id), pos_ref_batch.to(self.device_id), batch.to(self.device_id), ref_batch.to(self.device_id), stable_targets.to(self.device_id)
 
