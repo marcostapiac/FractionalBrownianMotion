@@ -117,14 +117,15 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         sigma_tau = 1. - torch.exp(-eff_times)  # This is sigma2
         beta_tau = torch.exp(-0.5 * eff_times)
         if self.loss_factor == 0:  # PM
-            weights = torch.ones_like(eff_times)
+            weights = torch.ones_like(outputs)
         elif self.loss_factor == 1:  # PMScaled (meaning not scaled)
-            weights = self.diffusion.get_loss_weighting(eff_times=eff_times)
+            weights = self.diffusion.get_loss_weighting(eff_times=outputs)
         elif self.loss_factor == 2:  # PM with deltaT scaling
-            weights = torch.ones_like(eff_times) / torch.sqrt(self.deltaT)
+            weights = torch.ones_like(outputs) / torch.sqrt(self.deltaT)
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         # Now implement the stable target field
         outputs = (outputs + xts / sigma_tau) * (sigma_tau / beta_tau)  # This gives us the network D_theta
+        assert (outputs.shape == stable_targets.shape)
         return self._batch_loss_compute(outputs=outputs * weights, targets=stable_targets * weights)
 
     def _compute_stable_targets(self, batch: torch.Tensor, eff_times: torch.Tensor, ref_batch: torch.Tensor):
@@ -444,6 +445,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                 float(
                     self.loss_aggregator.compute().item()), float(time.time() - t0)))
             if self.device_id == 0 or type(self.device_id) == torch.device:
+                print(all_losses_per_epoch)
                 print("Stored Running Mean {} vs Aggregator Mean {}\n".format(
                     float(torch.mean(torch.tensor(all_losses_per_epoch[self.epochs_run:])).cpu().numpy()), float(
                         self.loss_aggregator.compute().item())))
