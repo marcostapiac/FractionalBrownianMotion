@@ -182,7 +182,6 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         errs1 = torch.pow(stable_targets.squeeze().cpu() - tds.squeeze().cpu(), 2)
         print(f"Errs1: {torch.mean(errs1), torch.std(errs1)}")"""
         t0 = time.time()
-        pos_batch, pos_ref_batch, batch, ref_batch, eff_times = pos_batch.cpu(), pos_ref_batch.cpu(), batch.cpu(), ref_batch.cpu(), eff_times.cpu()
         for obj in gc.get_objects():
             if isinstance(obj, torch.Tensor) and obj.is_cuda:
                 print(obj.shape, obj.dtype, obj.device)
@@ -269,7 +268,13 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             eff_times = self.diffusion.get_eff_times(diff_times)
             # Each eff time entry corresponds to the effective diffusion time for timeseries "b" at time "t"
             xts, _ = self.diffusion.noising_process(x0s, eff_times)
+            self.score_network = self.score_network.cpu()
+            xts, batch, ref_batch, eff_times = xts.cpu(), x0s.cpu(), ref_x0s.cpu(), eff_times.cpu()
+
             stable_targets = self._compute_stable_targets(batch=x0s, ref_batch=ref_x0s, eff_times=eff_times)
+            self.score_network = self.score_network.to(self.device_id)
+            xts, batch, ref_batch, eff_times = xts.to(self.device_id), x0s.to(self.device_id), ref_x0s.to(self.device_id), eff_times.to(self.device_id)
+
             # For each timeseries "b", at time "t",
             # we want the score p(timeseries_b_attime_t_diffusedTo_efftime|time_series_b_attime_t)
             # So target score should be size (NumBatches, Time Series Length, 1)
