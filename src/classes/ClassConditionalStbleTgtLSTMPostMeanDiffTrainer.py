@@ -188,11 +188,6 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         target_x_exp = target_x.unsqueeze(1)  # [B2*T, 1, D]
         candidate_x = pos_ref_batch.unsqueeze(0)  # [1, B1*T, D]
 
-        t0 = time.time()
-        print(f"Starting mask computation\n")
-        mask = ((candidate_x >= (target_x_exp - dX)) & (candidate_x <= (target_x_exp + dX))).float()
-        print(f"Time to compute mask {time.time()-t0}\n")
-
         candidate_Z = ref_batch.unsqueeze(0)  # [1, B1*T, D]
 
         t0 = time.time()
@@ -215,6 +210,11 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         weights = dist.log_prob(target_noised_z.to(self.device_id)).exp()  # [B2*T, B1*T, D]
         print(f"Time to evaluate weights {time.time()-t0}\n")
         del target_noised_z
+        t0 = time.time()
+        print(f"Starting mask computation\n")
+        mask = ((candidate_x.to(self.device_id) >= (target_x_exp.to(self.device_id) - dX)) & (candidate_x.to(self.device_id) <= (target_x_exp.to(self.device_id) + dX))).float().cpu()
+        print(f"Time to compute mask {time.time()-t0}\n")
+
         weights_masked = weights.cpu() * mask  # [B2*T, B1*T, D]
         del mask
         weights_masked = weights_masked.to(self.device_id)
