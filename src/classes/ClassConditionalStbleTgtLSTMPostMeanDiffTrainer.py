@@ -182,7 +182,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         errs1 = torch.pow(stable_targets.squeeze().cpu() - tds.squeeze().cpu(), 2)
         print(f"Errs1: {torch.mean(errs1), torch.std(errs1)}")"""
         t0 = time.time()
-        pos_batch, pos_ref_batch, batch, ref_batch = pos_batch.cpu(), pos_ref_batch.cpu(), batch.cpu(), ref_batch.cpu()
+        pos_batch, pos_ref_batch, batch, ref_batch, eff_times = pos_batch.cpu(), pos_ref_batch.cpu(), batch.cpu(), ref_batch.cpu(), eff_times.cpu()
         print(f"Time to move to CPU {time.time()-t0}\n")
         target_x = pos_batch  # [B2*T, D]
         target_x_exp = target_x.unsqueeze(1)  # [B2*T, 1, D]
