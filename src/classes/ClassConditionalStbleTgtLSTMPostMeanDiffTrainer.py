@@ -188,10 +188,8 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         candidate_x = pos_ref_batch.unsqueeze(0)  # [1, B1*T, D]
         candidate_Z = ref_batch.unsqueeze(0)  # [1, B1*T, D]
 
-        t0 = time.time()
         noised_z, _ = self.diffusion.noising_process(batch, eff_times)
         del pos_ref_batch, pos_batch
-        print(f"Time to compute noising {time.time()-t0}\n")
         assert (noised_z.shape == (B1*T, D))
         beta_tau = torch.exp(-0.5 * eff_times)
         sigma_tau = 1. - torch.exp(-eff_times)
@@ -264,7 +262,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
 
         # Concatenate all chunks to form the full result.
         stable_targets = torch.cat(stable_targets_chunks, dim=0)  # [B2*T, D]
-
+        assert (stable_targets.shape == (B1*T, D))
         return stable_targets.to(self.device_id)
 
 
