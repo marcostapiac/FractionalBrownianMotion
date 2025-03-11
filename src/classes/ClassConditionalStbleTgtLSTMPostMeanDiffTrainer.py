@@ -132,14 +132,16 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         import time, gc
         dX = 1 / 1000.
         t0 = time.time()
-        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # shape: [B1, T, D]
-        pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :]  # shape: [B2, T, D]
+        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :].cpu()  # shape: [B1, T, D]
+        pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :].cpu()  # shape: [B2, T, D]
         assert pos_batch.shape == batch.shape, "pos_batch must match batch shape"
         pos_ref_batch = pos_ref_batch.reshape(-1, pos_ref_batch.shape[-1])
         pos_batch = pos_batch.reshape(-1, pos_batch.shape[-1])
         ref_batch = ref_batch.reshape(-1, ref_batch.shape[-1])
         batch = batch.reshape(-1, batch.shape[-1])
         eff_times = eff_times.reshape(-1, eff_times.shape[-1])
+        B1, T, D = batch.shape
+        B2, T, D = ref_batch.shape
         print(f"Time to reshape everything {time.time()-t0}\n")
 
         """# For every increment (a value) in batch, I want to find a set of increments (values) in the ref_batch
@@ -185,17 +187,18 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         for obj in gc.get_objects():
             if isinstance(obj, torch.Tensor) and obj.is_cuda:
                 print(obj.shape, obj.dtype, obj.device)
-        print(torch.zeros(size=(pos_batch.shape[0]*256, pos_ref_batch.shape[0]*256, 1)).to(self.device_id))
+        print(torch.zeros(size=(B1*256, B2*256, 1)).to(self.device_id))
         print(f"Time to move to CPU {time.time()-t0}\n")
         target_x = pos_batch  # [B2*T, D]
         target_x_exp = target_x.unsqueeze(1)  # [B2*T, 1, D]
         candidate_x = pos_ref_batch.unsqueeze(0)  # [1, B1*T, D]
+        candidate_Z = ref_batch.unsqueeze(0).to(self.device_id)  # [1, B1*T, D]
 
         t0 = time.time()
-        candidate_Z = ref_batch.unsqueeze(0).to(self.device_id)  # [1, B1*T, D]
         noised_z, _ = self.diffusion.noising_process(batch.to(self.device_id), eff_times.to(self.device_id))
+        del pos_ref_batch, pos_batch
         print(f"Time to compute noising {time.time()-t0}\n")
-        assert (noised_z.shape == (batch.shape[0], batch.shape[-1]))
+        assert (noised_z.shape == (B1, D))
         beta_tau = torch.exp(-0.5 * eff_times).to(self.device_id)
         sigma_tau = 1. - torch.exp(-eff_times).to(self.device_id)
         target_noised_z = noised_z.unsqueeze(1).to(self.device_id)  # [B2*T, 1, D]
@@ -225,9 +228,8 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         weights_masked = weights_masked.cpu()
         weighted_Z_sum = (weights_masked * candidate_Z).sum(dim=1).to(self.device_id)  # [B2*T, D]
         stable_targets = weighted_Z_sum / (weight_sum)  # [B2*T, D]
-        pos_batch, pos_ref_batch, batch, ref_batch, stable_targets = pos_batch.to(self.device_id), pos_ref_batch.to(self.device_id), batch.to(self.device_id), ref_batch.to(self.device_id), stable_targets.to(self.device_id)
 
-        return stable_targets
+        return stable_targets.to(self.device_id)
 
     def _run_epoch(self, epoch: int, batch_size: int) -> list:
         """
