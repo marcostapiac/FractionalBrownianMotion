@@ -203,7 +203,9 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         target_sigma_tau = sigma_tau.unsqueeze(1)  # [B2*T, 1, D]
 
         t0 = time.time()
-        dist = torch.distributions.Normal(target_beta_tau.cpu() * candidate_Z.cpu(),
+        dist_mean = target_beta_tau.cpu() * candidate_Z.cpu()
+        print(f"Time to compute dist mean {time.time()-t0}\n")
+        dist = torch.distributions.Normal(dist_mean,
                                           torch.sqrt(target_sigma_tau).cpu())
         print(f"Time to instantiate dist {time.time()-t0}\n")
 
