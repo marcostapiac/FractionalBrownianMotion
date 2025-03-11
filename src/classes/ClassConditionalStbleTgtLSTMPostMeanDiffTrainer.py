@@ -129,20 +129,19 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
 
     def _compute_stable_targets(self, batch: torch.Tensor, eff_times: torch.Tensor, ref_batch: torch.Tensor):
         print(batch.shape, ref_batch.shape, eff_times.shape)
-        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :].to(self.device_id)  # shape: [B1, T, D]
-        pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :].to(self.device_id)  # shape: [B2, T, D]
+        dX = 1 / 1000.
+        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # shape: [B1, T, D]
+        pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :]  # shape: [B2, T, D]
         assert pos_batch.shape == batch.shape, "pos_batch must match batch shape"
         pos_ref_batch = pos_ref_batch.reshape(-1, pos_ref_batch.shape[-1])
-        pos_batch = pos_batch.reshape(-1, pos_batch.shape[-1]).to(self.device_id)
-        ref_batch = ref_batch.reshape(-1, ref_batch.shape[-1]).to(self.device_id)
-        batch = batch.reshape(-1, batch.shape[-1]).to(self.device_id)
-        eff_times = eff_times.reshape(-1, eff_times.shape[-1]).to(self.device_id)
-        tds = -(torch.pow(pos_batch, 3) - pos_batch)/256
+        pos_batch = pos_batch.reshape(-1, pos_batch.shape[-1])
+        ref_batch = ref_batch.reshape(-1, ref_batch.shape[-1])
+        batch = batch.reshape(-1, batch.shape[-1])
+        eff_times = eff_times.reshape(-1, eff_times.shape[-1])
 
-        # For every increment (a value) in batch, I want to find a set of increments (values) in the ref_batch
+        """# For every increment (a value) in batch, I want to find a set of increments (values) in the ref_batch
         # whose preceding position in
-        dX = 1 / 1000.
-        """stable_scores = []
+        stable_scores = []
         from tqdm import tqdm
         for i in tqdm(range(pos_batch.shape[0])):
             x = pos_batch[i, :].squeeze()
@@ -176,26 +175,17 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             weights = torch.Tensor(weights).to(self.device_id)
             weights /= torch.sum(weights)
             stable_scores.append(torch.sum(weights * Zs))
-        stable_scores = torch.Tensor(stable_scores)#.reshape(batch.shape).to(self.device_id)
-        errs1 = torch.pow(stable_scores.squeeze().cpu() - tds.squeeze().cpu(), 2)
+        stable_targets = torch.Tensor(stable_scores)#.reshape(batch.shape).to(self.device_id)
+        errs1 = torch.pow(stable_targets.squeeze().cpu() - tds.squeeze().cpu(), 2)
         print(f"Errs1: {torch.mean(errs1), torch.std(errs1)}")"""
 
         target_x = pos_batch  # [B2*T, D]
         target_x_exp = target_x.unsqueeze(1)  # [B2*T, 1, D]
         candidate_x = pos_ref_batch.unsqueeze(0)  # [1, B1*T, D]
-
         # Create a Boolean mask: for each target (b2, t, d), which candidates (b1, t, d)
         # satisfy: candidate_x ∈ [target_x - dX, target_x + dX] ?
         mask = ((candidate_x >= (target_x_exp - dX)) & (candidate_x <= (target_x_exp + dX))).float()
         # mask shape: [B2*T,B1*T, D]
-        """for i in range(pos_batch.shape[0]):
-                x = pos_batch[i, :].squeeze()
-                xmin = x - dX
-                xmax = x + dX
-                # Compute the mask over the entire sim_data matrix
-                maskk = ((pos_ref_batch >= xmin) & (pos_ref_batch <= xmax)).float()
-                assert torch.all(mask[i, :, 0] == maskk[:, 0])"""
-
         # --- Gather candidate increments ---
         # For every candidate position in ref_batch that might be valid, we want its corresponding increment.
         # ref_batch has shape [B1*T, D]. We un-squeeze it to [1, B1, T, D] so that it aligns with mask.
@@ -212,6 +202,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         target_beta_tau = beta_tau.unsqueeze(1)  # [B2*T, 1, D]
         target_sigma_tau = sigma_tau.unsqueeze(1)  # [B2*T, 1, D]
 
+        pos_batch, pos_ref_batch, batch, ref_batch = pos_batch.cpu(), pos_ref_batch.cpu(), batch.cpu(), ref_batch.cpu()
         dist = torch.distributions.Normal(target_beta_tau * candidate_Z,
                                           torch.sqrt(target_sigma_tau))
         del target_beta_tau, target_sigma_tau
@@ -220,19 +211,17 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         del target_noised_z
         # Only consider valid candidates by applying the mask.
         weights_masked = weights * mask  # [B2*T, B1*T, D]
-
+        del mask
         # --- Reduce over candidate dimension ---
         # For each target element (b2, t, d), we sum over all candidates (dimension b1).
         # We compute the normalized weighted sum of candidate_Z values.
         weight_sum = weights_masked.sum(dim=1)  # [B2*T, D]
         weighted_Z_sum = (weights_masked * candidate_Z).sum(dim=1)  # [B2*T, D]
 
-        stable_scores2 = weighted_Z_sum / (weight_sum)  # [B2*T, D]
-        errs2 = torch.pow(stable_scores2.squeeze() - tds.squeeze(), 2)
-        print(torch.mean(errs2), torch.std(errs2))
-        print(stable_scores, stable_scores2)
-        raise RuntimeError("Reached")
-        return stable_scores
+        stable_targets = weighted_Z_sum / (weight_sum)  # [B2*T, D]
+        pos_batch, pos_ref_batch, batch, ref_batch, stable_targets = pos_batch.to(self.device_id), pos_ref_batch.to(self.device_id), batch.to(self.device_id), ref_batch.to(self.device_id), stable_targets.to(self.device_id)
+
+        return stable_targets
 
     def _run_epoch(self, epoch: int, batch_size: int) -> list:
         """
