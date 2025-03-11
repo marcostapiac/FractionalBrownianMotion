@@ -142,7 +142,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         # For every increment (a value) in batch, I want to find a set of increments (values) in the ref_batch
         # whose preceding position in
         dX = 1 / 1000.
-        stable_scores = []
+        """stable_scores = []
         from tqdm import tqdm
         for i in tqdm(range(pos_batch.shape[0])):
             x = pos_batch[i, :].squeeze()
@@ -178,7 +178,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             stable_scores.append(torch.sum(weights * Zs))
         stable_scores = torch.Tensor(stable_scores)#.reshape(batch.shape).to(self.device_id)
         errs1 = torch.pow(stable_scores.squeeze().cpu() - tds.squeeze().cpu(), 2)
-        print(f"Errs1: {torch.mean(errs1), torch.std(errs1)}")
+        print(f"Errs1: {torch.mean(errs1), torch.std(errs1)}")"""
 
         target_x = pos_batch  # [B2*T, D]
         target_x_exp = target_x.unsqueeze(1)  # [B2*T, 1, D]
