@@ -109,9 +109,9 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         # Reshaping concatenates vectors in dim=1
         xts = xts.reshape(B * T, 1, -1)
         features = features.reshape(B * T, 1, -1)
+        stable_targets = stable_targets.reshape(B * T, 1, -1)
         diff_times = diff_times.reshape(B * T)
         eff_times = torch.cat([eff_times] * D, dim=2).reshape(stable_targets.shape)
-        print(xts.shape, features.shape, diff_times.shape, eff_times.shape)
         outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times, eff_times=eff_times)
         # For times larger than tau0, use inverse_weighting
         sigma_tau = 1. - torch.exp(-eff_times)  # This is sigma2
