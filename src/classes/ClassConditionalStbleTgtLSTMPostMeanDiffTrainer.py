@@ -203,6 +203,24 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         target_sigma_tau = sigma_tau.unsqueeze(1)  # [B2*T, 1, D]
 
         t0 = time.time()
+        print(f"Starting mask computation\n")
+        mask = ((candidate_x.cpu() >= (target_x_exp.cpu() - dX)) & (
+                candidate_x.cpu() <= (target_x_exp.cpu() + dX))).float()
+        print(f"Time to compute mask {time.time() - t0}\n")
+        print(mask.shape)
+        indices = mask.nonzero(as_tuple=False).to(self.device_id)
+        print(indices.shape)
+        print(candidate_Z.shape)
+        print(candidate_Z[tuple(indices.t())].shape)
+
+
+        values = target_beta_tau * candidate_Z[tuple(indices.t())]
+
+        # Create a sparse tensor with the same shape as candidate_Z.
+        sparse_dist_mean = torch.sparse_coo_tensor(indices.t(), values, candidate_Z.size())
+        print(sparse_dist_mean)
+
+        t0 = time.time()
         dist_mean = target_beta_tau.cpu() * candidate_Z.cpu()
         print(f"Time to compute dist mean {time.time()-t0}\n")
         dist = torch.distributions.Normal(dist_mean,
@@ -214,10 +232,6 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         weights = dist.log_prob(target_noised_z.cpu()).exp()  # [B2*T, B1*T, D]
         print(f"Time to evaluate weights {time.time()-t0}\n")
         del target_noised_z
-        t0 = time.time()
-        print(f"Starting mask computation\n")
-        mask = ((candidate_x.cpu() >= (target_x_exp.cpu() - dX)) & (candidate_x.cpu() <= (target_x_exp.cpu() + dX))).float()
-        print(f"Time to compute mask {time.time()-t0}\n")
 
         weights_masked = weights * mask  # [B2*T, B1*T, D]
         del mask
