@@ -129,6 +129,8 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
 
     def _compute_stable_targets(self, batch: torch.Tensor, eff_times: torch.Tensor, ref_batch: torch.Tensor):
         print(batch.shape, ref_batch.shape, eff_times.shape)
+        B1, T, D = batch.shape
+        B2, T, D = ref_batch.shape
         import time, gc
         dX = 1 / 1000.
         t0 = time.time()
@@ -140,8 +142,6 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         ref_batch = ref_batch.reshape(-1, ref_batch.shape[-1])
         batch = batch.reshape(-1, batch.shape[-1])
         eff_times = eff_times.reshape(-1, eff_times.shape[-1])
-        B1, T, D = batch.shape
-        B2, T, D = ref_batch.shape
         print(f"Time to reshape everything {time.time()-t0}\n")
 
         """# For every increment (a value) in batch, I want to find a set of increments (values) in the ref_batch
