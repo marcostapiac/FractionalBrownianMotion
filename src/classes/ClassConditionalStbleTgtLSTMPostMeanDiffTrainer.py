@@ -134,8 +134,8 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         import time, gc
         dX = 1 / 1000.
         t0 = time.time()
-        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :].cpu()  # shape: [B1, T, D]
-        pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :].cpu()  # shape: [B2, T, D]
+        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # shape: [B1, T, D]
+        pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :]  # shape: [B2, T, D]
         assert pos_batch.shape == batch.shape, "pos_batch must match batch shape"
         pos_ref_batch = pos_ref_batch.reshape(-1, pos_ref_batch.shape[-1])
         pos_batch = pos_batch.reshape(-1, pos_batch.shape[-1])
@@ -194,7 +194,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         noised_z, _ = self.diffusion.noising_process(batch, eff_times)
         del pos_ref_batch, pos_batch
         print(f"Time to compute noising {time.time()-t0}\n")
-        assert (noised_z.shape == (B1, D))
+        assert (noised_z.shape == (B1*T, D))
         beta_tau = torch.exp(-0.5 * eff_times)
         sigma_tau = 1. - torch.exp(-eff_times)
 
@@ -203,18 +203,18 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         target_sigma_tau = sigma_tau.unsqueeze(1)  # [B2*T, 1, D]
 
         t0 = time.time()
-        dist = torch.distributions.Normal(target_beta_tau * candidate_Z,
-                                          torch.sqrt(target_sigma_tau))
+        dist = torch.distributions.Normal(target_beta_tau.cpu() * candidate_Z.cpu(),
+                                          torch.sqrt(target_sigma_tau).cpu())
         print(f"Time to instantiate dist {time.time()-t0}\n")
 
         del target_beta_tau, target_sigma_tau
         t0 = time.time()
-        weights = dist.log_prob(target_noised_z).exp()  # [B2*T, B1*T, D]
+        weights = dist.log_prob(target_noised_z.cpu()).exp()  # [B2*T, B1*T, D]
         print(f"Time to evaluate weights {time.time()-t0}\n")
         del target_noised_z
         t0 = time.time()
         print(f"Starting mask computation\n")
-        mask = ((candidate_x >= (target_x_exp - dX)) & (candidate_x <= (target_x_exp + dX))).float()
+        mask = ((candidate_x.cpu() >= (target_x_exp.cpu() - dX)) & (candidate_x.cpu() <= (target_x_exp.cpu() + dX))).float()
         print(f"Time to compute mask {time.time()-t0}\n")
 
         weights_masked = weights * mask  # [B2*T, B1*T, D]
