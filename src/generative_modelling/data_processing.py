@@ -468,7 +468,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
     # Define optimiser
     print(f"Learning Rate\n: {config.lr}")
     optimiser = torch.optim.Adam((scoreModel.parameters()), lr=config.lr)
-    if isinstance(trainClass, type) and issubclass(trainClass, ConditionalStbleTgtLSTMPostMeanDiffTrainer):
+    """if isinstance(trainClass, type) and issubclass(trainClass, ConditionalStbleTgtLSTMPostMeanDiffTrainer):
         optimiser = OneCycleLR(
             optimiser,
             max_lr=config.lr * 10,
@@ -481,7 +481,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
             max_lr=config.lr * 10,
             steps_per_epoch=data.shape[0] // config.batch_size,
             epochs=config.max_epochs[-1],
-        )
+        )"""
     # Define trainer
     train_eps, end_diff_time, max_diff_steps, checkpoint_freq = config.train_eps, config.end_diff_time, config.max_diff_steps, config.save_freq
     print(isinstance(config.initState, float))
