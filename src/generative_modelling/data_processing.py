@@ -472,7 +472,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
         optimiser = OneCycleLR(
             optimiser,
             max_lr=config.lr * 10,
-            steps_per_epoch=data.shape[0] // config.ref_batch_size,
+            steps_per_epoch=len(trainLoader),
             epochs=config.max_epochs[-1],
         )
     else:
