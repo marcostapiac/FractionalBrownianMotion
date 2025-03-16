@@ -51,7 +51,6 @@ is_path_observations = np.array(
                                    t0=t0, t1=t1) for _ in (range(num_paths * 10))]).reshape(
         (num_paths * 10, config.ts_length + 1))
 
-raise RuntimeError
 is_idxs = np.arange(is_path_observations.shape[0])
 path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False), :]
 # We note that we DO NOT evaluate the drift at time t_{0}=0
