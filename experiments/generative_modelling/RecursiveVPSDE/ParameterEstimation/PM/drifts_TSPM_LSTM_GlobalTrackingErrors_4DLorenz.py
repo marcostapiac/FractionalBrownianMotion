@@ -5,44 +5,12 @@ from configs.RecursiveVPSDE.Markovian_4DLorenz.recursive_Markovian_PostMeanScore
     get_config as get_config
 from configs import project_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
-    ConditionalMarkovianTSPostMeanScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
+    ConditionalLSTMTSPostMeanScoreMatching
 from tqdm import tqdm
 
+
 # In[22]:
-
-
-config = get_config()
-assert ("4DLnz" in config.data_path)
-
-print("Beta Min : ", config.beta_min)
-if config.has_cuda:
-    device = int(os.environ["LOCAL_RANK"])
-else:
-    print("Using CPU\n")
-    device = torch.device("cpu")
-
-diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
-
-Nepoch = 1440  # config.max_epochs[0]
-num_diff_times = 10#int(config.max_diff_steps - 10)
-# Fix the number of training epochs and training loss objective loss
-PM = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters).to(device)
-PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
-
-num_paths = 10
-num_time_steps = 256
-deltaT = 1. / 256
-initial_state = np.repeat(np.array(config.initState)[np.newaxis, np.newaxis, :], num_paths, axis=0)
-assert (initial_state.shape == (num_paths, 1, config.ndims))
-
-true_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
-global_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
-
-# Initialise the "true paths"
-true_states[:, [0], :] = initial_state
-# Initialise the "global score-based drift paths"
-global_states[:, [0], :] = initial_state
 
 
 def true_drift(prev, num_paths, config):
@@ -54,8 +22,9 @@ def true_drift(prev, num_paths, config):
     return drift_X[:, np.newaxis, :]
 
 
-def global_score_based_drift(score_model, num_diff_times, diffusion, num_paths, prev, ts_step, config, device):
-    num_taus = 500
+def global_multivar_score_based_LSTM_drift(score_model, num_diff_times, diffusion, num_paths, prev, ts_step, config,
+                                           device):
+    num_taus = 200
     Ndiff_discretisation = config.max_diff_steps
     assert (prev.shape == (num_paths, config.ndims))
     conditioner = torch.Tensor(prev[:, np.newaxis, :]).to(device)  # TODO: Check this is how we condition wheen D>1
@@ -80,9 +49,11 @@ def global_score_based_drift(score_model, num_diff_times, diffusion, num_paths, 
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
                                                                                            predicted_score=vec_predicted_score,
                                                                                            diff_index=torch.Tensor(
-                                                                                               [int(Ndiff_discretisation - 1 - difftime_idx)]).to(device),
+                                                                                               [
+                                                                                                   int(Ndiff_discretisation - 1 - difftime_idx)]).to(
+                                                                                               device),
                                                                                            max_diff_steps=Ndiff_discretisation)
-        if difftime_idx > end_diff_time:
+        if difftime_idx > Ndiff_discretisation - num_diff_times:
             vec_z = torch.randn_like(vec_drift).to(device)
             vec_Z_taus = vec_drift + vec_diffParam * vec_z
         difftime_idx -= 1
@@ -98,21 +69,58 @@ def global_score_based_drift(score_model, num_diff_times, diffusion, num_paths, 
     assert (means.shape == (num_paths, 1, config.ndims))
     return means.cpu().numpy()
 
+if __name__ == "__main__":
+    config = get_config()
+    assert ("4DLnz" in config.data_path)
 
-# Euler-Maruyama Scheme for Tracking Errors
-for i in tqdm(range(1, num_time_steps + 1)):
-    eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT)
-    assert (eps.shape == (num_paths, 1, config.ndims))
-    true_states[:, [i], :] = true_states[:, [i - 1], :] \
-                             + true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config) * deltaT \
-                             + eps
-    global_mean = global_score_based_drift(score_model=PM,num_diff_times=num_diff_times,diffusion=diffusion, num_paths=num_paths, ts_step=deltaT,config=config, device=device, prev=global_states[:, i - 1, :])
-    global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean*deltaT + eps
+    print("Beta Min : ", config.beta_min)
+    if config.has_cuda:
+        device = int(os.environ["LOCAL_RANK"])
+    else:
+        print("Using CPU\n")
+        device = torch.device("cpu")
 
-save_path = (
-        project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_{config.ndims}DLorenz_DriftEvalExp_{Nepoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT").replace(
-    ".", "")
-print(save_path)
-np.save(save_path + "_global_true_states.npy", true_states)
-np.save(save_path + "_global_states.npy", global_states)
-# np.save(save_path + "_global_states.npy", global_states)
+    diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
+
+    Nepoch = 300  # config.max_epochs[0]
+    num_diff_times = 10
+    PM = ConditionalLSTMTSPostMeanScoreMatching(*config.model_parameters)
+    PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
+
+    num_paths = 10
+    num_time_steps = 256
+    deltaT = config.deltaT
+    initial_state = np.repeat(np.array(config.initState)[np.newaxis, np.newaxis, :], num_paths, axis=0)
+    assert (initial_state.shape == (num_paths, 1, config.ndims))
+
+    true_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+    global_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+
+    # Initialise the "true paths"
+    true_states[:, [0], :] = initial_state
+    # Initialise the "global score-based drift paths"
+    global_states[:, [0], :] = initial_state
+
+    # Euler-Maruyama Scheme for Tracking Errors
+    for i in tqdm(range(1, num_time_steps + 1)):
+        eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT)
+        assert (eps.shape == (num_paths, 1, config.ndims))
+        true_states[:, [i], :] = true_states[:, [i - 1], :] \
+                                 + true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config) * deltaT \
+                                 + eps
+        print(global_states[:, i-1, :].shape)
+        raise RuntimeError
+        global_mean = global_multivar_score_based_LSTM_drift(score_model=PM, num_diff_times=num_diff_times,
+                                                             diffusion=diffusion,
+                                                             num_paths=num_paths, ts_step=deltaT, config=config,
+                                                             device=device,
+                                                             prev=global_states[:, i - 1, :])
+        global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
+
+    save_path = (
+            project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_DriftEvalExp_{Nepoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT").replace(
+        ".", "")
+    print(save_path)
+    np.save(save_path + "_global_true_states.npy", true_states)
+    np.save(save_path + "_global_states.npy", global_states)
+    # np.save(save_path + "_global_states.npy", global_states)

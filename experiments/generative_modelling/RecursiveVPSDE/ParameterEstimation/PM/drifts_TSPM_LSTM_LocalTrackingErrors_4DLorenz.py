@@ -24,8 +24,8 @@ else:
 
 diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-Nepoch = 1440  # config.max_epochs[0]
-num_diff_times = 1000
+Nepoch = 300  # config.max_epochs[0]
+num_diff_times = 10
 # Fix the number of training epochs and training loss objective loss
 PM = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters).to(device)
 PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
@@ -55,7 +55,7 @@ def true_drift(prev, num_paths, config):
 
 
 def local_score_based_drift(score_model, num_diff_times, diffusion, num_paths, prev, ts_step, config, device):
-    num_taus = 500
+    num_taus = 200
     Ndiff_discretisation = config.max_diff_steps
     assert (prev.shape == (num_paths, config.ndims))
     conditioner = torch.Tensor(prev[:, np.newaxis, :]).to(device)  # TODO: Check this is how we condition wheen D>1
@@ -115,7 +115,7 @@ for i in tqdm(range(1, num_time_steps + 1)):
                                                                                      num_diff_times, axis=0)
 
 save_path = (
-        project_config.ROOT_DIR + f"experiments/results/TSPM_mkv_{config.ndims}DLorenz_DriftEvalExp_{Nepoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT").replace(
+        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_DriftEvalExp_{Nepoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT").replace(
     ".", "")
 print(save_path)
 np.save(save_path + "_local_true_states.npy", true_states)
