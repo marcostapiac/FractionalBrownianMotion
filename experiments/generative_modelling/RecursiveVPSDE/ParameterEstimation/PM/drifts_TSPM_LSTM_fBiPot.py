@@ -17,8 +17,8 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 def find_LSTM_feature_vectors(Xs, PM, config, device):
     sim_data = np.load(config.data_path, allow_pickle=True)
     sim_data_tensor = torch.tensor(sim_data, dtype=torch.float)
-    dX = np.diff(Xs)[0] / 250
-    assert (((Xs[1] - Xs[0]) / 250) == dX)
+    dX = np.diff(Xs)[0] / 20
+    assert (((Xs[1] - Xs[0]) / 20) == dX)
 
     def process_single_threshold(x):
         xmin = x - dX
@@ -149,7 +149,7 @@ def LSTM_1D_drifts(config, PM):
 
 if __name__ == "__main__":
     config = get_config()
-    Nepoch = 1440
+    Nepoch = 150
     # Fix the number of training epochs and training loss objective loss
     PM = ConditionalLSTMTSPostMeanScoreMatching(*config.model_parameters)
     PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
