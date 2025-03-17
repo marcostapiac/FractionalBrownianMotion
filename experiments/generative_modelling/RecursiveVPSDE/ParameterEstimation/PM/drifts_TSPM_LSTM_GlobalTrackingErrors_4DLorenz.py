@@ -41,8 +41,8 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
             js.append(len(seq))
         outputs = []
         PM.eval()
-        sequences = sequences[:8000]
-        js = js[:8000]
+        sequences = sequences[:1000]
+        js = js[:1000]
         if sequences:
             # Pad sequences to create a batch.
             # pad_sequence returns tensor of shape (batch_size, max_seq_len)
