@@ -75,7 +75,7 @@ def true_drift(prev, num_paths, config):
     return drift_X[:, np.newaxis, :]
 
 
-def global_multivar_score_based_LSTM_drift(score_model, num_diff_times, diffusion, num_paths, prev, ts_step, config,
+def multivar_score_based_LSTM_drift(score_model, num_diff_times, diffusion, num_paths, prev, ts_step, config,
                                            device):
     num_taus = 100
     Ndiff_discretisation = config.max_diff_steps
@@ -145,7 +145,7 @@ if __name__ == "__main__":
 
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    Nepoch = 1440  # config.max_epochs[0]
+    Nepoch = 960  # config.max_epochs[0]
     num_diff_times = 1
     PM = ConditionalLSTMTSPostMeanScoreMatching(*config.model_parameters)
     PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
@@ -159,11 +159,13 @@ if __name__ == "__main__":
 
     true_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
     global_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+    local_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
 
     # Initialise the "true paths"
-    true_states[:, [0], :] = initial_state
+    true_states[:, [0], :] = initial_state + 0.00001*np.random.randn(*initial_state.shape)
     # Initialise the "global score-based drift paths"
-    global_states[:, [0], :] = initial_state + 0.00001*np.random.randn(*initial_state.shape)
+    global_states[:, [0], :] = true_states[:, [0], :]
+    local_states[:, [0], :] = true_states[:, [0], :]#np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
 
     # Euler-Maruyama Scheme for Tracking Errors
     for i in tqdm(range(1, num_time_steps + 1)):
@@ -174,13 +176,18 @@ if __name__ == "__main__":
         true_states[:, [i], :] = true_states[:, [i - 1], :] \
                                  + true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config) * deltaT \
                                  + eps
-        global_mean = global_multivar_score_based_LSTM_drift(score_model=PM, num_diff_times=num_diff_times,
+        global_mean = multivar_score_based_LSTM_drift(score_model=PM, num_diff_times=num_diff_times,
                                                              diffusion=diffusion,
                                                              num_paths=num_paths, ts_step=deltaT, config=config,
                                                              device=device,
                                                              prev=global_states[:, i - 1, :])
 
         global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
+        local_mean = multivar_score_based_LSTM_drift(score_model=PM, num_diff_times=num_diff_times, diffusion=diffusion,
+                                             num_paths=num_paths, ts_step=deltaT, config=config, device=device,
+                                             prev=true_states[:, i - 1, :])
+
+        local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
 
     save_path = (
             project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_DriftEvalExp_{Nepoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT").replace(
@@ -188,4 +195,4 @@ if __name__ == "__main__":
     print(save_path)
     np.save(save_path + "_global_true_states.npy", true_states)
     np.save(save_path + "_global_states.npy", global_states)
-    # np.save(save_path + "_global_states.npy", global_states)
+    np.save(save_path + "_local_states.npy", local_states)
