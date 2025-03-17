@@ -59,8 +59,8 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
         x = Xs[i, :].reshape(-1, 1)
         x_val, out = process_single_threshold(torch.tensor(x).to(device, dtype=torch.float), dX_global)
         assert (len(out) > 0)
+        print(out.shape)
         features_Xs[tuple(x.squeeze().tolist())] = out
-    print("Done\n")
     return features_Xs
 
 
