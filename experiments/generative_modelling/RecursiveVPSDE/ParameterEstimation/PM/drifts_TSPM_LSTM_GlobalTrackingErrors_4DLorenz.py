@@ -152,7 +152,7 @@ if __name__ == "__main__":
     PM = PM.to(device)
 
     num_paths = 10
-    num_time_steps = 50
+    num_time_steps = 100
     deltaT = config.deltaT
     initial_state = np.repeat(np.array(config.initState)[np.newaxis, np.newaxis, :], num_paths, axis=0)
     assert (initial_state.shape == (num_paths, 1, config.ndims))
