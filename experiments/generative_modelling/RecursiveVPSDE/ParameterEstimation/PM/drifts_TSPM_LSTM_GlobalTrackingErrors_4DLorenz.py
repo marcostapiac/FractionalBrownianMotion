@@ -146,7 +146,8 @@ if __name__ == "__main__":
     Nepoch = 1440  # config.max_epochs[0]
     num_diff_times = 1
     PM = ConditionalLSTMTSPostMeanScoreMatching(*config.model_parameters)
-    PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch))).to(device)
+    PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
+    PM = PM.to(device)
 
     num_paths = 10
     num_time_steps = 50
