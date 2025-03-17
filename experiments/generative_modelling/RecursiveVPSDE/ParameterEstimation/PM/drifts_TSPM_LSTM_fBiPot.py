@@ -149,7 +149,7 @@ def LSTM_1D_drifts(config, PM):
 
 if __name__ == "__main__":
     config = get_config()
-    Nepoch = 300
+    Nepoch = 1440
     # Fix the number of training epochs and training loss objective loss
     PM = ConditionalLSTMTSPostMeanScoreMatching(*config.model_parameters)
     PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
