@@ -145,7 +145,7 @@ if __name__ == "__main__":
 
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    Nepoch = 960  # config.max_epochs[0]
+    Nepoch = 1440  # config.max_epochs[0]
     num_diff_times = 1
     PM = ConditionalLSTMTSPostMeanScoreMatching(*config.model_parameters)
     PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
