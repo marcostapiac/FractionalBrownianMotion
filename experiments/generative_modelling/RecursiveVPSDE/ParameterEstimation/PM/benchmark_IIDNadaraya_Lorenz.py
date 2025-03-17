@@ -30,7 +30,7 @@ def rmse_ignore_nans(y_true, y_pred):
 
 
 config = get_config()
-num_paths = 20
+num_paths = 10952
 t0 = config.t0
 deltaT = config.deltaT
 t1 = deltaT*config.ts_length
