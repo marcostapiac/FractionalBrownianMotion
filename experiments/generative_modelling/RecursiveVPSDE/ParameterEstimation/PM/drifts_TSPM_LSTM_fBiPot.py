@@ -149,16 +149,19 @@ def LSTM_1D_drifts(config, PM):
 
 if __name__ == "__main__":
     config = get_config()
-    Nepoch = 150
-    # Fix the number of training epochs and training loss objective loss
-    PM = ConditionalLSTMTSPostMeanScoreMatching(*config.model_parameters)
-    PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
-    final_vec_mu_hats = LSTM_1D_drifts(PM=PM, config=config)
-    type = "PM"
-    assert (type in config.scoreNet_trained_path)
-    save_path = (
-            project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.deltaT:.3e}dT_{config.beta_max:.1e}betaMax").replace(
-        ".", "")
-    print(save_path)
-    assert config.ts_dims == 1
-    np.save(save_path + "_muhats.npy", final_vec_mu_hats)
+    for epoch in config.max_epochs[2:]:
+        try:
+            # Fix the number of training epochs and training loss objective loss
+            PM = ConditionalLSTMTSPostMeanScoreMatching(*config.model_parameters)
+            PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
+            final_vec_mu_hats = LSTM_1D_drifts(PM=PM, config=config)
+            type = "PM"
+            assert (type in config.scoreNet_trained_path)
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.deltaT:.3e}dT_{config.beta_max:.1e}betaMax").replace(
+                ".", "")
+            print(save_path)
+            assert config.ts_dims == 1
+            np.save(save_path + "_muhats.npy", final_vec_mu_hats)
+        except FileNotFoundError as e:
+            continue
