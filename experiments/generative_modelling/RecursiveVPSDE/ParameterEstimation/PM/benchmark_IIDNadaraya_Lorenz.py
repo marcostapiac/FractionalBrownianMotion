@@ -30,7 +30,7 @@ def rmse_ignore_nans(y_true, y_pred):
 
 
 config = get_config()
-num_paths = 1095
+num_paths = 10952
 t0 = config.t0
 deltaT = config.deltaT
 t1 = deltaT*config.ts_length
@@ -105,7 +105,7 @@ print(bws.shape)
 # In[8]:
 
 
-num_time_steps = 50
+num_time_steps = 100
 true_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
 global_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
 local_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
