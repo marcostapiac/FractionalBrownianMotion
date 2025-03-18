@@ -17,7 +17,7 @@ def get_config():
     config.sin_space_scale = 25.
     config.diffusion = 1.
     config.initState = 0.
-    config.ts_length = 256
+    config.ts_length = 64
     config.t0 = 0.
     config.deltaT = 1./(64)
     config.t1 = config.deltaT*config.ts_length
