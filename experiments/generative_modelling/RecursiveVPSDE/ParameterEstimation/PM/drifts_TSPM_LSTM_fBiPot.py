@@ -149,7 +149,7 @@ def LSTM_1D_drifts(config, PM):
 
 if __name__ == "__main__":
     config = get_config()
-    for epoch in config.max_epochs[2:]:
+    for Nepoch in config.max_epochs[2:]:
         try:
             # Fix the number of training epochs and training loss objective loss
             PM = ConditionalLSTMTSPostMeanScoreMatching(*config.model_parameters)
