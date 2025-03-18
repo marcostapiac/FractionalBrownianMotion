@@ -17,9 +17,9 @@ def get_config():
     config.sin_space_scale = 25.
     config.diffusion = 1.
     config.initState = 0.
-    config.ts_length = 64
+    config.ts_length = 256
     config.t0 = 0.
-    config.deltaT = 1./(64)
+    config.deltaT = 1./(32*256)
     config.t1 = config.deltaT*config.ts_length
 
     config.data_path = project_config.ROOT_DIR + "data/fQuadSinHF_samples_t0{:g}_dT{:.3e}_T{}_{}a_{}b_{}c_{}Diff_{}Init".format(
@@ -33,7 +33,7 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = [60, 100, 150, 300, 960, 1440, 1920, 2920, 6920, 7190, 8190, 9700, 12920, 14920, 16920, 18920, 20920, 22920]
+    config.max_epochs = [60, 100, 150, 300, 960, 1440, 1920, 2920, 6920, 7190, 8190, 9700, 12920]#, 14920, 16920, 18920, 20920, 22920]
     config.batch_size = 256
     config.isfBm = True
     config.isUnitInterval = True
@@ -41,7 +41,7 @@ def get_config():
     config.weightings = True
     config.tdata_mult = 110
     config.ts_dims = 1
-    config.loss_factor = 0
+    config.loss_factor = 2
 
     # Diffusion hyperparameters
     config.beta_max = 20.
