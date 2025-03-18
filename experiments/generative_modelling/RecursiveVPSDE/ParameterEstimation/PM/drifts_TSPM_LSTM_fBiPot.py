@@ -5,7 +5,7 @@ import torch
 from torch.nn.utils.rnn import pad_sequence
 
 from configs import project_config
-from configs.RecursiveVPSDE.LSTM_fBiPot.recursive_LSTM_PostMeanScore_fBiPot_T256_H05_tl_110data import \
+from configs.RecursiveVPSDE.LSTM_fBiPot.recursive_LSTM_PostMeanScore_fBiPot_T256_H05_tl_110data_SbleTgt import \
     get_config as get_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
@@ -158,7 +158,7 @@ if __name__ == "__main__":
             type = "PM"
             assert (type in config.scoreNet_trained_path)
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.deltaT:.3e}dT_{config.beta_max:.1e}betaMax").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_ST_fBiPot_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.deltaT:.3e}dT_{config.beta_max:.1e}betaMax").replace(
                 ".", "")
             print(save_path)
             assert config.ts_dims == 1
