@@ -140,8 +140,3 @@ for bw in bws:
         ".", "")
     print(save_path)
     np.save(save_path + "_isdriftHats.npy", unif_is_drift_hats)
-
-    # In[ ]:
-
-
-    # In[ ]:
