@@ -164,7 +164,7 @@ if __name__ == "__main__":
             type = "PM"
             assert (type in config.scoreNet_trained_path)
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fQuadSinHF_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.beta_max:.1e}betaMax_{config.loss_factor}LFac").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fQuadSinHF_DriftEvalExp_{Nepoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.beta_max:.1e}betaMax_{config.loss_factor}LFac").replace(
                 ".", "")
             print(f"Save path:{save_path}\n")
             assert config.ts_dims == 1
