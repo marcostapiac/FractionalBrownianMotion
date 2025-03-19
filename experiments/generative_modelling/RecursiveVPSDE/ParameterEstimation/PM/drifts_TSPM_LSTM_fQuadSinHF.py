@@ -70,6 +70,7 @@ def LSTM_1D_drifts(PM, config):
     else:
         print("Using CPU\n")
         device = torch.device("cpu")
+    PM = PM.to(device)
 
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     ts_step = config.deltaT
@@ -101,7 +102,6 @@ def LSTM_1D_drifts(PM, config):
     # mu_hats_mean = np.zeros((tot_num_feats, num_taus))
     # mu_hats_std = np.zeros((tot_num_feats, num_taus))
     difftime_idx = num_diff_times - 1
-    PM = PM.to(device)
     PM.eval()
     while difftime_idx >= num_diff_times - es:
         d = diffusion_times[Ndiff_discretisation - (num_diff_times - 1 - difftime_idx) - 1].to(device)
