@@ -106,9 +106,10 @@ print(bws.shape)
 
 
 num_time_steps = 100
-true_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
-global_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
-local_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+num_state_paths = 10
+true_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
+global_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
+local_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
 # Initialise the "true paths"
 true_states[:, [0], :] = config.initState
 # Initialise the "global score-based drift paths"
@@ -135,9 +136,9 @@ def true_drift(prev, num_paths, config):
 # Euler-Maruyama Scheme for Tracking Errors
 for bw in bws:
     for i in tqdm(range(1, num_time_steps + 1)):
-        eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT)
-        assert (eps.shape == (num_paths, 1, config.ndims))
-        true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config)
+        eps = np.random.randn(num_state_paths, 1, config.ndims) * np.sqrt(deltaT)
+        assert (eps.shape == (num_state_paths, 1, config.ndims))
+        true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_state_paths, config=config)
         global_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, bw=bw, x=global_states[:, i - 1, :], path_incs=path_incs, t1=config.t1, t0=config.t0, truncate=True)[:, np.newaxis, :]
         local_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, bw=bw, x=true_states[:, i - 1, :], path_incs=path_incs, t1=config.t1, t0=config.t0, truncate=True)[:, np.newaxis, :]
         #global_score_based_drift(score_model=PM,end_diff_time=end_diff_time,diffusion=diffusion, num_paths=num_paths, ts_step=deltaT,config=config, device=device, prev=global_states[:, i - 1, :])
