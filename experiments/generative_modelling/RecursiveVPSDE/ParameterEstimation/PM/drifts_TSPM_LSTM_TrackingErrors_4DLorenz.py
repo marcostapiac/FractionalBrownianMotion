@@ -190,7 +190,7 @@ if __name__ == "__main__":
         local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
 
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_DriftEvalExp_{Nepoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT").replace(
+            project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_DriftEvalExp_{Nepoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac").replace(
         ".", "")
     print(save_path)
     np.save(save_path + "_global_true_states.npy", true_states)
