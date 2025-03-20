@@ -26,7 +26,8 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
         mask = diff <= np.arccos(dX_global)
         thresh = dX_global
         while torch.sum(mask) == 0:
-            # thresh = np.cos(np.arccos(thresh)*2)
+            thresh = np.cos(np.arccos(thresh)*2)
+            print(thresh)
             mask = diff <= np.arccos(thresh)
         assert (torch.sum(mask) > 0)
 
