@@ -159,11 +159,11 @@ if __name__ == "__main__":
             assert (type in config.scoreNet_trained_path)
             if "_ST_" in config.scoreNet_trained_path:
                 save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_ST_fBiPot_DriftEvalExp_{Nepoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.beta_max:.1e}betaMax_{config.loss_factor}LFac").replace(
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_ST_fBiPot_DriftEvalExp_{Nepoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
                     ".", "")
             else:
                 save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_DriftEvalExp_{Nepoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.beta_max:.1e}betaMax_{config.loss_factor}LFac").replace(
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_DriftEvalExp_{Nepoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
                     ".", "")
             print(save_path)
             assert config.ts_dims == 1
