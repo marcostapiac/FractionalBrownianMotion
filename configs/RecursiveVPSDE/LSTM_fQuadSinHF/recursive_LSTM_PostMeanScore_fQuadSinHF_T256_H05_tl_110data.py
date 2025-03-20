@@ -19,7 +19,7 @@ def get_config():
     config.initState = 0.
     config.ts_length = 256
     config.t0 = 0.
-    config.deltaT = 1./(64)
+    config.deltaT = 1./(256)
     config.t1 = config.deltaT*config.ts_length
 
     config.data_path = project_config.ROOT_DIR + "data/fQuadSinHF_samples_t0{:g}_dT{:.3e}_T{}_{}a_{}b_{}c_{}Diff_{}Init".format(
@@ -41,7 +41,7 @@ def get_config():
     config.weightings = True
     config.tdata_mult = 110
     config.ts_dims = 1
-    config.loss_factor = 2
+    config.loss_factor = 0
 
     # Diffusion hyperparameters
     config.beta_max = 20.
