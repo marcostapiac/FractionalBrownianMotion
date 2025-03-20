@@ -48,6 +48,7 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
         if sequences:
             # Pad sequences to create a batch.
             # pad_sequence returns tensor of shape (batch_size, max_seq_len)
+            print(f"device {device}")
             padded_batch = pad_sequence(sequences, batch_first=True, padding_value=torch.nan).to(device)
             # Add feature dimension: now shape becomes (batch_size, max_seq_len, 1)
             # padded_batch = padded_batch.unsqueeze(-1).to(device)
