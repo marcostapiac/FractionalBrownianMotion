@@ -10,7 +10,7 @@ from configs.RecursiveVPSDE.LSTM_fQuadSinHF.recursive_LSTM_PostMeanScore_fQuadSi
     get_config
 
 config = get_config()
-
+print("Starting\n")
 # In[3]:
 
 num_paths = 10952
