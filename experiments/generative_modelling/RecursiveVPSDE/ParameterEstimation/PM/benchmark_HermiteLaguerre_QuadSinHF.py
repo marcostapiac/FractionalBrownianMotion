@@ -163,6 +163,6 @@ for R in [4, 8, 9, 10, 11]:
     bhat = construct_drift(basis=basis, coefficients=coeffs)
 
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/Hermite_fQuadSinHF_DriftEvalExp_{R}R_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.deltaT:.3e}dT").replace(
+            project_config.ROOT_DIR + f"experiments/results/Hermite_fQuadSinHF_DriftEvalExp_{R}R_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.ts_length}NumDPS").replace(
         ".", "")
     np.save(save_path + "_unifdriftHats.npy", bhat)

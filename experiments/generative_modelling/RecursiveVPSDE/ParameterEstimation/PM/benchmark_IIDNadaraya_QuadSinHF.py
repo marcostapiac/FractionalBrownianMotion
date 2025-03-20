@@ -31,7 +31,7 @@ def rmse_ignore_nans(y_true, y_pred):
 
 config = get_config()
 print(config.deltaT)
-num_paths = 10952
+num_paths = 1095
 num_time_steps = config.ts_length
 isUnitInterval = True
 diff = config.diffusion
@@ -69,12 +69,13 @@ def IID_NW_estimator(prevPath_observations, path_incs, bw, x, t1, t0, truncate):
     N, n = prevPath_observations.shape
     kernel_weights_unnorm = gaussian_kernel(bw=bw, x=prevPath_observations[:, :, np.newaxis] - x)
     denominator = np.sum(kernel_weights_unnorm, axis=(1, 0)) / (N * n)
+    m = np.min(denominator)
     numerator = np.sum(kernel_weights_unnorm * path_incs[:, :, np.newaxis], axis=(1, 0)) / N * (t1 - t0)
-    estimator = numerator / denominator
     # This is the "truncated" discrete drift estimator to ensure appropriate risk bounds
     if truncate:
-        m = np.min(denominator)
-        estimator[denominator <= m / 2.] = 0.
+        estimator = numerator[denominator > m / 2.] / denominator[denominator > m / 2.]
+    else:
+        estimator = numerator / denominator
     return estimator
 
 
@@ -131,6 +132,7 @@ for bw in bws:
 
     for k in tqdm(range(num_dhats)):
         is_ss_path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False), :]
+        # Remember t0 = deltaT so X_t1 = is_ss_path_observations[:, 2] not is_ss_path_observations[:, 1]
         is_prevPath_observations = is_ss_path_observations[:, 1:-1]
         is_path_incs = np.diff(is_ss_path_observations, axis=1)[:, 1:]
         unif_is_drift_hats[:, k] = IID_NW_estimator(prevPath_observations=is_prevPath_observations, bw=bw, x=Xs,
