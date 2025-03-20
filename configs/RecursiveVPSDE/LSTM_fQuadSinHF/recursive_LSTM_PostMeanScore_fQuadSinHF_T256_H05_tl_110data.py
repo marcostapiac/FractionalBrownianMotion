@@ -41,7 +41,7 @@ def get_config():
     config.weightings = True
     config.tdata_mult = 110
     config.ts_dims = 1
-    config.loss_factor = 0
+    config.loss_factor = 2
 
     # Diffusion hyperparameters
     config.beta_max = 20.
