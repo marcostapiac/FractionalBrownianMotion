@@ -37,9 +37,9 @@ def get_config():
     config.isUnitInterval = True
     config.hybrid = True
     config.weightings = True
-    config.tdata_mult = 110
+    config.tdata_mult = int(1100*1.525)
     config.ts_dims = 1
-    config.loss_factor = 0
+    config.loss_factor = 2
 
     # Diffusion hyperparameters
     config.beta_max = 20.
@@ -51,7 +51,7 @@ def get_config():
     config.dec_shapes = config.enc_shapes[::-1]
 
     # TSM Architecture parameters
-    config.residual_layers = 10
+    config.residual_layers = 1
     config.residual_channels = 8
     config.diff_hidden_size = 64
     config.dialation_length = 10
