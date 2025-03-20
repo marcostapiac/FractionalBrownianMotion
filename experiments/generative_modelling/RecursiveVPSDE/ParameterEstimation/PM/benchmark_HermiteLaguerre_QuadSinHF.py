@@ -147,7 +147,7 @@ def basis_number_selection(paths, num_paths, num_time_steps, deltaT, t1):
 
 R = basis_number_selection(paths=paths, num_paths=num_paths, num_time_steps=num_time_steps, deltaT=deltaT, t1=t1)
 print(R)
-numXs = config.ts_length
+numXs = 256#config.ts_length
 minx = -1.2
 maxx = -minx
 
