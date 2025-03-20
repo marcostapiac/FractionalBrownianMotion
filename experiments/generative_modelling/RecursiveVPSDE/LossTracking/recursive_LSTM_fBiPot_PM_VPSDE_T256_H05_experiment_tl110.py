@@ -38,6 +38,7 @@ if __name__ == "__main__":
         print(training_size)
         try:
             data = np.load(config.data_path, allow_pickle=True)
+            print(config.data_path, data.shape)
             assert (data.shape[0] >= training_size)
         except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
