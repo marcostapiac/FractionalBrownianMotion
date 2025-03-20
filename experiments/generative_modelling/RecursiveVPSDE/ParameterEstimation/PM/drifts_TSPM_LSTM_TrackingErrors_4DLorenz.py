@@ -57,7 +57,7 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
         return x, outputs
 
     features_Xs = {}
-    dX_global = np.cos(1. / 500)
+    dX_global = np.cos(1. / 5000)
     for i in range(Xs.shape[0]):
         x = Xs[i, :].reshape(-1, 1)
         x_val, out = process_single_threshold(torch.tensor(x).to(device, dtype=torch.float), dX_global)
