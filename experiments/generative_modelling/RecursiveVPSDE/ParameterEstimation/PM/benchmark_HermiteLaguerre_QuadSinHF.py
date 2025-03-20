@@ -154,6 +154,7 @@ maxx = -minx
 # In[9]:
 
 for R in [4, 8, 9, 10, 11]:
+    print(f"Starting R={R}\n")
     basis = hermite_basis(R=R, paths=paths)
     coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None))
 
@@ -165,4 +166,5 @@ for R in [4, 8, 9, 10, 11]:
     save_path = (
             project_config.ROOT_DIR + f"experiments/results/Hermite_fQuadSinHF_DriftEvalExp_{R}R_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.ts_length}NumDPS").replace(
         ".", "")
+    print(f"Save path: {save_path}")
     np.save(save_path + "_unifdriftHats.npy", bhat)
