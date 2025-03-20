@@ -145,8 +145,8 @@ def basis_number_selection(paths, num_paths, num_time_steps, deltaT, t1):
     return poss_Rs[np.argmin(cvs)]
 
 
-R = basis_number_selection(paths=paths, num_paths=num_paths, num_time_steps=num_time_steps, deltaT=deltaT, t1=t1)
-print(R)
+#R = basis_number_selection(paths=paths, num_paths=num_paths, num_time_steps=num_time_steps, deltaT=deltaT, t1=t1)
+#print(R)
 numXs = 256#config.ts_length
 minx = -1.2
 maxx = -minx
