@@ -95,10 +95,10 @@ assert (prevPath_observations.shape[1]*deltaT == (t1-t0))
 
 
 grid_1d = np.logspace(-2, -0.05, 20)
-#mesh = np.meshgrid(*([grid_1d] * config.ndims), indexing='ij')
+mesh = np.meshgrid(*([grid_1d] * config.ndims), indexing='ij')
 # Stack and reshape the grid so each row is a point in the n-dimensional grid
-#bws = np.stack([m.ravel() for m in mesh], axis=-1)
-bws = np.stack([grid_1d for m in range(config.ndims)], axis=-1)
+bws = np.stack([m.ravel() for m in mesh], axis=-1)
+#bws = np.stack([grid_1d for m in range(config.ndims)], axis=-1)
 print(bws.shape)
 
 
@@ -146,7 +146,7 @@ for bw in bws:
         global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
         local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_f{config.ndims}DLnz_DriftEvalExp_{round(bw[0], 4)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT").replace(
+            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_f{config.ndims}DLnz_DriftEvalExp_{round(bw, 4)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT").replace(
         ".", "")
     np.save(save_path + "_true_states.npy", true_states)
     np.save(save_path + "_global_states.npy", global_states)
