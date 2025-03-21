@@ -37,7 +37,7 @@ def get_config():
     config.isUnitInterval = True
     config.hybrid = True
     config.weightings = True
-    config.tdata_mult = int(110*1.6)
+    config.tdata_mult = int(110*1.7)#int(110*1.6) #110
     config.ts_dims = 1
     config.loss_factor = 2
 
@@ -51,11 +51,11 @@ def get_config():
     config.dec_shapes = config.enc_shapes[::-1]
 
     # TSM Architecture parameters
-    config.residual_layers = 1
-    config.residual_channels = 8
+    config.residual_layers = 10
+    config.residual_channels = 2 #8
     config.diff_hidden_size = 64
     config.dialation_length = 10
-    config.lstm_hiddendim = 20
+    config.lstm_hiddendim = 2 #20
     config.lstm_numlay = 1
     config.lstm_inputdim = config.ts_dims
     config.lstm_dropout = 0.
