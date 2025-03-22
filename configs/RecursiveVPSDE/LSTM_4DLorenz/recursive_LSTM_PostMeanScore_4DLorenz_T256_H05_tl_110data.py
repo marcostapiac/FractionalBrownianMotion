@@ -14,7 +14,7 @@ def get_config():
     config.hurst = 0.5
     # Classic stable behaviour (forcing_const < 1)
     config.ndims = 4
-    config.forcing_const = 1.25#.75
+    config.forcing_const = 1.#1.25#.75
     config.diffusion = 1.
     config.initState = ([0., .5, 1., 1.5])
     config.ts_length = 256
