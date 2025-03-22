@@ -134,7 +134,9 @@ def true_drift(prev, num_paths, config):
 
 
 # Euler-Maruyama Scheme for Tracking Errors
-for bw in bws:
+for k in range(len(bws)):
+    bw = bws[k]
+    print(f"Considering bandwidth grid number {k}\n")
     for i in tqdm(range(1, num_time_steps + 1)):
         eps = np.random.randn(num_state_paths, 1, config.ndims) * np.sqrt(deltaT)
         assert (eps.shape == (num_state_paths, 1, config.ndims))
