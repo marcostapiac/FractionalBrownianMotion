@@ -17,7 +17,9 @@ from src.classes import ClassFractionalBrownianNoise
 from src.classes.ClassFractionalBiPotential import FractionalBiPotential
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.classes.ClassFractionalCEV import FractionalCEV
+from src.classes.ClassFractionalLorenz63 import FractionalLorenz63
 from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
+from src.classes.ClassFractionalMullerBrown import FractionalMullerBrown
 from src.classes.ClassFractionalOU import FractionalOU
 from src.classes.ClassFractionalQuadSin import FractionalQuadSin
 from src.classes.ClassFractionalSin import FractionalSin
@@ -206,7 +208,8 @@ def generate_fOU(H: float, T: int, S: int, isUnitInterval: bool, mean_rev: float
     return data[:, 1:]
 
 
-def generate_Lorenz96(H: float, T: int, S: int, config, isUnitInterval:bool, initial_state: np.ndarray, forcing_const:float, diff: float, ndims:int):
+def generate_Lorenz96(H: float, T: int, S: int, config, isUnitInterval: bool, initial_state: np.ndarray,
+                      forcing_const: float, diff: float, ndims: int):
     assert (H == 0.5 and len(initial_state) == ndims)
     assert (diff == 1.)
     try:
@@ -231,7 +234,61 @@ def generate_Lorenz96(H: float, T: int, S: int, config, isUnitInterval:bool, ini
     return sample_paths[:, 1:, :]
 
 
-def generate_fSin(config,H: float, T: int, S: int, isUnitInterval: bool, mean_rev: float, diff: float,
+def generate_MullerBrown(H: float, T: int, S: int, config, isUnitInterval: bool):
+    assert (H == 0.5 and config.ndims == 2)
+    #assert (config.diffusion == 1.)
+    try:
+        deltaT = config.deltaT
+        t0 = config.t0
+        t1 = config.t1
+    except AttributeError:
+        if isUnitInterval:
+            deltaT = 1. / T
+            t0 = 0.
+            t1 = 1.
+        else:
+            deltaT = 1.
+            t0 = 0.
+            t1 = T
+    initial_state = np.array(config.initState)
+    print(config.diffusion)
+    fMB = FractionalMullerBrown(initialState=np.array(initial_state), X0s=np.array(config.X0s), Y0s=np.array(config.Y0s), diff=config.diffusion, Aks=np.array(config.Aks),
+                                aks=np.array(config.aks), bks=np.array(config.bks), cks=np.array(config.cks))
+    sample_paths = np.array([fMB.euler_simulation(H=H, N=T, t0=t0, t1=t1, deltaT=deltaT,
+                                                  X0=np.array(initial_state)).reshape(-1, 1) for _ in
+                             range(S)]).reshape((S, T + 1, config.ndims))
+    assert (sample_paths.shape == (S, T + 1, config.ndims))
+    return sample_paths[:, 1:, :]
+
+
+def generate_Lorenz63(H: float, T: int, S: int, config, isUnitInterval: bool):
+    assert (H == 0.5 and config.ndims == 3)
+    assert (config.diffusion == 1.)
+    try:
+        deltaT = config.deltaT
+        t0 = config.t0
+        t1 = config.t1
+    except AttributeError:
+        if isUnitInterval:
+            deltaT = 1. / T
+            t0 = 0.
+            t1 = 1.
+        else:
+            deltaT = 1.
+            t0 = 0.
+            t1 = T
+    initial_state = np.array(config.initState)
+    fL63 = FractionalLorenz63(initialState=np.array(initial_state),  diff=config.diffusion,
+                                sigma=config.ts_sigma, beta=config.ts_beta, rho=config.ts_rho)
+    sample_paths = np.array([fL63.euler_simulation(H=H, N=T, t0=t0, t1=t1, deltaT=deltaT,
+                                                  X0=np.array(initial_state)).reshape(-1, 1) for _ in
+                             range(S)]).reshape((S, T + 1, config.ndims))
+    assert (sample_paths.shape == (S, T + 1, config.ndims))
+    return sample_paths[:, 1:, :]
+
+
+
+def generate_fSin(config, H: float, T: int, S: int, isUnitInterval: bool, mean_rev: float, diff: float,
                   initial_state: float,
                   rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
     """
@@ -301,8 +358,8 @@ def generate_fQuadSin(config, H: float, T: int, S: int, isUnitInterval: bool, a:
 
 
 def generate_fBiPot(config, H: float, T: int, S: int, isUnitInterval: bool, a: float, b: float, c: float, diff: float,
-                      initial_state: float,
-                      rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
+                    initial_state: float,
+                    rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
     """
     Function generates samples of fractional BiPotential SDE
         :param H: Hurst parameter
@@ -328,8 +385,8 @@ def generate_fBiPot(config, H: float, T: int, S: int, isUnitInterval: bool, a: f
     fBiPot = FractionalBiPotential(quartic_coeff=a, quad_coeff=b, const=c, diff=diff, X0=initial_state)
     data = np.array(
         [fBiPot.euler_simulation(H=H, N=T, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=None, Ms=None,
-                                   gaussRvs=rvs,
-                                   t0=t0, t1=t1) for _ in range(S)]).reshape(
+                                 gaussRvs=rvs,
+                                 t0=t0, t1=t1) for _ in range(S)]).reshape(
         (S, T + 1))
     assert (data.shape == (S, T + 1))
     return data[:, 1:]
