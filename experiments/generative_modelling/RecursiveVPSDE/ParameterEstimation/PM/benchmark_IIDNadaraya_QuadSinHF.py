@@ -31,7 +31,7 @@ def rmse_ignore_nans(y_true, y_pred):
 
 config = get_config()
 print(config.deltaT)
-num_paths = 1095
+num_paths = 10952
 num_time_steps = config.ts_length
 isUnitInterval = True
 diff = config.diffusion
