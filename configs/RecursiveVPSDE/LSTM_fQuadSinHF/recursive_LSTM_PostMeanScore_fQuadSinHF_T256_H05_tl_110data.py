@@ -10,16 +10,17 @@ def get_config():
     # Experiment environment parameters
     config.has_cuda = torch.cuda.is_available()
     # Data set parameters
+    config.ndims = 1
     config.hurst = 0.5
     config.quad_coeff = .5
     assert(config.quad_coeff > 0.)
-    config.sin_coeff = 1./4.
-    config.sin_space_scale = 4.
+    config.sin_coeff = 1./25.
+    config.sin_space_scale = 25.
     config.diffusion = 1.
     config.initState = 0.
     config.ts_length = 256
     config.t0 = 0.
-    config.deltaT = 1./(256)
+    config.deltaT = 1./(64)
     config.t1 = config.deltaT*config.ts_length
 
     config.data_path = project_config.ROOT_DIR + "data/fQuadSinHF_samples_t0{:g}_dT{:.3e}_T{}_{}a_{}b_{}c_{}Diff_{}Init".format(
@@ -41,7 +42,7 @@ def get_config():
     config.weightings = True
     config.tdata_mult = 110
     config.ts_dims = 1
-    config.loss_factor = 0
+    config.loss_factor = 2
 
     # Diffusion hyperparameters
     config.beta_max = 20.

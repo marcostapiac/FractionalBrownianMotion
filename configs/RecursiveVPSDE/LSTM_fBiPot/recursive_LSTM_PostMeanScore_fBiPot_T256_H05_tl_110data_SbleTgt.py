@@ -10,6 +10,7 @@ def get_config():
     # Experiment environment parameters
     config.has_cuda = torch.cuda.is_available()
     # Data set parameters
+    config.ndims = 1
     config.hurst = 0.5
     config.quartic_coeff = 1./4.
     config.quad_coeff = -1./2.
