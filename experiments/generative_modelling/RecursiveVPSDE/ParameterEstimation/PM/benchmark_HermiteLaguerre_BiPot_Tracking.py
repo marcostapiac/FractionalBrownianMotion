@@ -7,7 +7,7 @@ import math
 from scipy.special import eval_laguerre
 from src.classes.ClassFractionalBiPotential import FractionalBiPotential
 from configs.RecursiveVPSDE.LSTM_fBiPot.recursive_LSTM_PostMeanScore_fBiPot_T256_H05_tl_110data import get_config
-
+from tqdm import tqdm
 
 # # From Nonparametric drift estimation for IID paths of SDE (Comte et al 2020)
 
@@ -52,7 +52,6 @@ def hermite_basis(R, paths):
         basis[:, :, i] = np.power((np.power(2, i) * np.sqrt(np.pi) * math.factorial(i)), -0.5) * polynomials[:, :,
                                                                                                  i] * np.exp(
             -np.power(paths, 2) / 2.)
-        # basis[:,:, i] = np.power((np.power(2, i)*np.sqrt(np.pi)*math.factorial(i)),-0.5)*hermite(i,monic=True)(paths)*np.exp(-np.power(paths,2)/2.)
     return basis
 
 
@@ -95,7 +94,7 @@ def construct_Phi_matrix(R, deltaT, T, basis, paths):
     deltaT /= T
     intermediate = deltaT * basis.transpose((0, 2, 1)) @ basis
     assert intermediate.shape == (
-    N, R, R), f"Intermidate matrix is shape {intermediate.shape} but shoould be {(N, R, R)}"
+        N, R, R), f"Intermidate matrix is shape {intermediate.shape} but shoould be {(N, R, R)}"
     for i in range(N):
         es = np.linalg.eigvalsh(intermediate[i, :, :]) >= 0.
         assert (np.all(es)), f"Submat at {i} is not PD, for R={R}"
@@ -150,24 +149,48 @@ def basis_number_selection(paths, num_paths, num_time_steps, deltaT, t1):
     return poss_Rs[np.argmin(cvs)]
 
 
-#R = basis_number_selection(paths=paths, num_paths=num_paths, num_time_steps=num_time_steps, deltaT=deltaT, t1=t1)
-#print(R)
-numXs = 256 #config.ts_length
+# R = basis_number_selection(paths=paths, num_paths=num_paths, num_time_steps=num_time_steps, deltaT=deltaT, t1=t1)
+# print(R)
+numXs = 256  # config.ts_length
 minx = -1.5
 maxx = -minx
 
-# In[9]:
+
+def true_drift(prev, num_paths, config):
+    assert (prev.shape == (num_paths, config.ndims))
+    drift_X = -(4. * config.quartic_coeff * np.power(prev, 3) + 2. * config.quad_coeff * prev + config.const)
+    return drift_X[:, np.newaxis, :]
+
 
 for R in [4, 5, 6, 7, 8, 9, 10, 11, 12]:
     basis = hermite_basis(R=R, paths=paths)
     coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None))
+    num_time_steps = 100
+    num_state_paths = 10
+    true_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
+    global_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
+    local_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
+    # Initialise the "true paths"
+    true_states[:, [0], :] = config.initState
+    # Initialise the "global score-based drift paths"
+    global_states[:, [0], :] = config.initState
+    # Initialise the "local score-based drift paths"
+    local_states[:, [0], :] = config.initState
 
-    fig, ax = plt.subplots(figsize=(14, 9))
-    Xs = np.linspace(minx, maxx, numXs).reshape(1, -1)
-    basis = hermite_basis(R=R, paths=Xs)
-    bhat = construct_drift(basis=basis, coefficients=coeffs)
-
+    for i in tqdm(range(1, num_time_steps + 1)):
+        eps = np.random.randn(num_state_paths, 1, config.ndims) * np.sqrt(deltaT)
+        assert (eps.shape == (num_state_paths, 1, config.ndims))
+        true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_state_paths, config=config)
+        global_basis = hermite_basis(R=R, paths=global_states[:, i - 1, :])
+        global_mean = construct_drift(basis=global_basis, coefficients=coeffs)[:, np.newaxis, :]
+        local_basis = hermite_basis(R=R, paths=true_states[:, i - 1, :])
+        local_mean = construct_drift(basis=local_basis, coefficients=coeffs)[:, np.newaxis, :]
+        true_states[:, [i], :] = true_states[:, [i - 1], :] + true_mean * deltaT + eps
+        global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
+        local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/Hermite_fBiPot_DriftEvalExp_{R}R_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(
+            project_config.ROOT_DIR + f"experiments/results/Hermite_fBiPot_DriftTracking_{R}R_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(
         ".", "")
-    np.save(save_path + "_unifdriftHats.npy", bhat)
+    np.save(save_path + "_true_states.npy", true_states)
+    np.save(save_path + "_global_states.npy", global_states)
+    np.save(save_path + "_local_states.npy", local_states)

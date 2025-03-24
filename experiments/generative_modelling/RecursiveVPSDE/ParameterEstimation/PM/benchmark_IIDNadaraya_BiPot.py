@@ -117,11 +117,11 @@ bws = np.logspace(-2, -0.05, 20)
 # bw = bws[np.argmin(CVs)]
 # print(CVs)
 
-numXs = config.ts_length
+numXs = 256 #config.ts_length
 minx = -1.5
 maxx = -minx
 Xs = np.linspace(minx, maxx, numXs)
-num_dhats = 50
+num_dhats = 10
 for bw in bws:
     unif_is_drift_hats = np.zeros((numXs, num_dhats))
     for k in tqdm(range(num_dhats)):
