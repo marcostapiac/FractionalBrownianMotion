@@ -200,7 +200,6 @@ if __name__ == "__main__":
                     project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fQuadSinHF_DriftTrack_{Nepoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
                 ".", "")
         print(f"Save path:{save_path}\n")
-        print(save_path)
         np.save(save_path + "_global_true_states.npy", true_states)
         np.save(save_path + "_global_states.npy", global_states)
         np.save(save_path + "_local_states.npy", local_states)
