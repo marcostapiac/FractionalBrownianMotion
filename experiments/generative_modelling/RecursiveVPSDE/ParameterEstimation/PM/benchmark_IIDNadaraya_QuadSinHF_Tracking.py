@@ -8,8 +8,8 @@ import numpy as np
 from joblib import Parallel, delayed
 from tqdm import tqdm
 from configs import project_config
-from src.classes.ClassFractionalQuadSin import FractionalQuadSin
 from configs.RecursiveVPSDE.LSTM_fQuadSinHF.recursive_LSTM_PostMeanScore_fQuadSinHF_T256_H05_tl_110data import get_config
+from src.classes.ClassFractionalQuadSin import FractionalQuadSin
 
 
 def multivar_gaussian_kernel(bw, x):
@@ -32,7 +32,7 @@ def rmse_ignore_nans(y_true, y_pred):
 
 config = get_config()
 
-num_paths = 1095
+num_paths = 10952
 num_time_steps = config.ts_length
 isUnitInterval = True
 diff = config.diffusion
@@ -42,14 +42,13 @@ H = config.hurst
 deltaT = config.deltaT
 t0 = config.t0
 t1 = deltaT * num_time_steps
-
 fQuadSin = FractionalQuadSin(quad_coeff=config.quad_coeff, sin_coeff=config.sin_coeff,
-                                 sin_space_scale=config.sin_space_scale, diff=diff, X0=initial_state)
+                             sin_space_scale=config.sin_space_scale, diff=diff, X0=initial_state)
 is_path_observations = np.array(
-        [fQuadSin.euler_simulation(H=H, N=config.ts_length, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=initial_state,
-                                   Ms=None, gaussRvs=rvs,
-                                   t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
-        (num_paths, config.ts_length + 1))
+    [fQuadSin.euler_simulation(H=H, N=num_time_steps, deltaT=deltaT, isUnitInterval=isUnitInterval,
+                               X0=initial_state, Ms=None, gaussRvs=rvs,
+                               t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
+    (num_paths, num_time_steps + 1))
 
 is_idxs = np.arange(is_path_observations.shape[0])
 path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False), :]
@@ -122,13 +121,10 @@ bws = np.logspace(-4, -0.05, 20)
 
 def true_drift(prev, num_paths, config):
     assert (prev.shape == (num_paths, config.ndims))
-    drift_X = -2.*config.quad_coeff * prev + config.sin_coeff * config.sin_space_scale*np.sin(config.sin_space_scale*prev)
+    drift_X = -(4. * config.quartic_coeff * np.power(prev, 3) + 2. * config.quad_coeff * prev + config.const)
     return drift_X[:, np.newaxis, :]
 
 
-numXs = 256  # config.ts_length
-minx = -1.5
-maxx = -minx
 num_time_steps = 100
 num_state_paths = 10
 for k in range(len(bws)):
@@ -158,7 +154,7 @@ for k in range(len(bws)):
         local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
 
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fQuadSinHF_DriftTracking_{round(bw, 4)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.ts_length}NumDPS").replace(
+            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fQuadSinHF_DriftTracking_{round(bw, 4)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(
         ".", "")
     np.save(save_path + "_true_states.npy", true_states)
     np.save(save_path + "_global_states.npy", global_states)
