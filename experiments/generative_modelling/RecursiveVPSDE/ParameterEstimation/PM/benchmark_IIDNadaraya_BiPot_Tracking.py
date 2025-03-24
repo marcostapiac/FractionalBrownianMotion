@@ -131,7 +131,7 @@ numXs = 256  # config.ts_length
 minx = -1.5
 maxx = -minx
 num_time_steps = 100
-num_state_paths = 10
+num_state_paths = 100
 for k in range(len(bws)):
     bw = bws[k]
     print(f"Considering bandwidth grid number {k}\n")

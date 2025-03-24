@@ -166,7 +166,7 @@ for R in [4, 5, 6, 7, 8, 9, 10, 11, 12]:
     basis = hermite_basis(R=R, paths=paths)
     coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None))
     num_time_steps = 100
-    num_state_paths = 10
+    num_state_paths = 100
     true_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
     global_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
     local_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
