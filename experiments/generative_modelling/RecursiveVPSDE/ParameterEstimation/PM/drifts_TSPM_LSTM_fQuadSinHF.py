@@ -17,8 +17,8 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 def find_LSTM_feature_vectors(Xs, PM, config, device):
     sim_data = np.load(config.data_path, allow_pickle=True)
     sim_data_tensor = torch.tensor(sim_data, dtype=torch.float)
-    dX = np.diff(Xs)[0] / 250
-    assert (((Xs[1] - Xs[0]) / 250) == dX)
+    dX = np.diff(Xs)[0] / 100
+    assert (((Xs[1] - Xs[0]) / 100) == dX)
 
     def process_single_threshold(x):
         xmin = x - dX

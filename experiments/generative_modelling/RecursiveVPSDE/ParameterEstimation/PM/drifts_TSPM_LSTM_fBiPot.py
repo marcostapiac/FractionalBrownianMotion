@@ -165,7 +165,7 @@ if __name__ == "__main__":
                 save_path = (
                         project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_DriftEvalExp_{Nepoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
                     ".", "")
-            print(save_path)
+            print(f"Save path:{save_path}\n")
             assert config.ts_dims == 1
             np.save(save_path + "_muhats.npy", final_vec_mu_hats)
         except FileNotFoundError as e:
