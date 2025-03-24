@@ -152,9 +152,6 @@ def basis_number_selection(paths, num_paths, num_time_steps, deltaT, t1):
 # R = basis_number_selection(paths=paths, num_paths=num_paths, num_time_steps=num_time_steps, deltaT=deltaT, t1=t1)
 # print(R)
 numXs = 256  # config.ts_length
-minx = -1.5
-maxx = -minx
-
 
 def true_drift(prev, num_paths, config):
     assert (prev.shape == (num_paths, config.ndims))
@@ -162,11 +159,11 @@ def true_drift(prev, num_paths, config):
     return drift_X[:, np.newaxis, :]
 
 
-for R in [4, 5, 6, 7, 8, 9, 10, 11, 12]:
+for R in [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]:
     basis = hermite_basis(R=R, paths=paths)
     coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None))
     num_time_steps = 100
-    num_state_paths = 100
+    num_state_paths = 10
     true_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
     global_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
     local_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
