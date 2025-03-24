@@ -84,7 +84,7 @@ def LSTM_1D_drifts(PM, config):
                                      steps=Ndiff_discretisation).to(device)
 
     if config.deltaT > 1 / (32 * 256):
-        Xs = torch.linspace(-1.2, 1.2, steps=Xshape)
+        Xs = torch.linspace(-1.5, 1.5, steps=Xshape)
     else:
         Xs = torch.linspace(-.4, .4, steps=Xshape)
     features = find_LSTM_feature_vectors(Xs=Xs, PM=PM, device=device, config=config)

@@ -169,4 +169,5 @@ if __name__ == "__main__":
             assert config.ts_dims == 1
             np.save(save_path + "_muhats.npy", final_vec_mu_hats)
         except FileNotFoundError as e:
+            print(e)
             continue

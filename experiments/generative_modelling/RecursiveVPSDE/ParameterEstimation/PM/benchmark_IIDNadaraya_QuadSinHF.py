@@ -122,7 +122,7 @@ bws = np.logspace(-4, -0.05, 20)#np.logspace(-2, -0.05, 20)
 #print(CVs)
 
 numXs = 256#config.ts_length
-minx = -1.2
+minx = -1.5
 maxx = -minx
 Xs = np.linspace(minx, maxx, numXs)
 num_dhats = 10
