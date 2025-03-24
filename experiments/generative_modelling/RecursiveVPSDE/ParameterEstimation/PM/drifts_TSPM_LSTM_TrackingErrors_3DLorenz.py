@@ -26,7 +26,7 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
         mask = diff <= np.arccos(dX_global)
         thresh = dX_global
         while torch.sum(mask) == 0:
-            thresh = np.cos(np.arccos(thresh)*2)
+            thresh = np.cos(np.arccos(thresh) * 2)
             mask = diff <= np.arccos(thresh)
         assert (torch.sum(mask) > 0)
 
@@ -70,9 +70,9 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
 def true_drift(prev, num_paths, config):
     assert (prev.shape == (num_paths, config.ndims))
     drift_X = np.zeros((num_paths, config.ndims))
-    drift_X[0] = config.ts_sigma * (prev[1] - prev[0])
-    drift_X[1] = (prev[0] * (config.ts_rho - prev[2]) - prev[1])
-    drift_X[2] = (prev[0] * prev[1] - config.ts_beta * prev[2])
+    drift_X[:, 0] = config.ts_sigma * (prev[:, 1] - prev[:, 0])
+    drift_X[:, 1] = (prev[:, 0] * (config.ts_rho - prev[:, 2]) - prev[:, 1])
+    drift_X[:, 2] = (prev[:, 0] * prev[:, 1] - config.ts_beta * prev[:, 2])
     return drift_X[:, np.newaxis, :]
 
 
@@ -167,7 +167,8 @@ if __name__ == "__main__":
         true_states[:, [0], :] = initial_state + 0.00001 * np.random.randn(*initial_state.shape)
         # Initialise the "global score-based drift paths"
         global_states[:, [0], :] = true_states[:, [0], :]
-        local_states[:, [0], :] = true_states[:, [0], :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
+        local_states[:, [0], :] = true_states[:, [0],
+                                  :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
 
         # Euler-Maruyama Scheme for Tracking Errors
         for i in tqdm(range(1, num_time_steps + 1)):
@@ -185,8 +186,10 @@ if __name__ == "__main__":
                                                           prev=global_states[:, i - 1, :])
 
             global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
-            local_mean = multivar_score_based_LSTM_drift(score_model=PM, num_diff_times=num_diff_times, diffusion=diffusion,
-                                                         num_paths=num_paths, ts_step=deltaT, config=config, device=device,
+            local_mean = multivar_score_based_LSTM_drift(score_model=PM, num_diff_times=num_diff_times,
+                                                         diffusion=diffusion,
+                                                         num_paths=num_paths, ts_step=deltaT, config=config,
+                                                         device=device,
                                                          prev=true_states[:, i - 1, :])
 
             local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
