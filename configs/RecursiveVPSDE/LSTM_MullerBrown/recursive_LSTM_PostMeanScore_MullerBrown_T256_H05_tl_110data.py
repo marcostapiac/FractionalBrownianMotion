@@ -14,18 +14,18 @@ def get_config():
     config.hurst = 0.5
     config.ndims = 2
     config.diffusion = 1./10.
-    config.Aks = [-200., -100., -170., 15.]
-    config.aks = [1., -1., -6.5, 0.7]
+    config.Aks = [-200., -100., -30., 15.]
+    config.aks = [-1., -1., -6.5, 0.7]
     config.bks = [0.,0., 11., 0.6]
     config.cks = [-10.,-10.,-6.5, 0.7]
     config.X0s = [1., 0., -0.5, -1.]
     config.Y0s = [0., 0.5, 1.5, 1.]
-    config.initState = [-0.5, 1.]
+    config.initState = [0., 0.]
     config.ts_length = 256
     config.t0 = 0.
-    config.deltaT = 1. / (4*256)
+    config.deltaT = 1. / (256)
     config.t1 = config.deltaT*config.ts_length
-    config.data_path = project_config.ROOT_DIR + "data/MullerBrown_samples_t0{:g}_dT{:.3e}_T{}_{}FConst_{}Diff".format(config.ndims,
+    config.data_path = project_config.ROOT_DIR + "data/MullerBrown_samples_t0{:g}_dT{:.3e}_T{}_{}Diff".format(config.ndims,
         config.t0, config.deltaT, config.ts_length, config.diffusion).replace(
         ".", "") + ".npy"
 

@@ -30,7 +30,7 @@ class FractionalMullerBrown:
                                         scaleUnitInterval=isUnitInterval)  # Scale over timescale included in circulant
         return incs
 
-    def drift_X(self, prev):
+    def drift_X(self, prev, deltaT):
         assert (len(prev.shape) == 1 and prev.shape[0] == self.ndims)
         common = self.Aks * np.exp(self.aks*np.power(prev[0]-self.X0,2) \
                  +self.bks*(prev[0]-self.X0)*(prev[1]-self.Y0)
@@ -42,7 +42,7 @@ class FractionalMullerBrown:
         return driftX
 
     def increment_state(self, prev: np.ndarray, deltaT: float, M: int):
-        driftX = self.drift_X(prev=prev)
+        driftX = self.drift_X(prev=prev, deltaT=deltaT)
         diffX = self.diff * M
         return prev + driftX * deltaT + diffX
 
