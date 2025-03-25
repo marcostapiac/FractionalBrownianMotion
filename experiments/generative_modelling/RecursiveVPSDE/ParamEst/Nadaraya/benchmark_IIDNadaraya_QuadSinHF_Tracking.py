@@ -121,7 +121,8 @@ bws = np.logspace(-4, -0.05, 20)
 
 def true_drift(prev, num_paths, config):
     assert (prev.shape == (num_paths, config.ndims))
-    drift_X = -(4. * config.quartic_coeff * np.power(prev, 3) + 2. * config.quad_coeff * prev + config.const)
+    drift_X = -2. * config.quad_coeff * prev + config.sin_coeff * config.sin_space_scale * np.sin(
+        config.sin_space_scale * prev)
     return drift_X[:, np.newaxis, :]
 
 
