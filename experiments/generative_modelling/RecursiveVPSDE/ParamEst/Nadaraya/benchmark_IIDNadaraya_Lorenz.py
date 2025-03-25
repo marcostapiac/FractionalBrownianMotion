@@ -142,7 +142,7 @@ for k in range(len(bws)):
         global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
         local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_f{config.ndims}DLnz_DriftEvalExp_{bw}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
+            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_f{config.ndims}DLnz_DriftTrack_{bw}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
         ".", "")
     np.save(save_path + "_true_states.npy", true_states)
     np.save(save_path + "_global_states.npy", global_states)
