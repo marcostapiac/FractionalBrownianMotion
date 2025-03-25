@@ -14,7 +14,7 @@ def get_config():
     config.hurst = 0.5
     config.ndims = 2
     config.diffusion = 1./10.
-    config.Aks = [-200., -100., -30., 15.]
+    config.Aks = [-200., -100., -20., 15.]
     config.aks = [-1., -1., -6.5, 0.7]
     config.bks = [0.,0., 11., 0.6]
     config.cks = [-10.,-10.,-6.5, 0.7]
