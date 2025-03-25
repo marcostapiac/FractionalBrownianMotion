@@ -98,10 +98,10 @@ assert (prevPath_observations.shape[1] * deltaT == (t1 - t0))
 
 
 grid_1d = np.logspace(-4, -0.05, 20)
-mesh = np.meshgrid(*([grid_1d] * config.ndims), indexing='ij')
+#mesh = np.meshgrid(*([grid_1d] * config.ndims), indexing='ij')
 # Stack and reshape the grid so each row is a point in the n-dimensional grid
-bws = np.stack([m.ravel() for m in mesh], axis=-1)
-# bws = np.stack([grid_1d for m in range(config.ndims)], axis=-1)
+#bws = np.stack([m.ravel() for m in mesh], axis=-1)
+bws = np.stack([grid_1d for m in range(config.ndims)], axis=-1)
 print(bws.shape)
 
 def true_drift(prev, num_paths, config):
@@ -114,7 +114,7 @@ def true_drift(prev, num_paths, config):
 
 
 num_time_steps = 100
-num_state_paths = 10
+num_state_paths = 100
 # Euler-Maruyama Scheme for Tracking Errors
 for k in range(len(bws)):
     bw = bws[k]
@@ -142,7 +142,7 @@ for k in range(len(bws)):
         global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
         local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_f{config.ndims}DLnz_DriftEvalExp_{bw}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT").replace(
+            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_f{config.ndims}DLnz_DriftEvalExp_{bw}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
         ".", "")
     np.save(save_path + "_true_states.npy", true_states)
     np.save(save_path + "_global_states.npy", global_states)
