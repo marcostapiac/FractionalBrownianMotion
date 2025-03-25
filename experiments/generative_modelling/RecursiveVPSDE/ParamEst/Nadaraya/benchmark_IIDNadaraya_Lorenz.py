@@ -97,7 +97,7 @@ assert (prevPath_observations.shape[1] * deltaT == (t1 - t0))
 # In[13]:
 
 
-grid_1d = np.logspace(-4, -0.05, 20)
+grid_1d = np.logspace(-4, -0.05, 40)
 #mesh = np.meshgrid(*([grid_1d] * config.ndims), indexing='ij')
 # Stack and reshape the grid so each row is a point in the n-dimensional grid
 #bws = np.stack([m.ravel() for m in mesh], axis=-1)
