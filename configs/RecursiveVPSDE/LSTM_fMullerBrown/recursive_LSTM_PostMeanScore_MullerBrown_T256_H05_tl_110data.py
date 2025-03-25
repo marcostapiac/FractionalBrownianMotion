@@ -25,7 +25,7 @@ def get_config():
     config.t0 = 0.
     config.deltaT = 1. / (256)
     config.t1 = config.deltaT*config.ts_length
-    config.data_path = project_config.ROOT_DIR + "data/MullerBrown_samples_t0{:g}_dT{:.3e}_T{}_{}Diff".format(config.ndims,
+    config.data_path = project_config.ROOT_DIR + "data/MullerBrown_samples_t0{:g}_dT{:.3e}_T{}_{}Diff".format(
         config.t0, config.deltaT, config.ts_length, config.diffusion).replace(
         ".", "") + ".npy"
 
