@@ -14,7 +14,7 @@ from utils.math_functions import generate_MullerBrown
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.LSTM_MullerBrown.recursive_LSTM_PostMeanScore_MullerBrown_T256_H05_tl_110data import \
+    from configs.RecursiveVPSDE.LSTM_fMullerBrown.recursive_LSTM_PostMeanScore_MullerBrown_T256_H05_tl_110data import \
         get_config
 
     config = get_config()
