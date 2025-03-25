@@ -10,7 +10,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
     ConditionalLSTMTSPostMeanScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from utils.data_processing import init_experiment, cleanup_experiment
-from utils.math_functions import generate_Lorenz63
+from utils.math_functions import generate_MullerBrown
 
 if __name__ == "__main__":
     # Data parameters
@@ -29,7 +29,7 @@ if __name__ == "__main__":
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    #init_experiment(config=config)
+    init_experiment(config=config)
     end_epoch = max(config.max_epochs)
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))
@@ -44,7 +44,7 @@ if __name__ == "__main__":
             assert (data.shape[0] >= training_size)
         except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
-            data = generate_Lorenz63(config=config,H=config.hurst, S=training_size,T=config.ts_length, isUnitInterval=config.t0==1.)
+            data = generate_MullerBrown(config=config, H=config.hurst,S=training_size, T=config.ts_length, isUnitInterval=config.t0==1.)
             np.save(config.data_path, data)
         data = np.concatenate([data[:, [0], :] - np.array(config.initState).reshape((1, 1, config.ndims)), np.diff(data, axis=1)], axis=1)
         data = np.atleast_3d(data[:training_size, :,:])
