@@ -162,7 +162,7 @@ for R in [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]:
     basis = hermite_basis(R=R, paths=paths)
     coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None))
     num_time_steps = 100
-    num_state_paths = 10
+    num_state_paths = 100
     true_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
     global_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
     local_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
@@ -185,7 +185,7 @@ for R in [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]:
         global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
         local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/Hermite_fBiPot_DriftTracking_{R}R_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(
+            project_config.ROOT_DIR + f"experiments/results/Hermite_fBiPot_DriftTrack_{R}R_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(
         ".", "")
     np.save(save_path + "_true_states.npy", true_states)
     np.save(save_path + "_global_states.npy", global_states)

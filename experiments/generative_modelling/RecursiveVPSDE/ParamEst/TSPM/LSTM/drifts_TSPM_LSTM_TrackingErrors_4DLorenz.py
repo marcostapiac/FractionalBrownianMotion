@@ -191,14 +191,9 @@ if __name__ == "__main__":
 
             local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
 
-        if config.ndims == 4:
-            save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_DriftEvalExp_{Nepoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_{round(config.forcing_const,3)}FConst").replace(
-                ".", "")
-        elif config.dims == 3:
-            save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_DriftEvalExp_{Nepoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_{config.ts_beta:.1e}Beta_{config.ts_rho:.1e}Rho_{config.ts_sigma:.1e}Sigma").replace(
-                ".", "")
+        save_path = (
+                project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_DriftTrack_{Nepoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_{round(config.forcing_const,3)}FConst").replace(
+            ".", "")
         print(save_path)
         np.save(save_path + "_global_true_states.npy", true_states)
         np.save(save_path + "_global_states.npy", global_states)

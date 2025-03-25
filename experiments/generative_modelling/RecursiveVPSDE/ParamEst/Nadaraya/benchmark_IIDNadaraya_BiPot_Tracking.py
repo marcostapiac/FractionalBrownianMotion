@@ -129,7 +129,7 @@ def true_drift(prev, num_paths, config):
 
 numXs = 256  # config.ts_length
 num_time_steps = 100
-num_state_paths = 10
+num_state_paths = 100
 for k in range(len(bws)):
     bw = bws[k]
     print(f"Considering bandwidth grid number {k}\n")
@@ -157,7 +157,7 @@ for k in range(len(bws)):
         local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
 
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fBiPot_DriftTracking_{round(bw, 4)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(
+            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fBiPot_DriftTrack_{round(bw, 4)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(
         ".", "")
     np.save(save_path + "_true_states.npy", true_states)
     np.save(save_path + "_global_states.npy", global_states)

@@ -12,61 +12,6 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 from tqdm import tqdm
 
 
-def find_LSTM_feature_vectors(Xs, PM, config, device):
-    sim_data = np.load(config.data_path, allow_pickle=True)
-    sim_data_tensor = torch.tensor(sim_data, dtype=torch.float).to(device)
-
-    def process_single_threshold(x, dX_global):
-        diff = sim_data_tensor - x.reshape(1, -1)  # shape: (M, N, D)
-        # tensor_norm = sim_data_tensor / sim_data_tensor.norm(dim=-1, keepdim=True)
-        # candidate_norm = x / x.norm(dim=0, keepdim=True)  # (D, 1)
-        # diff = (tensor_norm @ candidate_norm).squeeze(-1) # Result: (M, N)
-        # mask = diff >= dX_global
-        diff = diff.norm(dim=-1)  # Result: (M, N)
-        mask = diff <= np.arccos(dX_global)
-        thresh = dX_global
-        while torch.sum(mask) == 0:
-            thresh = np.cos(np.arccos(thresh)*2)
-            mask = diff <= np.arccos(thresh)
-        assert (torch.sum(mask) > 0)
-
-        # Get indices where mask is True (each index is [i, j])
-        indices = mask.nonzero(as_tuple=False)
-        sequences = []
-        js = []
-        for idx in indices:
-            i, j = idx.tolist()
-            # Extract the sequence: row i, columns 0 to j (inclusive)
-            seq = sim_data_tensor[i, :j + 1, :]
-            sequences.append(seq)
-            js.append(len(seq))
-        outputs = []
-        PM.eval()
-        sequences = sequences[:100]
-        js = js[:100]
-        if sequences:
-            # Pad sequences to create a batch.
-            # pad_sequence returns tensor of shape (batch_size, max_seq_len)
-            padded_batch = pad_sequence(sequences, batch_first=True, padding_value=torch.nan).to(device)
-            # Add feature dimension: now shape becomes (batch_size, max_seq_len, 1)
-            # padded_batch = padded_batch.unsqueeze(-1).to(device)
-            with torch.no_grad():
-                batch_output, _ = PM.rnn(padded_batch, None)
-            outputs = batch_output[torch.arange(batch_output.shape[0]), torch.tensor(js, dtype=torch.long) - 1,
-                      :].unsqueeze(1).cpu()
-        return x, outputs
-
-    features_Xs = {}
-    dX_global = np.cos(1. / 5000)
-    for i in range(Xs.shape[0]):
-        x = Xs[i, :].reshape(-1, 1)
-        x_val, out = process_single_threshold(torch.tensor(x).to(device, dtype=torch.float), dX_global)
-        assert (len(out) > 0)
-        print(out.shape)
-        features_Xs[tuple(x.squeeze().tolist())] = out
-    return features_Xs
-
-
 def true_drift(prev, num_paths, config):
     assert (prev.shape == (num_paths, config.ndims))
     drift_X = np.zeros((num_paths, config.ndims))
@@ -76,12 +21,20 @@ def true_drift(prev, num_paths, config):
     return drift_X[:, np.newaxis, :]
 
 
-def multivar_score_based_LSTM_drift(score_model, num_diff_times, diffusion, num_paths, prev, ts_step, config,
+def multivar_score_based_LSTM_drift(score_model, time_idx, h, c,num_diff_times, diffusion, num_paths, prev, ts_step, config,
                                     device):
     num_taus = 100
     Ndiff_discretisation = config.max_diff_steps
     assert (prev.shape == (num_paths, config.ndims))
-    features = find_LSTM_feature_vectors(Xs=prev, PM=PM, device=device, config=config)
+    score_model.eval()
+    with torch.no_grad():
+        if time_idx == 0:
+            features, (h, c) = score_model.rnn(torch.tensor(prev[:, np.newaxis, :], dtype=torch.float32).to(device),
+                                               None)
+        else:
+            features, (h, c) = score_model.rnn(torch.tensor(prev[:, np.newaxis, :], dtype=torch.float32).to(device),
+                                               (h, c))
+    features = {tuple(prev[i, :].squeeze().tolist()): features[i] for i in range(prev.shape[0])}
     num_feats_per_x = {tuple(x.squeeze().tolist()): features[tuple(x.squeeze().tolist())].shape[0] for x in prev}
     # list_num_feats_per_x = list(num_feats_per_x.values())
     tot_num_feats = np.sum(list(num_feats_per_x.values()))
@@ -130,7 +83,7 @@ def multivar_score_based_LSTM_drift(score_model, num_diff_times, diffusion, num_
         vec_z = torch.randn_like(vec_drift).to(device)
         vec_Z_taus = vec_drift + vec_diffParam * vec_z
         difftime_idx -= 1
-    return means.mean(dim=0).reshape(num_paths, 1, config.ts_dims).cpu().numpy()
+    return means.mean(dim=0).reshape(num_paths, 1, config.ts_dims).cpu().numpy(), h, c
 
 
 if __name__ == "__main__":
@@ -153,7 +106,7 @@ if __name__ == "__main__":
         PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
         PM = PM.to(device)
 
-        num_paths = 10
+        num_paths = 100
         num_time_steps = 100
         deltaT = config.deltaT
         initial_state = np.repeat(np.array(config.initState)[np.newaxis, np.newaxis, :], num_paths, axis=0)
@@ -167,9 +120,12 @@ if __name__ == "__main__":
         true_states[:, [0], :] = initial_state + 0.00001 * np.random.randn(*initial_state.shape)
         # Initialise the "global score-based drift paths"
         global_states[:, [0], :] = true_states[:, [0], :]
-        local_states[:, [0], :] = true_states[:, [0], :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
+        local_states[:, [0], :] = true_states[:, [0],
+                                  :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
 
         # Euler-Maruyama Scheme for Tracking Errors
+        global_h, global_c = None, None
+        local_h, local_c = None, None
         for i in tqdm(range(1, num_time_steps + 1)):
             eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT)
             assert (eps.shape == (num_paths, 1, config.ndims))
@@ -178,26 +134,28 @@ if __name__ == "__main__":
             true_states[:, [i], :] = true_states[:, [i - 1], :] \
                                      + true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config) * deltaT \
                                      + eps
-            global_mean = multivar_score_based_LSTM_drift(score_model=PM, num_diff_times=num_diff_times,
+            global_mean, global_h, global_c = multivar_score_based_LSTM_drift(score_model=PM, num_diff_times=num_diff_times,time_idx= i-1, h=global_h, c=global_c,
                                                           diffusion=diffusion,
                                                           num_paths=num_paths, ts_step=deltaT, config=config,
                                                           device=device,
                                                           prev=global_states[:, i - 1, :])
 
             global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
-            local_mean = multivar_score_based_LSTM_drift(score_model=PM, num_diff_times=num_diff_times, diffusion=diffusion,
-                                                         num_paths=num_paths, ts_step=deltaT, config=config, device=device,
+            local_mean, local_h, local_c = multivar_score_based_LSTM_drift(score_model=PM, num_diff_times=num_diff_times, time_idx= i-1, h=local_h, c=local_c,
+                                                         diffusion=diffusion,
+                                                         num_paths=num_paths, ts_step=deltaT, config=config,
+                                                         device=device,
                                                          prev=true_states[:, i - 1, :])
 
             local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
 
         if config.ndims == 4:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_DriftEvalExp_{Nepoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_{round(config.forcing_const,3)}FConst").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_OOSDriftTrack_{Nepoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_{round(config.forcing_const, 3)}FConst").replace(
                 ".", "")
         elif config.dims == 3:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_DriftEvalExp_{Nepoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_{config.ts_beta:.1e}Beta_{config.ts_rho:.1e}Rho_{config.ts_sigma:.1e}Sigma").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_OOSDriftTrack_{Nepoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_{config.ts_beta:.1e}Beta_{config.ts_rho:.1e}Rho_{config.ts_sigma:.1e}Sigma").replace(
                 ".", "")
         print(save_path)
         np.save(save_path + "_global_true_states.npy", true_states)
