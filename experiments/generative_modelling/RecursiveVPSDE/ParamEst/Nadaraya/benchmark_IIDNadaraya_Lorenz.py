@@ -114,7 +114,7 @@ def true_drift(prev, num_paths, config):
 
 
 num_time_steps = 100
-num_state_paths = 100
+num_state_paths = 10
 # Euler-Maruyama Scheme for Tracking Errors
 for k in range(len(bws)):
     bw = bws[k]
