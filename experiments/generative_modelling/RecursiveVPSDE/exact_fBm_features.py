@@ -9,7 +9,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP im
 
 
 def exact_fBm_features():
-    from configs.RecursiveVPSDE.recursive_fBm_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_LSTM_fBm_T256_H07_tl_5data import get_config
     config = get_config()
     assert (0 < config.hurst < 1.)
     assert (config.early_stop_idx == 0)

@@ -37,7 +37,7 @@ if __name__ == "__main__":
     torch.backends.cudnn.benchmark = False
 
     # Data parameters
-    from configs.RecursiveVPSDE.recursive_fBm_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_LSTM_fBm_T256_H07_tl_5data import get_config
 
     config = get_config()
     assert (0 < config.hurst < 1.)

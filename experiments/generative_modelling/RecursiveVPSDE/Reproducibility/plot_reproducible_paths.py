@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 from utils.plotting_functions import hurst_estimation
 
 if __name__ == "__main__":
-    from configs.RecursiveVPSDE.recursive_fBm_T256_H07 import get_config
+    from configs.RecursiveVPSDE.recursive_LSTM_fBm_T256_H07 import get_config
 
     config = get_config()
     H = config.hurst

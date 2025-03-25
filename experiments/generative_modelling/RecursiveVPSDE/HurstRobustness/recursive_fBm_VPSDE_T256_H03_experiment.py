@@ -15,7 +15,7 @@ from utils.math_functions import generate_fBn
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.recursive_fBm_T256_H03 import get_config
+    from configs.RecursiveVPSDE.recursive_LSTM_fBm_T256_H03 import get_config
 
     config = get_config()
     assert (config.hurst == 0.3)
