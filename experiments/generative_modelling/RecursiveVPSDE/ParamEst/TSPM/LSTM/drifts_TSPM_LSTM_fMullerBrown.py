@@ -64,7 +64,6 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
         assert (len(out) > 0)
         print(out.shape)
         features_Xs[tuple(x.squeeze().tolist())] = out
-    raise RuntimeError
     return features_Xs
 
 config = get_config()
