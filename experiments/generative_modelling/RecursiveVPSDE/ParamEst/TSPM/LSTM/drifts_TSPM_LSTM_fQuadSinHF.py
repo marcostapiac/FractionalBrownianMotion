@@ -158,6 +158,7 @@ if __name__ == "__main__":
     config = get_config()
     for Nepoch in config.max_epochs:
         try:
+            print(f"Starting Epoch {Nepoch}\n")
             # Fix the number of training epochs and training loss objective loss
             PM = ConditionalLSTMTSPostMeanScoreMatching(*config.model_parameters)
             PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
