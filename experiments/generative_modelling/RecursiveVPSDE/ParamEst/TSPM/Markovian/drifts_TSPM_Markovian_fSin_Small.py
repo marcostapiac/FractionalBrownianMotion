@@ -90,5 +90,5 @@ print(type)
 save_path = (
         project_config.ROOT_DIR + f"experiments/results/TSPM_Small_mkv_fSin_DriftEvalExp_{Nepoch}Nep_{config.loss_factor}LFactor_{config.mean_rev}MeanRev_{config.max_diff_steps}DiffSteps").replace(
     ".", "")
-print(save_path)
+print(f"Save Path {save_path}\n")
 np.save(save_path + "_muhats.npy", final_vec_mu_hats[:, -es:, :])

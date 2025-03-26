@@ -1,16 +1,18 @@
 import os
+
 import numpy as np
 import torch
 from torch.nn.utils.rnn import pad_sequence
 
-from configs.RecursiveVPSDE.LSTM_4DLorenz.recursive_LSTM_PostMeanScore_4DLorenz_T256_H05_tl_110data import \
-    get_config
 from configs import project_config
+from configs.RecursiveVPSDE.LSTM_fMullerBrown.recursive_LSTM_PostMeanScore_MullerBrown_T256_H05_tl_110data import \
+    get_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
     ConditionalLSTMTSPostMeanScoreMatching
-from tqdm import tqdm
 
+
+# In[22]:
 
 def find_LSTM_feature_vectors(Xs, PM, config, device):
     sim_data = np.load(config.data_path, allow_pickle=True)
@@ -26,7 +28,7 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
         mask = diff <= np.arccos(dX_global)
         thresh = dX_global
         while torch.sum(mask) == 0:
-            thresh = np.cos(np.arccos(thresh)*2)
+            thresh = np.cos(np.arccos(thresh) * 2)
             mask = diff <= np.arccos(thresh)
         assert (torch.sum(mask) > 0)
 
@@ -66,33 +68,56 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
         features_Xs[tuple(x.squeeze().tolist())] = out
     return features_Xs
 
-
-def true_drift(prev, num_paths, config):
-    assert (prev.shape == (num_paths, config.ndims))
-    drift_X = np.zeros((num_paths, config.ndims))
-    for i in range(config.ndims):
-        drift_X[:, i] = (prev[:, (i + 1) % config.ndims] - prev[:, i - 2]) * prev[:, i - 1] - prev[:,
-                                                                                              i] + config.forcing_const
-    return drift_X[:, np.newaxis, :]
+config = get_config()
 
 
-def multivar_score_based_LSTM_drift(score_model, num_diff_times, diffusion, num_paths, prev, ts_step, config,
-                                    device):
+def LSTM_2D_drifts(PM, config):
+    print("Beta Min : ", config.beta_min)
+    if config.has_cuda:
+        device = int(os.environ["LOCAL_RANK"])
+    else:
+        print("Using CPU\n")
+        device = torch.device("cpu")
+    PM = PM.to(device)
+
+    diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
+    ts_step = config.deltaT
+
     num_taus = 100
+
+    num_diff_times = config.max_diff_steps
     Ndiff_discretisation = config.max_diff_steps
-    assert (prev.shape == (num_paths, config.ndims))
-    features = find_LSTM_feature_vectors(Xs=prev, PM=PM, device=device, config=config)
-    num_feats_per_x = {tuple(x.squeeze().tolist()): features[tuple(x.squeeze().tolist())].shape[0] for x in prev}
+    diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_time,
+                                     steps=Ndiff_discretisation).to(device)
+
+    numXs = 25
+    minx = -1.
+    maxx = -0.9
+    Xs = np.linspace(minx, maxx, numXs)
+    miny = 1.
+    maxy = 1.1
+    Ys = np.linspace(miny, maxy, numXs)
+    Xs, Ys = np.meshgrid(Xs, Ys)
+    Xs = np.column_stack([Xs.ravel(), Ys.ravel()])
+    Xshape = Xs.shape[0]
+    features = find_LSTM_feature_vectors(Xs=Xs, PM=PM, device=device, config=config)
+    num_feats_per_x = {tuple(x.squeeze().tolist()): features[tuple(x.squeeze().tolist())].shape[0] for x in Xs}
     # list_num_feats_per_x = list(num_feats_per_x.values())
     tot_num_feats = np.sum(list(num_feats_per_x.values()))
     features_tensor = torch.concat(list(features.values()), dim=0).to(device)  # [num_features_per_x, 1, 20]
     assert (features_tensor.shape[0] == tot_num_feats)
-    vec_Z_taus = diffusion.prior_sampling(shape=(tot_num_feats * num_taus, 1, config.ts_dims)).to(device)
+    final_vec_mu_hats = np.zeros(
+        (Xshape, num_diff_times, num_taus, config.ts_dims))  # Xvalues, DiffTimes, Ztaus, Ts_Dims
 
-    diffusion_times = torch.linspace(config.sample_eps, 1., config.max_diff_steps)
-    difftime_idx = Ndiff_discretisation - 1
-    while difftime_idx >= Ndiff_discretisation - num_diff_times:
-        d = diffusion_times[difftime_idx].to(device)
+    vec_Z_taus = diffusion.prior_sampling(shape=(tot_num_feats * num_taus, 1, config.ts_dims)).to(device)
+    # ts = []
+    es = 1
+    # mu_hats_mean = np.zeros((tot_num_feats, num_taus))
+    # mu_hats_std = np.zeros((tot_num_feats, num_taus))
+    difftime_idx = num_diff_times - 1
+    PM.eval()
+    while difftime_idx >= num_diff_times - es:
+        d = diffusion_times[Ndiff_discretisation - (num_diff_times - 1 - difftime_idx) - 1].to(device)
         diff_times = torch.stack([d for _ in range(tot_num_feats)]).reshape(tot_num_feats * 1).to(device)
         eff_times = diffusion.get_eff_times(diff_times=diff_times).unsqueeze(-1).unsqueeze(-1).to(device)
         vec_diff_times = torch.stack([diff_times for _ in range(num_taus)], dim=0).reshape(num_taus * tot_num_feats)
@@ -100,10 +125,10 @@ def multivar_score_based_LSTM_drift(score_model, num_diff_times, diffusion, num_
         vec_conditioner = torch.stack([features_tensor for _ in range(num_taus)], dim=0).reshape(
             num_taus * tot_num_feats,
             1, -1)
-        score_model.eval()
+
         with torch.no_grad():
-            vec_predicted_score = score_model.forward(times=vec_diff_times, eff_times=vec_eff_times,
-                                                      conditioner=vec_conditioner, inputs=vec_Z_taus)
+            vec_predicted_score = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
+                                             eff_times=vec_eff_times)
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
                                                                                            predicted_score=vec_predicted_score,
                                                                                            diff_index=torch.Tensor(
@@ -124,77 +149,38 @@ def multivar_score_based_LSTM_drift(score_model, num_diff_times, diffusion, num_
         split_tensors = torch.split(A, list(num_feats_per_x.values()), dim=1)
         # Compute means along the column dimension
         means = torch.stack([t.mean(dim=1) for t in split_tensors], dim=1)
-        assert (means.shape == (num_taus, num_paths, config.ts_dims))
-
+        assert (means.shape == (num_taus, Xshape, config.ts_dims))
         # print(vec_Z_taus.shape, vec_scores.shape)
+        final_vec_mu_hats[:, difftime_idx, :] = means.permute((1, 0, 2)).cpu().numpy()
         vec_z = torch.randn_like(vec_drift).to(device)
         vec_Z_taus = vec_drift + vec_diffParam * vec_z
         difftime_idx -= 1
-    return means.mean(dim=0).reshape(num_paths, 1, config.ts_dims).cpu().numpy()
+    assert (final_vec_mu_hats.shape == (Xshape, num_diff_times, num_taus, config.ts_dims))
+    return final_vec_mu_hats[:, -es:, :, 0]
 
 
 if __name__ == "__main__":
     config = get_config()
-    assert ("4DLnz" in config.data_path)
-
-    print("Beta Min : ", config.beta_min)
-    if config.has_cuda:
-        device = int(os.environ["LOCAL_RANK"])
-    else:
-        print("Using CPU\n")
-        device = torch.device("cpu")
-
-    diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
-
     for Nepoch in config.max_epochs:
-        print(f"Epoch {Nepoch}, F {config.forcing_const}\n")
-        num_diff_times = 1
-        PM = ConditionalLSTMTSPostMeanScoreMatching(*config.model_parameters)
-        PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
-        PM = PM.to(device)
-
-        num_paths = 10
-        num_time_steps = 100
-        deltaT = config.deltaT
-        initial_state = np.repeat(np.array(config.initState)[np.newaxis, np.newaxis, :], num_paths, axis=0)
-        assert (initial_state.shape == (num_paths, 1, config.ndims))
-
-        true_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
-        global_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
-        local_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
-
-        # Initialise the "true paths"
-        true_states[:, [0], :] = initial_state + 0.00001 * np.random.randn(*initial_state.shape)
-        # Initialise the "global score-based drift paths"
-        global_states[:, [0], :] = true_states[:, [0], :]
-        local_states[:, [0], :] = true_states[:, [0], :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
-
-        # Euler-Maruyama Scheme for Tracking Errors
-        for i in tqdm(range(1, num_time_steps + 1)):
-            eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT)
-            assert (eps.shape == (num_paths, 1, config.ndims))
-            true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config)
-
-            true_states[:, [i], :] = true_states[:, [i - 1], :] \
-                                     + true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config) * deltaT \
-                                     + eps
-            global_mean = multivar_score_based_LSTM_drift(score_model=PM, num_diff_times=num_diff_times,
-                                                          diffusion=diffusion,
-                                                          num_paths=num_paths, ts_step=deltaT, config=config,
-                                                          device=device,
-                                                          prev=global_states[:, i - 1, :])
-
-            global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
-            local_mean = multivar_score_based_LSTM_drift(score_model=PM, num_diff_times=num_diff_times, diffusion=diffusion,
-                                                         num_paths=num_paths, ts_step=deltaT, config=config, device=device,
-                                                         prev=true_states[:, i - 1, :])
-
-            local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
-
-        save_path = (
-                project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_DriftTrack_{Nepoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_{round(config.forcing_const,3)}FConst").replace(
-            ".", "")
-        print(save_path)
-        np.save(save_path + "_global_true_states.npy", true_states)
-        np.save(save_path + "_global_states.npy", global_states)
-        np.save(save_path + "_local_states.npy", local_states)
+        try:
+            print(f"Starting Epoch {Nepoch}\n")
+            # Fix the number of training epochs and training loss objective loss
+            PM = ConditionalLSTMTSPostMeanScoreMatching(*config.model_parameters)
+            PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
+            final_vec_mu_hats = LSTM_2D_drifts(PM=PM, config=config)
+            type = "PM"
+            assert (type in config.scoreNet_trained_path)
+            if "_ST_" in config.scoreNet_trained_path:
+                save_path = (
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_ST_fMullerBrown_DriftEvalExp_{Nepoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                    ".", "")
+            else:
+                save_path = (
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fMullerBrown_DriftEvalExp_{Nepoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                    ".", "")
+            print(f"Save path:{save_path}\n")
+            assert config.ts_dims == 2
+            np.save(save_path + "_muhats.npy", final_vec_mu_hats)
+        except FileNotFoundError as e:
+            print(e)
+            continue

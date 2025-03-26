@@ -2,8 +2,7 @@ import os
 import numpy as np
 import torch
 from torch.nn.utils.rnn import pad_sequence
-
-from configs.RecursiveVPSDE.LSTM_3DLorenz.recursive_LSTM_PostMeanScore_3DLorenz_T256_H05_tl_110data import \
+from configs.RecursiveVPSDE.LSTM_fMullerBrown.recursive_LSTM_PostMeanScore_MullerBrown_T256_H05_tl_110data import \
     get_config
 from configs import project_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
@@ -11,16 +10,27 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
     ConditionalLSTMTSPostMeanScoreMatching
 from tqdm import tqdm
 
+
 def true_drift(prev, num_paths, config):
     assert (prev.shape == (num_paths, config.ndims))
+    Aks = np.array(config.Aks)[np.newaxis, :]
+    aks = np.array(config.aks)[np.newaxis, :]
+    bks = np.array(config.bks)[np.newaxis, :]
+    cks = np.array(config.cks)[np.newaxis, :]
+    X0s = np.array(config.X0s)[np.newaxis, :]
+    Y0s = np.array(config.Y0s)[np.newaxis, :]
+    common = Aks * np.exp(aks* np.power(prev[:,[0]] - X0s, 2) \
+                                 + bks* (prev[:,[0]] - X0s) * (prev[:, [1]] - Y0s)
+                                 + cks* np.power(prev[:, [1]] - Y0s, 2))
+    assert (common.shape == (num_paths, 4))
     drift_X = np.zeros((num_paths, config.ndims))
-    drift_X[:, 0] = config.ts_sigma * (prev[:, 1] - prev[:, 0])
-    drift_X[:, 1] = (prev[:, 0] * (config.ts_rho - prev[:, 2]) - prev[:, 1])
-    drift_X[:, 2] = (prev[:, 0] * prev[:, 1] - config.ts_beta * prev[:, 2])
+    drift_X[:, 0] = -np.sum(common * (2. * aks* (prev[:, [0]] - X0s) + bks* (prev[:, [1]] - Y0s)), axis=1)
+    drift_X[:, 1] = -np.sum(common * (2. * cks* (prev[:, [1]] - Y0s) + bks* (prev[:, [0]] - X0s)), axis=1)
+
     return drift_X[:, np.newaxis, :]
 
 
-def multivar_score_based_LSTM_drift(score_model, time_idx, h, c,num_diff_times, diffusion, num_paths, prev, ts_step, config,
+def multivar_score_based_LSTM_drift(score_model,  time_idx, h, c, num_diff_times, diffusion, num_paths, prev, ts_step, config,
                                     device):
     num_taus = 100
     Ndiff_discretisation = config.max_diff_steps
@@ -35,7 +45,6 @@ def multivar_score_based_LSTM_drift(score_model, time_idx, h, c,num_diff_times, 
                                                (h, c))
     features = {tuple(prev[i, :].squeeze().tolist()): features[i] for i in range(prev.shape[0])}
     num_feats_per_x = {tuple(x.squeeze().tolist()): features[tuple(x.squeeze().tolist())].shape[0] for x in prev}
-    # list_num_feats_per_x = list(num_feats_per_x.values())
     tot_num_feats = np.sum(list(num_feats_per_x.values()))
     features_tensor = torch.concat(list(features.values()), dim=0).to(device)  # [num_features_per_x, 1, 20]
     assert (features_tensor.shape[0] == tot_num_feats)
@@ -82,12 +91,12 @@ def multivar_score_based_LSTM_drift(score_model, time_idx, h, c,num_diff_times, 
         vec_z = torch.randn_like(vec_drift).to(device)
         vec_Z_taus = vec_drift + vec_diffParam * vec_z
         difftime_idx -= 1
-    return means.mean(dim=0).reshape(num_paths, 1, config.ts_dims).cpu().numpy()
+    return means.mean(dim=0).reshape(num_paths, 1, config.ts_dims).cpu().numpy(), h, c
 
 
 if __name__ == "__main__":
     config = get_config()
-    assert ("3DLnz" in config.data_path)
+    assert ("MullerBrown" in config.data_path)
 
     print("Beta Min : ", config.beta_min)
     if config.has_cuda:
@@ -105,7 +114,7 @@ if __name__ == "__main__":
         PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
         PM = PM.to(device)
 
-        num_paths = 100
+        num_paths = 10
         num_time_steps = 100
         deltaT = config.deltaT
         initial_state = np.repeat(np.array(config.initState)[np.newaxis, np.newaxis, :], num_paths, axis=0)
@@ -155,9 +164,9 @@ if __name__ == "__main__":
             local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
 
         save_path = (
-                project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_OOSDriftTrack_{Nepoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_{config.ts_beta:.1e}Beta_{config.ts_rho:.1e}Rho_{config.ts_sigma:.1e}Sigma").replace(
-            ".", "")
-        print(save_path)
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fMullerBrown_OOSDriftTrack_{Nepoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                ".", "")
+        print(f"Save Path {save_path}\n")
         np.save(save_path + "_global_true_states.npy", true_states)
         np.save(save_path + "_global_states.npy", global_states)
         np.save(save_path + "_local_states.npy", local_states)

@@ -2,11 +2,9 @@ import numpy as np
 from configs import project_config
 from tqdm import tqdm
 from scipy.stats import norm
-from configs.RecursiveVPSDE.LSTM_4DLorenz.recursive_LSTM_PostMeanScore_4DLorenz_T256_H05_tl_110data import get_config
-from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
-
-
-# In[2]:
+from configs.RecursiveVPSDE.LSTM_fMullerBrown.recursive_LSTM_PostMeanScore_MullerBrown_T256_H05_tl_110data import \
+    get_config
+from src.classes.ClassFractionalMullerBrown import FractionalMullerBrown
 
 
 def gaussian_kernel(bw, x):
@@ -32,7 +30,7 @@ def rmse_ignore_nans(y_true, y_pred):
 
 
 config = get_config()
-num_paths = 10952
+num_paths = 109
 t0 = config.t0
 deltaT = config.deltaT
 t1 = deltaT * config.ts_length
@@ -42,14 +40,13 @@ initial_state = np.array(config.initState)
 rvs = None
 H = config.hurst
 
-# In[4]:
 
-
-fLnz = FractionalLorenz96(X0=config.initState, diff=config.diffusion, num_dims=config.ndims,
-                          forcing_const=config.forcing_const)
+fMB = FractionalMullerBrown(initialState=np.array(initial_state), X0s=np.array(config.X0s), Y0s=np.array(config.Y0s),
+                            diff=config.diffusion, Aks=np.array(config.Aks),
+                            aks=np.array(config.aks), bks=np.array(config.bks), cks=np.array(config.cks))
 is_path_observations = np.array(
-    [fLnz.euler_simulation(H=H, N=config.ts_length, deltaT=deltaT, X0=initial_state, Ms=None, gaussRvs=rvs,
-                           t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
+    [fMB.euler_simulation(H=H, N=config.ts_length, deltaT=deltaT, X0=initial_state, Ms=None, gaussRvs=rvs,
+                          t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
     (num_paths, config.ts_length + 1, config.ndims))
 
 is_idxs = np.arange(is_path_observations.shape[0])
@@ -77,7 +74,7 @@ def IID_NW_multivar_estimator(prevPath_observations, path_incs, bw, x, t1, t0, t
     denominator = np.sum(kernel_weights_unnorm, axis=(1, 0))[:, np.newaxis] / (N * n)
     assert (denominator.shape == (x.shape[0], 1))
     numerator = np.sum(kernel_weights_unnorm[..., np.newaxis] * path_incs[:, :, np.newaxis, :], axis=(1, 0)) / N * (
-                t1 - t0)
+            t1 - t0)
     assert (numerator.shape == x.shape)
     estimator = numerator / denominator
     assert (estimator.shape == x.shape)
@@ -89,27 +86,33 @@ def IID_NW_multivar_estimator(prevPath_observations, path_incs, bw, x, t1, t0, t
     return estimator
 
 
-# In[6]:
-
-
 assert (prevPath_observations.shape[1] * deltaT == (t1 - t0))
 
-# In[13]:
-
-
 grid_1d = np.logspace(-4, -0.05, 40)
-#mesh = np.meshgrid(*([grid_1d] * config.ndims), indexing='ij')
+# mesh = np.meshgrid(*([grid_1d] * config.ndims), indexing='ij')
 # Stack and reshape the grid so each row is a point in the n-dimensional grid
-#bws = np.stack([m.ravel() for m in mesh], axis=-1)
+# bws = np.stack([m.ravel() for m in mesh], axis=-1)
 bws = np.stack([grid_1d for m in range(config.ndims)], axis=-1)
 print(bws.shape)
+assert (config.ndims == 2)
+
 
 def true_drift(prev, num_paths, config):
     assert (prev.shape == (num_paths, config.ndims))
+    Aks = np.array(config.Aks)[np.newaxis, :]
+    aks = np.array(config.aks)[np.newaxis, :]
+    bks = np.array(config.bks)[np.newaxis, :]
+    cks = np.array(config.cks)[np.newaxis, :]
+    X0s = np.array(config.X0s)[np.newaxis, :]
+    Y0s = np.array(config.Y0s)[np.newaxis, :]
+    common = Aks * np.exp(aks* np.power(prev[:,[0]] - X0s, 2) \
+                                 + bks* (prev[:,[0]] - X0s) * (prev[:, [1]] - Y0s)
+                                 + cks* np.power(prev[:, [1]] - Y0s, 2))
+    assert (common.shape == (num_paths, 4))
     drift_X = np.zeros((num_paths, config.ndims))
-    for i in range(config.ndims):
-        drift_X[:, i] = (prev[:, (i + 1) % config.ndims] - prev[:, i - 2]) * prev[:, i - 1] - prev[:,
-                                                                                              i] + config.forcing_const
+    drift_X[:, 0] = -np.sum(common * (2. * aks* (prev[:, [0]] - X0s) + bks* (prev[:, [1]] - Y0s)), axis=1)
+    drift_X[:, 1] = -np.sum(common * (2. * cks* (prev[:, [1]] - Y0s) + bks* (prev[:, [0]] - X0s)), axis=1)
+
     return drift_X[:, np.newaxis, :]
 
 
@@ -142,8 +145,9 @@ for k in range(len(bws)):
         global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
         local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_f{config.ndims}DLnz_DriftTrack_{bw}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
+            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fMullerBrown_DriftTrack_{bw[0]}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT").replace(
         ".", "")
+    print(f"Save path {save_path}\n")
     np.save(save_path + "_true_states.npy", true_states)
     np.save(save_path + "_global_states.npy", global_states)
     np.save(save_path + "_local_states.npy", local_states)

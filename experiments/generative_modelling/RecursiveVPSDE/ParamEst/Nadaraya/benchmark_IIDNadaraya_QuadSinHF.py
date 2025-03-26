@@ -35,7 +35,7 @@ num_paths = 10952
 num_time_steps = config.ts_length
 isUnitInterval = True
 diff = config.diffusion
-initial_state = 0.
+initial_state = config.initState
 rvs = None
 H = config.hurst
 deltaT = config.deltaT
@@ -140,5 +140,5 @@ for bw in bws:
     save_path = (
             project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fQuadSinHF_DriftEvalExp_{round(bw, 4)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.ts_length}NumDPS").replace(
         ".", "")
-    print(save_path)
+    print(f"Save Path {save_path}\n")
     np.save(save_path + "_isdriftHats.npy", unif_is_drift_hats)
