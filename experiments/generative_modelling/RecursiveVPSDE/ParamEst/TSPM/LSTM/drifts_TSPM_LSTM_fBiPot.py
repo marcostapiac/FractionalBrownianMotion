@@ -30,7 +30,8 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
 
         sequences = []
         js = []
-        for idx in indices:
+        for k in range(min(100, indices.shape[0])):
+            idx = indices[k, :]
             i, j = idx.tolist()
             # Extract the sequence: row i, columns 0 to j (inclusive)
             seq = sim_data_tensor[i, :j + 1]

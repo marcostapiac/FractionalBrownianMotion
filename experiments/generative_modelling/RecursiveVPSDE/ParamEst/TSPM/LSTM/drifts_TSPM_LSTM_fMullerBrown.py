@@ -31,12 +31,12 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
             thresh = np.cos(np.arccos(thresh) * 2)
             mask = diff <= np.arccos(thresh)
         assert (torch.sum(mask) > 0)
-
         # Get indices where mask is True (each index is [i, j])
         indices = mask.nonzero(as_tuple=False)
         sequences = []
         js = []
-        for idx in indices:
+        for k in range(min(100, indices.shape[0])):
+            idx = indices[k, :]
             i, j = idx.tolist()
             # Extract the sequence: row i, columns 0 to j (inclusive)
             seq = sim_data_tensor[i, :j + 1, :]
@@ -44,8 +44,6 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
             js.append(len(seq))
         outputs = []
         PM.eval()
-        sequences = sequences[:100]
-        js = js[:100]
         if sequences:
             # Pad sequences to create a batch.
             # pad_sequence returns tensor of shape (batch_size, max_seq_len)
@@ -66,6 +64,7 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
         assert (len(out) > 0)
         print(out.shape)
         features_Xs[tuple(x.squeeze().tolist())] = out
+    raise RuntimeError
     return features_Xs
 
 config = get_config()
