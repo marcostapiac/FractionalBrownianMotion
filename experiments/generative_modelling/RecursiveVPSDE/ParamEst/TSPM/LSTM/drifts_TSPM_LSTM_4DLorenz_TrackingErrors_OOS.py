@@ -106,11 +106,11 @@ if __name__ == "__main__":
         PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
         PM = PM.to(device)
         rmse_quantile_nums = 20
+        num_paths = 100
         all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         all_global_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         all_local_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         for quant_idx in tqdm(range(rmse_quantile_nums)):
-            num_paths = 100
             num_time_steps = 100
             deltaT = config.deltaT
             initial_state = np.repeat(np.array(config.initState)[np.newaxis, np.newaxis, :], num_paths, axis=0)
