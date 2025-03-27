@@ -50,7 +50,6 @@ if __name__ == "__main__":
             num_time_steps = 100
             deltaT = config.deltaT
             initial_state = np.repeat(np.atleast_2d(config.initState)[np.newaxis, :], num_paths, axis=0)
-            print(initial_state.shape)
             assert (initial_state.shape == (num_paths, 1, config.ndims))
 
             true_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
