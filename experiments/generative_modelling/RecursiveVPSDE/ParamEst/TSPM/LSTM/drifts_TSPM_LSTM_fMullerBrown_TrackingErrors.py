@@ -131,7 +131,7 @@ if __name__ == "__main__":
                                       :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
 
             # Euler-Maruyama Scheme for Tracking Errors
-            for i in tqdm(range(1, num_time_steps + 1)):
+            for i in range(1, num_time_steps + 1):
                 eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT)
                 assert (eps.shape == (num_paths, 1, config.ndims))
                 true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config)

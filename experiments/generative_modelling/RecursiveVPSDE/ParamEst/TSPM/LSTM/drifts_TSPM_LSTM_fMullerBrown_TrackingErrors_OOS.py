@@ -79,7 +79,7 @@ if __name__ == "__main__":
             # Euler-Maruyama Scheme for Tracking Errors
             global_h, global_c = None, None
             local_h, local_c = None, None
-            for i in tqdm(range(1, num_time_steps + 1)):
+            for i in range(1, num_time_steps + 1):
                 eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT)
                 assert (eps.shape == (num_paths, 1, config.ndims))
                 true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config)
