@@ -194,9 +194,12 @@ def find_LSTM_feature_vectors_oneDTS(Xs, PM, config, device):
     sim_data_tensor = torch.tensor(sim_data, dtype=torch.float)
 
     def process_single_threshold(x, dX):
+        # Compute the mask over the entire sim_data matrix
+        diff = sim_data_tensor - x
+        mask = torch.abs(diff) <= torch.min(torch.abs(diff))
+        """
         xmin = x - dX
         xmax = x + dX
-        # Compute the mask over the entire sim_data matrix
         mask = (sim_data_tensor >= xmin) & (sim_data_tensor <= xmax)
         while torch.sum(mask) == 0:
             dX *= 2
@@ -204,6 +207,7 @@ def find_LSTM_feature_vectors_oneDTS(Xs, PM, config, device):
             xmax = x + dX
             # Compute the mask over the entire sim_data matrix
             mask = (sim_data_tensor >= xmin) & (sim_data_tensor <= xmax)
+        """
         assert torch.sum(mask) > 0
         # Get indices where mask is True (each index is [i, j])
         indices = mask.nonzero(as_tuple=False)
