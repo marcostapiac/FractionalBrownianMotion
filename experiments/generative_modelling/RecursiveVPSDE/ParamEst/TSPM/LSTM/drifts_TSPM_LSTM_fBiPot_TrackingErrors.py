@@ -32,7 +32,7 @@ if __name__ == "__main__":
 
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
-    for Nepoch in config.max_epochs[2:]:
+    for Nepoch in config.max_epochs:
         print(f"Starting Epoch {Nepoch}\n")
         num_diff_times = 1
         rmse_quantile_nums = 20
