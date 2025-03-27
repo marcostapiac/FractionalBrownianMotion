@@ -14,7 +14,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 
 # In[22]:
 
-def find_LSTM_feature_vectors(Xs, PM, config, device):
+def find_LSTM_feature_vectors_1DTS(Xs, PM, config, device):
     sim_data = np.load(config.data_path, allow_pickle=True)
     sim_data_tensor = torch.tensor(sim_data, dtype=torch.float)
     dX_global = np.diff(Xs)[0] / 5000
@@ -89,7 +89,7 @@ def LSTM_1D_drifts(config, PM):
                                      steps=Ndiff_discretisation).to(device)
 
     Xs = torch.linspace(-1.5, 1.5, steps=Xshape)
-    features = find_LSTM_feature_vectors(Xs=Xs, PM=PM, device=device, config=config)
+    features = find_LSTM_feature_vectors_1DTS(Xs=Xs, PM=PM, device=device, config=config)
     num_feats_per_x = {x.item(): features[x.item()].shape[0] for x in Xs}
     # list_num_feats_per_x = list(num_feats_per_x.values())
     tot_num_feats = np.sum(list(num_feats_per_x.values()))

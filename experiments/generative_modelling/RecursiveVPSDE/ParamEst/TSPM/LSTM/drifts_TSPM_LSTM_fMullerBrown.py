@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 import torch
-from torch.nn.utils.rnn import pad_sequence
 
 from configs import project_config
 from configs.RecursiveVPSDE.LSTM_fMullerBrown.recursive_LSTM_PostMeanScore_MullerBrown_T256_H05_tl_110data import \
@@ -10,61 +9,7 @@ from configs.RecursiveVPSDE.LSTM_fMullerBrown.recursive_LSTM_PostMeanScore_Mulle
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
     ConditionalLSTMTSPostMeanScoreMatching
-
-
-# In[22]:
-
-def find_LSTM_feature_vectors(Xs, PM, config, device):
-    sim_data = np.load(config.data_path, allow_pickle=True)
-    sim_data_tensor = torch.tensor(sim_data, dtype=torch.float).to(device)
-
-    def process_single_threshold(x, dX_global):
-        diff = sim_data_tensor - x.reshape(1, -1)  # shape: (M, N, D)
-        # tensor_norm = sim_data_tensor / sim_data_tensor.norm(dim=-1, keepdim=True)
-        # candidate_norm = x / x.norm(dim=0, keepdim=True)  # (D, 1)
-        # diff = (tensor_norm @ candidate_norm).squeeze(-1) # Result: (M, N)
-        # mask = diff >= dX_global
-        diff = diff.norm(dim=-1)  # Result: (M, N)
-        mask = diff <= np.arccos(dX_global)
-        thresh = dX_global
-        while torch.sum(mask) == 0:
-            thresh = np.cos(np.arccos(thresh) * 2)
-            mask = diff <= np.arccos(thresh)
-        assert (torch.sum(mask) > 0)
-        # Get indices where mask is True (each index is [i, j])
-        indices = mask.nonzero(as_tuple=False)
-        sequences = []
-        js = []
-        for k in range(min(100, indices.shape[0])):
-            idx = indices[k, :]
-            i, j = idx.tolist()
-            # Extract the sequence: row i, columns 0 to j (inclusive)
-            seq = sim_data_tensor[i, :j + 1, :]
-            sequences.append(seq)
-            js.append(len(seq))
-        outputs = []
-        PM.eval()
-        if sequences:
-            # Pad sequences to create a batch.
-            # pad_sequence returns tensor of shape (batch_size, max_seq_len)
-            padded_batch = pad_sequence(sequences, batch_first=True, padding_value=torch.nan).to(device)
-            # Add feature dimension: now shape becomes (batch_size, max_seq_len, 1)
-            # padded_batch = padded_batch.unsqueeze(-1).to(device)
-            with torch.no_grad():
-                batch_output, _ = PM.rnn(padded_batch, None)
-            outputs = batch_output[torch.arange(batch_output.shape[0]), torch.tensor(js, dtype=torch.long) - 1,
-                      :].unsqueeze(1).cpu()
-        return x, outputs
-
-    features_Xs = {}
-    dX_global = np.cos(1. / 5000)
-    for i in range(Xs.shape[0]):
-        x = Xs[i, :].reshape(-1, 1)
-        x_val, out = process_single_threshold(torch.tensor(x).to(device, dtype=torch.float), dX_global)
-        assert (len(out) > 0)
-        print(out.shape)
-        features_Xs[tuple(x.squeeze().tolist())] = out
-    return features_Xs
+from utils.drift_evaluation_functions import find_LSTM_feature_vectors_multiDTS
 
 config = get_config()
 
@@ -98,7 +43,7 @@ def LSTM_2D_drifts(PM, config):
     Xs, Ys = np.meshgrid(Xs, Ys)
     Xs = np.column_stack([Xs.ravel(), Ys.ravel()])
     Xshape = Xs.shape[0]
-    features = find_LSTM_feature_vectors(Xs=Xs, PM=PM, device=device, config=config)
+    features = find_LSTM_feature_vectors_multiDTS(Xs=Xs, PM=PM, device=device, config=config)
     num_feats_per_x = {tuple(x.squeeze().tolist()): features[tuple(x.squeeze().tolist())].shape[0] for x in Xs}
     # list_num_feats_per_x = list(num_feats_per_x.values())
     tot_num_feats = np.sum(list(num_feats_per_x.values()))
