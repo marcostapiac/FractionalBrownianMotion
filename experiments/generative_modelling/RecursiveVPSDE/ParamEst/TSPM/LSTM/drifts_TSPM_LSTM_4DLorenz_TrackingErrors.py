@@ -18,17 +18,14 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
 
     def process_single_threshold(x, dX_global):
         diff = sim_data_tensor - x.reshape(1, -1)  # shape: (M, N, D)
-        # tensor_norm = sim_data_tensor / sim_data_tensor.norm(dim=-1, keepdim=True)
-        # candidate_norm = x / x.norm(dim=0, keepdim=True)  # (D, 1)
-        # diff = (tensor_norm @ candidate_norm).squeeze(-1) # Result: (M, N)
-        # mask = diff >= dX_global
         diff = diff.norm(dim=-1)  # Result: (M, N)
-        mask = diff <= torch.min(diff)#np.arccos(dX_global)
+        mask = diff <= torch.min(diff)
+        """mask = diff <=np.arccos(dX_global)
         thresh = dX_global
         while torch.sum(mask) == 0:
             thresh = np.cos(np.arccos(thresh)*2)
             mask = diff <= np.arccos(thresh)
-        assert (torch.sum(mask) > 0)
+        assert (torch.sum(mask) > 0)"""
 
         # Get indices where mask is True (each index is [i, j])
         indices = mask.nonzero(as_tuple=False)
@@ -51,7 +48,7 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
             # padded_batch = padded_batch.unsqueeze(-1).to(device)
             with torch.no_grad():
                 batch_output, _ = PM.rnn(padded_batch, None)
-            outputs = batch_output[torch.arange(batch_output.shape[0]), torch.tensor(js, dtype=torch.long) - 1,
+            outputs = batch_output[torch.arange(batch_output.shape[0]), torch.tensor(js, dtype=torch.long) ,
                       :].unsqueeze(1).cpu()
         return x, outputs
 
