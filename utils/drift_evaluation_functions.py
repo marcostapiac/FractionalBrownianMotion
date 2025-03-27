@@ -13,7 +13,6 @@ def multivar_score_based_LSTM_drift(score_model, num_diff_times, diffusion, num_
         features = find_LSTM_feature_vectors_multiDTS(Xs=prev, PM=score_model, device=device, config=config)
         num_feats_per_x = {tuple(x.squeeze().tolist()): features[tuple(x.squeeze().tolist())].shape[0] for x in prev}
     else:
-        print("Enetered\n")
         features = find_LSTM_feature_vectors_oneDTS(Xs=prev, PM=score_model, device=device, config=config)
         num_feats_per_x = {x.item(): features[x.item()].shape[0] for x in prev}
     # list_num_feats_per_x = list(num_feats_per_x.values())
@@ -245,7 +244,6 @@ def find_LSTM_feature_vectors_oneDTS(Xs, PM, config, device):
             features_Xs[x_val.item()] = out
     else:
         for i in range(Xs.shape[0]):
-            print("Entered again\n")
             dX_global = 1. / 5000
             x = Xs[i, :].reshape(-1, 1)
             assert (x.shape[-1] == 1 and x.shape[0] == 1)
