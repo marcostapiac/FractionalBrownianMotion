@@ -8,7 +8,7 @@ from src.classes.ClassFractionalMullerBrown import FractionalMullerBrown
 from utils.drift_evaluation_functions import IID_NW_multivar_estimator
 
 config = get_config()
-num_paths = 109
+num_paths = 10952
 t0 = config.t0
 deltaT = config.deltaT
 t1 = deltaT * config.ts_length
