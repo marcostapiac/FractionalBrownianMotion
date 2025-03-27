@@ -2,7 +2,6 @@ import os
 
 import numpy as np
 import torch
-from torch.nn.utils.rnn import pad_sequence
 
 from configs import project_config
 from configs.RecursiveVPSDE.LSTM_fBiPot.recursive_LSTM_PostMeanScore_fBiPot_T256_H05_tl_110data import \
@@ -10,63 +9,7 @@ from configs.RecursiveVPSDE.LSTM_fBiPot.recursive_LSTM_PostMeanScore_fBiPot_T256
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
     ConditionalLSTMTSPostMeanScoreMatching
-
-
-# In[22]:
-
-def find_LSTM_feature_vectors_1DTS(Xs, PM, config, device):
-    sim_data = np.load(config.data_path, allow_pickle=True)
-    sim_data_tensor = torch.tensor(sim_data, dtype=torch.float)
-    dX_global = np.diff(Xs)[0] / 5000
-    assert (((Xs[1] - Xs[0]) / 5000) == dX_global)
-
-    def process_single_threshold(x, dX):
-        xmin = x - dX
-        xmax = x + dX
-        # Compute the mask over the entire sim_data matrix
-        mask = (sim_data_tensor >= xmin) & (sim_data_tensor <= xmax)
-        while torch.sum(mask) == 0:
-            dX *= 2
-            xmin = x - dX
-            xmax = x + dX
-            # Compute the mask over the entire sim_data matrix
-            mask = (sim_data_tensor >= xmin) & (sim_data_tensor <= xmax)
-        assert torch.sum(mask) > 0
-        # Get indices where mask is True (each index is [i, j])
-        indices = mask.nonzero(as_tuple=False)
-
-        sequences = []
-        js = []
-        for k in range(min(100, indices.shape[0])):
-            idx = indices[k, :]
-            i, j = idx.tolist()
-            # Extract the sequence: row i, columns 0 to j (inclusive)
-            seq = sim_data_tensor[i, :j + 1]
-            sequences.append(seq)
-            js.append(len(seq))
-
-        outputs = []
-        PM.eval()
-        if sequences:
-            # Pad sequences to create a batch.
-            # pad_sequence returns tensor of shape (batch_size, max_seq_len)
-            padded_batch = pad_sequence(sequences, batch_first=True, padding_value=torch.nan)
-            # Add feature dimension: now shape becomes (batch_size, max_seq_len, 1)
-            padded_batch = padded_batch.unsqueeze(-1).to(device)
-            with torch.no_grad():
-                batch_output, _ = PM.rnn(padded_batch, None)
-            outputs = batch_output[torch.arange(batch_output.shape[0]), torch.tensor(js, dtype=torch.long) - 1,
-                      :].unsqueeze(1).cpu()
-        return x, outputs
-
-    # Option 1: Process sequentially (using tqdm)
-    features_Xs = {}
-    for x in (Xs):
-        x_val, out = process_single_threshold(x, dX=dX_global)
-        assert (len(out) > 0)
-        features_Xs[x_val.item()] = out
-
-    return features_Xs
+from utils.drift_evaluation_functions import find_LSTM_feature_vectors_oneDTS
 
 
 def LSTM_1D_drifts(config, PM):
@@ -89,7 +32,7 @@ def LSTM_1D_drifts(config, PM):
                                      steps=Ndiff_discretisation).to(device)
 
     Xs = torch.linspace(-1.5, 1.5, steps=Xshape)
-    features = find_LSTM_feature_vectors_1DTS(Xs=Xs, PM=PM, device=device, config=config)
+    features = find_LSTM_feature_vectors_oneDTS(Xs=Xs, PM=PM, device=device, config=config)
     num_feats_per_x = {x.item(): features[x.item()].shape[0] for x in Xs}
     # list_num_feats_per_x = list(num_feats_per_x.values())
     tot_num_feats = np.sum(list(num_feats_per_x.values()))
@@ -115,14 +58,6 @@ def LSTM_1D_drifts(config, PM):
         vec_conditioner = torch.stack([features_tensor for _ in range(num_taus)], dim=0).reshape(
             num_taus * tot_num_feats,
             1, -1)
-
-        # assert (all([torch.allclose(vec_conditioner[j::tot_num_feats,:,:],vec_conditioner[j,:,:]) for j in range(Xshape)]))
-        # vec_c_mat = vec_conditioner.reshape((num_taus, tot_num_feats, vec_conditioner.shape[-1])).cpu()
-        # for j in range(Xshape):
-        #    c = vec_c_mat[:, sum(list_num_feats_per_x[:j]):sum(list_num_feats_per_x[:j+1]), :]
-        #    assert torch.allclose(c, c[0, :, :])
-        #    assert torch.allclose(c[0, :, :], features[Xs[j].item()].squeeze(1))
-        # del vec_c_mat
         with torch.no_grad():
             vec_predicted_score = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
                                              eff_times=vec_eff_times)
