@@ -85,6 +85,7 @@ if __name__ == "__main__":
                                                              prev=true_states[:, i - 1, :])
 
                 local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
+                print(f"{i}\n")
             all_true_states[quant_idx, :, :, :] = true_states
             all_global_states[quant_idx, :, :, :] = global_states
             all_local_states[quant_idx, :, :, :] = local_states
