@@ -269,14 +269,26 @@ def multivar_gaussian_kernel(inv_H, norm_const, x):
 
 def IID_NW_multivar_estimator(prevPath_observations, path_incs, inv_H, norm_const, x, t1, t0, truncate):
     N, n, d = prevPath_observations.shape
-    kernel_weights_unnorm = multivar_gaussian_kernel(inv_H=inv_H, norm_const=norm_const,
-                                                     x=prevPath_observations[:, :, np.newaxis, :] - x[np.newaxis,
-                                                                                                    np.newaxis,
-                                                                                                    :, :])
-    denominator = np.sum(kernel_weights_unnorm, axis=(1, 0))[:, np.newaxis] / (N * n)
-    assert (denominator.shape == (x.shape[0], 1))
-    numerator = np.sum(kernel_weights_unnorm[..., np.newaxis] * path_incs[:, :, np.newaxis, :], axis=(1, 0)) / N * (
-            t1 - t0)
+    if len(prevPath_observations.shape) > 2:
+        kernel_weights_unnorm = multivar_gaussian_kernel(inv_H=inv_H, norm_const=norm_const,
+                                                         x=prevPath_observations[:, :, np.newaxis, :] - x[np.newaxis,
+                                                                                                        np.newaxis,
+                                                                                                        :, :])
+        denominator = np.sum(kernel_weights_unnorm, axis=(1, 0))[:, np.newaxis] / (N * n)
+        assert (denominator.shape == (x.shape[0], 1))
+        numerator = np.sum(kernel_weights_unnorm[..., np.newaxis] * path_incs[:, :, np.newaxis, :], axis=(1, 0)) / N * (
+                t1 - t0)
+    elif len(prevPath_observations.shape) == 2:
+        kernel_weights_unnorm = multivar_gaussian_kernel(inv_H=inv_H, norm_const=norm_const,
+                                                         x=prevPath_observations[:, :, np.newaxis, np.newaxis] - x[
+                                                                                                                 np.newaxis,
+                                                                                                                 np.newaxis,
+                                                                                                                 :, :])
+        denominator = np.sum(kernel_weights_unnorm, axis=(1, 0))[:, np.newaxis] / (N * n)
+        assert (denominator.shape == (x.shape[0], 1))
+        numerator = np.sum(kernel_weights_unnorm[..., np.newaxis] * path_incs[:, :, np.newaxis, np.newaxis],
+                           axis=(1, 0)) / N * (
+                            t1 - t0)
     assert (numerator.shape == x.shape)
     estimator = numerator / denominator
     assert (estimator.shape == x.shape)
