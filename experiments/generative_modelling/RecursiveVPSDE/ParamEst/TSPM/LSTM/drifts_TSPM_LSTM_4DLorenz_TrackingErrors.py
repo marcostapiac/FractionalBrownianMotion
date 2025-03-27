@@ -48,7 +48,7 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
             # padded_batch = padded_batch.unsqueeze(-1).to(device)
             with torch.no_grad():
                 batch_output, _ = PM.rnn(padded_batch, None)
-            outputs = batch_output[torch.arange(batch_output.shape[0]), torch.tensor(js, dtype=torch.long) ,
+            outputs = batch_output[torch.arange(batch_output.shape[0]), torch.tensor(js, dtype=torch.long) - 1,
                       :].unsqueeze(1).cpu()
         return x, outputs
 
