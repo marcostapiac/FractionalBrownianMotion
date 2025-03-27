@@ -194,7 +194,7 @@ def find_LSTM_feature_vectors_multiDTS(Xs, score_model, config, device):
 
 def find_LSTM_feature_vectors_oneDTS(Xs, score_model, config, device):
     sim_data = np.load(config.data_path, allow_pickle=True)
-    sim_data_tensor = torch.tensor(sim_data, dtype=torch.float)
+    sim_data_tensor = torch.tensor(sim_data, dtype=torch.float).to(device)
 
     def process_single_threshold(x, score_model, device, dX):
         # Compute the mask over the entire sim_data matrix
