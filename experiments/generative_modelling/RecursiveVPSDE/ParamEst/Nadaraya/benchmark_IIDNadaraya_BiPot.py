@@ -132,7 +132,7 @@ for bw in bws:
                                                     path_incs=is_path_incs, t1=t1, t0=t0, truncate=True)
 
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fBiPot_DriftEvalExp_{round(bw, 4)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(
+            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fBiPot_DriftEvalExp_{round(bw, 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(
         ".", "")
     np.save(save_path + "_isdriftHats.npy", unif_is_drift_hats)
 

@@ -138,7 +138,7 @@ for bw in bws:
         unif_is_drift_hats[:, k] = IID_NW_estimator(prevPath_observations=is_prevPath_observations, bw=bw, x=Xs,
                                                     path_incs=is_path_incs, t1=t1, t0=t0, truncate=True)
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fQuadSinHF_DriftEvalExp_{round(bw, 4)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.ts_length}NumDPS").replace(
+            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fQuadSinHF_DriftEvalExp_{round(bw, 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.ts_length}NumDPS").replace(
         ".", "")
     print(f"Save Path {save_path}\n")
     np.save(save_path + "_isdriftHats.npy", unif_is_drift_hats)
