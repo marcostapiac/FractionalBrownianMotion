@@ -114,38 +114,48 @@ def true_drift(prev, num_paths, config):
 
 
 num_time_steps = 100
-num_state_paths = 10
+num_state_paths = 100
 # Euler-Maruyama Scheme for Tracking Errors
 for k in range(len(bws)):
     bw = bws[k]
     print(f"Considering bandwidth grid number {k}\n")
-    true_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
-    global_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
-    local_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
-    # Initialise the "true paths"
-    true_states[:, [0], :] = config.initState
-    # Initialise the "global score-based drift paths"
-    global_states[:, [0], :] = config.initState
-    # Initialise the "local score-based drift paths"
-    local_states[:, [0], :] = config.initState
-    for i in tqdm(range(1, num_time_steps + 1)):
-        eps = np.random.randn(num_state_paths, 1, config.ndims) * np.sqrt(deltaT)
-        assert (eps.shape == (num_state_paths, 1, config.ndims))
-        true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_state_paths, config=config)
-        global_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, bw=bw,
-                                                x=global_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
-                                                t0=config.t0, truncate=True)[:, np.newaxis, :]
-        local_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, bw=bw,
-                                               x=true_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
-                                               t0=config.t0, truncate=True)[:, np.newaxis, :]
-        true_states[:, [i], :] = true_states[:, [i - 1], :] + true_mean * deltaT + eps
-        global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
-        local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
+    rmse_quantile_nums = 20
+    num_paths = 100
+    num_time_steps = 100
+    all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_global_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_local_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    for quant_idx in tqdm(range(rmse_quantile_nums)):
+        true_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
+        global_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
+        local_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
+        # Initialise the "true paths"
+        true_states[:, [0], :] = config.initState
+        # Initialise the "global score-based drift paths"
+        global_states[:, [0], :] = config.initState
+        # Initialise the "local score-based drift paths"
+        local_states[:, [0], :] = config.initState
+        for i in tqdm(range(1, num_time_steps + 1)):
+            eps = np.random.randn(num_state_paths, 1, config.ndims) * np.sqrt(deltaT)
+            assert (eps.shape == (num_state_paths, 1, config.ndims))
+            true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_state_paths, config=config)
+            global_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, bw=bw,
+                                                    x=global_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
+                                                    t0=config.t0, truncate=True)[:, np.newaxis, :]
+            local_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, bw=bw,
+                                                   x=true_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
+                                                   t0=config.t0, truncate=True)[:, np.newaxis, :]
+            true_states[:, [i], :] = true_states[:, [i - 1], :] + true_mean * deltaT + eps
+            global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
+            local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
+        all_true_states[quant_idx, :, :, :] = true_states
+        all_global_states[quant_idx, :, :, :] = global_states
+        all_local_states[quant_idx, :, :, :] = local_states
     save_path = (
             project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_f{config.ndims}DLnz_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
         ".", "")
-    np.save(save_path + "_true_states.npy", true_states)
-    np.save(save_path + "_global_states.npy", global_states)
-    np.save(save_path + "_local_states.npy", local_states)
+    np.save(save_path + "_true_states.npy", all_true_states)
+    np.save(save_path + "_global_states.npy", all_global_states)
+    np.save(save_path + "_local_states.npy", all_local_states)
 
 # In[10]:
