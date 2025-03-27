@@ -6,14 +6,15 @@ from torch.nn.utils.rnn import pad_sequence
 def multivar_score_based_LSTM_drift(score_model, num_diff_times, diffusion, num_paths, prev, ts_step, config,
                                     device):
     """ Computes drift using LSTM score network when features obtained from in-sample data """
+    score_model = score_model.to(device)
     num_taus = 100
     Ndiff_discretisation = config.max_diff_steps
     assert (prev.shape == (num_paths, config.ndims))
     if prev[0, :].shape[0] > 1:
-        features = find_LSTM_feature_vectors_multiDTS(Xs=prev, PM=score_model, device=device, config=config)
+        features = find_LSTM_feature_vectors_multiDTS(Xs=prev, score_model=score_model, device=device, config=config)
         num_feats_per_x = {tuple(x.squeeze().tolist()): features[tuple(x.squeeze().tolist())].shape[0] for x in prev}
     else:
-        features = find_LSTM_feature_vectors_oneDTS(Xs=prev, PM=score_model, device=device, config=config)
+        features = find_LSTM_feature_vectors_oneDTS(Xs=prev, score_model=score_model, device=device, config=config)
         num_feats_per_x = {x.item(): features[x.item()].shape[0] for x in prev}
     # list_num_feats_per_x = list(num_feats_per_x.values())
     tot_num_feats = np.sum(list(num_feats_per_x.values()))
@@ -70,6 +71,7 @@ def multivar_score_based_LSTM_drift_OOS(score_model, time_idx, h, c, num_diff_ti
                                         device):
     """ Computes drift using LSTM score network when features obtained from LSTM directly """
 
+    score_model = score_model.to(device)
     num_taus = 100
     Ndiff_discretisation = config.max_diff_steps
     assert (prev.shape == (num_paths, config.ndims))
@@ -138,11 +140,11 @@ def multivar_score_based_LSTM_drift_OOS(score_model, time_idx, h, c, num_diff_ti
     return means.mean(dim=0).reshape(num_paths, 1, config.ts_dims).cpu().numpy(), h, c
 
 
-def find_LSTM_feature_vectors_multiDTS(Xs, PM, config, device):
+def find_LSTM_feature_vectors_multiDTS(Xs, score_model, config, device):
     sim_data = np.load(config.data_path, allow_pickle=True)
     sim_data_tensor = torch.tensor(sim_data, dtype=torch.float).to(device)
 
-    def process_single_threshold(x, dX_global):
+    def process_single_threshold(x,score_model, device, dX_global):
         diff = sim_data_tensor - x.reshape(1, -1)  # shape: (M, N, D)
         diff = diff.norm(dim=-1)  # Result: (M, N)
         mask = diff <= torch.min(diff)
@@ -166,7 +168,8 @@ def find_LSTM_feature_vectors_multiDTS(Xs, PM, config, device):
             sequences.append(seq)
             js.append(len(seq))
         outputs = []
-        PM.eval()
+        score_model = score_model.to(device)
+        score_model.eval()
         if sequences:
             # Pad sequences to create a batch.
             # pad_sequence returns tensor of shape (batch_size, max_seq_len)
@@ -174,7 +177,7 @@ def find_LSTM_feature_vectors_multiDTS(Xs, PM, config, device):
             # Add feature dimension: now shape becomes (batch_size, max_seq_len, 1)
             # padded_batch = padded_batch.unsqueeze(-1).to(device)
             with torch.no_grad():
-                batch_output, _ = PM.rnn(padded_batch, None)
+                batch_output, _ = score_model.rnn(padded_batch, None)
             outputs = batch_output[torch.arange(batch_output.shape[0]), torch.tensor(js, dtype=torch.long) - 1,
                       :].unsqueeze(1).cpu()
         return x, outputs
@@ -183,17 +186,17 @@ def find_LSTM_feature_vectors_multiDTS(Xs, PM, config, device):
     dX_global = np.cos(1. / 5000)
     for i in range(Xs.shape[0]):
         x = Xs[i, :].reshape(-1, 1)
-        x_val, out = process_single_threshold(torch.tensor(x).to(device, dtype=torch.float), dX_global)
+        x_val, out = process_single_threshold(torch.tensor(x).to(device, dtype=torch.float),device=device, score_model=score_model, dX_global=dX_global)
         assert (len(out) > 0)
         features_Xs[tuple(x.squeeze().tolist())] = out
     return features_Xs
 
 
-def find_LSTM_feature_vectors_oneDTS(Xs, PM, config, device):
+def find_LSTM_feature_vectors_oneDTS(Xs, score_model, config, device):
     sim_data = np.load(config.data_path, allow_pickle=True)
     sim_data_tensor = torch.tensor(sim_data, dtype=torch.float)
 
-    def process_single_threshold(x, dX):
+    def process_single_threshold(x, score_model, device, dX):
         # Compute the mask over the entire sim_data matrix
         diff = sim_data_tensor - x
         mask = torch.abs(diff) <= torch.min(torch.abs(diff))
@@ -223,7 +226,8 @@ def find_LSTM_feature_vectors_oneDTS(Xs, PM, config, device):
             js.append(len(seq))
 
         outputs = []
-        PM.eval()
+        score_model = score_model.to(device)
+        score_model.eval()
         if sequences:
             # Pad sequences to create a batch.
             # pad_sequence returns tensor of shape (batch_size, max_seq_len)
@@ -231,7 +235,7 @@ def find_LSTM_feature_vectors_oneDTS(Xs, PM, config, device):
             # Add feature dimension: now shape becomes (batch_size, max_seq_len, 1)
             padded_batch = padded_batch.unsqueeze(-1).to(device)
             with torch.no_grad():
-                batch_output, _ = PM.rnn(padded_batch, None)
+                batch_output, _ = score_model.rnn(padded_batch, None)
             outputs = batch_output[torch.arange(batch_output.shape[0]), torch.tensor(js, dtype=torch.long) - 1,
                       :].unsqueeze(1).cpu()
         return x, outputs
@@ -243,7 +247,7 @@ def find_LSTM_feature_vectors_oneDTS(Xs, PM, config, device):
         dX_global = np.diff(Xs)[0] / 5000
         assert (((Xs[1] - Xs[0]) / 5000) == dX_global)
         for x in (Xs):
-            x_val, out = process_single_threshold(x, dX=dX_global)
+            x_val, out = process_single_threshold(x,device=device,score_model=score_model, dX=dX_global)
             assert (len(out) > 0)
             features_Xs[x_val.item()] = out
     else:
@@ -251,7 +255,7 @@ def find_LSTM_feature_vectors_oneDTS(Xs, PM, config, device):
             dX_global = 1. / 5000
             x = Xs[i, :].reshape(-1, 1)
             assert (x.shape[-1] == 1 and x.shape[0] == 1)
-            x_val, out = process_single_threshold(x[0, 0], dX=dX_global)
+            x_val, out = process_single_threshold(x[0, 0], score_model=score_model,device=device,dX=dX_global)
             assert (len(out) > 0)
             features_Xs[x_val.item()] = out
     return features_Xs
