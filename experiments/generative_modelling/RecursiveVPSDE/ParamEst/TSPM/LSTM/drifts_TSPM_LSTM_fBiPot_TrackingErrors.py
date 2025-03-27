@@ -40,7 +40,7 @@ if __name__ == "__main__":
         all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         all_global_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         all_local_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
-        for quant_idx in (range(rmse_quantile_nums)):
+        for quant_idx in tqdm(range(rmse_quantile_nums)):
             PM = ConditionalLSTMTSPostMeanScoreMatching(*config.model_parameters)
             PM.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(Nepoch)))
             PM = PM.to(device)
@@ -60,7 +60,7 @@ if __name__ == "__main__":
                                       :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
 
             # Euler-Maruyama Scheme for Tracking Errors
-            for i in tqdm(range(1, num_time_steps + 1)):
+            for i in range(1, num_time_steps + 1):
                 eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT)
                 assert (eps.shape == (num_paths, 1, config.ndims))
                 true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config)
