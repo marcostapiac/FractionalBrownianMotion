@@ -17,14 +17,21 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 def find_LSTM_feature_vectors(Xs, PM, config, device):
     sim_data = np.load(config.data_path, allow_pickle=True)
     sim_data_tensor = torch.tensor(sim_data, dtype=torch.float)
-    dX = np.diff(Xs)[0] / 100
-    assert (((Xs[1] - Xs[0]) / 100) == dX)
+    dX_global = np.diff(Xs)[0] / 5000
+    assert (((Xs[1] - Xs[0]) / 5000) == dX_global)
 
-    def process_single_threshold(x):
+    def process_single_threshold(x, dX):
         xmin = x - dX
         xmax = x + dX
         # Compute the mask over the entire sim_data matrix
         mask = (sim_data_tensor >= xmin) & (sim_data_tensor <= xmax)
+        while torch.sum(mask) == 0:
+            dX *= 2
+            xmin = x - dX
+            xmax = x + dX
+            # Compute the mask over the entire sim_data matrix
+            mask = (sim_data_tensor >= xmin) & (sim_data_tensor <= xmax)
+        assert torch.sum(mask) > 0
         # Get indices where mask is True (each index is [i, j])
         indices = mask.nonzero(as_tuple=False)
 
@@ -55,7 +62,7 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
     # Option 1: Process sequentially (using tqdm)
     features_Xs = {}
     for x in (Xs):
-        x_val, out = process_single_threshold(x)
+        x_val, out = process_single_threshold(x, dX=dX_global)
         assert (len(out) > 0)
         features_Xs[x_val.item()] = out
 
@@ -74,7 +81,7 @@ def LSTM_1D_drifts(config, PM):
     ts_step = config.deltaT
     print(config.scoreNet_trained_path)
     Xshape = config.ts_length
-    num_taus = 1000
+    num_taus = 500
 
     num_diff_times = config.max_diff_steps
     Ndiff_discretisation = config.max_diff_steps
