@@ -35,8 +35,8 @@ if __name__ == "__main__":
     for Nepoch in config.max_epochs:
         print(f"Starting Epoch {Nepoch}\n")
         num_diff_times = 1
-        rmse_quantile_nums = 20
-        num_paths = 1
+        rmse_quantile_nums = 1
+        num_paths = 100
         num_time_steps = 100
         all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         all_global_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
