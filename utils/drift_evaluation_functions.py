@@ -144,7 +144,7 @@ def find_LSTM_feature_vectors_multiDTS(Xs, score_model, config, device):
     sim_data = np.load(config.data_path, allow_pickle=True)
     sim_data_tensor = torch.tensor(sim_data, dtype=torch.float).to(device)
 
-    def process_single_threshold(x,score_model, device, dX_global):
+    def process_single_threshold(x, score_model, device, dX_global):
         diff = sim_data_tensor - x.reshape(1, -1)  # shape: (M, N, D)
         diff = diff.norm(dim=-1)  # Result: (M, N)
         mask = diff <= torch.min(diff)
@@ -186,7 +186,8 @@ def find_LSTM_feature_vectors_multiDTS(Xs, score_model, config, device):
     dX_global = np.cos(1. / 5000)
     for i in range(Xs.shape[0]):
         x = Xs[i, :].reshape(-1, 1)
-        x_val, out = process_single_threshold(torch.tensor(x).to(device, dtype=torch.float),device=device, score_model=score_model, dX_global=dX_global)
+        x_val, out = process_single_threshold(torch.tensor(x).to(device, dtype=torch.float), device=device,
+                                              score_model=score_model, dX_global=dX_global)
         assert (len(out) > 0)
         features_Xs[tuple(x.squeeze().tolist())] = out
     return features_Xs
@@ -243,11 +244,11 @@ def find_LSTM_feature_vectors_oneDTS(Xs, score_model, config, device):
     # Option 1: Process sequentially (using tqdm)
     features_Xs = {}
     assert (len(Xs.shape) == 1 or Xs.shape[-1] == 1)
-    if len(Xs.shape) == 1: # Domain RMSE
+    if len(Xs.shape) == 1:  # Domain RMSE
         dX_global = np.diff(Xs)[0] / 5000
         assert (((Xs[1] - Xs[0]) / 5000) == dX_global)
         for x in (Xs):
-            x_val, out = process_single_threshold(x,device=device,score_model=score_model, dX=dX_global)
+            x_val, out = process_single_threshold(x, device=device, score_model=score_model, dX=dX_global)
             assert (len(out) > 0)
             features_Xs[x_val.item()] = out
     else:
@@ -255,7 +256,33 @@ def find_LSTM_feature_vectors_oneDTS(Xs, score_model, config, device):
             dX_global = 1. / 5000
             x = Xs[i, :].reshape(-1, 1)
             assert (x.shape[-1] == 1 and x.shape[0] == 1)
-            x_val, out = process_single_threshold(x[0, 0], score_model=score_model,device=device,dX=dX_global)
+            x_val, out = process_single_threshold(x[0, 0], score_model=score_model, device=device, dX=dX_global)
             assert (len(out) > 0)
             features_Xs[x_val.item()] = out
     return features_Xs
+
+
+def multivar_gaussian_kernel(inv_H, norm_const, x):
+    exponent = -0.5 * np.einsum('...i,ij,...j', x, inv_H, x)
+    return norm_const * np.exp(exponent)
+
+
+def IID_NW_multivar_estimator(prevPath_observations, path_incs, inv_H, norm_const, x, t1, t0, truncate):
+    N, n, d = prevPath_observations.shape
+    kernel_weights_unnorm = multivar_gaussian_kernel(inv_H=inv_H, norm_const=norm_const,
+                                                     x=prevPath_observations[:, :, np.newaxis, :] - x[np.newaxis,
+                                                                                                    np.newaxis,
+                                                                                                    :, :])
+    denominator = np.sum(kernel_weights_unnorm, axis=(1, 0))[:, np.newaxis] / (N * n)
+    assert (denominator.shape == (x.shape[0], 1))
+    numerator = np.sum(kernel_weights_unnorm[..., np.newaxis] * path_incs[:, :, np.newaxis, :], axis=(1, 0)) / N * (
+            t1 - t0)
+    assert (numerator.shape == x.shape)
+    estimator = numerator / denominator
+    assert (estimator.shape == x.shape)
+    # assert all([np.all(estimator[i, :] == numerator[i,:]/denominator[i,0]) for i in range(estimator.shape[0])])
+    # This is the "truncated" discrete drift estimator to ensure appropriate risk bounds
+    if truncate:
+        m = np.min(denominator[:, 0])
+        estimator[denominator[:, 0] <= m / 2., :] = 0.
+    return estimator
