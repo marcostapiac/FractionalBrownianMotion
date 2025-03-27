@@ -29,7 +29,7 @@ if __name__ == "__main__":
     else:
         print("Using CPU\n")
         device = torch.device("cpu")
-
+    device = torch.device("cpu")
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
     for Nepoch in config.max_epochs:
