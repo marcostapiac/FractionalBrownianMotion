@@ -81,7 +81,7 @@ def LSTM_1D_drifts(config, PM):
     ts_step = config.deltaT
     print(config.scoreNet_trained_path)
     Xshape = config.ts_length
-    num_taus = 500
+    num_taus = 100
 
     num_diff_times = config.max_diff_steps
     Ndiff_discretisation = config.max_diff_steps
