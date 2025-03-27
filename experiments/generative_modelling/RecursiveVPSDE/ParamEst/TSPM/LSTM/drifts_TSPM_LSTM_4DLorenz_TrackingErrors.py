@@ -23,7 +23,7 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
         # diff = (tensor_norm @ candidate_norm).squeeze(-1) # Result: (M, N)
         # mask = diff >= dX_global
         diff = diff.norm(dim=-1)  # Result: (M, N)
-        mask = diff <= np.arccos(dX_global)
+        mask = diff <= torch.min(diff)#np.arccos(dX_global)
         thresh = dX_global
         while torch.sum(mask) == 0:
             thresh = np.cos(np.arccos(thresh)*2)
@@ -43,8 +43,6 @@ def find_LSTM_feature_vectors(Xs, PM, config, device):
             js.append(len(seq))
         outputs = []
         PM.eval()
-        sequences = sequences[:100]
-        js = js[:100]
         if sequences:
             # Pad sequences to create a batch.
             # pad_sequence returns tensor of shape (batch_size, max_seq_len)
