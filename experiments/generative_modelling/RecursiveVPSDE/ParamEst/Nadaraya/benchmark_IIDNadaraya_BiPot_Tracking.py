@@ -60,7 +60,7 @@ def true_drift(prev, num_paths, config):
 
 num_time_steps = 100
 num_state_paths = 100
-rmse_quantile_nums = 20
+rmse_quantile_nums = 2
 # Euler-Maruyama Scheme for Tracking Errors
 for k in range(len(bws)):
     bw = np.array([bws[k]])
