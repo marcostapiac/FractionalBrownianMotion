@@ -263,8 +263,21 @@ def find_LSTM_feature_vectors_oneDTS(Xs, score_model, config, device):
 
 
 def multivar_gaussian_kernel(inv_H, norm_const, x):
-    exponent = -0.5 * np.einsum('...i,ij,...j', x, inv_H, x)
-    return norm_const * np.exp(exponent)
+    """exponent = -0.5 * np.einsum('...i,ij,...j', x, inv_H, x)
+    print(exponent.shape, x.shape)
+    return norm_const * np.exp(exponent)"""
+    if torch.cuda.is_available():
+        device = 0
+    else:
+        device = torch.device("cpu")
+    x = x.to(device)
+    inv_H = inv_H.to(device)
+    y = torch.matmul(x, inv_H)  # shape: (N, T1, T2, D)
+    # Compute the dot product along the last dimension.
+    # This is equivalent to the einsum: '...i, ...i'
+    exponent = -0.5 * torch.sum(x * y, dim=-1)  # shape: (N, T1, T2)
+    # Return the computed Gaussian kernel.
+    return (norm_const * torch.exp(exponent)).cpu().numpy()
 
 
 def IID_NW_multivar_estimator(prevPath_observations, path_incs, inv_H, norm_const, x, t1, t0, truncate):
