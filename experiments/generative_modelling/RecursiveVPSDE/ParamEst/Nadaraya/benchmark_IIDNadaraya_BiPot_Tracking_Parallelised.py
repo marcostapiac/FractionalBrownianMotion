@@ -1,21 +1,22 @@
-#!/usr/bin/env python
-# coding: utf-8
-
-# In[1]:
-
-
 import numpy as np
-from joblib import Parallel, delayed
 from tqdm import tqdm
+
 from configs import project_config
-from configs.RecursiveVPSDE.LSTM_fQuadSinHF.recursive_LSTM_PostMeanScore_fQuadSinHF_T256_H05_tl_110data import get_config
-from src.classes.ClassFractionalQuadSin import FractionalQuadSin
+from configs.RecursiveVPSDE.LSTM_fBiPot.recursive_LSTM_PostMeanScore_fBiPot_T256_H05_tl_110data import get_config
+from src.classes.ClassFractionalBiPotential import FractionalBiPotential
 from utils.drift_evaluation_functions import IID_NW_multivar_estimator
+import multiprocessing as mp
+from multiprocessing import shared_memory
+
+def true_drift(prev, num_paths, config):
+    assert (prev.shape == (num_paths, config.ndims))
+    drift_X = -(4. * config.quartic_coeff * np.power(prev, 3) + 2. * config.quad_coeff * prev + config.const)
+    return drift_X[:, np.newaxis, :]
+
 
 
 config = get_config()
-
-num_paths = 10952
+num_paths = 109
 num_time_steps = config.ts_length
 isUnitInterval = True
 diff = config.diffusion
@@ -25,12 +26,12 @@ H = config.hurst
 deltaT = config.deltaT
 t0 = config.t0
 t1 = deltaT * num_time_steps
-fQuadSin = FractionalQuadSin(quad_coeff=config.quad_coeff, sin_coeff=config.sin_coeff,
-                             sin_space_scale=config.sin_space_scale, diff=diff, X0=initial_state)
+fBiPot = FractionalBiPotential(const=config.const, quartic_coeff=config.quartic_coeff, quad_coeff=config.quad_coeff,
+                               diff=diff, X0=initial_state)
 is_path_observations = np.array(
-    [fQuadSin.euler_simulation(H=H, N=num_time_steps, deltaT=deltaT, isUnitInterval=isUnitInterval,
-                               X0=initial_state, Ms=None, gaussRvs=rvs,
-                               t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
+    [fBiPot.euler_simulation(H=H, N=num_time_steps, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=initial_state,
+                             Ms=None, gaussRvs=rvs,
+                             t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
     (num_paths, num_time_steps + 1))
 
 is_idxs = np.arange(is_path_observations.shape[0])
@@ -46,29 +47,32 @@ assert (prevPath_observations.shape == path_incs.shape)
 assert (path_incs.shape[1] == config.ts_length - 1)
 assert (path_observations.shape[1] == prevPath_observations.shape[1] + 2)
 assert (prevPath_observations.shape[1] * deltaT == (t1 - t0))
-# Note that because b(x) = sin(x) is bounded, we take \epsilon = 0 hence we have following h_max
-eps = 0.
-log_h_min = np.log10(np.power(float(config.ts_length - 1), -(1. / (2. - eps))))
-print(log_h_min)
-bws = np.logspace(-4, -0.05, 20)
+bws = np.logspace(-4, -0.05, 6)
 
+prevPath_shm = shared_memory.SharedMemory(create=True, size=prevPath_observations.nbytes)
+path_incs_shm = shared_memory.SharedMemory(create=True, size=path_incs.nbytes)
 
-def true_drift(prev, num_paths, config):
-    assert (prev.shape == (num_paths, config.ndims))
-    drift_X = -2. * config.quad_coeff * prev + config.sin_coeff * config.sin_space_scale * np.sin(
-        config.sin_space_scale * prev)
-    return drift_X[:, np.newaxis, :]
+# Create numpy arrays from the shared memory buffers
+prevPath_shm_array = np.ndarray(prevPath_observations.shape, dtype=np.float64, buffer=prevPath_shm.buf)
+path_incs_shm_array = np.ndarray(path_incs.shape, dtype=np.float64, buffer=path_incs_shm.buf)
 
+# Copy the data into the shared memory arrays
+np.copyto(prevPath_shm_array, prevPath_observations)
+np.copyto(path_incs_shm_array, path_incs)
 
-num_time_steps = 100
-num_state_paths = 100
-rmse_quantile_nums = 20
-# Euler-Maruyama Scheme for Tracking Errors
-for k in range(len(bws)):
-    bw = np.array([bws[k]])
+def process_bandwidth(bw_idx, bw, shape, config, rmse_quantile_nums, num_paths, num_time_steps, num_state_paths, deltaT, prevPath_name, path_incs_name):
+    bw = np.array([bw])
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
-    print(f"Considering bandwidth grid number {k}\n")
+    # Attach to the shared memory blocks by name.
+    shm_prev = shared_memory.SharedMemory(name=prevPath_name)
+    shm_incs = shared_memory.SharedMemory(name=path_incs_name)
+
+    # Create numpy array views from the shared memory (no copying happens here)
+    prevPath_observations = np.ndarray(shape, dtype=np.float64, buffer=shm_prev.buf)
+    path_incs = np.ndarray(shape, dtype=np.float64, buffer=shm_incs.buf)
+
+    print(f"Considering bandwidth grid number {bw_idx}\n")
     all_true_states = np.zeros(shape=(rmse_quantile_nums, num_state_paths, 1 + num_time_steps, config.ndims))
     all_global_states = np.zeros(shape=(rmse_quantile_nums, num_state_paths, 1 + num_time_steps, config.ndims))
     all_local_states = np.zeros(shape=(rmse_quantile_nums, num_state_paths, 1 + num_time_steps, config.ndims))
@@ -84,9 +88,9 @@ for k in range(len(bws)):
             eps = np.random.randn(num_state_paths, 1, config.ndims) * np.sqrt(deltaT)
             assert (eps.shape == (num_state_paths, 1, config.ndims))
             true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_state_paths, config=config)
-            #global_mean = IID_NW_estimator(prevPath_observations=prevPath_observations, bw=np.array([bw]),
-            #                                        x=global_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
-            #                                        t0=config.t0, truncate=True)[:, np.newaxis, :]
+            # global_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, inv_H=inv_H, norm_const=norm_const,
+            #                                       x=global_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
+            #                                       t0=config.t0, truncate=True)[:, np.newaxis, :]
             local_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, inv_H=inv_H,
                                                    norm_const=norm_const,
                                                    x=true_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
@@ -97,10 +101,31 @@ for k in range(len(bws)):
         all_true_states[quant_idx, :, :, :] = true_states
         # all_global_states[quant_idx, :, :, :] = global_states
         all_local_states[quant_idx, :, :, :] = local_states
-    save_path = (
-            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fQuadSinHF_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.ts_length}NumDPS").replace(
+    return all_true_states, all_global_states, all_local_states
+
+num_time_steps = 100
+num_state_paths = 100
+rmse_quantile_nums = 20
+# Euler-Maruyama Scheme for Tracking Errors
+shape = prevPath_observations.shape
+
+
+with mp.Pool(processes=6) as pool:
+    # Prepare the arguments for each task
+    tasks = [(idx, bw, shape, config, rmse_quantile_nums, num_paths, num_time_steps, num_state_paths, deltaT, prevPath_shm.name, path_incs_shm.name) for idx, bw in enumerate(bws)]
+
+    # Run the tasks in parallel
+    results = pool.starmap(process_bandwidth, tasks)
+
+# Cleanup shared memory
+prevPath_shm.close()
+path_incs_shm.close()
+prevPath_shm.unlink()
+path_incs_shm.unlink()
+"""save_path = (
+            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fBiPot_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(
         ".", "")
     np.save(save_path + "_true_states.npy", all_true_states)
     np.save(save_path + "_global_states.npy", all_global_states)
     np.save(save_path + "_local_states.npy", all_local_states)
-
+"""
