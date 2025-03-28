@@ -15,11 +15,8 @@ def true_drift(prev, num_paths, config):
     return drift_X[:, np.newaxis, :]
 
 
-def process_bandwidth(bw_idx, bw, shape, config, rmse_quantile_nums, num_time_steps, num_state_paths, deltaT,
-                      prevPath_name, path_incs_name):
-    bw = np.array([bw])
-    inv_H = np.diag(np.power(bw, -2))
-    norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
+def process_bandwidth(bw_idx, quant_idx, shape, inv_H, norm_const,config, num_time_steps, num_state_paths, deltaT, prevPath_name, path_incs_name):
+    print(f"Bandwidth brid number {bw_idx} and quant idx {quant_idx}\n")
     # Attach to the shared memory blocks by name.
     shm_prev = shared_memory.SharedMemory(name=prevPath_name)
     shm_incs = shared_memory.SharedMemory(name=path_incs_name)
@@ -28,37 +25,28 @@ def process_bandwidth(bw_idx, bw, shape, config, rmse_quantile_nums, num_time_st
     prevPath_observations = np.ndarray(shape, dtype=np.float64, buffer=shm_prev.buf)
     path_incs = np.ndarray(shape, dtype=np.float64, buffer=shm_incs.buf)
 
-    print(f"Considering bandwidth grid number {bw_idx}\n")
-    all_true_states = np.zeros(shape=(rmse_quantile_nums, num_state_paths, 1 + num_time_steps, config.ndims))
-    all_global_states = np.zeros(shape=(rmse_quantile_nums, num_state_paths, 1 + num_time_steps, config.ndims))
-    all_local_states = np.zeros(shape=(rmse_quantile_nums, num_state_paths, 1 + num_time_steps, config.ndims))
-    for quant_idx in (range(rmse_quantile_nums)):
-        print(f"Bandwidth brid number {bw_idx} and quant idx {quant_idx}\n")
-        true_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
-        # global_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
-        local_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
-        # Initialise the "true paths"
-        true_states[:, [0], :] = config.initState
-        # global_states[:, [0], :] = config.initState
-        local_states[:, [0], :] = config.initState
-        for i in range(1, num_time_steps + 1):
-            eps = np.random.randn(num_state_paths, 1, config.ndims) * np.sqrt(deltaT)
-            assert (eps.shape == (num_state_paths, 1, config.ndims))
-            true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_state_paths, config=config)
-            # global_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, inv_H=inv_H, norm_const=norm_const,
-            #                                       x=global_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
-            #                                       t0=config.t0, truncate=True)[:, np.newaxis, :]
-            local_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, inv_H=inv_H,
-                                                   norm_const=norm_const,
-                                                   x=true_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
-                                                   t0=config.t0, truncate=True)[:, np.newaxis, :]
-            true_states[:, [i], :] = true_states[:, [i - 1], :] + true_mean * deltaT + eps
-            # global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
-            local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
-        all_true_states[quant_idx, :, :, :] = true_states
-        # all_global_states[quant_idx, :, :, :] = global_states
-        all_local_states[quant_idx, :, :, :] = local_states
-    return {bw_idx: (all_true_states, all_global_states, all_local_states)}
+    true_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
+    # global_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
+    local_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
+    # Initialise the "true paths"
+    true_states[:, [0], :] = config.initState
+    # global_states[:, [0], :] = config.initState
+    local_states[:, [0], :] = config.initState
+    for i in range(1, num_time_steps + 1):
+        eps = np.random.randn(num_state_paths, 1, config.ndims) * np.sqrt(deltaT)
+        assert (eps.shape == (num_state_paths, 1, config.ndims))
+        true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_state_paths, config=config)
+        # global_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, inv_H=inv_H, norm_const=norm_const,
+        #                                       x=global_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
+        #                                       t0=config.t0, truncate=True)[:, np.newaxis, :]
+        local_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, inv_H=inv_H,
+                                               norm_const=norm_const,
+                                               x=true_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
+                                               t0=config.t0, truncate=True)[:, np.newaxis, :]
+        true_states[:, [i], :] = true_states[:, [i - 1], :] + true_mean * deltaT + eps
+        # global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
+        local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
+    return {quant_idx: (true_states, local_states)}
 
 
 if __name__ == '__main__':
@@ -95,7 +83,7 @@ if __name__ == '__main__':
     assert (path_incs.shape[1] == config.ts_length - 1)
     assert (path_observations.shape[1] == prevPath_observations.shape[1] + 2)
     assert (prevPath_observations.shape[1] * deltaT == (t1 - t0))
-    bws = np.logspace(-4, -0.05, 4)
+    bws = np.logspace(-4, -0.05, 40)
 
     prevPath_shm = shared_memory.SharedMemory(create=True, size=prevPath_observations.nbytes)
     path_incs_shm = shared_memory.SharedMemory(create=True, size=path_incs.nbytes)
@@ -113,27 +101,34 @@ if __name__ == '__main__':
     rmse_quantile_nums = 20
     # Euler-Maruyama Scheme for Tracking Errors
     shape = prevPath_observations.shape
+    for bw_idx in range(bws.shape[0]):
+        bw = np.array([bws[bw_idx]])
+        inv_H = np.diag(np.power(bw, -2))
+        norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
 
-    with mp.Pool(processes=2) as pool:
-        # Prepare the arguments for each task
-        tasks = [(idx, bw, shape, config, rmse_quantile_nums, num_time_steps, num_state_paths, deltaT,
-                  prevPath_shm.name, path_incs_shm.name) for idx, bw in enumerate(bws)]
+        print(f"Considering bandwidth grid number {bw_idx}\n")
+        with mp.Pool(processes=2) as pool:
+            # Prepare the arguments for each task
+            tasks = [(bw_idx, quant_idx, shape, inv_H, norm_const, config, num_time_steps, num_state_paths, deltaT,
+                      prevPath_shm.name, path_incs_shm.name) for quant_idx in range(rmse_quantile_nums)]
 
-        # Run the tasks in parallel
-        results = pool.starmap(process_bandwidth, tasks)
-    results = {k: v for d in results for k, v in d.items()}
-    # Cleanup shared memory
-    prevPath_shm.close()
-    path_incs_shm.close()
-    prevPath_shm.unlink()
-    path_incs_shm.unlink()
-    for k in range(bws.shape[0]):
-        all_true_states, all_global_states, all_local_states = results[k]
+            # Run the tasks in parallel
+            results = pool.starmap(process_bandwidth, tasks)
+        results = {k: v for d in results for k, v in d.items()}
+        all_true_states = np.concatenate([v[0][np.newaxis, :] for v in results.values()], axis=0)
+        all_global_states = np.zeros(shape=(rmse_quantile_nums, num_state_paths, 1 + num_time_steps, config.ndims))
+        all_local_states = np.concatenate([v[1][np.newaxis, :] for v in results.values()], axis=0)
+        assert (all_true_states.shape == all_global_states.shape == all_local_states.shape)
         save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fBiPot_DriftTrack_{round(bws[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(
-                ".", "")
+                project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fBiPot_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(
+            ".", "")
         print(all_true_states.shape, all_global_states.shape, all_local_states.shape)
         np.save(save_path + "_true_states.npy", all_true_states)
         np.save(save_path + "_global_states.npy", all_global_states)
         np.save(save_path + "_local_states.npy", all_local_states)
 
+    # Cleanup shared memory
+    prevPath_shm.close()
+    path_incs_shm.close()
+    prevPath_shm.unlink()
+    path_incs_shm.unlink()
