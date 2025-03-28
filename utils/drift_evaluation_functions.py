@@ -278,7 +278,12 @@ def multivar_gaussian_kernel(inv_H, norm_const, x):
     # This is equivalent to the einsum: '...i, ...i'
     exponent = -0.5 * torch.sum(x * y, dim=-1)  # shape: (N, T1, T2)
     # Return the computed Gaussian kernel.
-    return (norm_const * torch.exp(exponent)).cpu().numpy()
+    res = (norm_const * torch.exp(exponent)).cpu().numpy()
+    exponent = exponent.to("cpu")
+    x = x.to("cpu")
+    inv_H = inv_H.to("cpu")
+    y = y.to("cpu")
+    return res
 
 
 def IID_NW_multivar_estimator(prevPath_observations, path_incs, inv_H, norm_const, x, t1, t0, truncate):
