@@ -1,3 +1,4 @@
+import math
 from multiprocessing import shared_memory
 
 import torch
@@ -322,7 +323,8 @@ def IID_NW_multivar_estimator(prevPath_observations, path_incs, inv_H, norm_cons
     return estimator
 
 
-def process_IID_bandwidth(quant_idx, shape, inv_H, norm_const, true_drift,config, num_time_steps, num_state_paths, deltaT, prevPath_name, path_incs_name):
+def process_IID_bandwidth(quant_idx, shape, inv_H, norm_const, true_drift, config, num_time_steps, num_state_paths,
+                          deltaT, prevPath_name, path_incs_name):
     # Attach to the shared memory blocks by name.
     shm_prev = shared_memory.SharedMemory(name=prevPath_name)
     shm_incs = shared_memory.SharedMemory(name=path_incs_name)
@@ -355,7 +357,6 @@ def process_IID_bandwidth(quant_idx, shape, inv_H, norm_const, true_drift,config
     return {quant_idx: (true_states, local_states)}
 
 
-
 def hermite_basis(R, paths):
     assert (paths.shape[0] >= 1 and len(paths.shape) == 2)
     basis = np.zeros((paths.shape[0], paths.shape[1], R))
@@ -379,8 +380,8 @@ def laguerre_basis(R, paths):
         basis[:, :, i] = np.sqrt(2.) * eval_laguerre(i, 2. * paths) * np.exp(-paths) * (paths >= 0.)
     return basis
 
+
 def construct_Z_vector(R, T, basis, paths):
-    print(basis.shape, paths.shape)
     assert (basis.shape[0] == paths.shape[0])
     assert (basis.shape[1] == paths.shape[1])
     basis = basis[:, :-1, :]
@@ -462,7 +463,7 @@ def basis_number_selection(paths, num_paths, num_time_steps, deltaT, t1):
 
 
 def process_single_R_hermite(quant_idx, R, shape, true_drift, config, num_time_steps, num_state_paths, deltaT,
-                      path_name):
+                             path_name):
     # Attach to the shared memory blocks by name.
     shm_path = shared_memory.SharedMemory(name=path_name)
 
