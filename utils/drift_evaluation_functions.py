@@ -270,8 +270,8 @@ def multivar_gaussian_kernel(inv_H, norm_const, x):
         device = 0
     else:
         device = torch.device("cpu")
-    x = x.to(device)
-    inv_H = inv_H.to(device)
+    x = torch.tensor(x, dtype=torch.float32, device=device)
+    inv_H = torch.tensor(inv_H, dtype=torch.float32, device=device)
     y = torch.matmul(x, inv_H)  # shape: (N, T1, T2, D)
     # Compute the dot product along the last dimension.
     # This is equivalent to the einsum: '...i, ...i'
