@@ -76,7 +76,7 @@ if __name__ == "__main__":
         norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
 
         print(f"Considering bandwidth grid number {bw_idx}\n")
-        with mp.Pool(processes=2) as pool:
+        with mp.Pool(processes=rmse_quantile_nums) as pool:
             # Prepare the arguments for each task
             tasks = [(quant_idx, shape, inv_H, norm_const, true_drift, config, num_time_steps, num_state_paths, deltaT,
                       prevPath_shm.name, path_incs_shm.name) for quant_idx in range(rmse_quantile_nums)]

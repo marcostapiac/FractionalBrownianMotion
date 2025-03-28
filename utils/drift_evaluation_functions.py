@@ -1,5 +1,8 @@
+from multiprocessing import shared_memory
+
 import torch
 import numpy as np
+from scipy.special import eval_laguerre
 from torch.nn.utils.rnn import pad_sequence
 
 
@@ -317,3 +320,174 @@ def IID_NW_multivar_estimator(prevPath_observations, path_incs, inv_H, norm_cons
         m = np.min(denominator[:, 0])
         estimator[denominator[:, 0] <= m / 2., :] = 0.
     return estimator
+
+
+def process_IID_bandwidth(quant_idx, shape, inv_H, norm_const, true_drift,config, num_time_steps, num_state_paths, deltaT, prevPath_name, path_incs_name):
+    # Attach to the shared memory blocks by name.
+    shm_prev = shared_memory.SharedMemory(name=prevPath_name)
+    shm_incs = shared_memory.SharedMemory(name=path_incs_name)
+
+    # Create numpy array views from the shared memory (no copying happens here)
+    prevPath_observations = np.ndarray(shape, dtype=np.float64, buffer=shm_prev.buf)
+    path_incs = np.ndarray(shape, dtype=np.float64, buffer=shm_incs.buf)
+
+    true_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
+    # global_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
+    local_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
+    # Initialise the "true paths"
+    true_states[:, [0], :] = config.initState
+    # global_states[:, [0], :] = config.initState
+    local_states[:, [0], :] = config.initState
+    for i in range(1, num_time_steps + 1):
+        eps = np.random.randn(num_state_paths, 1, config.ndims) * np.sqrt(deltaT)
+        assert (eps.shape == (num_state_paths, 1, config.ndims))
+        true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_state_paths, config=config)
+        # global_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, inv_H=inv_H, norm_const=norm_const,
+        #                                       x=global_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
+        #                                       t0=config.t0, truncate=True)[:, np.newaxis, :]
+        local_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, inv_H=inv_H,
+                                               norm_const=norm_const,
+                                               x=true_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
+                                               t0=config.t0, truncate=True)[:, np.newaxis, :]
+        true_states[:, [i], :] = true_states[:, [i - 1], :] + true_mean * deltaT + eps
+        # global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
+        local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
+    return {quant_idx: (true_states, local_states)}
+
+
+
+def hermite_basis(R, paths):
+    assert (paths.shape[0] >= 1 and len(paths.shape) == 2)
+    basis = np.zeros((paths.shape[0], paths.shape[1], R))
+    polynomials = np.zeros((paths.shape[0], paths.shape[1], R))
+    for i in range(R):
+        if i == 0:
+            polynomials[:, :, i] = np.ones_like(paths)
+        elif i == 1:
+            polynomials[:, :, i] = paths
+        else:
+            polynomials[:, :, i] = 2. * paths * polynomials[:, :, i - 1] - 2. * (i - 1) * polynomials[:, :, i - 2]
+        basis[:, :, i] = np.power((np.power(2, i) * np.sqrt(np.pi) * math.factorial(i)), -0.5) * polynomials[:, :,
+                                                                                                 i] * np.exp(
+            -np.power(paths, 2) / 2.)
+    return basis
+
+
+def laguerre_basis(R, paths):
+    basis = np.zeros((paths.shape[0], paths.shape[1], R))
+    for i in range(R):
+        basis[:, :, i] = np.sqrt(2.) * eval_laguerre(i, 2. * paths) * np.exp(-paths) * (paths >= 0.)
+    return basis
+
+def construct_Z_vector(R, T, basis, paths):
+    print(basis.shape, paths.shape)
+    assert (basis.shape[0] == paths.shape[0])
+    assert (basis.shape[1] == paths.shape[1])
+    basis = basis[:, :-1, :]
+    assert (basis.shape[-1] == R)
+    N = basis.shape[0]
+    dXs = np.diff(paths, axis=1) / T
+    Z = np.diagonal(basis.transpose((2, 0, 1)) @ (dXs.T), axis1=1, axis2=2)
+    assert (Z.shape == (R, N))
+    Z = Z.mean(axis=-1, keepdims=True)
+    assert (Z.shape == (R, 1)), f"Z vector is shape {Z.shape} but should be {(R, 1)}"
+    return Z
+
+
+def construct_Phi_matrix(R, deltaT, T, basis, paths):
+    assert (basis.shape[0] == paths.shape[0])
+    assert (basis.shape[1] == paths.shape[1])
+    basis = basis[:, :-1, :]
+    assert (basis.shape[-1] == R)
+    N, _ = basis.shape[:2]
+    deltaT /= T
+    intermediate = deltaT * basis.transpose((0, 2, 1)) @ basis
+    assert intermediate.shape == (
+        N, R, R), f"Intermidate matrix is shape {intermediate.shape} but shoould be {(N, R, R)}"
+    for i in range(N):
+        es = np.linalg.eigvalsh(intermediate[i, :, :]) >= 0.
+        assert (np.all(es)), f"Submat at {i} is not PD, for R={R}"
+    Phi = deltaT * (basis.transpose((0, 2, 1)) @ basis)
+    assert (Phi.shape == (N, R, R))
+    Phi = Phi.mean(axis=0, keepdims=False)
+    assert (Phi.shape == (R, R)), f"Phi matrix is shape {Phi.shape} but should be {(R, R)}"
+    assert np.all(np.linalg.eigvalsh(Phi) >= 0.), f"Phi matrix is not PD"
+    return Phi
+
+
+def estimate_coefficients(R, deltaT, t1, basis, paths, Phi=None):
+    Z = construct_Z_vector(R=R, T=t1, basis=basis, paths=paths)
+    if Phi is None:
+        Phi = construct_Phi_matrix(R=R, deltaT=deltaT, T=t1, basis=basis, paths=paths)
+    theta_hat = np.linalg.solve(Phi, Z)
+    assert (theta_hat.shape == (R, 1))
+    return theta_hat
+
+
+def construct_Hermite_drift(basis, coefficients):
+    b_hat = (basis @ coefficients).squeeze(-1)
+    assert (b_hat.shape == basis.shape[:2]), f"b_hat should be shape {basis.shape[:2]}, but has shape {b_hat.shape}"
+    return b_hat
+
+
+def basis_number_selection(paths, num_paths, num_time_steps, deltaT, t1):
+    poss_Rs = np.arange(1, 19)
+    kappa = 1.  # See just above Section 5
+    cvs = []
+    for r in poss_Rs:
+        print(cvs, r)
+        basis = hermite_basis(R=r, paths=paths)
+        try:
+            Phi = construct_Phi_matrix(R=r, deltaT=deltaT, T=t1, basis=basis, paths=paths)
+        except AssertionError:
+            cvs.append(np.inf)
+            continue
+        coeffs = estimate_coefficients(R=r, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=Phi)
+        bhat = np.power(construct_Hermite_drift(basis=basis, coefficients=coeffs), 2)
+        bhat_norm = np.mean(np.sum(bhat * deltaT / t1, axis=-1))
+        inv_Phi = np.linalg.inv(Phi)
+        s = np.sqrt(np.max(np.linalg.eigvalsh(inv_Phi @ inv_Phi.T)))
+        if np.power(s, 0.25) * r > num_paths * t1:
+            cvs.append(np.inf)
+        else:
+            # Note that since we force \sigma = 1., then the m,sigma^2 matrix is all ones
+            PPt = inv_Phi @ np.ones_like(inv_Phi)
+            s_p = np.sqrt(np.max(np.linalg.eigvalsh(PPt @ PPt.T)))
+            pen = kappa * s_p / (num_paths * num_time_steps * deltaT)
+            cvs.append(-bhat_norm + pen)
+
+    # R = basis_number_selection(paths=paths, num_paths=num_paths, num_time_steps=num_time_steps, deltaT=deltaT, t1=t1)
+    # print(R)
+    return poss_Rs[np.argmin(cvs)]
+
+
+def process_single_R_hermite(quant_idx, R, shape, true_drift, config, num_time_steps, num_state_paths, deltaT,
+                      path_name):
+    # Attach to the shared memory blocks by name.
+    shm_path = shared_memory.SharedMemory(name=path_name)
+
+    # Create numpy array views from the shared memory (no copying happens here)
+    paths = np.ndarray(shape, dtype=np.float64, buffer=shm_path.buf)
+
+    basis = hermite_basis(R=R, paths=paths)
+    coeffs = estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=config.t1, Phi=None)
+    true_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
+    # global_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
+    local_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
+    # Initialise the "true paths"
+    true_states[:, [0], :] = config.initState
+    # global_states[:, [0], :] = config.initState
+    local_states[:, [0], :] = config.initState
+
+    for i in range(1, num_time_steps + 1):
+        eps = np.random.randn(num_state_paths, 1, config.ndims) * np.sqrt(deltaT)
+        assert (eps.shape == (num_state_paths, 1, config.ndims))
+        true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_state_paths, config=config)
+        # global_basis = hermite_basis(R=R, paths=global_states[:, i - 1, :])
+        # global_mean = construct_Hermite_drift(basis=global_basis, coefficients=coeffs)[:, np.newaxis, :]
+        local_basis = hermite_basis(R=R, paths=true_states[:, i - 1, :])
+        local_mean = construct_Hermite_drift(basis=local_basis, coefficients=coeffs)[:, np.newaxis, :]
+        true_states[:, [i], :] = true_states[:, [i - 1], :] + true_mean * deltaT + eps
+        # global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
+        local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
+    return {quant_idx: (true_states, local_states)}
