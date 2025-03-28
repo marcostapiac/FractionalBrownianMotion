@@ -1,6 +1,7 @@
 import torch
 import numpy as np
 from torch.nn.utils.rnn import pad_sequence
+import time
 
 
 def multivar_score_based_LSTM_drift(score_model, num_diff_times, diffusion, num_paths, prev, ts_step, config,
@@ -266,6 +267,22 @@ def multivar_gaussian_kernel(inv_H, norm_const, x):
     """exponent = -0.5 * np.einsum('...i,ij,...j', x, inv_H, x)
     print(exponent.shape, x.shape)
     return norm_const * np.exp(exponent)"""
+    t0 = time.time()
+    if torch.cuda.is_available():
+        device = torch.device("cpu")
+    else:
+        device = torch.device("cpu")
+    print(f"Device {device}\n")
+    x = torch.tensor(x, dtype=torch.float32, device=device)
+    inv_H = torch.tensor(inv_H, dtype=torch.float32, device=device)
+    y = torch.matmul(x, inv_H)  # shape: (N, T1, T2, D)
+    # Compute the dot product along the last dimension.
+    # This is equivalent to the einsum: '...i, ...i'
+    exponent = -0.5 * torch.sum(x * y, dim=-1)  # shape: (N, T1, T2)
+    # Return the computed Gaussian kernel.
+    res = (norm_const * torch.exp(exponent)).cpu().numpy()
+    print(f"Time {time.time()-t0}\n")
+    t0 = time.time()
     if torch.cuda.is_available():
         device = 0
     else:
@@ -278,7 +295,9 @@ def multivar_gaussian_kernel(inv_H, norm_const, x):
     # This is equivalent to the einsum: '...i, ...i'
     exponent = -0.5 * torch.sum(x * y, dim=-1)  # shape: (N, T1, T2)
     # Return the computed Gaussian kernel.
-    return (norm_const * torch.exp(exponent)).cpu().numpy()
+    res = (norm_const * torch.exp(exponent)).cpu().numpy()
+    print(f"Time {time.time() - t0}\n")
+    return res
 
 
 def IID_NW_multivar_estimator(prevPath_observations, path_incs, inv_H, norm_const, x, t1, t0, truncate):
