@@ -63,7 +63,7 @@ def process_bandwidth(bw_idx, bw, shape, config, rmse_quantile_nums, num_time_st
 if __name__ == '__main__':
     mp.set_start_method("spawn")
     config = get_config()
-    num_paths = 1095
+    num_paths = 10952
     num_time_steps = config.ts_length
     isUnitInterval = True
     diff = config.diffusion
@@ -109,7 +109,7 @@ if __name__ == '__main__':
 
     num_time_steps = 100
     num_state_paths = 100
-    rmse_quantile_nums = 2
+    rmse_quantile_nums = 20
     # Euler-Maruyama Scheme for Tracking Errors
     shape = prevPath_observations.shape
 
@@ -132,7 +132,6 @@ if __name__ == '__main__':
                     project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fBiPot_DriftTrack_{round(bws[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(
                 ".", "")
         print(all_true_states.shape, all_global_states.shape, all_local_states.shape)
-        raise RuntimeError
         np.save(save_path + "_true_states.npy", all_true_states)
         np.save(save_path + "_global_states.npy", all_global_states)
         np.save(save_path + "_local_states.npy", all_local_states)
