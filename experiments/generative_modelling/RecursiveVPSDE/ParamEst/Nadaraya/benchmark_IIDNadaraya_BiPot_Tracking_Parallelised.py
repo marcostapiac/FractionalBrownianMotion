@@ -33,6 +33,7 @@ def process_bandwidth(bw_idx, bw, shape, config, rmse_quantile_nums, num_time_st
     all_global_states = np.zeros(shape=(rmse_quantile_nums, num_state_paths, 1 + num_time_steps, config.ndims))
     all_local_states = np.zeros(shape=(rmse_quantile_nums, num_state_paths, 1 + num_time_steps, config.ndims))
     for quant_idx in tqdm(range(rmse_quantile_nums)):
+        print(f"Bandwidth brid number {bw_idx} and quant idx {quant_idx}\n")
         true_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
         # global_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
         local_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
