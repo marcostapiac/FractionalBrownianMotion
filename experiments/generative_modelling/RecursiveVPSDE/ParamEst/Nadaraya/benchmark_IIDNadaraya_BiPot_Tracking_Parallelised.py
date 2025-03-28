@@ -113,7 +113,7 @@ if __name__ == '__main__':
     # Euler-Maruyama Scheme for Tracking Errors
     shape = prevPath_observations.shape
 
-    with mp.Pool(processes=bws.shape[0]) as pool:
+    with mp.Pool(processes=1) as pool:
         # Prepare the arguments for each task
         tasks = [(idx, bw, shape, config, rmse_quantile_nums, num_time_steps, num_state_paths, deltaT,
                   prevPath_shm.name, path_incs_shm.name) for idx, bw in enumerate(bws)]
