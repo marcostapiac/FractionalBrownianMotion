@@ -15,8 +15,7 @@ def true_drift(prev, num_paths, config):
     return drift_X[:, np.newaxis, :]
 
 
-def process_bandwidth(bw_idx, quant_idx, shape, inv_H, norm_const,config, num_time_steps, num_state_paths, deltaT, prevPath_name, path_incs_name):
-    print(f"Bandwidth brid number {bw_idx} and quant idx {quant_idx}\n")
+def process_bandwidth(quant_idx, shape, inv_H, norm_const,config, num_time_steps, num_state_paths, deltaT, prevPath_name, path_incs_name):
     # Attach to the shared memory blocks by name.
     shm_prev = shared_memory.SharedMemory(name=prevPath_name)
     shm_incs = shared_memory.SharedMemory(name=path_incs_name)
@@ -109,7 +108,7 @@ if __name__ == '__main__':
         print(f"Considering bandwidth grid number {bw_idx}\n")
         with mp.Pool(processes=rmse_quantile_nums) as pool:
             # Prepare the arguments for each task
-            tasks = [(bw_idx, quant_idx, shape, inv_H, norm_const, config, num_time_steps, num_state_paths, deltaT,
+            tasks = [(quant_idx, shape, inv_H, norm_const, config, num_time_steps, num_state_paths, deltaT,
                       prevPath_shm.name, path_incs_shm.name) for quant_idx in range(rmse_quantile_nums)]
 
             # Run the tasks in parallel
