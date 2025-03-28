@@ -93,7 +93,7 @@ if __name__ == '__main__':
     assert (path_incs.shape[1] == config.ts_length - 1)
     assert (path_observations.shape[1] == prevPath_observations.shape[1] + 2)
     assert (prevPath_observations.shape[1] * deltaT == (t1 - t0))
-    bws = np.logspace(-4, -0.05, 6)
+    bws = np.logspace(-4, -0.05, 40)
 
     prevPath_shm = shared_memory.SharedMemory(create=True, size=prevPath_observations.nbytes)
     path_incs_shm = shared_memory.SharedMemory(create=True, size=path_incs.nbytes)
