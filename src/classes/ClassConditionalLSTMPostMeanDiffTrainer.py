@@ -286,6 +286,7 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
         print(f"Save path:{save_path}\n")
         assert config.ts_dims == 1
         np.save(save_path + "_muhats.npy", final_vec_mu_hats)
+        self.score_network.module.to(self.device_id)
 
     def train(self, max_epochs: list, model_filename: str, config) -> None:
         """
