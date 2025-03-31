@@ -330,7 +330,7 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
             for i in range(1, num_time_steps + 1):
                 eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT)
                 assert (eps.shape == (num_paths, 1, config.ndims))
-                true_mean = self.__true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config)
+                true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config)
 
                 true_states[:, [i], :] = true_states[:, [i - 1], :] \
                                          + true_mean * deltaT \
@@ -363,7 +363,7 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
         save_path = (
                 project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
             ".", "")
-        print(f"Save path:{save_path}\n")
+        print(f"Save path for OOS DriftTrack:{save_path}\n")
         np.save(save_path + "_global_true_states.npy", all_true_states)
         np.save(save_path + "_global_states.npy", all_global_states)
         np.save(save_path + "_local_states.npy", all_local_states)
