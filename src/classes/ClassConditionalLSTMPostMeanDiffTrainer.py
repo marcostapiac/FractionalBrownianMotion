@@ -315,18 +315,18 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
             assert (initial_state.shape == (num_paths, 1, config.ndims))
 
             true_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
-            global_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+            # global_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
             local_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
 
             # Initialise the "true paths"
             true_states[:, [0], :] = initial_state + 0.00001 * np.random.randn(*initial_state.shape)
             # Initialise the "global score-based drift paths"
-            global_states[:, [0], :] = true_states[:, [0], :]
+            # global_states[:, [0], :] = true_states[:, [0], :]
             local_states[:, [0], :] = true_states[:, [0],
                                       :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
 
             # Euler-Maruyama Scheme for Tracking Errors
-            global_h, global_c = None, None
+            # global_h, global_c = None, None
             local_h, local_c = None, None
             for i in range(1, num_time_steps + 1):
                 eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT)
@@ -336,17 +336,6 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
                 true_states[:, [i], :] = true_states[:, [i - 1], :] \
                                          + true_mean * deltaT \
                                          + eps
-                global_mean, global_h, global_c = multivar_score_based_LSTM_drift_OOS(
-                    score_model=self.score_network.module, time_idx=i - 1,
-                    h=global_h, c=global_c,
-                    num_diff_times=num_diff_times,
-                    diffusion=diffusion,
-                    num_paths=num_paths,
-                    ts_step=deltaT, config=config,
-                    device=self.device_id,
-                    prev=global_states[:, i - 1, :])
-
-                global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
                 local_mean, local_h, local_c = multivar_score_based_LSTM_drift_OOS(
                     score_model=self.score_network.module, time_idx=i - 1,
                     h=local_h, c=local_c,
@@ -359,7 +348,7 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
 
                 local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
             all_true_states[quant_idx, :, :, :] = true_states
-            all_global_states[quant_idx, :, :, :] = global_states
+            # all_global_states[quant_idx, :, :, :] = global_states
             all_local_states[quant_idx, :, :, :] = local_states
         save_path = (
                 project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
