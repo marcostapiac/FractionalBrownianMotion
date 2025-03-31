@@ -295,8 +295,15 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
     def _tracking_errors(self, epoch, config):
         def true_drift(prev, num_paths, config):
             assert (prev.shape == (num_paths, config.ndims))
-            drift_X = -(4. * config.quartic_coeff * np.power(prev, 3) + 2. * config.quad_coeff * prev + config.const)
-            return drift_X[:, np.newaxis, :]
+            if "BiPot" in config.data_path:
+                drift_X = -(4. * config.quartic_coeff * np.power(prev, 3) + 2. * config.quad_coeff * prev + config.const)
+                return drift_X[:, np.newaxis, :]
+            elif "Lnz" in config.data_path:
+                drift_X = np.zeros((num_paths, config.ndims))
+                for i in range(config.ndims):
+                    drift_X[:, i] = (prev[:, (i + 1) % config.ndims] - prev[:, i - 2]) * prev[:, i - 1] - prev[:,
+                                                                                                          i] + config.forcing_const
+                return drift_X[:, np.newaxis, :]
 
         diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
         num_diff_times = 1
@@ -350,9 +357,14 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
             all_true_states[quant_idx, :, :, :] = true_states
             # all_global_states[quant_idx, :, :, :] = global_states
             all_local_states[quant_idx, :, :, :] = local_states
-        save_path = (
-                project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
-            ".", "")
+        if "BiPot" in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                ".", "")
+        elif "Lnz" in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_OOSDriftTrack_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_{round(config.forcing_const, 3)}FConst").replace(
+                ".", "")
         print(f"Save path for OOS DriftTrack:{save_path}\n")
         np.save(save_path + "_global_true_states.npy", all_true_states)
         np.save(save_path + "_global_states.npy", all_global_states)
@@ -404,5 +416,7 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
                     self._save_snapshot(epoch=epoch)
                     if "BiPot" in config.data_path:
                         self._domain_rmse(config=config, epoch=epoch + 1)
+                        self._tracking_errors(epoch=epoch + 1, config=config)
+                    elif "Lnz" in config.data_path:
                         self._tracking_errors(epoch=epoch+1, config=config)
             if type(self.device_id) == int: dist.barrier()
