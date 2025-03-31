@@ -549,7 +549,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                              init_state=init_state, deltaT=config.deltaT)
 
         # Start training
-        trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
+        trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path, config=config)
     elif isinstance(trainClass, type) and issubclass(trainClass, ConditionalStbleTgtLSTMPostMeanDiffTrainer):
         trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                              checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
