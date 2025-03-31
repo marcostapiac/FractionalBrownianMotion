@@ -16,7 +16,7 @@ def get_config():
     config.ndims = 8
     config.forcing_const = 0.75#1.#1.25#.75
     config.diffusion = 1.
-    config.initState = ([0., .5, 1., 1.5])
+    config.initState = [0.0, 0.214, 4.29, 0.643, 0.857, 1.071, 12.86, 1.5]#([0., .5, 1., 1.5, 0., .5, 1., 1.5,])
     config.ts_length = 256
     config.t0 = 0.
     config.deltaT = 1. / (256)
