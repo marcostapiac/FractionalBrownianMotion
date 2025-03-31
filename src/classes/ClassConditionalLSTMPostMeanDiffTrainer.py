@@ -277,7 +277,7 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
             return []
 
     def _domain_rmse(self, epoch, config):
-        final_vec_mu_hats = LSTM_1D_drifts(PM=self.score_network, config=config)
+        final_vec_mu_hats = LSTM_1D_drifts(PM=self.score_network.module, config=config)
         type = "PM"
         assert (type in config.scoreNet_trained_path)
         save_path = (
