@@ -43,7 +43,7 @@ def LSTM_2D_drifts(PM, config):
     Xs, Ys = np.meshgrid(Xs, Ys)
     Xs = np.column_stack([Xs.ravel(), Ys.ravel()])
     Xshape = Xs.shape[0]
-    features = find_LSTM_feature_vectors_multiDTS(Xs=Xs, PM=PM, device=device, config=config)
+    features = find_LSTM_feature_vectors_multiDTS(Xs=Xs, score_model=PM, device=device, config=config)
     num_feats_per_x = {tuple(x.squeeze().tolist()): features[tuple(x.squeeze().tolist())].shape[0] for x in Xs}
     # list_num_feats_per_x = list(num_feats_per_x.values())
     tot_num_feats = np.sum(list(num_feats_per_x.values()))
