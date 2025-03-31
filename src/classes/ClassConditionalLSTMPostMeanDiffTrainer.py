@@ -3,6 +3,7 @@ import pickle
 import time
 from typing import Union
 
+from tqdm import tqdm
 import torch
 import torch.distributed as dist
 import torchmetrics
@@ -305,7 +306,7 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
         all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         all_global_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         all_local_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
-        for quant_idx in range(rmse_quantile_nums):
+        for quant_idx in tqdm(range(rmse_quantile_nums)):
             self.score_network.module.eval()
             num_paths = 100
             num_time_steps = 100
