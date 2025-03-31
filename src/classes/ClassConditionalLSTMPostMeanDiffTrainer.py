@@ -413,6 +413,7 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
                 elif (epoch + 1) % self.save_every == 0:
                     self._save_loss(losses=all_losses_per_epoch, filepath=model_filename)
                     self._save_snapshot(epoch=epoch)
-                    self._domain_rmse(config=config, epoch=epoch + 1)
-                    self._tracking_errors(epoch=epoch+1, config=config)
+                    if "BiPot" in config.data_path:
+                        self._domain_rmse(config=config, epoch=epoch + 1)
+                        self._tracking_errors(epoch=epoch+1, config=config)
             if type(self.device_id) == int: dist.barrier()
