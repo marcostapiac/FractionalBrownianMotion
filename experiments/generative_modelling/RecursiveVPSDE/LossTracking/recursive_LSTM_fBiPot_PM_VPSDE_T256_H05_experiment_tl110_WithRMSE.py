@@ -30,7 +30,7 @@ if __name__ == "__main__":
     init_experiment(config=config)
     end_epoch = max(config.max_epochs)
     try:
-        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_WRMSE_NEp" + str(end_epoch)))
+        scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))
     except FileNotFoundError as e:
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
         training_size = int(
