@@ -23,6 +23,9 @@ if __name__ == "__main__":
     config.has_cuda = torch.cuda.is_available()
     config.hurst = 0.7
     config.ts_length = 256
+    config.t0 = 0.
+    config.deltaT = 1. / (256)
+    config.t1 = config.deltaT*config.ts_length
     config.max_diff_steps = 20000
     config.end_diff_time = 1
     config.std_max = 90

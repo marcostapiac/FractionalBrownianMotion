@@ -36,7 +36,7 @@ def LSTM_1D_drifts(PM, config):
         Xs = torch.linspace(-1.5, 1.5, steps=Xshape)
     else:
         Xs = torch.linspace(-.4, .4, steps=Xshape)
-    features = find_LSTM_feature_vectors_oneDTS(Xs=Xs, PM=PM, device=device, config=config)
+    features = find_LSTM_feature_vectors_oneDTS(Xs=Xs, score_model=PM, device=device, config=config)
     num_feats_per_x = {x.item(): features[x.item()].shape[0] for x in Xs}
     # list_num_feats_per_x = list(num_feats_per_x.values())
     tot_num_feats = np.sum(list(num_feats_per_x.values()))

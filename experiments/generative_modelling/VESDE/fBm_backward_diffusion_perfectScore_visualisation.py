@@ -22,7 +22,7 @@ def run(perfect_config: ConfigDict) -> None:
     dim_pair = torch.Tensor([perfect_config.dim1, perfect_config.dim2]).to(torch.int32)
     folder_path = project_config.ROOT_DIR + "experiments/results/perfect_backward_gifs/"
 
-    gif_path = "perfect_{}_incs_{}_unitIntv_fBm_dimPair{}_dimPair{}_H{:.3e}_T{}_Ndiff{}_Tdiff{:.3e}_StdMax{:.4e}_StdMin{:.4e}".format(
+    gif_path = "perfect_{}LFac_fBm_dimPair{}_dimPair{}_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_StdMax{:.4e}_StdMin{:.4e}".format(
         not perfect_config.isfBm, perfect_config.isUnitInterval, dim_pair[0],
         dim_pair[1],
         perfect_config.hurst,

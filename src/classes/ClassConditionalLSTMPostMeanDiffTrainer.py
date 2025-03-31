@@ -9,7 +9,10 @@ import torchmetrics
 from torch import nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torchmetrics import MeanMetric
+from configs import project_config
+import numpy as np
 
+from experiments.generative_modelling.RecursiveVPSDE.ParamEst.TSPM.LSTM.drifts_TSPM_LSTM_fBiPot import LSTM_1D_drifts
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
@@ -273,7 +276,18 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
         except FileNotFoundError:
             return []
 
-    def train(self, max_epochs: list, model_filename: str) -> None:
+    def _domain_rmse(self, epoch, config):
+        final_vec_mu_hats = LSTM_1D_drifts(PM=self.score_network, config=config)
+        type = "PM"
+        assert (type in config.scoreNet_trained_path)
+        save_path = (
+                project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+            ".", "")
+        print(f"Save path:{save_path}\n")
+        assert config.ts_dims == 1
+        np.save(save_path + "_muhats.npy", final_vec_mu_hats)
+
+    def train(self, max_epochs: list, model_filename: str, config) -> None:
         """
         Run training for model
             :param max_epochs: List of maximum number of epochs (to allow for iterative training)
@@ -315,4 +329,5 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
                 elif (epoch + 1) % self.save_every == 0:
                     self._save_loss(losses=all_losses_per_epoch, filepath=model_filename)
                     self._save_snapshot(epoch=epoch)
+                    self._domain_rmse(config=config, epoch=epoch + 1)
             if type(self.device_id) == int: dist.barrier()

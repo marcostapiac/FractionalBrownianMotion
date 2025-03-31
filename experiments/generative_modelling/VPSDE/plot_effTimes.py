@@ -27,7 +27,7 @@ if __name__ == "__main__":
     config.end_diff_time = 1
     config.beta_max = 20
     config.beta_min = 0.0001
-    config.sample_eps = 1e-4
+    config.sample_eps = config.train_eps
 
     # Run experiment
     run(config)

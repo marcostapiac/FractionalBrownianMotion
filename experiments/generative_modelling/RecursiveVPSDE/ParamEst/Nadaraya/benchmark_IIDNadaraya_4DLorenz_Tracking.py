@@ -19,7 +19,7 @@ def true_drift(prev, num_paths, config):
 
 if __name__ == "__main__":
     config = get_config()
-    num_paths = 10
+    num_paths = 10952
     t0 = config.t0
     deltaT = config.deltaT
     t1 = deltaT * config.ts_length
@@ -68,7 +68,7 @@ if __name__ == "__main__":
     rmse_quantile_nums = 20
     # Euler-Maruyama Scheme for Tracking Errors
     shape = prevPath_observations.shape
-    for bw_idx in tqdm(range(bws.shape[0])):
+    for bw_idx in tqdm(30,range(bws.shape[0])):
         bw = bws[bw_idx,:]
         inv_H = np.diag(np.power(bw, -2))
         norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))

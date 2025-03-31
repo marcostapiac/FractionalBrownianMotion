@@ -5,7 +5,7 @@ from experiments.generative_modelling.estimate_fSDEs import estimate_fSDE_from_t
 
 
 def exact_hurst():
-    from configs.RecursiveVPSDE.recursive_fOU_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_LSTM_fOU_T256_H07_tl_5data import get_config
     config = get_config()
     # Check generated paths have correct Hurst
     estimate_fSDE_from_true(config=config)

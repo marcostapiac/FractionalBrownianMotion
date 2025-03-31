@@ -83,7 +83,7 @@ def check_hurst_condition_estimator(H: float):
 
 """
 if __name__ == "__main__":
-    from configs.RecursiveVPSDE.recursive_fOU_T256_H07_tl_5data import get_config
+    from configs.RecursiveVPSDE.recursive_LSTM_fOU_T256_H07_tl_5data import get_config
 
     config = get_config()
     check_hurst_condition_estimator(H=config.hurst)
