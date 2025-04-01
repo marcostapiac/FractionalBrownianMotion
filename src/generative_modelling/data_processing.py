@@ -562,7 +562,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                              init_state=init_state, deltaT=config.deltaT)
 
         # Start training
-        trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path, batch_size=config.batch_size)
+        trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path, batch_size=config.batch_size, config=config)
 
     else:
         raise RuntimeError("Invalid Diffusion Training Class\n")

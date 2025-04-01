@@ -3,18 +3,23 @@ import pickle
 import time
 from typing import Union
 
+import numpy as np
 import torch
 import torch.distributed as dist
 import torchmetrics
 from torch import nn
 from torch.nn.parallel import DistributedDataParallel as DDP
 from torchmetrics import MeanMetric
+from tqdm import tqdm
 
+from configs import project_config
+from experiments.generative_modelling.RecursiveVPSDE.ParamEst.TSPM.LSTM.drifts_TSPM_LSTM_fBiPot import LSTM_1D_drifts
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
     ConditionalLSTMTSPostMeanScoreMatching
+from utils.drift_evaluation_functions import multivar_score_based_LSTM_drift_OOS
 
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
@@ -414,7 +419,124 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         except FileNotFoundError:
             return []
 
-    def train(self, max_epochs: list, model_filename: str, batch_size: int) -> None:
+
+    def _domain_rmse(self, epoch, config):
+        final_vec_mu_hats = LSTM_1D_drifts(PM=self.score_network.module, config=config)
+        type = "PM"
+        assert (type in config.scoreNet_trained_path)
+        if "BiPot" in config.data_path:
+            if "_ST_" in config.scoreNet_trained_path:
+                save_path = (
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_ST_fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                    ".", "")
+            else:
+                save_path = (
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                    ".", "")
+        elif "QuadSin" in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fQuadSinHF_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                ".", "")
+        print(f"Save path:{save_path}\n")
+        assert config.ts_dims == 1
+        np.save(save_path + "_muhats.npy", final_vec_mu_hats)
+        self.score_network.module.train()
+        self.score_network.module.to(self.device_id)
+
+    def _tracking_errors(self, epoch, config):
+        def true_drift(prev, num_paths, config):
+            assert (prev.shape == (num_paths, config.ndims))
+            if "BiPot" in config.data_path:
+                drift_X = -(4. * config.quartic_coeff * np.power(prev, 3) + 2. * config.quad_coeff * prev + config.const)
+                return drift_X[:, np.newaxis, :]
+            elif "QuadSin" in config.data_path:
+                drift_X = -2. * config.quad_coeff * prev + config.sin_coeff * config.sin_space_scale * np.sin(
+                    config.sin_space_scale * prev)
+                return drift_X[:, np.newaxis, :]
+            elif "Lnz" in config.data_path:
+                drift_X = np.zeros((num_paths, config.ndims))
+                for i in range(config.ndims):
+                    drift_X[:, i] = (prev[:, (i + 1) % config.ndims] - prev[:, i - 2]) * prev[:, i - 1] - prev[:,
+                                                                                                          i] + config.forcing_const
+                return drift_X[:, np.newaxis, :]
+
+        diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
+        num_diff_times = 1
+        rmse_quantile_nums = 20
+        num_paths = 100
+        num_time_steps = 100
+        all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+        all_global_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+        all_local_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+        for quant_idx in tqdm(range(rmse_quantile_nums)):
+            self.score_network.module.eval()
+            num_paths = 100
+            num_time_steps = 100
+            deltaT = config.deltaT
+            initial_state = np.repeat(np.atleast_2d(config.initState)[np.newaxis, :], num_paths, axis=0)
+            assert (initial_state.shape == (num_paths, 1, config.ndims))
+
+            true_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+            # global_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+            local_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+
+            # Initialise the "true paths"
+            true_states[:, [0], :] = initial_state + 0.00001 * np.random.randn(*initial_state.shape)
+            # Initialise the "global score-based drift paths"
+            # global_states[:, [0], :] = true_states[:, [0], :]
+            local_states[:, [0], :] = true_states[:, [0],
+                                      :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
+
+            # Euler-Maruyama Scheme for Tracking Errors
+            # global_h, global_c = None, None
+            local_h, local_c = None, None
+            for i in range(1, num_time_steps + 1):
+                eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT)
+                assert (eps.shape == (num_paths, 1, config.ndims))
+                true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config)
+
+                true_states[:, [i], :] = true_states[:, [i - 1], :] \
+                                         + true_mean * deltaT \
+                                         + eps
+                local_mean, local_h, local_c = multivar_score_based_LSTM_drift_OOS(
+                    score_model=self.score_network.module, time_idx=i - 1,
+                    h=local_h, c=local_c,
+                    num_diff_times=num_diff_times,
+                    diffusion=diffusion,
+                    num_paths=num_paths, ts_step=deltaT,
+                    config=config,
+                    device=self.device_id,
+                    prev=true_states[:, i - 1, :])
+
+                local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
+            all_true_states[quant_idx, :, :, :] = true_states
+            # all_global_states[quant_idx, :, :, :] = global_states
+            all_local_states[quant_idx, :, :, :] = local_states
+        if "BiPot" in config.data_path:
+            if "_ST_" in config.scoreNet_trained_path:
+                save_path = (
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_ST_fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                    ".", "")
+            else:
+                save_path = (
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                    ".", "")
+        elif "QuadSin" in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fQuadSinHF_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                ".", "")
+        elif "Lnz" in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_OOSDriftTrack_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_{round(config.forcing_const, 3)}FConst").replace(
+                ".", "")
+        print(f"Save path for OOS DriftTrack:{save_path}\n")
+        np.save(save_path + "_global_true_states.npy", all_true_states)
+        np.save(save_path + "_global_states.npy", all_global_states)
+        np.save(save_path + "_local_states.npy", all_local_states)
+        self.score_network.module.train()
+        self.score_network.module.to(self.device_id)
+
+    def train(self, max_epochs: list, model_filename: str, batch_size: int, config) -> None:
         """
         Run training for model
             :param max_epochs: List of maximum number of epochs (to allow for iterative training)
@@ -456,4 +578,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                 elif (epoch + 1) % self.save_every == 0:
                     self._save_loss(losses=all_losses_per_epoch, filepath=model_filename)
                     self._save_snapshot(epoch=epoch)
+                    self._tracking_errors(epoch=epoch + 1, config=config)
+                    if "Lnz" not in config.data_path:
+                        self._domain_rmse(config=config, epoch=epoch + 1)
             if type(self.device_id) == int: dist.barrier()
