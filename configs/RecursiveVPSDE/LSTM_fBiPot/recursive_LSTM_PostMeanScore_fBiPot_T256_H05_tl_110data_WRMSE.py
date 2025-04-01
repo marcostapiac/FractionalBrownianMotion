@@ -12,19 +12,17 @@ def get_config():
     # Data set parameters
     config.ndims = 1
     config.hurst = 0.5
-    config.quad_coeff = .5
-    assert(config.quad_coeff > 0.)
-    config.sin_coeff = 1./25.
-    config.sin_space_scale = 25.
+    config.quartic_coeff = 1./4.
+    config.quad_coeff = -1./2.
+    config.const = 0.
     config.diffusion = 1.
     config.initState = 0.
     config.ts_length = 256
     config.t0 = 0.
-    config.deltaT = 1./(256)
+    config.deltaT = 1. / (256)
     config.t1 = config.deltaT*config.ts_length
-
-    config.data_path = project_config.ROOT_DIR + "data/fQuadSinHF_samples_t0{:g}_dT{:.3e}_T{}_{}a_{}b_{}c_{}Diff_{}Init".format(
-        config.t0, config.deltaT, config.ts_length, config.quad_coeff, config.sin_coeff, config.sin_space_scale,
+    config.data_path = project_config.ROOT_DIR + "data/fBiPot_samples_t0{:g}_dT{:.3e}_T{}_{}a_{}b_{}c_{}Diff_{}Init".format(
+        config.t0, config.deltaT, config.ts_length, config.quartic_coeff, config.quad_coeff, config.const,
         config.diffusion, config.initState).replace(
         ".", "") + ".npy"
 
@@ -32,15 +30,15 @@ def get_config():
     config.max_diff_steps = 10000
     config.train_eps = 1./config.max_diff_steps  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
     config.end_diff_time = 1.
-    config.save_freq = 50
+    config.save_freq = 2
     config.lr = 1e-3
-    config.max_epochs = [60, 100, 150, 300, 960, 1440, 1920, 2920, 6920, 7190, 8190, 9700, 12920]#, 14920, 16920, 18920, 20920, 22920]
+    config.max_epochs = [60, 100, 150, 300, 960, 1440, 1920, 2920, 6920, 7190, 8190, 12920]
     config.batch_size = 256
     config.isfBm = True
     config.isUnitInterval = True
     config.hybrid = True
     config.weightings = True
-    config.tdata_mult = 110
+    config.tdata_mult = 110#int(110*1.7)#int(110*1.6) #110
     config.ts_dims = 1
     config.loss_factor = 2
 
@@ -55,10 +53,10 @@ def get_config():
 
     # TSM Architecture parameters
     config.residual_layers = 10
-    config.residual_channels = 8
+    config.residual_channels = 8#2 #8
     config.diff_hidden_size = 64
     config.dialation_length = 10
-    config.lstm_hiddendim = 20
+    config.lstm_hiddendim = 20#2 #20
     config.lstm_numlay = 1
     config.lstm_inputdim = config.ts_dims
     config.lstm_dropout = 0.
@@ -66,20 +64,20 @@ def get_config():
             config.lstm_dropout > 0 and config.lstm_numlay > 1))
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_PM_MLP_{}LFac_fQuadSinHF_VPSDE_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_TembDim{}_EncShapes{}_tl110".format(
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_PM_MLP_{}LFac_WRMSE_fBiPot_VPSDE_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_TembDim{}_EncShapes{}_tl110".format(
         config.loss_factor, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
         config.enc_shapes).replace(".", "")
 
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_PM_TSM_{}LFac_fQuadSinHF_VPSDE_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_{}a_{}b_{}c_LSTM_H{}_Nly{}_tl{}".format(
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_PM_TSM_{}LFac_WRMSE_fBiPot_VPSDE_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_{}a_{}b_{}c_LSTM_H{}_Nly{}_tl{}".format(
         config.loss_factor, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings, config.t0, config.deltaT,
-        config.quad_coeff, config.sin_coeff, config.sin_space_scale, config.lstm_hiddendim, config.lstm_numlay, config.tdata_mult).replace(".", "")
+        config.quartic_coeff, config.quad_coeff, config.const, config.lstm_hiddendim, config.lstm_numlay, config.tdata_mult).replace(".", "")
 
     config.model_choice = "TSM"
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName

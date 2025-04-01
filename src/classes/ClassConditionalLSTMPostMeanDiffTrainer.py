@@ -283,9 +283,14 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
         final_vec_mu_hats = LSTM_1D_drifts(PM=self.score_network.module, config=config)
         type = "PM"
         assert (type in config.scoreNet_trained_path)
-        save_path = (
-                project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
-            ".", "")
+        if "BiPot" in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                ".", "")
+        elif "QuadSin" in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fQuadSinHF_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                ".", "")
         print(f"Save path:{save_path}\n")
         assert config.ts_dims == 1
         np.save(save_path + "_muhats.npy", final_vec_mu_hats)
@@ -361,6 +366,10 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
                 ".", "")
+        elif "QuadSin" in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fQuadSinHF_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                ".", "")
         elif "Lnz" in config.data_path:
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_OOSDriftTrack_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_{round(config.forcing_const, 3)}FConst").replace(
@@ -414,9 +423,7 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
                 elif (epoch + 1) % self.save_every == 0:
                     self._save_loss(losses=all_losses_per_epoch, filepath=model_filename)
                     self._save_snapshot(epoch=epoch)
-                    if "BiPot" in config.data_path:
+                    self._tracking_errors(epoch=epoch + 1, config=config)
+                    if "Lnz" not in config.data_path:
                         self._domain_rmse(config=config, epoch=epoch + 1)
-                        self._tracking_errors(epoch=epoch + 1, config=config)
-                    elif "Lnz" in config.data_path:
-                        self._tracking_errors(epoch=epoch+1, config=config)
             if type(self.device_id) == int: dist.barrier()
