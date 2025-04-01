@@ -303,6 +303,10 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
             if "BiPot" in config.data_path:
                 drift_X = -(4. * config.quartic_coeff * np.power(prev, 3) + 2. * config.quad_coeff * prev + config.const)
                 return drift_X[:, np.newaxis, :]
+            elif "QuadSin" in config.data_path:
+                drift_X = -2. * config.quad_coeff * prev + config.sin_coeff * config.sin_space_scale * np.sin(
+                    config.sin_space_scale * prev)
+                return drift_X[:, np.newaxis, :]
             elif "Lnz" in config.data_path:
                 drift_X = np.zeros((num_paths, config.ndims))
                 for i in range(config.ndims):
