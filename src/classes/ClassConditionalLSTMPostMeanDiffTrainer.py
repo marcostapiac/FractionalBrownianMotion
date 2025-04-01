@@ -284,9 +284,14 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
         type = "PM"
         assert (type in config.scoreNet_trained_path)
         if "BiPot" in config.data_path:
-            save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
-                ".", "")
+            if "_ST_" in config.scoreNet_trained_path:
+                save_path = (
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_ST_fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                    ".", "")
+            else:
+                save_path = (
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                    ".", "")
         elif "QuadSin" in config.data_path:
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fQuadSinHF_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
@@ -367,9 +372,14 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
             # all_global_states[quant_idx, :, :, :] = global_states
             all_local_states[quant_idx, :, :, :] = local_states
         if "BiPot" in config.data_path:
-            save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
-                ".", "")
+            if "_ST_" in config.scoreNet_trained_path:
+                save_path = (
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_ST_fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                    ".", "")
+            else:
+                save_path = (
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                    ".", "")
         elif "QuadSin" in config.data_path:
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fQuadSinHF_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
