@@ -536,7 +536,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                 ".", "")
         print(f"Save path for OOS DriftTrack:{save_path}\n")
         np.save(save_path + "_global_true_states.npy", all_true_states)
-        np.save(save_path + "_global_states.npy", all_global_states)
+        # np.save(save_path + "_global_states.npy", all_global_states)
         np.save(save_path + "_local_states.npy", all_local_states)
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)

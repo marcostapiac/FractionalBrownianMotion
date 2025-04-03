@@ -53,7 +53,7 @@ def multivar_score_based_LSTM_drift(score_model, num_diff_times, diffusion, num_
         sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
         final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
                                                                         (torch.pow(sigma_taus, 2) + (
-                                                                                torch.pow(beta_taus, 2) * ts_step)) / (
+                                                                                torch.pow(beta_taus*config.diffusion, 2) * ts_step)) / (
                                                                                 ts_step * beta_taus)) * vec_scores)
 
         assert (final_mu_hats.shape == (num_taus * tot_num_feats, 1, config.ts_dims))
@@ -127,7 +127,7 @@ def multivar_score_based_LSTM_drift_OOS(score_model, time_idx, h, c, num_diff_ti
         sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
         final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
                                                                         (torch.pow(sigma_taus, 2) + (
-                                                                                torch.pow(beta_taus, 2) * ts_step)) / (
+                                                                                torch.pow(beta_taus*config.diffusion, 2) * ts_step)) / (
                                                                                 ts_step * beta_taus)) * vec_scores)
 
         assert (final_mu_hats.shape == (num_taus * tot_num_feats, 1, config.ts_dims))
