@@ -133,12 +133,12 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         assert (outputs.shape == stable_targets.shape)
         return self._batch_loss_compute(outputs=outputs * weights, targets=stable_targets * weights)
 
-    def _compute_stable_targets(self, batch: torch.Tensor, noised_z:torch.Tensor, eff_times: torch.Tensor, ref_batch: torch.Tensor, chunk_size:int):
+    def _compute_stable_targets(self, batch: torch.Tensor, noised_z:torch.Tensor, eff_times: torch.Tensor, ref_batch: torch.Tensor, chunk_size:int, feat_thresh:float):
 
         B1, T, D = batch.shape
         B2, T, D = ref_batch.shape
         assert (B2 > B1)
-        dX = 1 / 50.
+        dX = feat_thresh
         # ref_batch, batch, eff_times = ref_batch.to("cpu"), batch.to("cpu"), eff_times.to("cpu")
         pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # shape: [B2, T, D]
         pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :]  # shape: [B1, T, D]
@@ -253,7 +253,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         # ref_batch, batch, eff_times = ref_batch.to(self.device_id), batch.to(self.device_id), eff_times.to(self.device_id)
         return stable_targets.to(self.device_id)
 
-    def _run_epoch(self, epoch: int, batch_size: int, chunk_size:int) -> list:
+    def _run_epoch(self, epoch: int, batch_size: int, chunk_size:int, feat_thresh:float) -> list:
         """
         Single epoch run
             :param epoch: Epoch index
@@ -292,7 +292,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             # Each eff time entry corresponds to the effective diffusion time for timeseries "b" at time "t"
             xts, _ = self.diffusion.noising_process(x0s, eff_times)
 
-            stable_targets = self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=ref_x0s, eff_times=eff_times, chunk_size=chunk_size)
+            stable_targets = self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=ref_x0s, eff_times=eff_times, chunk_size=chunk_size, feat_thresh=feat_thresh)
 
             batch_loss = self._run_batch(xts=xts, features=features, stable_targets=stable_targets,
                                          diff_times=diff_times,
@@ -559,7 +559,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         end_epoch = max(max_epochs)
         for epoch in range(self.epochs_run, end_epoch):
             t0 = time.time()
-            device_epoch_losses = self._run_epoch(epoch=epoch, batch_size=batch_size, chunk_size=config.chunk_size)
+            device_epoch_losses = self._run_epoch(epoch=epoch, batch_size=batch_size, chunk_size=config.chunk_size, feat_thresh=config.feat_thresh)
             # Average epoch loss for each device over batches
             epoch_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_losses)).item())
             if type(self.device_id) == int:
