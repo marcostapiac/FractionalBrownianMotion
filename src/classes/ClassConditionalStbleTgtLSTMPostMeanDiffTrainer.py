@@ -134,7 +134,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         assert (outputs.shape == stable_targets.shape)
         return self._batch_loss_compute(outputs=outputs * weights, targets=stable_targets * weights)
 
-    def _compute_stable_targets(self, batch: torch.Tensor, eff_times: torch.Tensor, ref_batch: torch.Tensor):
+    def _compute_stable_targets(self, batch: torch.Tensor, noised_z:torch.Tensor, eff_times: torch.Tensor, ref_batch: torch.Tensor):
 
         B1, T, D = batch.shape
         B2, T, D = ref_batch.shape
@@ -168,7 +168,6 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         assert candidate_Z.shape == (1, B2 * T, D)
 
         # batch, eff_times = batch.to(self.device_id), eff_times.to(self.device_id)
-        noised_z, _ = self.diffusion.noising_process(batch, eff_times)
         assert (noised_z.shape == (B1 * T, D))
         # batch, eff_times = batch.to("cpu"), eff_times.to("cpu")
         beta_tau = torch.exp(-0.5 * eff_times)
@@ -288,7 +287,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             # Each eff time entry corresponds to the effective diffusion time for timeseries "b" at time "t"
             xts, _ = self.diffusion.noising_process(x0s, eff_times)
 
-            stable_targets = self._compute_stable_targets(batch=x0s, ref_batch=ref_x0s, eff_times=eff_times)
+            stable_targets = self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=ref_x0s, eff_times=eff_times)
 
             batch_loss = self._run_batch(xts=xts, features=features, stable_targets=stable_targets,
                                          diff_times=diff_times,
