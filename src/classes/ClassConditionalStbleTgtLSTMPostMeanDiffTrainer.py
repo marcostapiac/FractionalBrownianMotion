@@ -182,7 +182,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         target_sigma_tau = sigma_tau.unsqueeze(1)  # [B1*T, 1, D]
         assert target_noised_z.shape == target_beta_tau.shape == target_sigma_tau.shape == (B1 * T, 1, D)
         # We will iterate over all targets in our sub-sampled batch
-        chunk_size = 1024
+        chunk_size = 512
         stable_targets_chunks = []
         stable_targets_masks = []
         # Loop over the target tensors in chunks
