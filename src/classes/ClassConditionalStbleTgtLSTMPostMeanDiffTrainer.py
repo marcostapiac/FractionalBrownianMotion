@@ -241,7 +241,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             del weight_sum_chunk, weighted_Z_sum_chunk
         stable_targets_masks = (torch.cat(stable_targets_masks, dim=0))
         assert stable_targets_masks.shape == (B1 * T, D)
-        print(f"Minimum ESS: {torch.min(stable_targets_masks)}\n")
+        print(f"IQR ESS: {torch.quantile(stable_targets_masks, q=0.05, dim=0), torch.quantile(stable_targets_masks, q=0.95, dim=0)}\n")
         # Concatenate all chunks to form the full result.
         stable_targets = torch.cat(stable_targets_chunks, dim=0)  # [B1*T, D]
         assert (stable_targets.shape == (B1 * T, D))
