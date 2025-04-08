@@ -233,7 +233,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                 (torch.pow(torch.sum(mask_chunk, dim=1), 2) / torch.sum(torch.pow(mask_chunk, 2), dim=1)).to("cpu"))
             weighted_Z_sum_chunk = (weights_masked_chunk * candidate_Z).sum(dim=1)  # [chunk, D]
 
-            candidate_Z = candidate_Z.to("cpu")
+            # candidate_Z = candidate_Z.to("cpu")
             # Compute stable target estimates for this chunk.
             # Add a small epsilon to avoid division by zero.
             epsilon = 0.
