@@ -108,6 +108,6 @@ if __name__ == "__main__":
                 project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_OOSDriftTrack_{Nepoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_{config.ts_beta:.1e}Beta_{config.ts_rho:.1e}Rho_{config.ts_sigma:.1e}Sigma").replace(
             ".", "")
         print(f"Save Path {save_path}\n")
-        np.save(save_path + "_global_true_states.npy", all_true_states)
+        np.save(save_path + "_true_states.npy", all_true_states)
         np.save(save_path + "_global_states.npy", all_global_states)
         np.save(save_path + "_local_states.npy", all_local_states)

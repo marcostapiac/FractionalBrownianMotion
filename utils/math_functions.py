@@ -258,7 +258,7 @@ def generate_MullerBrown(H: float, T: int, S: int, config, isUnitInterval: bool)
                                                   X0=np.array(initial_state)).reshape(-1, 1) for _ in
                              range(S)]).reshape((S, T + 1, config.ndims))
     assert (sample_paths.shape == (S, T + 1, config.ndims))
-    return sample_paths[:, :, :]
+    return sample_paths[:, 1:, :]
 
 
 def generate_Lorenz63(H: float, T: int, S: int, config, isUnitInterval: bool):

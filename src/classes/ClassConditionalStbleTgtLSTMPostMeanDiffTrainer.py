@@ -80,7 +80,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             :return: Batch Loss
         """
         loss.backward()  # single gpu functionality
-        #self.opt.optimizer.step()
+        # self.opt.optimizer.step()
         self.opt.step()
         # Detach returns the loss as a Tensor that does not require gradients, so you can manipulate it
         # independently of the original value, which does require gradients
@@ -109,7 +109,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             :param eff_times: Effective diffusion times
             :return: Batch Loss
         """
-        #self.opt.optimizer.zero_grad()
+        # self.opt.optimizer.zero_grad()
         self.opt.zero_grad()
         B, T, D = xts.shape
         # Reshaping concatenates vectors in dim=1
@@ -138,89 +138,53 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
 
         B1, T, D = batch.shape
         B2, T, D = ref_batch.shape
-        dX = 1 / 1000.
-
-        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # shape: [B1, T, D]
-        pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :]  # shape: [B2, T, D]
+        assert (B2 > B1)
+        dX = 1 / 100.
+        # ref_batch, batch, eff_times = ref_batch.to("cpu"), batch.to("cpu"), eff_times.to("cpu")
+        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # shape: [B2, T, D]
+        pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :]  # shape: [B1, T, D]
         assert pos_batch.shape == batch.shape, "pos_batch must match batch shape"
+        assert pos_batch.shape == (B1, T, D)
+        assert pos_ref_batch.shape == (B2, T, D)
         pos_ref_batch = pos_ref_batch.reshape(-1, pos_ref_batch.shape[-1])
+        assert pos_ref_batch.shape == (B2 * T, D)
         pos_batch = pos_batch.reshape(-1, pos_batch.shape[-1])
+        assert pos_batch.shape == (B1 * T, D)
         ref_batch = ref_batch.reshape(-1, ref_batch.shape[-1])
+        assert ref_batch.shape == pos_ref_batch.shape
         batch = batch.reshape(-1, batch.shape[-1])
+        assert batch.shape == pos_batch.shape
         eff_times = eff_times.reshape(-1, eff_times.shape[-1])
+        assert eff_times.shape == (B1 * T, D)  # Because the ref batch is only for the purposes of importance sampling
 
-        """# For every increment (a value) in batch, I want to find a set of increments (values) in the ref_batch
-        # whose preceding position in
-        stable_scores = []
-        from tqdm import tqdm
-        for i in tqdm(range(pos_batch.shape[0])):
-            x = pos_batch[i, :].squeeze()
-            z = batch[i, :].squeeze()
-            # (z, x) are the increment, position pair
-            eff_tau = eff_times[i, :].squeeze()
-            noised_z, _ = self.diffusion.noising_process(z, eff_tau)
-            beta_tau = torch.exp(-0.5 * eff_tau)
-            sigma_tau = 1. - torch.exp(-eff_tau)
-            # Now find ALL positions in position reference batch which are close to our current position
-            xmin = x - dX
-            xmax = x + dX
-            # Compute the mask over the entire sim_data matrix
-            mask = ((pos_ref_batch >= xmin) & (pos_ref_batch <= xmax)).float()
-            # Get indices where mask is True (each index is [i, j])
-            indices = mask.nonzero(as_tuple=False)
-            assert (indices.shape[0] > 0)
-            weights = []
-            Zs = []
-            # Now find the next increment corresponding to those positions in position reference batch
-            for idx in indices:
-                # Uncomment two lines below if we are using pos_ref_batch[:, :, :]
-                # if idx[1] < ref_batch.shape[1] - 1:
-                # candidate_Z = ref_batch[idx[0], idx[1] + 1, idx[2]]
-                assert (idx[1] == 0)
-                candidate_Z = ref_batch[idx[0], idx[1]]
-                Zs.append(candidate_Z)
-                weights.append(torch.distributions.Normal(beta_tau * candidate_Z, torch.sqrt(sigma_tau)).log_prob(
-                    noised_z).exp())
-            Zs = torch.Tensor(Zs).to(self.device_id)
-            weights = torch.Tensor(weights).to(self.device_id)
-            weights /= torch.sum(weights)
-            stable_scores.append(torch.sum(weights * Zs))
-        stable_targets = torch.Tensor(stable_scores)#.reshape(batch.shape).to(self.device_id)
-        errs1 = torch.pow(stable_targets.squeeze().cpu() - tds.squeeze().cpu(), 2)
-        print(f"Errs1: {torch.mean(errs1), torch.std(errs1)}")"""
+        target_x = pos_batch  # [B1*T, D]
+        target_x_exp = target_x.unsqueeze(1)  # [B1*T, 1, D]
+        assert target_x_exp.shape == (B1 * T, 1, D)
+        # candidate -> potential positions which are close to our "X" feature
+        candidate_x = pos_ref_batch.unsqueeze(0)  # [1, B2*T, D]
+        assert candidate_x.shape == (1, B2 * T, D)
+        # candidate_Z -> potential next increments whose previous position is close to our "X"
+        candidate_Z = ref_batch.unsqueeze(0)  # [1, B2*T, D]
+        assert candidate_Z.shape == (1, B2 * T, D)
 
-        target_x = pos_batch  # [B2*T, D]
-        target_x_exp = target_x.unsqueeze(1)  # [B2*T, 1, D]
-        candidate_x = pos_ref_batch.unsqueeze(0)  # [1, B1*T, D]
-        candidate_Z = ref_batch.unsqueeze(0)  # [1, B1*T, D]
-
+        # batch, eff_times = batch.to(self.device_id), eff_times.to(self.device_id)
         noised_z, _ = self.diffusion.noising_process(batch, eff_times)
-        assert (noised_z.shape == (B1*T, D))
+        assert (noised_z.shape == (B1 * T, D))
+        # batch, eff_times = batch.to("cpu"), eff_times.to("cpu")
         beta_tau = torch.exp(-0.5 * eff_times)
+        assert beta_tau.shape == (B1 * T, D)
         sigma_tau = 1. - torch.exp(-eff_times)
+        assert sigma_tau.shape == beta_tau.shape
+        # noised_z, beta_tau, sigma_tau = noised_z.to("cpu"), beta_tau.to("cpu"), sigma_tau.to("cpu")
 
-        target_noised_z = noised_z.unsqueeze(1)  # [B2*T, 1, D]
-        target_beta_tau = beta_tau.unsqueeze(1)  # [B2*T, 1, D]
-        target_sigma_tau = sigma_tau.unsqueeze(1)  # [B2*T, 1, D]
-
-
-        """mask = ((candidate_x.cpu() >= (target_x_exp.cpu() - dX)) & (
-                candidate_x.cpu() <= (target_x_exp.cpu() + dX))).float()
-
-        dist_mean = target_beta_tau.cpu() * candidate_Z.cpu()
-        dist = torch.distributions.Normal(dist_mean,
-                                          torch.sqrt(target_sigma_tau).cpu())
-
-        weights = dist.log_prob(target_noised_z.cpu()).exp()  # [B2*T, B1*T, D]
-
-        weights_masked = weights * mask  # [B2*T, B1*T, D]
-        weight_sum = weights_masked.sum(dim=1).to(self.device_id)  # [B2*T, D]
-        weighted_Z_sum = (weights_masked * candidate_Z).sum(dim=1).to(self.device_id)  # [B2*T, D]
-        stable_targets2 = weighted_Z_sum / (weight_sum)  # [B2*T, D]"""
-
-        chunk_size = 2048  # Adjust as needed based on your available memory.
+        target_noised_z = noised_z.unsqueeze(1)  # [B1*T, 1, D]
+        target_beta_tau = beta_tau.unsqueeze(1)  # [B1*T, 1, D]
+        target_sigma_tau = sigma_tau.unsqueeze(1)  # [B1*T, 1, D]
+        assert target_noised_z.shape == target_beta_tau.shape == target_sigma_tau.shape == (B1 * T, 1, D)
+        # We will iterate over all targets in our sub-sampled batch
+        chunk_size = 512
         stable_targets_chunks = []
-
+        # stable_targets_masks = []
         # Loop over the target tensors in chunks
         for i in range(0, target_x_exp.shape[0], chunk_size):
             i_end = min(i + chunk_size, target_x_exp.shape[0])
@@ -233,20 +197,28 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
 
             # --- Compute the mask ---
             # For each target point, we want candidate positions within +/- dX.
-            # Broadcasting: candidate_x is [1, B1*T, D] and target_chunk is [chunk, 1, D].
-            mask_chunk = ((candidate_x >= (target_chunk - dX)) &
-                          (candidate_x <= (target_chunk + dX))).float()
-            # mask_chunk has shape: [chunk, B1*T, D]
+            # Broadcasting: candidate_x is [1, B2*T, D] and target_chunk is [chunk, 1, D].
+            # candidate_x, target_chunk = candidate_x.to(self.device_id), target_chunk.to(self.device_id)
+            mask_chunk = ((candidate_x - target_chunk).abs() <= dX).float()
+            # candidate_x, target_chunk = candidate_x.to("cpu"), target_chunk.to("cpu")
+
+            # mask_chunk is size [chunk, B2*T, D]
+
+            # candidate_Z = candidate_Z.to(self.device_id)
+            # beta_tau_chunk, sigma_tau_chunk = beta_tau_chunk.to(self.device_id), sigma_tau_chunk.to(self.device_id)
 
             # --- Compute the distribution parameters (chunk) ---
             # Compute dist_mean for this chunk: target_beta_tau_chunk * candidate_Z
             dist_mean_chunk = beta_tau_chunk * candidate_Z  # [chunk, B1*T, D]
-
             # Create a Normal distribution with mean=dist_mean_chunk and std = sqrt(sigma_tau_chunk).
             dist_chunk = torch.distributions.Normal(dist_mean_chunk, torch.sqrt(sigma_tau_chunk))
 
+            # beta_tau_chunk, sigma_tau_chunk = beta_tau_chunk.to("cpu"), sigma_tau_chunk.to("cpu")
+            # noised_z_chunk = noised_z_chunk.to(self.device_id)
             # Compute weights via the log probability of noised_z_chunk, then exponentiate.
             weights_chunk = dist_chunk.log_prob(noised_z_chunk).exp()  # [chunk, B1*T, D]
+
+            # noised_z_chunk = noised_z_chunk.to("cpu")
 
             # Apply the mask to zero out values that are not in the desired range.
             weights_masked_chunk = weights_chunk * mask_chunk  # [chunk, B1*T, D]
@@ -254,20 +226,24 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             # --- Aggregate weights and candidate_Z contributions ---
             # Sum over the candidate dimension (dim=1) to get total weights per target element.
             weight_sum_chunk = weights_masked_chunk.sum(dim=1)  # [chunk, D]
+            # stable_targets_masks.append(torch.pow(torch.sum(mask_chunk, dim=1),2)/torch.sum(torch.pow(mask_chunk, 2), dim=1))
             weighted_Z_sum_chunk = (weights_masked_chunk * candidate_Z).sum(dim=1)  # [chunk, D]
 
+            candidate_Z = candidate_Z.to("cpu")
             # Compute stable target estimates for this chunk.
             # Add a small epsilon to avoid division by zero.
             epsilon = 0.
             stable_targets_chunk = weighted_Z_sum_chunk / (weight_sum_chunk + epsilon)  # [chunk, D]
             stable_targets_chunks.append(stable_targets_chunk)
+            del weight_sum_chunk, weighted_Z_sum_chunk
+        # stable_targets_masks = (torch.cat(stable_targets_masks, dim=0))
+        # assert stable_targets_masks.shape == (B1*T, D)
         # Concatenate all chunks to form the full result.
         stable_targets = torch.cat(stable_targets_chunks, dim=0)  # [B1*T, D]
-        assert (stable_targets.shape == (B1*T, D))
+        assert (stable_targets.shape == (B1 * T, D))
         del pos_batch, pos_ref_batch, mask_chunk, dist_mean_chunk, stable_targets_chunks, target_noised_z, target_beta_tau, target_sigma_tau
+        #ref_batch, batch, eff_times = ref_batch.to(self.device_id), batch.to(self.device_id), eff_times.to(self.device_id)
         return stable_targets.to(self.device_id)
-
-
 
     def _run_epoch(self, epoch: int, batch_size: int) -> list:
         """
@@ -286,6 +262,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         for x0s in (iter(self.train_loader)):
             ref_x0s = x0s[0].to(self.device_id)
             indices = torch.randperm(ref_x0s.shape[0])[:batch_size]
+            # x0s is the subsampled set of increments from the larger reference batch
             x0s = ref_x0s[indices, :, :]
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
             features = self.create_historical_vectors(x0s)
@@ -419,7 +396,6 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         except FileNotFoundError:
             return []
 
-
     def _domain_rmse(self, epoch, config):
         final_vec_mu_hats = LSTM_1D_drifts(PM=self.score_network.module, config=config)
         type = "PM"
@@ -431,8 +407,8 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                 ".", "")
         elif "QuadSin" in config.data_path:
             save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_ST_fQuadSinHF_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
-                    ".", "")
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_ST_fQuadSinHF_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                ".", "")
         print(f"Save path:{save_path}\n")
         assert config.ts_dims == 1
         np.save(save_path + "_muhats.npy", final_vec_mu_hats)
@@ -441,10 +417,12 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
 
     def _tracking_errors(self, epoch, config):
         assert ("_ST_" in config.scoreNet_trained_path)
+
         def true_drift(prev, num_paths, config):
             assert (prev.shape == (num_paths, config.ndims))
             if "BiPot" in config.data_path:
-                drift_X = -(4. * config.quartic_coeff * np.power(prev, 3) + 2. * config.quad_coeff * prev + config.const)
+                drift_X = -(4. * config.quartic_coeff * np.power(prev,
+                                                                 3) + 2. * config.quad_coeff * prev + config.const)
                 return drift_X[:, np.newaxis, :]
             elif "QuadSin" in config.data_path:
                 drift_X = -2. * config.quad_coeff * prev + config.sin_coeff * config.sin_space_scale * np.sin(
@@ -463,7 +441,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         num_paths = 100
         num_time_steps = 100
         all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
-        all_global_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+        # all_global_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         all_local_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         for quant_idx in tqdm(range(rmse_quantile_nums)):
             self.score_network.module.eval()
