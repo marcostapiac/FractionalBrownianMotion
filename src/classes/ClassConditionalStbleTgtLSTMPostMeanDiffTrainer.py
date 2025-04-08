@@ -211,7 +211,6 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
 
             # --- Compute the distribution parameters (chunk) ---
             # Compute dist_mean for this chunk: target_beta_tau_chunk * candidate_Z
-            print(beta_tau_chunk.device, candidate_Z.device)
             dist_mean_chunk = beta_tau_chunk * candidate_Z  # [chunk, B1*T, D]
             # Create a Normal distribution with mean=dist_mean_chunk and std = sqrt(sigma_tau_chunk).
             dist_chunk = torch.distributions.Normal(dist_mean_chunk, torch.sqrt(sigma_tau_chunk))
