@@ -229,7 +229,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             # Sum over the candidate dimension (dim=1) to get total weights per target element.
             weight_sum_chunk = weights_masked_chunk.sum(dim=1)  # [chunk, D]
             stable_targets_masks.append(
-                (torch.pow(torch.sum(mask_chunk, dim=1), 2) / torch.sum(torch.pow(mask_chunk, 2), dim=1)).to("cpu"))
+                (torch.pow(torch.sum(weights_masked_chunk, dim=1), 2) / torch.sum(torch.pow(weights_masked_chunk, 2), dim=1)).to("cpu"))
             weighted_Z_sum_chunk = (weights_masked_chunk * candidate_Z).sum(dim=1)  # [chunk, D]
 
             # candidate_Z = candidate_Z.to("cpu")
