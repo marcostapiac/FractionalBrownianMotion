@@ -13,13 +13,12 @@ from torchmetrics import MeanMetric
 from tqdm import tqdm
 
 from configs import project_config
-from experiments.generative_modelling.RecursiveVPSDE.ParamEst.TSPM.LSTM.drifts_TSPM_LSTM_fBiPot import LSTM_1D_drifts
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
     ConditionalLSTMTSPostMeanScoreMatching
-from utils.drift_evaluation_functions import multivar_score_based_LSTM_drift_OOS
+from utils.drift_evaluation_functions import multivar_score_based_LSTM_drift_OOS, LSTM_2D_drifts, LSTM_1D_drifts
 
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
@@ -155,6 +154,8 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         batch = batch.reshape(-1, batch.shape[-1])
         assert batch.shape == pos_batch.shape
         eff_times = eff_times.reshape(-1, eff_times.shape[-1])
+        if eff_times.shape[-1] == 1 and D > 1:
+            eff_times = eff_times.expand(-1, D)
         assert eff_times.shape == (B1 * T, D)  # Because the ref batch is only for the purposes of importance sampling
 
         target_x = pos_batch  # [B1*T, D]
@@ -199,9 +200,11 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             # For each target point, we want candidate positions within +/- dX.
             # Broadcasting: candidate_x is [1, B2*T, D] and target_chunk is [chunk, 1, D].
             # candidate_x, target_chunk = candidate_x.to(self.device_id), target_chunk.to(self.device_id)
-            mask_chunk = ((candidate_x - target_chunk).abs() <= dX).float()
-            if mask_chunk.shape == (chunk_size, B2 * T): mask_chunk.unsqueeze(-1)
-            assert mask_chunk.shape == (chunk_size, B2 * T, D)
+            mask_chunk = (torch.norm(candidate_x - target_chunk, p=2, dim=-1) <= dX).float()
+            if mask_chunk.dim() == 2:
+                mask_chunk = mask_chunk.unsqueeze(-1)
+            assert mask_chunk.shape == (chunk_size, B2 * T, 1)
+
             # candidate_x, target_chunk = candidate_x.to("cpu"), target_chunk.to("cpu")
 
             # mask_chunk is size [chunk, B2*T, D]
@@ -218,8 +221,8 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             # beta_tau_chunk, sigma_tau_chunk = beta_tau_chunk.to("cpu"), sigma_tau_chunk.to("cpu")
             # noised_z_chunk = noised_z_chunk.to(self.device_id)
             # Compute weights via the log probability of noised_z_chunk, then exponentiate.
-            weights_chunk = dist_chunk.log_prob(noised_z_chunk).exp()  # [chunk, B1*T, D]
-
+            weights_chunk = dist_chunk.log_prob(noised_z_chunk).sum(dim=-1, keepdim=True).exp()  # [chunk, B2*T, 1]
+            assert weights_chunk.shape == (chunk_size, B2*T, 1)
             # noised_z_chunk = noised_z_chunk.to("cpu")
 
             # Apply the mask to zero out values that are not in the desired range.
@@ -227,20 +230,22 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
 
             # --- Aggregate weights and candidate_Z contributions ---
             # Sum over the candidate dimension (dim=1) to get total weights per target element.
-            weight_sum_chunk = weights_masked_chunk.sum(dim=1)  # [chunk, D]
+            weight_sum_chunk = weights_masked_chunk.sum(dim=1)  # [chunk, 1]
+            assert weight_sum_chunk.shape == (chunk_size, 1)
             stable_targets_masks.append(
                 (torch.pow(torch.sum(weights_masked_chunk, dim=1), 2) / torch.sum(torch.pow(weights_masked_chunk, 2), dim=1)).to("cpu"))
             weighted_Z_sum_chunk = (weights_masked_chunk * candidate_Z).sum(dim=1)  # [chunk, D]
-
+            assert weighted_Z_sum_chunk.shape == (chunk_size, D)
             # candidate_Z = candidate_Z.to("cpu")
             # Compute stable target estimates for this chunk.
             # Add a small epsilon to avoid division by zero.
             epsilon = 0.
             stable_targets_chunk = weighted_Z_sum_chunk / (weight_sum_chunk + epsilon)  # [chunk, D]
+            assert stable_targets_chunk.shape == (chunk_size, D)
             stable_targets_chunks.append(stable_targets_chunk)
             del weight_sum_chunk, weighted_Z_sum_chunk
         stable_targets_masks = (torch.cat(stable_targets_masks, dim=0))
-        assert stable_targets_masks.shape == (B1 * T, D)
+        assert stable_targets_masks.shape == (B1 * T, 1)
         print(f"IQR ESS: {torch.quantile(stable_targets_masks, q=0.005, dim=0).item(), torch.quantile(stable_targets_masks, q=0.995, dim=0).item()}\n")
         # Concatenate all chunks to form the full result.
         stable_targets = torch.cat(stable_targets_chunks, dim=0)  # [B1*T, D]
@@ -249,7 +254,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         # ref_batch, batch, eff_times = ref_batch.to(self.device_id), batch.to(self.device_id), eff_times.to(self.device_id)
         return stable_targets.to(self.device_id)
 
-    def _run_epoch(self, epoch: int, batch_size: int) -> list:
+    def _run_epoch(self, epoch: int, batch_size: int, chunk_size:int) -> list:
         """
         Single epoch run
             :param epoch: Epoch index
@@ -288,7 +293,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             # Each eff time entry corresponds to the effective diffusion time for timeseries "b" at time "t"
             xts, _ = self.diffusion.noising_process(x0s, eff_times)
 
-            stable_targets = self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=ref_x0s, eff_times=eff_times)
+            stable_targets = self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=ref_x0s, eff_times=eff_times, chunk_size=chunk_size)
 
             batch_loss = self._run_batch(xts=xts, features=features, stable_targets=stable_targets,
                                          diff_times=diff_times,
@@ -401,7 +406,11 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             return []
 
     def _domain_rmse(self, epoch, config):
-        final_vec_mu_hats = LSTM_1D_drifts(PM=self.score_network.module, config=config)
+        assert (config.ndims <= 2)
+        if "MullerBrown" in config.data_path:
+            final_vec_mu_hats = LSTM_2D_drifts(PM=self.score_network.module, config=config)
+        else:
+            final_vec_mu_hats = LSTM_1D_drifts(PM=self.score_network.module, config=config)
         type = "PM"
         assert (type in config.scoreNet_trained_path)
         assert ("_ST_" in config.scoreNet_trained_path)
@@ -413,15 +422,16 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_ST_fQuadSinHF_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
                 ".", "")
+        elif "MullerBrown" in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_ST_fMullerBrown_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                ".", "")
         print(f"Save path:{save_path}\n")
-        assert config.ts_dims == 1
         np.save(save_path + "_muhats.npy", final_vec_mu_hats)
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
 
     def _tracking_errors(self, epoch, config):
-        assert ("_ST_" in config.scoreNet_trained_path)
-
         def true_drift(prev, num_paths, config):
             assert (prev.shape == (num_paths, config.ndims))
             if "BiPot" in config.data_path:
@@ -431,6 +441,28 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             elif "QuadSin" in config.data_path:
                 drift_X = -2. * config.quad_coeff * prev + config.sin_coeff * config.sin_space_scale * np.sin(
                     config.sin_space_scale * prev)
+                return drift_X[:, np.newaxis, :]
+            elif "MullerBrown" in config.data_path:
+                Aks = np.array(config.Aks)[np.newaxis, :]
+                aks = np.array(config.aks)[np.newaxis, :]
+                bks = np.array(config.bks)[np.newaxis, :]
+                cks = np.array(config.cks)[np.newaxis, :]
+                X0s = np.array(config.X0s)[np.newaxis, :]
+                Y0s = np.array(config.Y0s)[np.newaxis, :]
+                common = Aks * np.exp(aks * np.power(prev[:, [0]] - X0s, 2) \
+                                      + bks * (prev[:, [0]] - X0s) * (prev[:, [1]] - Y0s)
+                                      + cks * np.power(prev[:, [1]] - Y0s, 2))
+                assert (common.shape == (num_paths, 4))
+                drift_X = np.zeros((num_paths, config.ndims))
+                drift_X[:, 0] = -np.sum(common * (2. * aks * (prev[:, [0]] - X0s) + bks * (prev[:, [1]] - Y0s)), axis=1)
+                drift_X[:, 1] = -np.sum(common * (2. * cks * (prev[:, [1]] - Y0s) + bks * (prev[:, [0]] - X0s)), axis=1)
+
+                return drift_X[:, np.newaxis, :]
+            elif "Lnz" in config.data_path and config.ndims == 3:
+                drift_X = np.zeros((num_paths, config.ndims))
+                drift_X[:, 0] = config.ts_sigma * (prev[:, 1] - prev[:, 0])
+                drift_X[:, 1] = (prev[:, 0] * (config.ts_rho - prev[:, 2]) - prev[:, 1])
+                drift_X[:, 2] = (prev[:, 0] * prev[:, 1] - config.ts_beta * prev[:, 2])
                 return drift_X[:, np.newaxis, :]
             elif "Lnz" in config.data_path:
                 drift_X = np.zeros((num_paths, config.ndims))
@@ -499,6 +531,10 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_ST_fQuadSinHF_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
                 ".", "")
+        elif "MullerBrown" in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_ST_fMullerBrown_DriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                ".", "")
         elif "Lnz" in config.data_path:
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_ST_{config.ndims}DLorenz_OOSDriftTrack_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_{round(config.forcing_const, 3)}FConst").replace(
@@ -517,13 +553,14 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             :param model_filename: Filepath to save model
             :return: None
         """
+        assert ("_ST_" in config.scoreNet_trained_path)
         max_epochs = sorted(max_epochs)
         self.score_network.train()
         all_losses_per_epoch = self._load_loss_tracker(model_filename)  # This will contain synchronised losses
         end_epoch = max(max_epochs)
         for epoch in range(self.epochs_run, end_epoch):
             t0 = time.time()
-            device_epoch_losses = self._run_epoch(epoch=epoch, batch_size=batch_size)
+            device_epoch_losses = self._run_epoch(epoch=epoch, batch_size=batch_size, chunk_size=config.chunk_size)
             # Average epoch loss for each device over batches
             epoch_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_losses)).item())
             if type(self.device_id) == int:

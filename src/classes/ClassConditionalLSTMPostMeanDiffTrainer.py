@@ -13,13 +13,12 @@ from torchmetrics import MeanMetric
 from configs import project_config
 import numpy as np
 
-from experiments.generative_modelling.RecursiveVPSDE.ParamEst.TSPM.LSTM.drifts_TSPM_LSTM_fBiPot import LSTM_1D_drifts
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
     ConditionalLSTMTSPostMeanScoreMatching
-from utils.drift_evaluation_functions import multivar_score_based_LSTM_drift_OOS
+from utils.drift_evaluation_functions import multivar_score_based_LSTM_drift_OOS, LSTM_2D_drifts, LSTM_1D_drifts
 
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
@@ -280,24 +279,26 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
             return []
 
     def _domain_rmse(self, epoch, config):
-        final_vec_mu_hats = LSTM_1D_drifts(PM=self.score_network.module, config=config)
+        assert config.ndims <= 2
+        if "MullerBrown" in config.data_path:
+            final_vec_mu_hats = LSTM_2D_drifts(PM=self.score_network.module, config=config)
+        else:
+            final_vec_mu_hats = LSTM_1D_drifts(PM=self.score_network.module, config=config)
         type = "PM"
         assert (type in config.scoreNet_trained_path)
         if "BiPot" in config.data_path:
-            if "_ST_" in config.scoreNet_trained_path:
-                save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_ST_fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
-                    ".", "")
-            else:
-                save_path = (
+            save_path = (
                         project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
                     ".", "")
         elif "QuadSin" in config.data_path:
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fQuadSinHF_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
                 ".", "")
+        elif "MullerBrown" in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fMullerBrown_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                ".", "")
         print(f"Save path:{save_path}\n")
-        assert config.ts_dims == 1
         np.save(save_path + "_muhats.npy", final_vec_mu_hats)
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
@@ -306,13 +307,36 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
         def true_drift(prev, num_paths, config):
             assert (prev.shape == (num_paths, config.ndims))
             if "BiPot" in config.data_path:
-                drift_X = -(4. * config.quartic_coeff * np.power(prev, 3) + 2. * config.quad_coeff * prev + config.const)
+                drift_X = -(4. * config.quartic_coeff * np.power(prev,
+                                                                 3) + 2. * config.quad_coeff * prev + config.const)
                 return drift_X[:, np.newaxis, :]
             elif "QuadSin" in config.data_path:
                 drift_X = -2. * config.quad_coeff * prev + config.sin_coeff * config.sin_space_scale * np.sin(
                     config.sin_space_scale * prev)
                 return drift_X[:, np.newaxis, :]
-            elif "Lnz" in config.data_path and config.ndims > 3:
+            elif "MullerBrown" in config.data_path:
+                Aks = np.array(config.Aks)[np.newaxis, :]
+                aks = np.array(config.aks)[np.newaxis, :]
+                bks = np.array(config.bks)[np.newaxis, :]
+                cks = np.array(config.cks)[np.newaxis, :]
+                X0s = np.array(config.X0s)[np.newaxis, :]
+                Y0s = np.array(config.Y0s)[np.newaxis, :]
+                common = Aks * np.exp(aks * np.power(prev[:, [0]] - X0s, 2) \
+                                      + bks * (prev[:, [0]] - X0s) * (prev[:, [1]] - Y0s)
+                                      + cks * np.power(prev[:, [1]] - Y0s, 2))
+                assert (common.shape == (num_paths, 4))
+                drift_X = np.zeros((num_paths, config.ndims))
+                drift_X[:, 0] = -np.sum(common * (2. * aks * (prev[:, [0]] - X0s) + bks * (prev[:, [1]] - Y0s)), axis=1)
+                drift_X[:, 1] = -np.sum(common * (2. * cks * (prev[:, [1]] - Y0s) + bks * (prev[:, [0]] - X0s)), axis=1)
+
+                return drift_X[:, np.newaxis, :]
+            elif "Lnz" in config.data_path and config.ndims == 3:
+                drift_X = np.zeros((num_paths, config.ndims))
+                drift_X[:, 0] = config.ts_sigma * (prev[:, 1] - prev[:, 0])
+                drift_X[:, 1] = (prev[:, 0] * (config.ts_rho - prev[:, 2]) - prev[:, 1])
+                drift_X[:, 2] = (prev[:, 0] * prev[:, 1] - config.ts_beta * prev[:, 2])
+                return drift_X[:, np.newaxis, :]
+            elif "Lnz" in config.data_path:
                 drift_X = np.zeros((num_paths, config.ndims))
                 for i in range(config.ndims):
                     drift_X[:, i] = (prev[:, (i + 1) % config.ndims] - prev[:, i - 2]) * prev[:, i - 1] - prev[:,
@@ -325,7 +349,7 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
         num_paths = 100
         num_time_steps = 100
         all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
-        all_global_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+        # all_global_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         all_local_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         for quant_idx in tqdm(range(rmse_quantile_nums)):
             self.score_network.module.eval()
@@ -372,27 +396,21 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
             # all_global_states[quant_idx, :, :, :] = global_states
             all_local_states[quant_idx, :, :, :] = local_states
         if "BiPot" in config.data_path:
-            if "_ST_" in config.scoreNet_trained_path:
-                save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_ST_fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
-                    ".", "")
-            else:
-                save_path = (
+            save_path = (
                         project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
                     ".", "")
         elif "QuadSin" in config.data_path:
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fQuadSinHF_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
                 ".", "")
-        elif "Lnz" in config.data_path and config.ndims > 3:
-            if "LR4" in config.scoreNet_trained_path:
-                save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_OOSDriftTrack_LR4_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_{round(config.forcing_const, 3)}FConst").replace(
-                    ".", "")
-            else:
-                save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_OOSDriftTrack_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_{round(config.forcing_const, 3)}FConst").replace(
-                    ".", "")
+        elif "MullerBrown" in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_fMullerBrown_DriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.residual_layers}ResLay_{config.loss_factor}LFac").replace(
+                ".", "")
+        elif "Lnz" in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_LSTM_{config.ndims}DLorenz_OOSDriftTrack_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_{round(config.forcing_const, 3)}FConst").replace(
+                ".", "")
         print(f"Save path for OOS DriftTrack:{save_path}\n")
         np.save(save_path + "_true_states.npy", all_true_states)
         # np.save(save_path + "_global_states.npy", all_global_states)
@@ -407,6 +425,7 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
             :param model_filename: Filepath to save model
             :return: None
         """
+        assert ("_ST_" not in config.scoreNet_trained_path)
         max_epochs = sorted(max_epochs)
         self.score_network.train()
         all_losses_per_epoch = self._load_loss_tracker(model_filename)  # This will contain synchronised losses
