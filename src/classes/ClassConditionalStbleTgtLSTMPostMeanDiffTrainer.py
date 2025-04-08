@@ -139,7 +139,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         B1, T, D = batch.shape
         B2, T, D = ref_batch.shape
         assert (B2 > B1)
-        dX = 1 / 100.
+        dX = 1 / 50.
         # ref_batch, batch, eff_times = ref_batch.to("cpu"), batch.to("cpu"), eff_times.to("cpu")
         pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # shape: [B2, T, D]
         pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :]  # shape: [B1, T, D]
@@ -182,7 +182,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         target_sigma_tau = sigma_tau.unsqueeze(1)  # [B1*T, 1, D]
         assert target_noised_z.shape == target_beta_tau.shape == target_sigma_tau.shape == (B1 * T, 1, D)
         # We will iterate over all targets in our sub-sampled batch
-        chunk_size = 512
+        chunk_size = 1024
         stable_targets_chunks = []
         stable_targets_masks = []
         # Loop over the target tensors in chunks
