@@ -133,7 +133,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         assert (outputs.shape == stable_targets.shape)
         return self._batch_loss_compute(outputs=outputs * weights, targets=stable_targets * weights)
 
-    def _compute_stable_targets(self, batch: torch.Tensor, noised_z:torch.Tensor, eff_times: torch.Tensor, ref_batch: torch.Tensor):
+    def _compute_stable_targets(self, batch: torch.Tensor, noised_z:torch.Tensor, eff_times: torch.Tensor, ref_batch: torch.Tensor, chunk_size:int):
 
         B1, T, D = batch.shape
         B2, T, D = ref_batch.shape
@@ -183,7 +183,6 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         target_sigma_tau = sigma_tau.unsqueeze(1)  # [B1*T, 1, D]
         assert target_noised_z.shape == target_beta_tau.shape == target_sigma_tau.shape == (B1 * T, 1, D)
         # We will iterate over all targets in our sub-sampled batch
-        chunk_size = 512
         stable_targets_chunks = []
         stable_targets_masks = []
         # Loop over the target tensors in chunks
