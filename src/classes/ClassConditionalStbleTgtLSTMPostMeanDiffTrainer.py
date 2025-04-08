@@ -184,7 +184,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         # We will iterate over all targets in our sub-sampled batch
         chunk_size = 512
         stable_targets_chunks = []
-        # stable_targets_masks = []
+        stable_targets_masks = []
         # Loop over the target tensors in chunks
         for i in range(0, target_x_exp.shape[0], chunk_size):
             i_end = min(i + chunk_size, target_x_exp.shape[0])
@@ -200,6 +200,8 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             # Broadcasting: candidate_x is [1, B2*T, D] and target_chunk is [chunk, 1, D].
             # candidate_x, target_chunk = candidate_x.to(self.device_id), target_chunk.to(self.device_id)
             mask_chunk = ((candidate_x - target_chunk).abs() <= dX).float()
+            if mask_chunk.shape == (chunk_size, B2 * T): mask_chunk.unsqueeze(-1)
+            assert mask_chunk.shape == (chunk_size, B2 * T, D)
             # candidate_x, target_chunk = candidate_x.to("cpu"), target_chunk.to("cpu")
 
             # mask_chunk is size [chunk, B2*T, D]
@@ -226,7 +228,8 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             # --- Aggregate weights and candidate_Z contributions ---
             # Sum over the candidate dimension (dim=1) to get total weights per target element.
             weight_sum_chunk = weights_masked_chunk.sum(dim=1)  # [chunk, D]
-            # stable_targets_masks.append(torch.pow(torch.sum(mask_chunk, dim=1),2)/torch.sum(torch.pow(mask_chunk, 2), dim=1))
+            stable_targets_masks.append(
+                (torch.pow(torch.sum(mask_chunk, dim=1), 2) / torch.sum(torch.pow(mask_chunk, 2), dim=1)).to("cpu"))
             weighted_Z_sum_chunk = (weights_masked_chunk * candidate_Z).sum(dim=1)  # [chunk, D]
 
             candidate_Z = candidate_Z.to("cpu")
@@ -236,13 +239,14 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             stable_targets_chunk = weighted_Z_sum_chunk / (weight_sum_chunk + epsilon)  # [chunk, D]
             stable_targets_chunks.append(stable_targets_chunk)
             del weight_sum_chunk, weighted_Z_sum_chunk
-        # stable_targets_masks = (torch.cat(stable_targets_masks, dim=0))
-        # assert stable_targets_masks.shape == (B1*T, D)
+        stable_targets_masks = (torch.cat(stable_targets_masks, dim=0))
+        assert stable_targets_masks.shape == (B1 * T, D)
+        print(f"Minimum ESS: {torch.min(stable_targets_masks)}\n")
         # Concatenate all chunks to form the full result.
         stable_targets = torch.cat(stable_targets_chunks, dim=0)  # [B1*T, D]
         assert (stable_targets.shape == (B1 * T, D))
         del pos_batch, pos_ref_batch, mask_chunk, dist_mean_chunk, stable_targets_chunks, target_noised_z, target_beta_tau, target_sigma_tau
-        #ref_batch, batch, eff_times = ref_batch.to(self.device_id), batch.to(self.device_id), eff_times.to(self.device_id)
+        # ref_batch, batch, eff_times = ref_batch.to(self.device_id), batch.to(self.device_id), eff_times.to(self.device_id)
         return stable_targets.to(self.device_id)
 
     def _run_epoch(self, epoch: int, batch_size: int) -> list:
