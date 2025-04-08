@@ -168,6 +168,8 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         assert candidate_Z.shape == (1, B2 * T, D)
 
         # batch, eff_times = batch.to(self.device_id), eff_times.to(self.device_id)
+        print(noised_z.shape)
+        noised_z  = noised_z.reshape(-1, noised_z.shape[-1])
         assert (noised_z.shape == (B1 * T, D))
         # batch, eff_times = batch.to("cpu"), eff_times.to("cpu")
         beta_tau = torch.exp(-0.5 * eff_times)
