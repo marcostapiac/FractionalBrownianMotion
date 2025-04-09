@@ -46,7 +46,7 @@ def get_config():
     config.loss_factor = 2
 
     # Diffusion hyperparameters
-    config.beta_max = 20.
+    config.beta_max = 40.#20.
     config.beta_min = 0.  # 0.0001
 
     # MLP Architecture parameters
