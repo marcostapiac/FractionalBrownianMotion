@@ -14,8 +14,8 @@ def get_config():
     config.hurst = 0.5
     config.quad_coeff = .5
     assert(config.quad_coeff > 0.)
-    config.sin_coeff = 1./4.
-    config.sin_space_scale = 4.
+    config.sin_coeff = 1./25.
+    config.sin_space_scale = 25.
     config.diffusion = 1.
     config.initState = 0.
     config.ts_length = 256
@@ -33,7 +33,7 @@ def get_config():
     config.train_eps = 1./config.max_diff_steps  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 2
-    config.lr = 5e-4
+    config.lr = 1e-3
     config.max_epochs = [60, 100, 150, 300, 960, 1440, 1920, 2920, 6920, 7190, 8190, 9700, 12920]
     config.ref_batch_size = 2048
     config.batch_size = 128
