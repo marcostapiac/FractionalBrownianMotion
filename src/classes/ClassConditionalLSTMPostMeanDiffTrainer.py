@@ -454,6 +454,7 @@ class ConditionalLSTMPostMeanDiffTrainer(nn.Module):
                 print("Stored Running Mean {} vs Aggregator Mean {}\n".format(
                     float(torch.mean(torch.tensor(all_losses_per_epoch[self.epochs_run:])).cpu().numpy()), float(
                         self.loss_aggregator.compute().item())))
+                print(f"Current Loss {float(torch.mean(torch.tensor(all_losses_per_epoch[-1])).cpu().numpy())}\n")
                 if epoch + 1 in max_epochs:
                     self._save_snapshot(epoch=epoch)
                     self._save_loss(losses=all_losses_per_epoch, filepath=model_filename)
