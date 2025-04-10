@@ -43,6 +43,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
 
         self.init_state = init_state
         self.opt = optimiser
+        self.scheduler = None
         self.save_every = checkpoint_freq  # Specifies how often we choose to save our model during training
         self.train_loader = train_data_loader
         self.loss_fn = loss_fn  # If callable, need to ensure we allow for gradient computation
@@ -72,7 +73,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             self._load_snapshot(self.snapshot_path)
         print("!!Setup Done!!\n")
 
-    def _batch_update(self, loss) -> float:
+    def _batch_update(self, loss, epoch:int, batch_idx:int, num_batches:int) -> float:
         """
         Backward pass and optimiser update step
             :param loss: loss tensor / function output
@@ -81,13 +82,18 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         loss.backward()  # single gpu functionality
         # self.opt.optimizer.step()
         self.opt.step()
+        try:
+            self.scheduler.step(epoch + batch_idx / num_batches)
+        except AttributeError as e:
+            pass
+
         # Detach returns the loss as a Tensor that does not require gradients, so you can manipulate it
         # independently of the original value, which does require gradients
         # Item is used to return a 1x1 tensor as a standard Python dtype (determined by Tensor dtype)
         self.loss_aggregator.update(loss.detach().item())
         return loss.detach().item()
 
-    def _batch_loss_compute(self, outputs: torch.Tensor, targets: torch.Tensor) -> float:
+    def _batch_loss_compute(self, outputs: torch.Tensor, targets: torch.Tensor, epoch:int, batch_idx:int, num_batches:int) -> float:
         """
         Computes loss and calls helper function to compute backward pass
             :param outputs: Model forward pass output
@@ -95,11 +101,11 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             :return: Batch Loss
         """
         loss = self.loss_fn()(outputs, targets)
-        return self._batch_update(loss)
+        return self._batch_update(loss, epoch=epoch, batch_idx=batch_idx, num_batches=num_batches)
 
     def _run_batch(self, xts: torch.Tensor, features: torch.Tensor, stable_targets: torch.Tensor,
                    diff_times: torch.Tensor,
-                   eff_times: torch.Tensor) -> float:
+                   eff_times: torch.Tensor, epoch:int, batch_idx:int, num_batches:int) -> float:
         """
         Compute batch output and loss
             :param xts: Diffused samples
@@ -131,7 +137,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         # Now implement the stable target field
         outputs = (outputs + xts / sigma_tau) * (sigma_tau / beta_tau)  # This gives us the network D_theta
         assert (outputs.shape == stable_targets.shape)
-        return self._batch_loss_compute(outputs=outputs * weights, targets=stable_targets * weights)
+        return self._batch_loss_compute(outputs=outputs * weights, targets=stable_targets * weights, epoch=epoch,batch_idx=batch_idx, num_batches=num_batches)
 
     def _compute_stable_targets(self, batch: torch.Tensor, noised_z:torch.Tensor, eff_times: torch.Tensor, ref_batch: torch.Tensor, chunk_size:int, feat_thresh:float):
         import time
@@ -268,7 +274,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         if self.is_hybrid:
             timesteps = torch.linspace(self.train_eps, end=self.end_diff_time,
                                        steps=self.max_diff_steps)
-        for x0s in (iter(self.train_loader)):
+        for batch_idx, x0s in enumerate(self.train_loader):
             ref_x0s = x0s[0].to(self.device_id)
             indices = torch.randperm(ref_x0s.shape[0])[:batch_size]
             # x0s is the subsampled set of increments from the larger reference batch
@@ -297,7 +303,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
 
             batch_loss = self._run_batch(xts=xts, features=features, stable_targets=stable_targets,
                                          diff_times=diff_times,
-                                         eff_times=eff_times)
+                                         eff_times=eff_times, epoch=epoch,batch_idx=batch_idx, num_batches=len(self.train_loader))
             device_epoch_losses.append(batch_loss)
         return device_epoch_losses
 
@@ -312,6 +318,10 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         snapshot = torch.load(snapshot_path, map_location=loc)
         self.epochs_run = snapshot["EPOCHS_RUN"]
         self.opt.load_state_dict(snapshot["OPTIMISER_STATE"])
+        try:
+            self.scheduler.load_state_dict(snapshot["SCHEDULER_STATE"])
+        except AttributeError as e:
+            pass
         if type(self.device_id) == int:
             self.score_network.module.load_state_dict(snapshot["MODEL_STATE"])
         else:
@@ -326,7 +336,12 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             :param epoch: Current epoch number
             :return: None
         """
-        snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict()}
+        try:
+            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(), "SCHEDULER_STATE":self.scheduler.state_dict()}
+        except AttributeError as e:
+            print(e)
+            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict()}
+
         # self.score_network now points to DDP wrapped object, so we need to access parameters via ".module"
         if type(self.device_id) == int:
             snapshot["MODEL_STATE"] = self.score_network.module.state_dict()
@@ -554,6 +569,15 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             :return: None
         """
         assert ("_ST_" in config.scoreNet_trained_path)
+        if "004b" in config.data_path and "QuadSin" in config.data_path:
+            for param_group in self.opt.param_groups:
+                param_group['lr'] = 1e-2
+            self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+                self.opt,
+                T_0=50,  # first cycle is 10 epochs
+                T_mult=2,  
+                eta_min=1e-5  # minimum LR reached at the end of a cycle
+            )
         max_epochs = sorted(max_epochs)
         self.score_network.train()
         all_losses_per_epoch = self._load_loss_tracker(model_filename)  # This will contain synchronised losses
