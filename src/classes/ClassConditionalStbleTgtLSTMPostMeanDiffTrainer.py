@@ -571,7 +571,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         assert ("_ST_" in config.scoreNet_trained_path)
         if "004b" in config.data_path and "QuadSin" in config.data_path:
             for param_group in self.opt.param_groups:
-                param_group['lr'] = 1e-5
+                param_group['lr'] = 1e-3
             self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
                 self.opt,
                 T_0=50,  # first cycle is 50 epochs
