@@ -318,10 +318,10 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         snapshot = torch.load(snapshot_path, map_location=loc)
         self.epochs_run = snapshot["EPOCHS_RUN"]
         self.opt.load_state_dict(snapshot["OPTIMISER_STATE"])
-        try:
-            self.scheduler.load_state_dict(snapshot["SCHEDULER_STATE"])
-        except AttributeError as e:
-            pass
+        #try:
+        #    self.scheduler.load_state_dict(snapshot["SCHEDULER_STATE"])
+        #except AttributeError as e:
+        #    pass
         if type(self.device_id) == int:
             self.score_network.module.load_state_dict(snapshot["MODEL_STATE"])
         else:
