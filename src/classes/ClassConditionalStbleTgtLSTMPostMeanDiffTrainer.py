@@ -569,7 +569,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             :return: None
         """
         assert ("_ST_" in config.scoreNet_trained_path)
-        if "004b" in config.data_path and "QuadSin" in config.data_path:
+        if ("004b" in config.data_path and "QuadSin" in config.data_path) or ("4DLnz" in config.data_path and config.forcing_const == 0.75):
             for param_group in self.opt.param_groups:
                 param_group['lr'] = 1e-2
             self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
