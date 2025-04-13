@@ -572,12 +572,12 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         if ("004b" in config.data_path and "QuadSin" in config.data_path) or ("4DLnz" in config.data_path and config.forcing_const == 0.75):
             print("Using cosine annealer\n")
             for param_group in self.opt.param_groups:
-                param_group['lr'] = 1e-2
+                param_group['lr'] = 1e-3
             self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
                 self.opt,
-                T_0=50,  # first cycle is 50 epochs
+                T_0=100,  # first cycle is 50 epochs
                 T_mult=2,  
-                eta_min=1e-5  # minimum LR reached at the end of a cycle
+                eta_min=1e-6  # minimum LR reached at the end of a cycle
             )
         max_epochs = sorted(max_epochs)
         self.score_network.train()

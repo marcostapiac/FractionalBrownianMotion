@@ -39,6 +39,7 @@ class FractionalMullerBrown:
         driftX = np.zeros(shape=self.ndims)
         driftX[0] = -np.sum(common*(2.*self.aks*(prev[0]-self.X0) + self.bks*(prev[1]-self.Y0)))
         driftX[1] = -np.sum(common*(2.*self.cks*(prev[1]-self.Y0) + self.bks*(prev[0]-self.X0)))
+        #driftX = driftX/(1.+deltaT*np.abs(driftX))
         return driftX
 
     def increment_state(self, prev: np.ndarray, deltaT: float, M: int):
@@ -54,7 +55,7 @@ class FractionalMullerBrown:
         if X0 is None:
             Zs = [self.initalVol]  # [self.lamperti(self.X0)]
         else:
-            Zs = [X0]  # [self.lamperti(X0)]
+            Zs = [X0] #[self.lamperti(X0)]
         if gaussRvs is None:
             if H != 0.5:
                 self.gaussIncs = self.rng.normal(size=2 * N)
