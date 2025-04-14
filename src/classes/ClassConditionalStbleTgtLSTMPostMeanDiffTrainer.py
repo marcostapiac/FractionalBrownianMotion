@@ -80,12 +80,11 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             :return: Batch Loss
         """
         loss.backward()  # single gpu functionality
-        # self.opt.optimizer.step()
         self.opt.step()
-        try:
-            self.scheduler.step(epoch + batch_idx / num_batches)
-        except AttributeError as e:
-            pass
+        #try:
+        #    self.scheduler.step(epoch + batch_idx / num_batches)
+        #except AttributeError as e:
+        #    pass
 
         # Detach returns the loss as a Tensor that does not require gradients, so you can manipulate it
         # independently of the original value, which does require gradients
@@ -570,14 +569,19 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         """
         assert ("_ST_" in config.scoreNet_trained_path)
         if ("004b" in config.data_path and "QuadSin" in config.data_path) or ("4DLnz" in config.data_path and config.forcing_const == 0.75):
-            print("Using cosine annealer\n")
+            print("Using reduce LR on plateau\n")
             for param_group in self.opt.param_groups:
                 param_group['lr'] = 1e-3
-            self.scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(
+            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 self.opt,
-                T_0=100,  # first cycle is 50 epochs
-                T_mult=2,  
-                eta_min=1e-6  # minimum LR reached at the end of a cycle
+                mode='min',  # We're monitoring a loss that should decrease.
+                factor=0.5,  # Reduce learning rate by 50% (more conservative than 90%).
+                patience=10,  # Wait for 10 epochs of no sufficient improvement.
+                verbose=True,  # Print a message when the LR is reduced.
+                threshold=1e-4,  # Set the threshold for what counts as improvement.
+                threshold_mode='rel',  # Relative change compared to the best value so far.
+                cooldown=0,  # Optionally, add cooldown epochs after a reduction.
+                min_lr=1e-9
             )
         max_epochs = sorted(max_epochs)
         self.score_network.train()
@@ -603,11 +607,24 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                 self.device_id, (epoch + 1) / end_epoch,
                 float(
                     self.loss_aggregator.compute().item()), float(time.time() - t0)))
+            curr_loss = float(torch.mean(torch.tensor(all_losses_per_epoch[-1])).cpu().numpy())
+            if ("004b" in config.data_path and "QuadSin" in config.data_path) or (
+                    "4DLnz" in config.data_path and config.forcing_const == 0.75):
+                # Step the scheduler with the validation loss:
+                if epoch == 0:
+                    ewma_loss = float(torch.mean(torch.tensor(all_losses_per_epoch[-1])).cpu().numpy())
+                else:
+                    ewma_loss = (1.-0.99)*curr_loss + 0.99*ewma_loss
+
+                self.scheduler.step(ewma_loss)
+                # Log current learning rate:
+                current_lr = self.opt.param_groups[0]['lr']
+                print(f"Epoch {epoch + 1}: Validation Loss: {ewma_loss:.6f}, LR: {current_lr:.2e}\n")
             if self.device_id == 0 or type(self.device_id) == torch.device:
                 print("Stored Running Mean {} vs Aggregator Mean {}\n".format(
                     float(torch.mean(torch.tensor(all_losses_per_epoch[self.epochs_run:])).cpu().numpy()), float(
                         self.loss_aggregator.compute().item())))
-                print(f"Current Loss {float(torch.mean(torch.tensor(all_losses_per_epoch[-1])).cpu().numpy())}\n")
+                print(f"Current Loss {curr_loss}\n")
                 if epoch + 1 in max_epochs:
                     self._save_snapshot(epoch=epoch)
                     self._save_loss(losses=all_losses_per_epoch, filepath=model_filename)
