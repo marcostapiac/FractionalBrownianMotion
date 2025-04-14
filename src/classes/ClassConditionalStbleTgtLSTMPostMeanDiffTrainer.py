@@ -619,7 +619,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                 self.scheduler.step(ewma_loss)
                 # Log current learning rate:
                 current_lr = self.opt.param_groups[0]['lr']
-                print(f"Epoch {epoch + 1}: Validation Loss: {ewma_loss:.6f}, LR: {current_lr:.2e}\n")
+                print(f"Epoch {epoch + 1}: EWMA Loss: {ewma_loss:.6f}, LR: {current_lr:.2e}\n")
             if self.device_id == 0 or type(self.device_id) == torch.device:
                 print("Stored Running Mean {} vs Aggregator Mean {}\n".format(
                     float(torch.mean(torch.tensor(all_losses_per_epoch[self.epochs_run:])).cpu().numpy()), float(
