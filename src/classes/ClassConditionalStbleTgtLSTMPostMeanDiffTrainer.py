@@ -319,7 +319,10 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         snapshot = torch.load(snapshot_path, map_location=loc)
         self.epochs_run = snapshot["EPOCHS_RUN"]
         self.opt.load_state_dict(snapshot["OPTIMISER_STATE"])
-        self.ewma_loss = snapshot["EWMA_LOSS"]
+        try:
+            self.ewma_loss = snapshot["EWMA_LOSS"]
+        except KeyError as e:
+            pass
         try:
             self.scheduler.load_state_dict(snapshot["SCHEDULER_STATE"])
         except AttributeError as e:
