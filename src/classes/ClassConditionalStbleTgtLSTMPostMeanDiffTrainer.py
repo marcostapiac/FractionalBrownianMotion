@@ -239,16 +239,8 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             weight_sum_chunk = weights_masked_chunk.sum(dim=1)  # [chunk, 1]
             assert weight_sum_chunk.shape == (chunk_size, 1)
             c = 1./torch.max(torch.abs(weights_masked_chunk[:,:, 0]))
-            print(f"c: {c}\n\n")
-            num = torch.pow(torch.sum(c * weights_masked_chunk, dim=1), 2)
-            print(f"Num: {num}\n\n")
-            denom = torch.sum(torch.pow(c*weights_masked_chunk, 2), dim=1) + 1e-12
-            print(f"Denom: {denom}\n\n")
-            ESS = (num / denom).to("cpu")
-            print(f"ESS: {ESS}\n\n")
+            ESS = (torch.pow(torch.sum(c * weights_masked_chunk, dim=1), 2) / (torch.sum(torch.pow(c*weights_masked_chunk, 2), dim=1) + 1e-12)).to("cpu")
             stable_targets_masks.append(ESS)
-            #ESS = kahan_sum(x=weights_masked_chunk)
-            #stable_targets_masks.append(ESS)
             assert (not torch.any(torch.isnan(ESS)))
             weighted_Z_sum_chunk = (weights_masked_chunk * candidate_Z).sum(dim=1)  # [chunk, D]
             assert weighted_Z_sum_chunk.shape == (chunk_size, D)
