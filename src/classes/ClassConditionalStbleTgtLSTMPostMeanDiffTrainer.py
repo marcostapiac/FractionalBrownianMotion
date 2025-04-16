@@ -568,10 +568,16 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             :return: None
         """
         assert ("_ST_" in config.scoreNet_trained_path)
-        if ("004b" in config.data_path and "QuadSin" in config.data_path) or ("4DLnz" in config.data_path and config.forcing_const == 0.75):
+        if ("004b" in config.data_path and "QuadSin" in config.data_path) \
+                or ("4DLnz" in config.data_path and config.forcing_const == 0.75)\
+            or ("BiPot" in config.data_path and config.feat_thresh == 1/50.):
             print("Using reduce LR on plateau\n")
-            for param_group in self.opt.param_groups:
-                param_group['lr'] = 1e-3
+            if ("BiPot" in config.data_path and config.feat_thresh == 1/50.):
+                for param_group in self.opt.param_groups:
+                    param_group['lr'] = 1e-2
+            else:
+                for param_group in self.opt.param_groups:
+                    param_group['lr'] = 1e-3
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 self.opt,
                 mode='min',  # We're monitoring a loss that should decrease.
@@ -608,8 +614,9 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                 float(
                     self.loss_aggregator.compute().item()), float(time.time() - t0)))
             curr_loss = float(torch.mean(torch.tensor(all_losses_per_epoch[-1])).cpu().numpy())
-            if ("004b" in config.data_path and "QuadSin" in config.data_path) or (
-                    "4DLnz" in config.data_path and config.forcing_const == 0.75):
+            if ("004b" in config.data_path and "QuadSin" in config.data_path) \
+                    or ("4DLnz" in config.data_path and config.forcing_const == 0.75) \
+                    or ("BiPot" in config.data_path and config.feat_thresh == 1 / 50.):
                 # Step the scheduler with the validation loss:
                 if epoch == 0:
                     ewma_loss = float(torch.mean(torch.tensor(all_losses_per_epoch[-1])).cpu().numpy())
