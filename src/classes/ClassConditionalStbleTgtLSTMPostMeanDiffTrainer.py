@@ -19,6 +19,7 @@ from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
     ConditionalLSTMTSPostMeanScoreMatching
 from utils.drift_evaluation_functions import multivar_score_based_LSTM_drift_OOS, LSTM_2D_drifts, LSTM_1D_drifts
+from utils.math_functions import kahan_sum
 
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
@@ -238,9 +239,10 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             # Sum over the candidate dimension (dim=1) to get total weights per target element.
             weight_sum_chunk = weights_masked_chunk.sum(dim=1)  # [chunk, 1]
             assert weight_sum_chunk.shape == (chunk_size, 1)
-            c = 1./torch.max(torch.abs(weights_masked_chunk[:,0]))
-            stable_targets_masks.append(
-                (torch.pow(torch.sum(c*weights_masked_chunk, dim=1), 2) / torch.sum(torch.pow(c*weights_masked_chunk, 2), dim=1)).to("cpu"))
+            #c = 1./torch.max(torch.abs(weights_masked_chunk[:,0]))
+            #stable_targets_masks.append(
+            #    (torch.pow(torch.sum(c*weights_masked_chunk, dim=1), 2) / torch.sum(torch.pow(c*weights_masked_chunk, 2), dim=1)).to("cpu"))
+            stable_targets_masks.append(kahan_sum(x=weights_masked_chunk))
             weighted_Z_sum_chunk = (weights_masked_chunk * candidate_Z).sum(dim=1)  # [chunk, D]
             assert weighted_Z_sum_chunk.shape == (chunk_size, D)
             # candidate_Z = candidate_Z.to("cpu")
