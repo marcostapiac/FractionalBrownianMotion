@@ -569,8 +569,9 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         """
         assert ("_ST_" in config.scoreNet_trained_path)
         if ("004b" in config.data_path and "QuadSin" in config.data_path) \
-                or ("4DLnz" in config.data_path and config.forcing_const == 0.75)\
-            or ("BiPot" in config.data_path and config.feat_thresh == 1/50.):
+                or ("4DLnz" in config.data_path and config.forcing_const == 0.75) \
+                or ("8DLnz" in config.data_path and config.forcing_const == 0.75) \
+                or ("BiPot" in config.data_path and config.feat_thresh == 1/50.):
             print("Using reduce LR on plateau\n")
             if ("BiPot" in config.data_path and config.feat_thresh == 1/50.):
                 for param_group in self.opt.param_groups:
@@ -616,10 +617,11 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             curr_loss = float(torch.mean(torch.tensor(all_losses_per_epoch[-1])).cpu().numpy())
             if ("004b" in config.data_path and "QuadSin" in config.data_path) \
                     or ("4DLnz" in config.data_path and config.forcing_const == 0.75) \
+                    or ("8DLnz" in config.data_path and config.forcing_const == 0.75) \
                     or ("BiPot" in config.data_path and config.feat_thresh == 1 / 50.):
                 # Step the scheduler with the validation loss:
                 if epoch == 0:
-                    ewma_loss = float(torch.mean(torch.tensor(all_losses_per_epoch[-1])).cpu().numpy())
+                    ewma_loss = curr_loss
                 else:
                     ewma_loss = (1.-0.99)*curr_loss + 0.99*ewma_loss
 
