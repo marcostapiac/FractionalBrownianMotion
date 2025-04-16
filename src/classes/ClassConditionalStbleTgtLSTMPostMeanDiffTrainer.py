@@ -233,13 +233,13 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             # noised_z_chunk = noised_z_chunk.to("cpu")
 
             # Apply the mask to zero out values that are not in the desired range.
-            weights_masked_chunk = weights_chunk * mask_chunk  # [chunk_size, B1*T, D]
-            print(weights_masked_chunk.shape, [chunk_size, B1*T, D])
+            weights_masked_chunk = weights_chunk * mask_chunk  # [chunk_size, B1*T, 1]
             # --- Aggregate weights and candidate_Z contributions ---
             # Sum over the candidate dimension (dim=1) to get total weights per target element.
             weight_sum_chunk = weights_masked_chunk.sum(dim=1)  # [chunk, 1]
             assert weight_sum_chunk.shape == (chunk_size, 1)
             c = 1./torch.max(torch.abs(weights_masked_chunk[:,:, 0]))
+            print(c)
             ESS = (torch.pow(torch.sum(c*weights_masked_chunk, dim=1), 2) / torch.sum(torch.pow(c*weights_masked_chunk, 2), dim=1)).to("cpu")
             stable_targets_masks.append(ESS)
             #ESS = kahan_sum(x=weights_masked_chunk)
