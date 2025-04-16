@@ -205,7 +205,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             # For each target point, we want candidate positions within +/- dX.
             # Broadcasting: candidate_x is [1, B2*T, D] and target_chunk is [chunk, 1, D].
             # candidate_x, target_chunk = candidate_x.to(self.device_id), target_chunk.to(self.device_id)
-            mask_chunk = (torch.norm(candidate_x - target_chunk, p=2, dim=-1) <= dX).float()
+            mask_chunk = ((torch.norm(candidate_x - target_chunk, p=2, dim=-1) / D) <= dX).float()
             if mask_chunk.dim() == 2:
                 mask_chunk = mask_chunk.unsqueeze(-1)
             assert mask_chunk.shape == (chunk_size, B2 * T, 1)
