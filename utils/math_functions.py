@@ -780,23 +780,3 @@ def tensor_algebra_product(sig1: torch.Tensor, sig2: torch.Tensor, dim: int, tru
             product[compute_sig_size(dim=dim, trunc=2):compute_sig_size(dim=dim, trunc=3)] = level3
     assert (product.shape == (compute_sig_size(dim=dim, trunc=trunc),))
     return torch.atleast_2d(product)
-
-@torch.jit.script
-def kahan_sum_per_chunk(x: torch.Tensor) -> torch.Tensor:
-    # x has shape [chunk_size, B2*T, 1]
-    chunk_size = x.shape[0]
-    out = torch.empty((chunk_size, 1), device=x.device, dtype=x.dtype)
-    # Iterate over each chunk (i.e., the first dimension)
-    for j in range(chunk_size):
-        total = torch.tensor(0.0, device=x.device, dtype=x.dtype)
-        c = torch.tensor(0.0, device=x.device, dtype=x.dtype)
-        # Iterate over the second dimension; third dimension is assumed to be 1.
-        for i in range(x.shape[1]):
-            # Since the last dimension is 1, we index as follows:
-            value = x[j, i, 0]
-            y = value - c
-            t = total + y
-            c = (t - total) - y
-            total = t
-        out[j, 0] = total
-    return out.to("cpu")
