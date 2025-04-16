@@ -781,16 +781,22 @@ def tensor_algebra_product(sig1: torch.Tensor, sig2: torch.Tensor, dim: int, tru
     assert (product.shape == (compute_sig_size(dim=dim, trunc=trunc),))
     return torch.atleast_2d(product)
 
-def kahan_sum(x: torch.Tensor) -> torch.Tensor:
-    # Initialize total and compensation on the same device and dtype as x.
-    total = torch.tensor(0.0, device=x.device, dtype=x.dtype)
-    c = torch.tensor(0.0, device=x.device, dtype=x.dtype)
-    # Flatten tensor for sequential processing.
-    flat_x = x.reshape(-1)
-    # Sequentially sum using the Kahan algorithm.
-    for i in range(flat_x.shape[0]):
-        y = flat_x[i] - c         # Correct the error.
-        t = total + y             # Temporary sum.
-        c = (t - total) - y       # Update the compensation.
-        total = t                 # Set the new total.
-    return total.to("cpu")
+@torch.jit.script
+def kahan_sum_per_chunk(x: torch.Tensor) -> torch.Tensor:
+    # x has shape [chunk_size, B2*T, 1]
+    chunk_size = x.shape[0]
+    out = torch.empty((chunk_size, 1), device=x.device, dtype=x.dtype)
+    # Iterate over each chunk (i.e., the first dimension)
+    for j in range(chunk_size):
+        total = torch.tensor(0.0, device=x.device, dtype=x.dtype)
+        c = torch.tensor(0.0, device=x.device, dtype=x.dtype)
+        # Iterate over the second dimension; third dimension is assumed to be 1.
+        for i in range(x.shape[1]):
+            # Since the last dimension is 1, we index as follows:
+            value = x[j, i, 0]
+            y = value - c
+            t = total + y
+            c = (t - total) - y
+            total = t
+        out[j, 0] = total
+    return out.to("cpu")

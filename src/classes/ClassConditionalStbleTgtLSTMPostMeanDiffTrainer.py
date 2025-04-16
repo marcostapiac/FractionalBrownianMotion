@@ -19,7 +19,7 @@ from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
     ConditionalLSTMTSPostMeanScoreMatching
 from utils.drift_evaluation_functions import multivar_score_based_LSTM_drift_OOS, LSTM_2D_drifts, LSTM_1D_drifts
-from utils.math_functions import kahan_sum
+from utils.math_functions import kahan_sum_per_chunk
 
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
@@ -247,6 +247,8 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             print(f"Denom: {denom}\n\n")
             ESS = (num / denom).to("cpu")
             print(f"ESS: {ESS}\n\n")
+            ESS = kahan_sum_per_chunk(x=weights_masked_chunk)
+            print(f"Kahanan ESS: {ESS}\n\n")
             stable_targets_masks.append(ESS)
             #ESS = kahan_sum(x=weights_masked_chunk)
             #stable_targets_masks.append(ESS)
