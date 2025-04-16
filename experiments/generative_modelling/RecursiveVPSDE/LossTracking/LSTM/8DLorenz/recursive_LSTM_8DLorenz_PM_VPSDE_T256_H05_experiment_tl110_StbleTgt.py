@@ -14,7 +14,7 @@ from utils.math_functions import generate_Lorenz96
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.LSTM_8DLorenz.recursive_LSTM_PostMeanScore_4DLorenz_T256_H05_tl_110data_StbleTgt import \
+    from configs.RecursiveVPSDE.LSTM_8DLorenz.recursive_LSTM_PostMeanScore_8DLorenz_T256_H05_tl_110data_StbleTgt import \
         get_config
 
     config = get_config()
