@@ -44,6 +44,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         self.init_state = init_state
         self.opt = optimiser
         self.scheduler = None
+        self.ewma_loss = 0.
         self.save_every = checkpoint_freq  # Specifies how often we choose to save our model during training
         self.train_loader = train_data_loader
         self.loss_fn = loss_fn  # If callable, need to ensure we allow for gradient computation
@@ -237,8 +238,9 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             # Sum over the candidate dimension (dim=1) to get total weights per target element.
             weight_sum_chunk = weights_masked_chunk.sum(dim=1)  # [chunk, 1]
             assert weight_sum_chunk.shape == (chunk_size, 1)
+            c = 1./torch.max(torch.abs(weights_masked_chunk[:,0]))
             stable_targets_masks.append(
-                (torch.pow(torch.sum(weights_masked_chunk, dim=1), 2) / torch.sum(torch.pow(weights_masked_chunk, 2), dim=1)).to("cpu"))
+                (torch.pow(torch.sum(c*weights_masked_chunk, dim=1), 2) / torch.sum(torch.pow(c*weights_masked_chunk, 2), dim=1)).to("cpu"))
             weighted_Z_sum_chunk = (weights_masked_chunk * candidate_Z).sum(dim=1)  # [chunk, D]
             assert weighted_Z_sum_chunk.shape == (chunk_size, D)
             # candidate_Z = candidate_Z.to("cpu")
@@ -317,6 +319,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         snapshot = torch.load(snapshot_path, map_location=loc)
         self.epochs_run = snapshot["EPOCHS_RUN"]
         self.opt.load_state_dict(snapshot["OPTIMISER_STATE"])
+        self.ewma_loss = snapshot["EWMA_LOSS"]
         try:
             self.scheduler.load_state_dict(snapshot["SCHEDULER_STATE"])
         except AttributeError as e:
@@ -336,10 +339,10 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             :return: None
         """
         try:
-            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(), "SCHEDULER_STATE":self.scheduler.state_dict()}
+            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(), "SCHEDULER_STATE":self.scheduler.state_dict(), "EWMA_LOSS":self.ewma_loss}
         except AttributeError as e:
             print(e)
-            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict()}
+            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(), "EWMA_LOSS":self.ewma_loss}
 
         # self.score_network now points to DDP wrapped object, so we need to access parameters via ".module"
         if type(self.device_id) == int:
@@ -621,14 +624,18 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                     or ("BiPot" in config.data_path and config.feat_thresh == 1 / 50.):
                 # Step the scheduler with the validation loss:
                 if epoch == 0:
-                    ewma_loss = curr_loss
+                    self.ewma_loss = curr_loss
                 else:
-                    ewma_loss = (1.-0.99)*curr_loss + 0.99*ewma_loss
+                    if self.ewma_loss == 0.: # Issue with saving ewma_loss
+                        for i in range(1, len(all_losses_per_epoch)):
+                            self.ewma_loss = (1.-0.99)*all_losses_per_epoch[i] + 0.99*self.ewma_loss
+                        assert (self.ewma_loss != 0.)
+                    self.ewma_loss = (1.-0.99)*curr_loss + 0.99*self.ewma_loss
 
-                self.scheduler.step(ewma_loss)
+                self.scheduler.step(self.ewma_loss)
                 # Log current learning rate:
                 current_lr = self.opt.param_groups[0]['lr']
-                print(f"Epoch {epoch + 1}: EWMA Loss: {ewma_loss:.6f}, LR: {current_lr:.2e}\n")
+                print(f"Epoch {epoch + 1}: EWMA Loss: {self.ewma_loss:.6f}, LR: {current_lr:.2e}\n")
             if self.device_id == 0 or type(self.device_id) == torch.device:
                 print("Stored Running Mean {} vs Aggregator Mean {}\n".format(
                     float(torch.mean(torch.tensor(all_losses_per_epoch[self.epochs_run:])).cpu().numpy()), float(
