@@ -580,9 +580,9 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         if ("004b" in config.data_path and "QuadSin" in config.data_path) \
                 or ("4DLnz" in config.data_path and config.forcing_const == 0.75) \
                 or ("8DLnz" in config.data_path and config.forcing_const == 0.75) \
-                or ("BiPot" in config.data_path and config.feat_thresh == 1/50.):
+                or ("BiPot" in config.data_path):
             print("Using reduce LR on plateau\n")
-            if ("BiPot" in config.data_path and config.feat_thresh == 1/50.):
+            if ("BiPot" in config.data_path):
                 for param_group in self.opt.param_groups:
                     param_group['lr'] = 1e-2
             else:
@@ -627,7 +627,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             if ("004b" in config.data_path and "QuadSin" in config.data_path) \
                     or ("4DLnz" in config.data_path and config.forcing_const == 0.75) \
                     or ("8DLnz" in config.data_path and config.forcing_const == 0.75) \
-                    or ("BiPot" in config.data_path and config.feat_thresh == 1 / 50.):
+                    or ("BiPot" in config.data_path):
                 # Step the scheduler with the validation loss:
                 if epoch == 0:
                     self.ewma_loss = curr_loss
