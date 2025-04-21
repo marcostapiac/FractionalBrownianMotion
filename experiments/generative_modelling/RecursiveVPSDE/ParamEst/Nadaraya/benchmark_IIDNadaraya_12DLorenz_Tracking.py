@@ -4,7 +4,7 @@ from tqdm import tqdm
 from configs import project_config
 import multiprocessing as mp
 from multiprocessing import shared_memory
-from configs.RecursiveVPSDE.LSTM_4DLorenz.recursive_LSTM_PostMeanScore_4DLorenz_T256_H05_tl_110data import get_config
+from configs.RecursiveVPSDE.LSTM_12DLorenz.recursive_LSTM_PostMeanScore_12DLorenz_T256_H05_tl_110data_StbleTgt import get_config
 from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
 from utils.drift_evaluation_functions import IID_NW_multivar_estimator, process_IID_bandwidth
 
@@ -19,7 +19,7 @@ def true_drift(prev, num_paths, config):
 
 if __name__ == "__main__":
     config = get_config()
-    num_paths = 10952
+    num_paths = 11052
     t0 = config.t0
     deltaT = config.deltaT
     t1 = deltaT * config.ts_length
@@ -30,9 +30,7 @@ if __name__ == "__main__":
     H = config.hurst
     try:
         is_path_observations = np.load(config.data_path, allow_pickle=True)
-        is_path_observations = np.concatenate(
-            [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0),
-             is_path_observations], axis=1)
+        is_path_observations = np.concatenate([np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0), is_path_observations], axis=1)
         assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
     except FileNotFoundError as e:
         print(e)

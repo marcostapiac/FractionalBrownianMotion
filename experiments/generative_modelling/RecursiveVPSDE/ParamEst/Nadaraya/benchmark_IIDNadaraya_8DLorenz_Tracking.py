@@ -28,13 +28,19 @@ if __name__ == "__main__":
     initial_state = np.array(config.initState)
     rvs = None
     H = config.hurst
-
-    fLnz = FractionalLorenz96(X0=config.initState, diff=config.diffusion, num_dims=config.ndims,
-                              forcing_const=config.forcing_const)
-    is_path_observations = np.array(
-        [fLnz.euler_simulation(H=H, N=config.ts_length, deltaT=deltaT, X0=initial_state, Ms=None, gaussRvs=rvs,
-                               t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
-        (num_paths, config.ts_length + 1, config.ndims))
+    try:
+        is_path_observations = np.load(config.data_path, allow_pickle=True)
+        is_path_observations = np.concatenate([np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0), is_path_observations], axis=1)
+        assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
+    except FileNotFoundError as e:
+        print(e)
+        fLnz = FractionalLorenz96(X0=config.initState, diff=config.diffusion, num_dims=config.ndims,
+                                  forcing_const=config.forcing_const)
+        is_path_observations = np.array(
+            [fLnz.euler_simulation(H=H, N=config.ts_length, deltaT=deltaT, X0=initial_state, Ms=None, gaussRvs=rvs,
+                                   t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
+            (num_paths, config.ts_length + 1, config.ndims))
+        np.save(config.data_path, is_path_observations[:, 1:, :])
     is_idxs = np.arange(is_path_observations.shape[0])
     path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False), :]
     # We note that we DO NOT evaluate the drift at time t_{0}=0
