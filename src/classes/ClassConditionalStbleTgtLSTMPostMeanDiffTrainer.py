@@ -402,31 +402,46 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             output, (hn, cn) = (self.score_network.rnn(pos_batch, None))
         return output[:, :-1, :]
 
-    def _save_loss(self, losses: list, filepath: str):
+    def _save_loss(self, losses: list, learning_rates: list, filepath: str):
         """
         Save loss tracker
             :param losses: Epoch losses averaged over GPU and Batches
+            :param learning_rates: Per epoch learning rates
             :param filepath: Path of file
             :return: None
         """
         with open(filepath.replace("/trained_models/", "/training_losses/") + "_loss",
                   'wb') as fp:
             pickle.dump(losses, fp)
+        with open(filepath.replace("/trained_models/", "/training_losses/") + "_loss_LR",
+                  'wb') as fp:
+            pickle.dump(learning_rates, fp)
 
-    def _load_loss_tracker(self, filepath: str) -> list:
+    def _load_loss_tracker(self, filepath: str) -> [list, list]:
         """
         Load loss tracking list from stored file (if it exists)
             :param filepath: Path of file
-            :return: Loss Tracking List
+            :return: Loss Tracking List, Learning Rate List
         """
         try:
             with open(filepath.replace("/trained_models/", "/training_losses/") + "_loss", 'rb') as fp:
                 l = pickle.load(fp)
                 print("Loading Loss Tracker at Epoch {} with Length {}\n".format(self.epochs_run, len(l)))
                 assert (len(l) >= self.epochs_run)
-                return l[:self.epochs_run]
+                l = l[:self.epochs_run]
         except FileNotFoundError:
-            return []
+            l = []
+        try:
+            with open(filepath.replace("/trained_models/", "/training_losses/") + "_loss_LR", 'rb') as fp:
+                learning_rates = pickle.load(fp)
+                print("Loading Loss Tracker at Epoch {} with Length {}\n".format(self.epochs_run, len(learning_rates)))
+                assert (len(learning_rates) >= self.epochs_run)
+                learning_rates = learning_rates[:self.epochs_run]
+        except FileNotFoundError:
+            learning_rates = []
+        if len(l) > len(learning_rates) and len(learning_rates) == 0: # Issue due to unsaved learning rates
+            learning_rates = [self.opt.param_groups[0]["lr"]]*len(l)
+        return l, learning_rates
 
     def _domain_rmse(self, epoch, config):
         assert (config.ndims <= 2)
@@ -601,7 +616,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             )
         max_epochs = sorted(max_epochs)
         self.score_network.train()
-        all_losses_per_epoch = self._load_loss_tracker(model_filename)  # This will contain synchronised losses
+        all_losses_per_epoch, learning_rates = self._load_loss_tracker(model_filename)  # This will contain synchronised losses
         end_epoch = max(max_epochs)
         for epoch in range(self.epochs_run, end_epoch):
             t0 = time.time()
@@ -642,6 +657,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                 # Log current learning rate:
                 current_lr = self.opt.param_groups[0]['lr']
                 print(f"Epoch {epoch + 1}: EWMA Loss: {self.ewma_loss:.6f}, LR: {current_lr:.2e}\n")
+                learning_rates.append(current_lr)
             if self.device_id == 0 or type(self.device_id) == torch.device:
                 print("Stored Running Mean {} vs Aggregator Mean {}\n".format(
                     float(torch.mean(torch.tensor(all_losses_per_epoch[self.epochs_run:])).cpu().numpy()), float(
@@ -649,10 +665,10 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                 print(f"Current Loss {curr_loss}\n")
                 if epoch + 1 in max_epochs:
                     self._save_snapshot(epoch=epoch)
-                    self._save_loss(losses=all_losses_per_epoch, filepath=model_filename)
+                    self._save_loss(losses=all_losses_per_epoch, learning_rates=learning_rates,filepath=model_filename)
                     self._save_model(filepath=model_filename, final_epoch=epoch + 1)
                 elif (epoch + 1) % self.save_every == 0:
-                    self._save_loss(losses=all_losses_per_epoch, filepath=model_filename)
+                    self._save_loss(losses=all_losses_per_epoch, learning_rates=learning_rates, filepath=model_filename)
                     self._save_snapshot(epoch=epoch)
                     self._tracking_errors(epoch=epoch + 1, config=config)
                     if "Lnz" not in config.data_path:
