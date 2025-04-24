@@ -15,14 +15,14 @@ from utils.math_functions import generate_fQuadSin
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.LSTM_fQuadSinHF.recursive_LSTM_PostMeanScore_fQuadSinHF1_T256_H05_tl_110data_StbleTgt_WRMSE import \
+    from configs.RecursiveVPSDE.LSTM_fQuadSinHF.recursive_LSTM_PostMeanScore_fQuadSinHF2_HighFTh_T256_H05_tl_110data_StbleTgt_WRMSE import \
         get_config
     config = get_config()
     assert (config.hurst == 0.5)
+    assert (config.sin_space_scale == 25.)
+    assert (config.feat_thresh == 1./50.)
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 110)
-    assert (config.sin_space_scale == 4.)
-    assert (config.feat_thresh == 1./50.)
     print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()
     scoreModel = ConditionalLSTMTSPostMeanScoreMatching(
