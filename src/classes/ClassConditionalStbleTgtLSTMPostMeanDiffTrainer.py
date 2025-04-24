@@ -592,7 +592,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             :return: None
         """
         assert ("_ST_" in config.scoreNet_trained_path)
-        if ("004b" in config.data_path and "QuadSin" in config.data_path) \
+        if ("QuadSin" in config.data_path) \
                 or ("4DLnz" in config.data_path and config.forcing_const == 0.75) \
                 or ("8DLnz" in config.data_path and config.forcing_const == 0.75) \
                 or ("BiPot" in config.data_path):
@@ -639,7 +639,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                 float(
                     self.loss_aggregator.compute().item()), float(time.time() - t0)))
             curr_loss = float(torch.mean(torch.tensor(all_losses_per_epoch[-1])).cpu().numpy())
-            if ("004b" in config.data_path and "QuadSin" in config.data_path) \
+            if ("QuadSin" in config.data_path) \
                     or ("4DLnz" in config.data_path and config.forcing_const == 0.75) \
                     or ("8DLnz" in config.data_path and config.forcing_const == 0.75) \
                     or ("BiPot" in config.data_path):
