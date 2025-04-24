@@ -93,7 +93,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         self.loss_aggregator.update(loss.detach().item())
         return loss.detach().item()
 
-    def _batch_loss_compute(self, outputs: torch.Tensor, targets: torch.Tensor, epoch:int, batch_idx:int, num_batches:int) -> float:
+    def _batch_loss_compute(self, outputs: torch.Tensor, targets: torch.Tensor, epoch:int, batch_idx:int, num_batches:int, gap_loss:torch.Tensor) -> float:
         """
         Computes loss and calls helper function to compute backward pass
             :param outputs: Model forward pass output
@@ -101,11 +101,12 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             :return: Batch Loss
         """
         loss = self.loss_fn()(outputs, targets)
+        loss += gap_loss
         return self._batch_update(loss, epoch=epoch, batch_idx=batch_idx, num_batches=num_batches)
 
     def _run_batch(self, xts: torch.Tensor, features: torch.Tensor, stable_targets: torch.Tensor,
                    diff_times: torch.Tensor,
-                   eff_times: torch.Tensor, epoch:int, batch_idx:int, num_batches:int) -> float:
+                   eff_times: torch.Tensor, epoch:int, batch_idx:int, num_batches:int, gap_loss:torch.Tensor) -> float:
         """
         Compute batch output and loss
             :param xts: Diffused samples
@@ -131,13 +132,13 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             weights = torch.ones_like(outputs)
         elif self.loss_factor == 1:  # PMScaled (meaning not scaled)
             weights = self.diffusion.get_loss_weighting(eff_times=outputs)
-        elif self.loss_factor == 2:  # PM with deltaT scaling
+        elif self.loss_factor == 2 or self.loss_factor == 21:  # PM with deltaT scaling
             weights = torch.ones_like(outputs) / torch.sqrt(self.deltaT)
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         # Now implement the stable target field
         outputs = (outputs + xts / sigma_tau) * (sigma_tau / beta_tau)  # This gives us the network D_theta
         assert (outputs.shape == stable_targets.shape)
-        return self._batch_loss_compute(outputs=outputs * weights, targets=stable_targets * weights, epoch=epoch,batch_idx=batch_idx, num_batches=num_batches)
+        return self._batch_loss_compute(outputs=outputs * weights, targets=stable_targets * weights, epoch=epoch,batch_idx=batch_idx, num_batches=num_batches, gap_loss=gap_loss)
 
     def _compute_stable_targets(self, batch: torch.Tensor, noised_z:torch.Tensor, eff_times: torch.Tensor, ref_batch: torch.Tensor, chunk_size:int, feat_thresh:float):
         import time
@@ -285,6 +286,13 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             x0s = ref_x0s[indices, :, :]
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
             features = self.create_historical_vectors(x0s)
+            if self.loss_factor == 21:
+                dxs = torch.norm(x0s[:, 1:, :] - x0s[:, :-1, :], p=2, dim=-1)
+                dfs = torch.norm(features[:, 1:, :] - features[:, :-1, :], p=2, dim=-1)
+                gap_loss = torch.mean((dxs - dfs) ** 2)
+                gap_loss *= 0.1
+            else:
+                gap_loss = 0
             if self.is_hybrid:
                 # We select diffusion time uniformly at random
                 # for each sample at each time (i.e., size (NumBatches, TimeSeries Sequence))
@@ -307,7 +315,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
 
             batch_loss = self._run_batch(xts=xts, features=features, stable_targets=stable_targets,
                                          diff_times=diff_times,
-                                         eff_times=eff_times, epoch=epoch,batch_idx=batch_idx, num_batches=len(self.train_loader))
+                                         eff_times=eff_times, epoch=epoch,batch_idx=batch_idx, num_batches=len(self.train_loader), gap_loss=gap_loss)
             device_epoch_losses.append(batch_loss)
         return device_epoch_losses
 
@@ -674,3 +682,4 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                     if "Lnz" not in config.data_path:
                         self._domain_rmse(config=config, epoch=epoch + 1)
             if type(self.device_id) == int: dist.barrier()
+
