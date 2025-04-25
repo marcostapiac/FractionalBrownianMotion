@@ -615,12 +615,12 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                 self.opt,
                 mode='min',  # We're monitoring a loss that should decrease.
                 factor=0.5,  # Reduce learning rate by 50% (more conservative than 90%).
-                patience=4,  # Wait for 4 epochs of no sufficient improvement.
+                patience=100,  # Wait for 50 epochs of no sufficient improvement.
                 verbose=True,  # Print a message when the LR is reduced.
                 threshold=1e-4,  # Set the threshold for what counts as improvement.
                 threshold_mode='rel',  # Relative change compared to the best value so far.
-                cooldown=0,  # Optionally, add cooldown epochs after a reduction.
-                min_lr=1e-9
+                cooldown=50,  # Optionally, add cooldown epochs after a reduction.
+                min_lr=1e-5
             )
         max_epochs = sorted(max_epochs)
         self.score_network.train()
