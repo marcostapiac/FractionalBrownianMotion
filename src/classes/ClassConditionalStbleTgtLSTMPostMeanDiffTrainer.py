@@ -605,7 +605,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                 or ("8DLnz" in config.data_path and config.forcing_const == 0.75) \
                 or ("BiPot" in config.data_path):
             print("Using reduce LR on plateau\n")
-            if ("BiPot" in config.data_path or ("QuadSin" in config.data_path and "004b" in config.data_path)):
+            if ("BiPot" in config.data_path or "QuadSin" in config.data_path):
                 for param_group in self.opt.param_groups:
                     param_group['lr'] = 1e-2
             else:
