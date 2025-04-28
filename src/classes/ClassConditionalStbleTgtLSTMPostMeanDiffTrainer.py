@@ -614,7 +614,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 self.opt,
                 mode='min',  # We're monitoring a loss that should decrease.
-                factor=0.5,  # Reduce learning rate by 50% (more conservative than 90%).
+                factor=0.75,  # Reduce learning rate by 25% (more conservative than 90%).
                 patience=300,  # Wait for 300 epochs of no sufficient improvement.
                 verbose=True,  # Print a message when the LR is reduced.
                 threshold=1e-4,  # Set the threshold for what counts as improvement.
@@ -622,6 +622,9 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                 cooldown=200,  # Optionally, add cooldown epochs after a reduction.
                 min_lr=1e-5
             )
+            if ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1./50.):
+                print("Using linear LR increase over 1000 epochs\n")
+                self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lambda e: (1e-5)*(1e-4/1e-5)**(epoch/1000))
         max_epochs = sorted(max_epochs)
         self.score_network.train()
         all_losses_per_epoch, learning_rates = self._load_loss_tracker(model_filename)  # This will contain synchronised losses
