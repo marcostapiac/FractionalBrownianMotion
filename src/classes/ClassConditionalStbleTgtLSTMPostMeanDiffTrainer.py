@@ -624,7 +624,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             )
             if ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1./50.):
                 print("Using linear LR increase over 1000 epochs\n")
-                self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.optimizer, lambda e: (1e-5)*(1e-4/1e-5)**(epoch/1000))
+                self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lambda e: (1e-5)*(1e-4/1e-5)**(epoch/1000))
         max_epochs = sorted(max_epochs)
         self.score_network.train()
         all_losses_per_epoch, learning_rates = self._load_loss_tracker(model_filename)  # This will contain synchronised losses
