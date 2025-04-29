@@ -68,10 +68,6 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             self.score_network = self.score_network.to(self.device_id)
 
         self.snapshot_path = snapshot_path
-        # Load snapshot if available
-        if os.path.exists(self.snapshot_path):
-            print("Device {} :: Loading snapshot\n".format(self.device_id))
-            self._load_snapshot(self.snapshot_path)
         print("!!Setup Done!!\n")
 
     def _batch_update(self, loss, epoch:int, batch_idx:int, num_batches:int) -> float:
@@ -319,13 +315,24 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             device_epoch_losses.append(batch_loss)
         return device_epoch_losses
 
-    def _load_snapshot(self, snapshot_path: str) -> None:
+    def _load_snapshot(self, snapshot_path: str, config) -> None:
         """
         Load training from most recent snapshot
             :param snapshot_path: Path to training snapshot
             :return: None
         """
         # Snapshot should be python dict
+        if ("QuadSin" in config.data_path) \
+                or ("4DLnz" in config.data_path and config.forcing_const == 0.75) \
+                or ("8DLnz" in config.data_path and config.forcing_const == 0.75) \
+                or ("BiPot" in config.data_path):
+            print("Using reduce LR on plateau\n")
+            if ("BiPot" in config.data_path or "QuadSin" in config.data_path):
+                for param_group in self.opt.param_groups:
+                    param_group['lr'] = 1e-2
+            else:
+                for param_group in self.opt.param_groups:
+                    param_group['lr'] = 1e-3
         loc = 'cuda:{}'.format(self.device_id) if type(self.device_id) == int else self.device_id
         snapshot = torch.load(snapshot_path, map_location=loc)
         self.epochs_run = snapshot["EPOCHS_RUN"]
@@ -333,10 +340,12 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         try:
             self.ewma_loss = snapshot["EWMA_LOSS"]
         except KeyError as e:
+            print(e)
             pass
         try:
             self.scheduler.load_state_dict(snapshot["SCHEDULER_STATE"])
-        except AttributeError as e:
+        except (KeyError,AttributeError) as e:
+            print(e)
             pass
         if type(self.device_id) == int:
             self.score_network.module.load_state_dict(snapshot["MODEL_STATE"])
@@ -345,6 +354,22 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         print("Device {} :: Resuming training from snapshot at epoch {} and device {}\n".format(self.device_id,
                                                                                                 self.epochs_run + 1,
                                                                                                 self.device_id))
+        print(f"After loading snapshot, Epochs Run, EWMA Loss {self.epochs_run, self.ewma_loss}\n")
+        if not ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
+            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                self.opt,
+                mode='min',  # We're monitoring a loss that should decrease.
+                factor=0.75,  # Reduce learning rate by 25% (more conservative than 90%).
+                patience=300,  # Wait for 300 epochs of no sufficient improvement.
+                verbose=True,  # Print a message when the LR is reduced.
+                threshold=1e-4,  # Set the threshold for what counts as improvement.
+                threshold_mode='rel',  # Relative change compared to the best value so far.
+                cooldown=200,  # Optionally, add cooldown epochs after a reduction.
+                min_lr=1e-5
+            )
+        elif ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
+            print("Using linear LR increase over 1000 epochs\n")
+            self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lambda e: (1e-4 / 1e-5) ** (e / 1000), last_epoch=-1)
 
     def _save_snapshot(self, epoch: int) -> None:
         """
@@ -600,31 +625,10 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             :return: None
         """
         assert ("_ST_" in config.scoreNet_trained_path)
-        if ("QuadSin" in config.data_path) \
-                or ("4DLnz" in config.data_path and config.forcing_const == 0.75) \
-                or ("8DLnz" in config.data_path and config.forcing_const == 0.75) \
-                or ("BiPot" in config.data_path):
-            print("Using reduce LR on plateau\n")
-            if ("BiPot" in config.data_path or "QuadSin" in config.data_path):
-                for param_group in self.opt.param_groups:
-                    param_group['lr'] = 1e-2
-            else:
-                for param_group in self.opt.param_groups:
-                    param_group['lr'] = 1e-3
-            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                self.opt,
-                mode='min',  # We're monitoring a loss that should decrease.
-                factor=0.75,  # Reduce learning rate by 25% (more conservative than 90%).
-                patience=300,  # Wait for 300 epochs of no sufficient improvement.
-                verbose=True,  # Print a message when the LR is reduced.
-                threshold=1e-4,  # Set the threshold for what counts as improvement.
-                threshold_mode='rel',  # Relative change compared to the best value so far.
-                cooldown=200,  # Optionally, add cooldown epochs after a reduction.
-                min_lr=1e-5
-            )
-            if ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1./50.):
-                print("Using linear LR increase over 1000 epochs\n")
-                self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lambda e: (1e-5)*(1e-4/1e-5)**(epoch/1000))
+        # Load snapshot if available
+        if os.path.exists(self.snapshot_path):
+            print("Device {} :: Loading snapshot\n".format(self.device_id))
+            self._load_snapshot(self.snapshot_path, config=config)
         max_epochs = sorted(max_epochs)
         self.score_network.train()
         all_losses_per_epoch, learning_rates = self._load_loss_tracker(model_filename)  # This will contain synchronised losses
@@ -663,7 +667,6 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                             self.ewma_loss = (1.-0.99)*all_losses_per_epoch[i] + 0.99*self.ewma_loss
                         assert (self.ewma_loss != 0.)
                     self.ewma_loss = (1.-0.99)*curr_loss + 0.99*self.ewma_loss
-
                 self.scheduler.step(self.ewma_loss)
                 # Log current learning rate:
                 current_lr = self.opt.param_groups[0]['lr']
