@@ -333,6 +333,8 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             else:
                 for param_group in self.opt.param_groups:
                     param_group['lr'] = 1e-3
+        print(f"Before loading snapshot Epochs Run, EWMA Loss, LR: {self.epochs_run, self.ewma_loss, self.opt.param_groups[0]['lr']}\n")
+
         loc = 'cuda:{}'.format(self.device_id) if type(self.device_id) == int else self.device_id
         snapshot = torch.load(snapshot_path, map_location=loc)
         self.epochs_run = snapshot["EPOCHS_RUN"]
@@ -354,7 +356,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         print("Device {} :: Resuming training from snapshot at epoch {} and device {}\n".format(self.device_id,
                                                                                                 self.epochs_run + 1,
                                                                                                 self.device_id))
-        print(f"After loading snapshot, Epochs Run, EWMA Loss {self.epochs_run, self.ewma_loss}\n")
+        print(f"After loading snapshot Epochs Run, EWMA Loss, LR: {self.epochs_run, self.ewma_loss, self.opt.param_groups[0]['lr']}\n")
         if not ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 self.opt,
