@@ -335,44 +335,59 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         print(f"Before loading snapshot Epochs Run, EWMA Loss, LR: {self.epochs_run, self.ewma_loss, self.opt.param_groups[0]['lr']}\n")
 
         loc = 'cuda:{}'.format(self.device_id) if type(self.device_id) == int else self.device_id
-        snapshot = torch.load(snapshot_path, map_location=loc)
-        self.epochs_run = snapshot["EPOCHS_RUN"]
-        self.opt.load_state_dict(snapshot["OPTIMISER_STATE"])
         try:
-            self.ewma_loss = snapshot["EWMA_LOSS"]
-        except KeyError as e:
-            print(e)
-            pass
-        if type(self.device_id) == int:
-            self.score_network.module.load_state_dict(snapshot["MODEL_STATE"])
-        else:
-            self.score_network.load_state_dict(snapshot["MODEL_STATE"])
-        print("Device {} :: Resuming training from snapshot at epoch {} and device {}\n".format(self.device_id,
-                                                                                                self.epochs_run + 1,
-                                                                                                self.device_id))
-        print(f"After loading snapshot Epochs Run, EWMA Loss, LR: {self.epochs_run, self.ewma_loss, self.opt.param_groups[0]['lr']}\n")
-        if ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
-            print("Using linear LR increase over 1000 epochs\n")
-            self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lambda e: (1e-4 / 1e-5) ** (e / 1000),
-                                                               last_epoch=-1)
-        else:
-            print("Using RLRP scheduler\n")
-            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                    self.opt,
-                    mode='min',  # We're monitoring a loss that should decrease.
-                    factor=0.75,  # Reduce learning rate by 25% (more conservative than 90%).
-                    patience=300,  # Wait for 300 epochs of no sufficient improvement.
-                    verbose=True,  # Print a message when the LR is reduced.
-                    threshold=1e-4,  # Set the threshold for what counts as improvement.
-                    threshold_mode='rel',  # Relative change compared to the best value so far.
-                    cooldown=200,  # Optionally, add cooldown epochs after a reduction.
-                    min_lr=1e-5
-                )
-        try:
-            self.scheduler.load_state_dict(snapshot["SCHEDULER_STATE"])
-        except (KeyError,AttributeError) as e:
-            print(e)
-            pass
+            snapshot = torch.load(snapshot_path, map_location=loc)
+            self.epochs_run = snapshot["EPOCHS_RUN"]
+            self.opt.load_state_dict(snapshot["OPTIMISER_STATE"])
+            try:
+                self.ewma_loss = snapshot["EWMA_LOSS"]
+            except KeyError as e:
+                print(e)
+                pass
+            if type(self.device_id) == int:
+                self.score_network.module.load_state_dict(snapshot["MODEL_STATE"])
+            else:
+                self.score_network.load_state_dict(snapshot["MODEL_STATE"])
+            if ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
+                print("Using linear LR increase over 1000 epochs\n")
+                self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lambda e: (1e-4 / 1e-5) ** (e / 1000),
+                                                                   last_epoch=-1)
+            else:
+                print("Using RLRP scheduler\n")
+                self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                        self.opt,
+                        mode='min',  # We're monitoring a loss that should decrease.
+                        factor=0.75,  # Reduce learning rate by 25% (more conservative than 90%).
+                        patience=300,  # Wait for 300 epochs of no sufficient improvement.
+                        verbose=True,  # Print a message when the LR is reduced.
+                        threshold=1e-4,  # Set the threshold for what counts as improvement.
+                        threshold_mode='rel',  # Relative change compared to the best value so far.
+                        cooldown=200,  # Optionally, add cooldown epochs after a reduction.
+                        min_lr=1e-5
+                    )
+            try:
+                self.scheduler.load_state_dict(snapshot["SCHEDULER_STATE"])
+            except (KeyError, AttributeError) as e:
+                print(e)
+                pass
+        except FileNotFoundError:
+            if ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
+                print("Using linear LR increase over 1000 epochs\n")
+                self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lambda e: (1e-4 / 1e-5) ** (e / 1000),
+                                                                   last_epoch=-1)
+            else:
+                print("Using RLRP scheduler\n")
+                self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                        self.opt,
+                        mode='min',  # We're monitoring a loss that should decrease.
+                        factor=0.75,  # Reduce learning rate by 25% (more conservative than 90%).
+                        patience=300,  # Wait for 300 epochs of no sufficient improvement.
+                        verbose=True,  # Print a message when the LR is reduced.
+                        threshold=1e-4,  # Set the threshold for what counts as improvement.
+                        threshold_mode='rel',  # Relative change compared to the best value so far.
+                        cooldown=200,  # Optionally, add cooldown epochs after a reduction.
+                        min_lr=1e-5
+                    )
     def _save_snapshot(self, epoch: int) -> None:
         """
         Save current state of training
