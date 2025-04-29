@@ -344,11 +344,6 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         except KeyError as e:
             print(e)
             pass
-        try:
-            self.scheduler.load_state_dict(snapshot["SCHEDULER_STATE"])
-        except (KeyError,AttributeError) as e:
-            print(e)
-            pass
         if type(self.device_id) == int:
             self.score_network.module.load_state_dict(snapshot["MODEL_STATE"])
         else:
@@ -372,7 +367,11 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         elif ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
             print("Using linear LR increase over 1000 epochs\n")
             self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lambda e: (1e-4 / 1e-5) ** (e / 1000), last_epoch=-1)
-
+        try:
+            self.scheduler.load_state_dict(snapshot["SCHEDULER_STATE"])
+        except (KeyError,AttributeError) as e:
+            print(e)
+            pass
     def _save_snapshot(self, epoch: int) -> None:
         """
         Save current state of training
@@ -669,11 +668,16 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                             self.ewma_loss = (1.-0.99)*all_losses_per_epoch[i] + 0.99*self.ewma_loss
                         assert (self.ewma_loss != 0.)
                     self.ewma_loss = (1.-0.99)*curr_loss + 0.99*self.ewma_loss
-                self.scheduler.step(self.ewma_loss)
+                if isinstance(self.scheduler, torch.optim.lr_scheduler.LambdaLR):
+                    print("Using LambdaLR")
+                    self.scheduler.step()
+                else:
+                    self.scheduler.step(self.ewma_loss)
                 # Log current learning rate:
                 current_lr = self.opt.param_groups[0]['lr']
-                print(f"Epoch {epoch + 1}: EWMA Loss: {self.ewma_loss:.6f}, LR: {current_lr:.2e}\n")
+                print(f"Epoch {epoch + 1}: EWMA Loss: {self.ewma_loss:.6f}, LR: {current_lr:.12f}\n")
                 learning_rates.append(current_lr)
+
             if self.device_id == 0 or type(self.device_id) == torch.device:
                 print("Stored Running Mean {} vs Aggregator Mean {}\n".format(
                     float(torch.mean(torch.tensor(all_losses_per_epoch[self.epochs_run:])).cpu().numpy()), float(
