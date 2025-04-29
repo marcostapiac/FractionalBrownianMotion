@@ -326,7 +326,6 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                 or ("4DLnz" in config.data_path and config.forcing_const == 0.75) \
                 or ("8DLnz" in config.data_path and config.forcing_const == 0.75) \
                 or ("BiPot" in config.data_path):
-            print("Using reduce LR on plateau\n")
             if ("BiPot" in config.data_path or "QuadSin" in config.data_path):
                 for param_group in self.opt.param_groups:
                     param_group['lr'] = 1e-2
@@ -352,21 +351,23 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                                                                                                 self.epochs_run + 1,
                                                                                                 self.device_id))
         print(f"After loading snapshot Epochs Run, EWMA Loss, LR: {self.epochs_run, self.ewma_loss, self.opt.param_groups[0]['lr']}\n")
-        if not ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
-            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                self.opt,
-                mode='min',  # We're monitoring a loss that should decrease.
-                factor=0.75,  # Reduce learning rate by 25% (more conservative than 90%).
-                patience=300,  # Wait for 300 epochs of no sufficient improvement.
-                verbose=True,  # Print a message when the LR is reduced.
-                threshold=1e-4,  # Set the threshold for what counts as improvement.
-                threshold_mode='rel',  # Relative change compared to the best value so far.
-                cooldown=200,  # Optionally, add cooldown epochs after a reduction.
-                min_lr=1e-5
-            )
-        elif ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
+        if ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
             print("Using linear LR increase over 1000 epochs\n")
-            self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lambda e: (1e-4 / 1e-5) ** (e / 1000), last_epoch=-1)
+            self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lambda e: (1e-4 / 1e-5) ** (e / 1000),
+                                                               last_epoch=-1)
+        else:
+            print("Using RLRP scheduler\n")
+            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                    self.opt,
+                    mode='min',  # We're monitoring a loss that should decrease.
+                    factor=0.75,  # Reduce learning rate by 25% (more conservative than 90%).
+                    patience=300,  # Wait for 300 epochs of no sufficient improvement.
+                    verbose=True,  # Print a message when the LR is reduced.
+                    threshold=1e-4,  # Set the threshold for what counts as improvement.
+                    threshold_mode='rel',  # Relative change compared to the best value so far.
+                    cooldown=200,  # Optionally, add cooldown epochs after a reduction.
+                    min_lr=1e-5
+                )
         try:
             self.scheduler.load_state_dict(snapshot["SCHEDULER_STATE"])
         except (KeyError,AttributeError) as e:
@@ -694,4 +695,5 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                     if "Lnz" not in config.data_path:
                         self._domain_rmse(config=config, epoch=epoch + 1)
             if type(self.device_id) == int: dist.barrier()
+
 
