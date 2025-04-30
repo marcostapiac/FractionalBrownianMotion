@@ -374,7 +374,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         except FileNotFoundError:
             if ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
                 print("Using linear LR increase over 1000 epochs\n")
-                self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lambda e: (1e-4 / 1e-5) ** (e / 1000),
+                self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lambda e: (1e-3 / 1e-5) ** min(1.,(e / 2000)),
                                                                    last_epoch=-1)
             else:
                 print("Using RLRP scheduler\n")
