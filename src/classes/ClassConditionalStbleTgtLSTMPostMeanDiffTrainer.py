@@ -325,6 +325,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         if ("QuadSin" in config.data_path) \
                 or ("4DLnz" in config.data_path and config.forcing_const == 0.75) \
                 or ("8DLnz" in config.data_path and config.forcing_const == 0.75) \
+                or ("12DLnz" in config.data_path and config.forcing_const == 0.75) \
                 or ("BiPot" in config.data_path):
             if ("BiPot" in config.data_path or "QuadSin" in config.data_path):
                 for param_group in self.opt.param_groups:
@@ -674,6 +675,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             if ("QuadSin" in config.data_path) \
                     or ("4DLnz" in config.data_path and config.forcing_const == 0.75) \
                     or ("8DLnz" in config.data_path and config.forcing_const == 0.75) \
+                    or ("12DLnz" in config.data_path and config.forcing_const == 0.75) \
                     or ("BiPot" in config.data_path):
                 # Step the scheduler with the validation loss:
                 if epoch == 0:
