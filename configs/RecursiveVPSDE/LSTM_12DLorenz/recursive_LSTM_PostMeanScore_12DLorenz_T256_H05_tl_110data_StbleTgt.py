@@ -33,8 +33,8 @@ def get_config():
     config.save_freq = 2
     config.lr = 1e-3
     config.max_epochs = [60, 100, 150, 300, 960, 1440, 1920, 2920, 6920, 7190, 8190, 12920]
-    config.ref_batch_size = 1024
-    config.batch_size = 128
+    config.ref_batch_size = 2048
+    config.batch_size = 256
     config.chunk_size = 256
     config.feat_thresh = 1./10.
     config.isfBm = True
