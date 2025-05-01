@@ -141,6 +141,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
         t0 = time.time()
         B1, T, D = batch.shape
         B2, T, D = ref_batch.shape
+        print(B2, B1)
         assert (B2 > B1)
         dX = feat_thresh
         # ref_batch, batch, eff_times = ref_batch.to("cpu"), batch.to("cpu"), eff_times.to("cpu")
