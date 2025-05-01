@@ -327,7 +327,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                 or ("8DLnz" in config.data_path and config.forcing_const == 0.75) \
                 or ("12DLnz" in config.data_path and config.forcing_const == 0.75) \
                 or ("BiPot" in config.data_path):
-            if ("BiPot" in config.data_path or "QuadSin" in config.data_path):
+            if ("BiPot" in config.data_path):
                 for param_group in self.opt.param_groups:
                     param_group['lr'] = 1e-2
             else:
@@ -349,46 +349,46 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
                 self.score_network.module.load_state_dict(snapshot["MODEL_STATE"])
             else:
                 self.score_network.load_state_dict(snapshot["MODEL_STATE"])
-            if ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
-                print("Using linear LR increase over 1000 epochs\n")
-                self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lambda e: (1e-4 / 1e-5) ** (e / 1000),
-                                                                   last_epoch=-1)
-            else:
-                print("Using RLRP scheduler\n")
-                self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                        self.opt,
-                        mode='min',  # We're monitoring a loss that should decrease.
-                        factor=0.75,  # Reduce learning rate by 25% (more conservative than 90%).
-                        patience=300,  # Wait for 300 epochs of no sufficient improvement.
-                        verbose=True,  # Print a message when the LR is reduced.
-                        threshold=1e-4,  # Set the threshold for what counts as improvement.
-                        threshold_mode='rel',  # Relative change compared to the best value so far.
-                        cooldown=200,  # Optionally, add cooldown epochs after a reduction.
-                        min_lr=1e-5
-                    )
+            #if ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
+            #    print("Using linear LR increase over 1000 epochs\n")
+            #    self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lambda e: (1e-4 / 1e-5) ** (e / 1000),
+            #                                                       last_epoch=-1)
+            #else:
+            print("Using RLRP scheduler\n")
+            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                    self.opt,
+                    mode='min',  # We're monitoring a loss that should decrease.
+                    factor=0.75,  # Reduce learning rate by 25% (more conservative than 90%).
+                    patience=300,  # Wait for 300 epochs of no sufficient improvement.
+                    verbose=True,  # Print a message when the LR is reduced.
+                    threshold=1e-4,  # Set the threshold for what counts as improvement.
+                    threshold_mode='rel',  # Relative change compared to the best value so far.
+                    cooldown=200,  # Optionally, add cooldown epochs after a reduction.
+                    min_lr=1e-5
+                )
             try:
                 self.scheduler.load_state_dict(snapshot["SCHEDULER_STATE"])
             except (KeyError, AttributeError) as e:
                 print(e)
                 pass
         except FileNotFoundError:
-            if ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
-                print("Using linear LR increase over 1000 epochs\n")
-                self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lambda e: (1e-3 / 1e-5) ** min(1.,(e / 2000)),
-                                                                   last_epoch=-1)
-            else:
-                print("Using RLRP scheduler\n")
-                self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                        self.opt,
-                        mode='min',  # We're monitoring a loss that should decrease.
-                        factor=0.75,  # Reduce learning rate by 25% (more conservative than 90%).
-                        patience=300,  # Wait for 300 epochs of no sufficient improvement.
-                        verbose=True,  # Print a message when the LR is reduced.
-                        threshold=1e-4,  # Set the threshold for what counts as improvement.
-                        threshold_mode='rel',  # Relative change compared to the best value so far.
-                        cooldown=200,  # Optionally, add cooldown epochs after a reduction.
-                        min_lr=1e-5
-                    )
+            #if ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
+            #    print("Using linear LR increase over 1000 epochs\n")
+            #    self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lambda e: (1e-3 / 1e-5) ** min(1.,(e / 2000)),
+            #                                                       last_epoch=-1)
+            #else:
+            print("Using RLRP scheduler\n")
+            self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+                    self.opt,
+                    mode='min',  # We're monitoring a loss that should decrease.
+                    factor=0.75,  # Reduce learning rate by 25% (more conservative than 90%).
+                    patience=300,  # Wait for 300 epochs of no sufficient improvement.
+                    verbose=True,  # Print a message when the LR is reduced.
+                    threshold=1e-4,  # Set the threshold for what counts as improvement.
+                    threshold_mode='rel',  # Relative change compared to the best value so far.
+                    cooldown=200,  # Optionally, add cooldown epochs after a reduction.
+                    min_lr=1e-5
+                )
     def _save_snapshot(self, epoch: int) -> None:
         """
         Save current state of training
