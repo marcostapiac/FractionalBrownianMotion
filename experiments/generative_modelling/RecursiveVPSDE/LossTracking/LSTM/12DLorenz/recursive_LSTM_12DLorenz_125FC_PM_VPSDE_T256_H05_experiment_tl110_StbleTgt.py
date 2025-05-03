@@ -14,14 +14,14 @@ from utils.math_functions import generate_Lorenz96
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.LSTM_12DLorenz.recursive_LSTM_PostMeanScore_12DLorenz_T256_H05_tl_110data_StbleTgt import \
+    from configs.RecursiveVPSDE.LSTM_12DLorenz.recursive_LSTM_PostMeanScore_12DLorenz_125FC_T256_H05_tl_110data_StbleTgt import \
         get_config
 
     config = get_config()
     assert (config.hurst == 0.5)
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 110)
-    assert (config.forcing_const == 0.75)
+    assert (config.forcing_const == 1.25)
     assert (config.ndims == 12)
     print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()

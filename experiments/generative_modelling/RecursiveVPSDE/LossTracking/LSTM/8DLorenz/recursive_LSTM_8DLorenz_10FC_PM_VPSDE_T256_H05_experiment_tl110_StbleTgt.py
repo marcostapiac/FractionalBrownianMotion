@@ -14,15 +14,15 @@ from utils.math_functions import generate_Lorenz96
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.LSTM_12DLorenz.recursive_LSTM_PostMeanScore_12DLorenz_T256_H05_tl_110data_StbleTgt import \
+    from configs.RecursiveVPSDE.LSTM_8DLorenz.recursive_LSTM_PostMeanScore_8DLorenz_10FC_T256_H05_tl_110data_StbleTgt import \
         get_config
 
     config = get_config()
     assert (config.hurst == 0.5)
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 110)
-    assert (config.forcing_const == 0.75)
-    assert (config.ndims == 12)
+    assert (config.forcing_const == 1.)
+    assert (config.ndims == 8)
     print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()
     scoreModel = ConditionalLSTMTSPostMeanScoreMatching(
@@ -40,7 +40,6 @@ if __name__ == "__main__":
             max(1000, min(int(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad) / (
                         config.ts_length - 1)), 1200000)))
         print(training_size)
-        training_size -= 53
         try:
             data = np.load(config.data_path, allow_pickle=True)
             assert (data.shape[0] >= training_size)

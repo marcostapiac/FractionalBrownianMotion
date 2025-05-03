@@ -382,7 +382,7 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                     self.opt,
                     mode='min',  # We're monitoring a loss that should decrease.
-                    factor=0.5,  # Reduce learning rate by 50% (more conservative than 90%).
+                    factor=0.75,  # Reduce learning rate by 25% (more conservative than 90%).
                     patience=300,  # Wait for 300 epochs of no sufficient improvement.
                     verbose=True,  # Print a message when the LR is reduced.
                     threshold=1e-4,  # Set the threshold for what counts as improvement.
