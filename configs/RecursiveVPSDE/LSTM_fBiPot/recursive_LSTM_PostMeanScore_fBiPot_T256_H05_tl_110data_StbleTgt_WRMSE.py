@@ -33,7 +33,7 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 2
     config.lr = 1e-2
-    config.max_epochs = [60, 100, 150, 300, 872, 960, 1440, 1920, 2920, 6920, 7190, 8190, 12920]
+    config.max_epochs = [60, 100, 150, 300, 872, 960, 1440, 1920, 2920, 6920, 7190, 8190, 12920, 18920]
     config.ref_batch_size = 2048
     config.batch_size = 128
     config.chunk_size = 512
