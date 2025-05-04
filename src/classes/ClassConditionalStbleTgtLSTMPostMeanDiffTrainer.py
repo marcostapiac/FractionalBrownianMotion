@@ -487,12 +487,12 @@ class ConditionalStbleTgtLSTMPostMeanDiffTrainer(nn.Module):
             with open(filepath.replace("/trained_models/", "/training_losses/") + "_loss_LR", 'rb') as fp:
                 learning_rates = pickle.load(fp)
                 print("Loading Loss Tracker at Epoch {} with Length {}\n".format(self.epochs_run, len(learning_rates)))
-                assert (len(learning_rates) >= self.epochs_run)
                 learning_rates = learning_rates[:self.epochs_run]
         except FileNotFoundError:
             learning_rates = []
         if len(l) > len(learning_rates) and len(learning_rates) == 0: # Issue due to unsaved learning rates
             learning_rates = [self.opt.param_groups[0]["lr"]]*len(l)
+        assert (len(learning_rates) >= self.epochs_run)
         return l, learning_rates
 
     def _domain_rmse(self, epoch, config):
