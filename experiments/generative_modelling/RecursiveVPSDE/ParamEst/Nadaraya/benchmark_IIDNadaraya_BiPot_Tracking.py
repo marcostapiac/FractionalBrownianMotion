@@ -33,6 +33,7 @@ if __name__ == '__main__':
         is_path_observations = np.concatenate(
             [np.repeat(np.array(config.initState).reshape((1, 1)), is_path_observations.shape[0], axis=0),
              is_path_observations], axis=1)
+        print(is_path_observations.shape, num_paths, config.ts_length + 1)
         assert is_path_observations.shape == (num_paths, config.ts_length + 1)
     except FileNotFoundError as e:
         fBiPot = FractionalBiPotential(const=config.const, quartic_coeff=config.quartic_coeff, quad_coeff=config.quad_coeff,
