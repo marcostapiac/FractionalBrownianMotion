@@ -3,7 +3,7 @@ import multiprocessing as mp
 from multiprocessing import shared_memory
 from tqdm import tqdm
 from configs import project_config
-from configs.RecursiveVPSDE.LSTM_fQuadSinHF.recursive_LSTM_PostMeanScore_fQuadSinHF_T256_H05_tl_110data import \
+from configs.RecursiveVPSDE.LSTM_fQuadSinHF.recursive_LSTM_PostMeanScore_fQuadSinHF1_T256_H05_tl_110data_StbleTgt_WRMSE import \
     get_config
 from src.classes.ClassFractionalQuadSin import FractionalQuadSin
 from utils.drift_evaluation_functions import process_IID_bandwidth
