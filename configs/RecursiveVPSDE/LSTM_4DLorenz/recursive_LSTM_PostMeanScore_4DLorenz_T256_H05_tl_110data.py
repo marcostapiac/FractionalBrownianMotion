@@ -14,7 +14,7 @@ def get_config():
     config.hurst = 0.5
     # Classic stable behaviour (forcing_const < 1)
     config.ndims = 4
-    config.forcing_const = 1. #1.#1.25#.75
+    config.forcing_const = .75 #1.#1.25#.75
     config.diffusion = 1.
     config.initState = ([0., .5, 1., 1.5])
     config.ts_length = 256
@@ -45,16 +45,18 @@ def get_config():
     config.beta_max = 20.
     config.beta_min = 0.  # 0.0001
 
-    # MLP Architecture parameters
+    # Universal Architecture Parameters
     config.temb_dim = 64
-    config.enc_shapes = [8, 16, 32]
-    config.dec_shapes = config.enc_shapes[::-1]
-
-    # TSM Architecture parameters
     config.residual_layers = 10
     config.residual_channels = 8
     config.diff_hidden_size = 64
     config.dialation_length = 10
+
+    # MLP Architecture parameters 
+    config.mlp_hidden_dims = 4
+    config.condupsampler_length = 20
+
+    # TSM Architecture parameters
     config.lstm_hiddendim = 20
     config.lstm_numlay = 1
     config.lstm_inputdim = config.ts_dims
@@ -63,12 +65,14 @@ def get_config():
             config.lstm_dropout > 0 and config.lstm_numlay > 1))
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_PM_MLP_{}LFac_{}DLnz_{:.2e}FConst_VPSDE_model_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_TembDim{}_EncShapes{}_tl{}".format(
-        config.loss_factor, config.ndims,config.forcing_const, config.hurst,
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_PM_ST_{:.3f}FTh_MLP_{}LFac_{}DLnz_{:.2e}FConst_VPSDE_model_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_MLP_H{}_CUp{}_tl{}".format(
+        config.feat_thresh, config.loss_factor, config.ndims, config.forcing_const, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
-        config.enc_shapes, config.tdata_mult).replace(".", "")
+        config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings,
+        config.t0, config.deltaT,
+        config.mlp_hidden_dims, config.condupsampler_length, config.tdata_mult, config.tdata_mult).replace(".", "")
 
     tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_PM_TSM_{}LFac_{}DLnz_{:.2e}FConst_VPSDE_model_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_LSTM_H{}_Nly{}_tl{}".format(
         config.loss_factor,config.ndims, config.forcing_const, config.hurst,
@@ -82,9 +86,9 @@ def get_config():
     config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.lstm_hiddendim,
                                config.lstm_numlay, config.lstm_inputdim, config.lstm_dropout, config.residual_layers,
                                config.residual_channels, config.dialation_length] \
-        if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.ts_length,
-                                              config.enc_shapes,
-                                              config.dec_shapes]
+        if config.model_choice == "TSM" else [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.ts_dims, config.mlp_hidden_dims,
+                                      config.condupsampler_length, config.residual_layers,
+                       config.residual_channels, config.dialation_length]
 
     # Snapshot filepath
     config.scoreNet_snapshot_path = config.scoreNet_trained_path.replace("trained_models/", "snapshots/")

@@ -4,46 +4,52 @@ import torch
 from configs import project_config
 
 
-# NOTE: This model scales by 1/ts_length
 def get_config():
     config = ml_collections.ConfigDict()
 
     # Experiment environment parameters
     config.has_cuda = torch.cuda.is_available()
-
     # Data set parameters
+    config.ndims = 1
     config.hurst = 0.5
-    config.mean_rev = 0.8
+    config.quad_coeff = .5
+    assert(config.quad_coeff > 0.)
+    config.sin_coeff = 1./4.
+    config.sin_space_scale = 4.
     config.diffusion = 1.
-    config.mean = 0.
     config.initState = 0.
     config.ts_length = 256
     config.t0 = 0.
-    config.deltaT = 1. / (256)
+    config.deltaT = 1./(256)
     config.t1 = config.deltaT*config.ts_length
-    config.data_path = project_config.ROOT_DIR + "data/fOU_samples_H{}_T{}_{}Rev_{}Mean_{}Diff_{}Init".format(
-        str(config.hurst), config.ts_length, config.mean_rev, config.mean, config.diffusion, config.initState).replace(
+
+    config.data_path = project_config.ROOT_DIR + "data/fQuadSinHF_samples_t0{:g}_dT{:.3e}_T{}_{}a_{}b_{}c_{}Diff_{}Init".format(
+        config.t0, config.deltaT, config.ts_length, config.quad_coeff, config.sin_coeff, config.sin_space_scale,
+        config.diffusion, config.initState).replace(
         ".", "") + ".npy"
 
     # Training hyperparameters
     config.max_diff_steps = 10000
     config.train_eps = 1./config.max_diff_steps  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
     config.end_diff_time = 1.
-    config.save_freq = 50
-    config.lr = 1e-3
-    config.max_epochs = [960, 1440, 1920, 2920, 6920, 12920]
-    config.batch_size = 256
+    config.save_freq = 2
+    config.lr = 1e-2
+    config.max_epochs = [60, 100, 150, 300, 960, 1440, 1920, 2920, 6920, 7190, 8190, 9700, 12920, 28920]
+    config.ref_batch_size = 2048
+    config.batch_size = 128
+    config.chunk_size = 512
+    config.feat_thresh = 1 / 50.
     config.isfBm = True
     config.isUnitInterval = True
     config.hybrid = True
     config.weightings = True
-    config.tdata_mult = 5
+    config.tdata_mult = 110
     config.ts_dims = 1
-    config.loss_factor = 5
+    config.loss_factor = 2
 
     # Diffusion hyperparameters
     config.beta_max = 20.
-    config.beta_min = 0.0001
+    config.beta_min = 0.  # 0.0001
 
     # Universal Architecture Parameters
     config.temb_dim = 64
@@ -52,7 +58,7 @@ def get_config():
     config.diff_hidden_size = 64
     config.dialation_length = 10
 
-    # MLP Architecture parameters 
+    # MLP Architecture parameters
     config.mlp_hidden_dims = 4
     config.condupsampler_length = 20
 
@@ -65,23 +71,23 @@ def get_config():
             config.lstm_dropout > 0 and config.lstm_numlay > 1))
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_PM_MLP_{}LFac_fOU_VPSDE_model_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_TembDim{}_EncShapes{}_tl5".format(
-        config.loss_factor, config.hurst,
-        config.ts_length,
-        config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
-config.temb_dim,
-config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings, config.t0, config.deltaT,
-config.quad_coeff, config.sin_coeff, config.sin_space_scale, config.mlp_hidden_dims, config.condupsampler_length, config.tdata_mult).replace(".", "")
-
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_rrrrPM_TSM_{}LFac_fOU_VPSDE_model_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_LSTM_H{}_Nly{}_fOU{}_tl5".format(
-        config.loss_factor, config.hurst,
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_ST_{:.3f}FTh_PM_MLP_{}LFac_fQuadSinHF_VPSDE_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_{}a_{}b_{}c_MLP_H{}_CUp{}_tl{}".format(
+        config.feat_thresh, config.loss_factor, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings, config.t0, config.deltaT,
-        config.lstm_hiddendim, config.lstm_numlay, config.mean).replace(".", "")
+        config.quad_coeff, config.sin_coeff, config.sin_space_scale, config.mlp_hidden_dims, config.condupsampler_length, config.tdata_mult).replace(".", "")
+    # RLRP is for reduce LR on plateau (to remove when we compare with same without reduceLR on plateau)
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_ST_{:.3f}FTh_RLRP_PM_TSM_{}LFac_fQuadSinHF_VPSDE_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_{}a_{}b_{}c_LSTM_H{}_Nly{}_tl{}".format(
+        config.feat_thresh, config.loss_factor, config.hurst,
+        config.ts_length,
+        config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
+        config.temb_dim,
+        config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings, config.t0, config.deltaT,
+        config.quad_coeff, config.sin_coeff, config.sin_space_scale, config.lstm_hiddendim, config.lstm_numlay, config.tdata_mult).replace(".", "")
 
-    config.model_choice = "TSM"
+    config.model_choice = "MLP"
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
     config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.lstm_hiddendim,
                                config.lstm_numlay, config.lstm_inputdim, config.lstm_dropout, config.residual_layers,
@@ -99,7 +105,7 @@ config.quad_coeff, config.sin_coeff, config.sin_space_scale, config.mlp_hidden_d
     if config.hybrid: assert (config.sample_eps == config.train_eps)
     config.max_lang_steps = 0
     config.snr = 0.
-    config.predictor_model = "CondReverseDiffusion"  # vs "euler-maryuama"
+    config.predictor_model = "CondAncestral"
     config.corrector_model = "VP"  # vs "VE" vs "OUSDE"
     config.param_time = 900
 

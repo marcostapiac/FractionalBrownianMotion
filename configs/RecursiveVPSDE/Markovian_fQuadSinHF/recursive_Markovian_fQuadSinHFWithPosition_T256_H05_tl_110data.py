@@ -62,8 +62,9 @@ def get_config():
         config.loss_factor, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
-        config.temb_dim,
-        config.enc_shapes,config.tdata_mult).replace(".", "")
+config.temb_dim,
+config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings, config.t0, config.deltaT,
+config.quad_coeff, config.sin_coeff, config.sin_space_scale, config.mlp_hidden_dims, config.condupsampler_length, config.tdata_mult,config.tdata_mult).replace(".", "")
 
     """tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_markv_TSMWP_{}LFac_fQuadSinHF_VPSDE_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.4e}_BetaMin{:.4e}_DiffEmbSize{}_ResLay{}_ResChan{}_DiffHiddenSize{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_{}a_{}b_{}c_tl{}".format(
         config.loss_factor, config.hurst,
@@ -86,9 +87,9 @@ def get_config():
     config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.ts_dims,
                                config.residual_layers,
                                config.residual_channels, config.dialation_length] \
-        if config.model_choice == "TSM" else [config.temb_dim, config.max_diff_steps, config.ts_length,
-                                              config.enc_shapes,
-                                              config.dec_shapes]
+        if config.model_choice == "TSM" else [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.ts_dims, config.mlp_hidden_dims,
+                                      config.condupsampler_length, config.residual_layers,
+                       config.residual_channels, config.dialation_length]
 
     # Snapshot filepath
     config.scoreNet_snapshot_path = config.scoreNet_trained_path.replace("trained_models/", "snapshots/")

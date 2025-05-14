@@ -121,6 +121,24 @@ class CondUpsampler(nn.Module):
         x = F.leaky_relu(x, 0.4)
         return x
 
+class MLPStateMapper(nn.Module):
+    def __init__(self, ts_input_dim:int, hidden_dim:int,  target_dims:int):
+        super().__init__()
+        self.linear1 = nn.Linear(ts_input_dim, hidden_dim, bias=True)
+        self.linear2 = nn.Linear(hidden_dim, hidden_dim, bias=True)
+        self.linear3 = nn.Linear(hidden_dim, target_dims, bias=True)
+
+    def forward(self, x):
+        assert (x.ndim == 3)
+        x = x.squeeze(1)
+        print(x.shape, )
+        x= self.linear1(x)
+        x = F.gelu(x)
+        x = self.linear2(x)
+        x = F.gelu(x)
+        x= self.linear3(x)
+        return x.unsqueeze(1)
+
 class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
     def __init__(
             self,
@@ -128,6 +146,8 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
             diff_embed_size: int,
             diff_hidden_size: int,
             ts_dims: int,
+            mlp_hidden_dims:int,
+            condupsampler_length:int = 20,
             residual_layers: int = 10,
             residual_channels: int = 8,
             dilation_cycle_length: int = 10
@@ -140,8 +160,9 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
                                                       diff_hidden_size=diff_hidden_size,
                                                       max_steps=max_diff_steps)  # get_timestep_embedding
 
+        self.mlp_state_mapper = MLPStateMapper(ts_input_dim=ts_dims, hidden_dim=mlp_hidden_dims, target_dims=condupsampler_length)
         self.cond_upsampler = CondUpsampler(
-            target_dim=1, cond_length=ts_dims
+            target_dim=1, cond_length=condupsampler_length
         )
         self.residual_layers = nn.ModuleList(
             [
@@ -166,6 +187,7 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
         x = F.leaky_relu(x, 0.01)
 
         diffusion_step = self.diffusion_embedding(times)
+        conditioner = self.mlp_state_mapper(conditioner)
         cond_up = self.cond_upsampler(conditioner)
         skip = []
         for layer in self.residual_layers:
