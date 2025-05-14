@@ -345,16 +345,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             :return: None
         """
         # Snapshot should be python dict
-        if ("QuadSin" in config.data_path) \
-                or ("4DLnz" in config.data_path ) \
-                or ("8DLnz" in config.data_path ) \
-                or ("12DLnz" in config.data_path ) \
-                or ("BiPot" in config.data_path):
-            if ("BiPot" in config.data_path):
-                for param_group in self.opt.param_groups:
-                    param_group['lr'] = 1e-2
-            else:
-                for param_group in self.opt.param_groups:
+        if ("QuadSin" in config.data_path) or ("4DLnz" in config.data_path ) or ("8DLnz" in config.data_path ) or ("12DLnz" in config.data_path ) or ("BiPot" in config.data_path):
+            for param_group in self.opt.param_groups:
                     param_group['lr'] = 1e-3
         print(f"Before loading snapshot Epochs Run, EWMA Loss, LR: {self.epochs_run, self.ewma_loss, self.opt.param_groups[0]['lr']}\n")
 
