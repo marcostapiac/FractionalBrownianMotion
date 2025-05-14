@@ -347,7 +347,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         # Snapshot should be python dict
         if ("QuadSin" in config.data_path) or ("4DLnz" in config.data_path ) or ("8DLnz" in config.data_path ) or ("12DLnz" in config.data_path ) or ("BiPot" in config.data_path):
             for param_group in self.opt.param_groups:
-                    param_group['lr'] = 1e-3
+                    param_group['lr'] = 7.5e-3
         print(f"Before loading snapshot Epochs Run, EWMA Loss, LR: {self.epochs_run, self.ewma_loss, self.opt.param_groups[0]['lr']}\n")
 
         loc = 'cuda:{}'.format(self.device_id) if type(self.device_id) == int else self.device_id
