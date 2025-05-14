@@ -356,7 +356,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             self.epochs_run = snapshot["EPOCHS_RUN"]
             self.opt.load_state_dict(snapshot["OPTIMISER_STATE"])
             if "BiPot" in config.data_path:
-                self.opt.param_groups[0]["lr"] = 5e-3
+                self.opt.param_groups[0]["lr"] = 1e-3
             try:
                 self.ewma_loss = snapshot["EWMA_LOSS"]
             except KeyError as e:
