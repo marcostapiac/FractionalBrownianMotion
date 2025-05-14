@@ -131,7 +131,6 @@ class MLPStateMapper(nn.Module):
     def forward(self, x):
         assert (x.ndim == 3)
         x = x.squeeze(1)
-        print(x.shape, )
         x= self.linear1(x)
         x = F.gelu(x)
         x = self.linear2(x)
