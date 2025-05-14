@@ -406,6 +406,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     cooldown=200,  # Optionally, add cooldown epochs after a reduction.
                     min_lr=1e-5
                 )
+        print(f"After loading snapshot Epochs Run, EWMA Loss, LR: {self.epochs_run, self.ewma_loss, self.opt.param_groups[0]['lr']}\n")
+
 
     def _save_snapshot(self, epoch: int) -> None:
         """
