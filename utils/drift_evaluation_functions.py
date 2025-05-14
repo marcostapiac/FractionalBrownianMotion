@@ -116,7 +116,7 @@ def MLP_1D_drifts(config, PM):
         Xs = torch.linspace(-1.5, 1.5, steps=Xshape)
     else:
         Xs = torch.linspace(-.4, .4, steps=Xshape)
-    features_tensor = torch.stack([Xs for _ in range(1)], dim=0).reshape(Xshape * 1, 1, -1)
+    features_tensor = torch.stack([Xs for _ in range(1)], dim=0).reshape(Xshape * 1, 1, -1).to(device)
     final_vec_mu_hats = np.zeros(
         (Xshape, num_diff_times, num_taus, config.ts_dims))  # Xvalues, DiffTimes, Ztaus, Ts_Dims
     vec_Z_taus = diffusion.prior_sampling(shape=(Xshape * num_taus, 1, config.ts_dims)).to(device)
@@ -417,7 +417,7 @@ def multivar_score_based_MLP_drift(score_model, num_diff_times, diffusion, num_p
     num_taus = 100
     Ndiff_discretisation = config.max_diff_steps
     assert (prev.shape == (num_paths, config.ndims))
-    features_tensor = torch.stack([torch.tensor(prev, dtype=torch.float32) for _ in range(1)], dim=0).reshape(num_paths * 1, 1, -1)
+    features_tensor = torch.stack([torch.tensor(prev, dtype=torch.float32) for _ in range(1)], dim=0).reshape(num_paths * 1, 1, -1).to(device)
     assert (features_tensor.shape[0] == num_paths)
     vec_Z_taus = diffusion.prior_sampling(shape=(num_paths * num_taus, 1, config.ts_dims)).to(device)
 
@@ -548,7 +548,7 @@ def multivar_score_based_MLP_drift_OOS(score_model, num_diff_times, diffusion, n
     assert (prev.shape == (num_paths, config.ndims))
     assert (prev[0, :].shape[0] == config.ts_dims)
     features_tensor = torch.stack([torch.tensor(prev, dtype=torch.float32) for _ in range(1)], dim=0).reshape(
-        num_paths * 1, 1, -1)
+        num_paths * 1, 1, -1).to(device)
     assert (features_tensor.shape[0] == num_paths)
     vec_Z_taus = diffusion.prior_sampling(shape=(num_paths * num_taus, 1, config.ts_dims)).to(device)
 
