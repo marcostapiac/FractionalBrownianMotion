@@ -346,12 +346,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         """
         # Snapshot should be python dict
         if ("QuadSin" in config.data_path) or ("4DLnz" in config.data_path ) or ("8DLnz" in config.data_path ) or ("12DLnz" in config.data_path ) or ("BiPot" in config.data_path):
-            if "BiPot" in config.data_path:
-                for param_group in self.opt.param_groups:
-                    param_group['lr'] = 5e-3
-            else:
-                for param_group in self.opt.param_groups:
-                        param_group['lr'] = 1e-3
+            for param_group in self.opt.param_groups:
+                    param_group['lr'] = 1e-3
         print(f"Before loading snapshot Epochs Run, EWMA Loss, LR: {self.epochs_run, self.ewma_loss, self.opt.param_groups[0]['lr']}\n")
 
         loc = 'cuda:{}'.format(self.device_id) if type(self.device_id) == int else self.device_id
@@ -359,6 +355,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             snapshot = torch.load(snapshot_path, map_location=loc)
             self.epochs_run = snapshot["EPOCHS_RUN"]
             self.opt.load_state_dict(snapshot["OPTIMISER_STATE"])
+            if "BiPot" in config.data_path:
+                self.opt.param_groups[0]["lr"] = 5e-3
             try:
                 self.ewma_loss = snapshot["EWMA_LOSS"]
             except KeyError as e:
