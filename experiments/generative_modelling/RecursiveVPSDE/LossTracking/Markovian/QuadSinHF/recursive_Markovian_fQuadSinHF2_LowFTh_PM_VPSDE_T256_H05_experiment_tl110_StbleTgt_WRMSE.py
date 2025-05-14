@@ -14,7 +14,7 @@ from utils.math_functions import generate_fQuadSin
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.Markovian_fQuadSinHF.recursive_Markovian_PostMeanScore_fQuadSinHF2_HighFTh_T256_H05_tl_110data_StbleTgt_WRMSE import get_config
+    from configs.RecursiveVPSDE.Markovian_fQuadSinHF.recursive_Markovian_PostMeanScore_fQuadSinHF2_LowFTh_T256_H05_tl_110data_StbleTgt_WRMSE import get_config
     config = get_config()
     assert (config.hurst == 0.5)
     assert (config.early_stop_idx == 0)
