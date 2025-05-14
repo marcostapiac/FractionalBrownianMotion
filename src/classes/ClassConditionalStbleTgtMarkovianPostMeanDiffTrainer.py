@@ -464,7 +464,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         init_state = init_state.expand(batch.shape[0], -1, -1)  # Expand to (B, 1, D)
         dbatch = torch.cat([init_state, batch], dim=1)
         dbatch = dbatch.cumsum(dim=1)
-        dbatch[:, 0, :] +=  1e-3*torch.randn((dbatch.shape[0], dbatch.shape[-1]))
+        dbatch[:, 0, :] +=  1e-3*torch.randn((dbatch.shape[0], dbatch.shape[-1])).to(self.device)
         return dbatch
 
     def create_feature_vectors_from_position(self, batch):
