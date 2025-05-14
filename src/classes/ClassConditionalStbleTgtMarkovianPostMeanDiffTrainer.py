@@ -677,7 +677,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                                   feat_thresh=config.feat_thresh)
             # Average epoch loss for each device over batches
             epoch_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_losses)).item())
-            raise RuntimeError("Done Ep 1")
             if type(self.device_id) == int:
                 epoch_losses_tensor = epoch_losses_tensor.cuda()
                 all_gpus_losses = [torch.zeros_like(epoch_losses_tensor) for _ in range(torch.cuda.device_count())]
