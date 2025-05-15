@@ -38,11 +38,14 @@ if __name__ == "__main__":
             max(1000, min(int(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad) / (
                         config.ts_length - 1)), 1200000)))
         print(training_size)
+        print(training_size)
+        training_size += 1917
         try:
             data = np.load(config.data_path, allow_pickle=True)
             assert (data.shape[0] >= training_size)
         except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
             print("Error {}; generating synthetic data\n".format(e))
+            raise RuntimeError
             data = generate_fQuadSin(config=config, T=config.ts_length, isUnitInterval=config.isUnitInterval,
                                      S=training_size,
                                      H=config.hurst, a=config.quad_coeff, b=config.sin_coeff, c=config.sin_space_scale,
