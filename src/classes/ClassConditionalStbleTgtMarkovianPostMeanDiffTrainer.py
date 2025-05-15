@@ -285,8 +285,14 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             # candidate_Z = candidate_Z.to("cpu")
             # Compute stable target estimates for this chunk.
             # Add a small epsilon to avoid division by zero.
-            epsilon = torch.min(weight_sum_chunk).item()/1000
-            stable_targets_chunk = weighted_Z_sum_chunk / (weight_sum_chunk + epsilon)  # [chunk, D]
+            if torch.any(weight_sum_chunk == 0):
+                min_positive = torch.min(weight_sum_chunk[weight_sum_chunk > 0]).item()
+                epsilon = min_positive / 1000
+            else:
+                epsilon = 0.
+            # Now apply epsilon only where needed
+            denominator = weight_sum_chunk + (weight_sum_chunk == 0) * epsilon
+            stable_targets_chunk = weighted_Z_sum_chunk / denominator # [chunk_size, D]
             assert stable_targets_chunk.shape == (chunk_size, D)
             stable_targets_chunks.append(stable_targets_chunk)
             assert (not torch.any(torch.isnan(stable_targets_chunk)))
