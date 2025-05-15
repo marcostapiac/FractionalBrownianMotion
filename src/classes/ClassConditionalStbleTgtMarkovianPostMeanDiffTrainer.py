@@ -238,6 +238,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             print(col_has_any, col_has_any.shape)
             print(col_has_any.all(), ddX, dX)
             col_has_any[-1] = False
+            print(col_has_any, col_has_any.shape)
             while not col_has_any.all():
                 # recompute full mask at 2*dX
                 ddX = 1.2*ddX
