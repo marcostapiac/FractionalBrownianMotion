@@ -38,7 +38,7 @@ def get_config():
     config.ref_batch_size = 2048
     config.batch_size = 128
     config.chunk_size = 512
-    config.feat_thresh = 1 / 500.
+    config.feat_thresh = 1 / 1000.
     config.isfBm = True
     config.isUnitInterval = True
     config.hybrid = True
