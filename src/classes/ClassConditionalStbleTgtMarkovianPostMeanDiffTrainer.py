@@ -211,7 +211,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         stable_targets_chunks = []
         stable_targets_masks = []
         # Loop over the target tensors in chunks
-        print(target_x_exp.shape[0], chunk_size)
         for i in range(0, target_x_exp.shape[0], chunk_size):
             i_end = min(i + chunk_size, target_x_exp.shape[0])
 
@@ -292,6 +291,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             stable_targets_chunks.append(stable_targets_chunk)
             assert (not torch.any(torch.isnan(stable_targets_chunk)))
             del weight_sum_chunk, weighted_Z_sum_chunk
+            print(f"Final feat thresh vs original feat thresh: {ddX, dX}")
         stable_targets_masks = (torch.cat(stable_targets_masks, dim=0))
         assert stable_targets_masks.shape == (B1 * T, 1)
         print(f"IQR ESS: {torch.quantile(stable_targets_masks, q=0.005, dim=0).item(), torch.quantile(stable_targets_masks, q=0.995, dim=0).item()}\n")
