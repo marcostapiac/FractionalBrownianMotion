@@ -232,24 +232,24 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
             # 2. find columns where no element is 1
             #    `any` over dim=0 gives [B2*T] bool telling us if each column has any True
-            col_has_any = mask_chunk.bool().any(dim=1)  # shape: [chunk_size]
+            rows_has_any = mask_chunk.bool().any(dim=1)  # shape: [chunk_size]
             # 3. if some columns are all zero, recompute them with 2*dX
             ddX = dX
-            print(col_has_any, col_has_any.shape)
-            print(col_has_any.all(), ddX, dX)
-            col_has_any[-1] = False
-            print(col_has_any, col_has_any.shape)
-            while not col_has_any.all():
+            print(rows_has_any, rows_has_any.shape)
+            print(rows_has_any.all(), ddX, dX)
+            rows_has_any[-1] = False
+            print(rows_has_any, rows_has_any.shape)
+            while not rows_has_any.all():
                 # recompute full mask at 2*dX
                 ddX = 1.2*ddX
                 mask2 = ((torch.norm(candidate_x - target_chunk, p=2, dim=-1) / D) <= ddX).float()
                 if mask2.dim() > 2: mask2 = mask2.squeeze(-1)
                 # replace only the “all-zero” columns
-                zero_cols = ~col_has_any  # shape: [B2+T]
-                mask_chunk[:, zero_cols] = mask2[:, zero_cols]
-                col_has_any = mask_chunk.bool().any(dim=0)  # shape: [B2*T]
-                print(col_has_any, col_has_any.shape)
-                print(col_has_any.all(), ddX, dX)
+                zero_rows = ~rows_has_any  # shape: [B2+T]
+                mask_chunk[zero_rows, :] = mask2[zero_rows, :]
+                rows_has_any = mask_chunk.bool().any(dim=1)  # shape: [B2*T]
+                print(rows_has_any, rows_has_any.shape)
+                print(rows_has_any.all(), ddX, dX)
             raise RuntimeError
             if mask_chunk.dim() == 2:
                 mask_chunk = mask_chunk.unsqueeze(-1)
