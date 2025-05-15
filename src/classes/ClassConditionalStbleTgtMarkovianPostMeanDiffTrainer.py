@@ -255,7 +255,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 # zero_rows is a 1D tensor of indices j where mask[j,:,:] is all 0
 
                 # Method B: equivalently, find rows where no element is True
-                no_hits = ~mask.bool().any(dim=1)  # → [chunk_size] bool
+                no_hits = ~mask_chunk.bool().any(dim=1)  # → [chunk_size] bool
                 zero_rows = torch.nonzero(no_hits,
                                           as_tuple=False).squeeze(1)
 
