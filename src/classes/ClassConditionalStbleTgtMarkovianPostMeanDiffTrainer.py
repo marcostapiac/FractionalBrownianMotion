@@ -232,13 +232,13 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
             # 2. find columns where no element is 1
             #    `any` over dim=0 gives [B2*T] bool telling us if each column has any True
-            col_has_any = mask_chunk.bool().any(dim=0)  # shape: [B2*T]
+            col_has_any = mask_chunk.bool().any(dim=1)  # shape: [chunk_size]
             print(col_has_any, col_has_any.shape)
             print(col_has_any.all())
             # 3. if some columns are all zero, recompute them with 2*dX
             ddX = dX
             while not col_has_any.all():
-                """# recompute full mask at 2*dX
+                # recompute full mask at 2*dX
                 ddX = 2.*ddX
                 mask2 = ((torch.norm(candidate_x - target_chunk, p=2, dim=-1) / D) <= ddX).float()
                 if mask2.dim() > 2: mask2 = mask2.squeeze(-1)
@@ -247,16 +247,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 mask_chunk[:, zero_cols] = mask2[:, zero_cols]
                 col_has_any = mask_chunk.bool().any(dim=0)  # shape: [B2*T]
                 print(col_has_any, col_has_any.shape)
-                print(col_has_any.all(), ddX)"""
-                # Method A: find rows whose sum is zero
-                row_sums = mask_chunk.sum(dim=1)  # → [chunk_size]
-                zero_rows = torch.nonzero(row_sums == 0.,
-                                          as_tuple=False).squeeze(1)
-                # Now zero_rows contains exactly the j’s in [0…chunk_size-1]
-                # that had all-zero masks. To pull out the corresponding targets:
-                targets_with_no_hits = target_chunk.squeeze(1)[zero_rows]  # → [len(zero_rows), D]
-                print(targets_with_no_hits)
-                raise RuntimeError
+                print(col_has_any.all(), ddX)
+            raise RuntimeError
             if mask_chunk.dim() == 2:
                 mask_chunk = mask_chunk.unsqueeze(-1)
             assert mask_chunk.shape == (chunk_size, B2 * T, 1)
