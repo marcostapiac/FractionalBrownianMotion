@@ -237,10 +237,10 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             ddX = dX
             print(col_has_any, col_has_any.shape)
             print(col_has_any.all(), ddX, dX)
-            raise RuntimeError
+            col_has_any[-1] = False
             while not col_has_any.all():
                 # recompute full mask at 2*dX
-                ddX = 2.*ddX
+                ddX = 1.2*ddX
                 mask2 = ((torch.norm(candidate_x - target_chunk, p=2, dim=-1) / D) <= ddX).float()
                 if mask2.dim() > 2: mask2 = mask2.squeeze(-1)
                 # replace only the “all-zero” columns
