@@ -250,20 +250,13 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 print(col_has_any.all(), ddX)"""
                 # Method A: find rows whose sum is zero
                 row_sums = mask_chunk.sum(dim=1)  # → [chunk_size]
-                zero_rows = torch.nonzero(row_sums == 0,
+                zero_rows = torch.nonzero(row_sums == 0.,
                                           as_tuple=False).squeeze(1)
-                # zero_rows is a 1D tensor of indices j where mask[j,:,:] is all 0
-
-                # Method B: equivalently, find rows where no element is True
-                no_hits = ~mask_chunk.bool().any(dim=1)  # → [chunk_size] bool
-                zero_rows = torch.nonzero(no_hits,
-                                          as_tuple=False).squeeze(1)
-
                 # Now zero_rows contains exactly the j’s in [0…chunk_size-1]
                 # that had all-zero masks. To pull out the corresponding targets:
                 targets_with_no_hits = target_chunk.squeeze(1)[zero_rows]  # → [len(zero_rows), D]
                 print(targets_with_no_hits)
-            raise RuntimeError
+                raise RuntimeError
             if mask_chunk.dim() == 2:
                 mask_chunk = mask_chunk.unsqueeze(-1)
             assert mask_chunk.shape == (chunk_size, B2 * T, 1)
