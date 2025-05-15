@@ -236,7 +236,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             # 3. if some columns are all zero, recompute them with 2*dX
             ddX = dX
             print(col_has_any, col_has_any.shape)
-            print(col_has_any.all(), ddX)
+            print(col_has_any.all(), ddX, dX)
             while not col_has_any.all():
                 # recompute full mask at 2*dX
                 ddX = 2.*ddX
