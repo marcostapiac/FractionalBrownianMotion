@@ -237,6 +237,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             ddX = dX
             print(col_has_any, col_has_any.shape)
             print(col_has_any.all(), ddX, dX)
+            raise RuntimeError
             while not col_has_any.all():
                 # recompute full mask at 2*dX
                 ddX = 2.*ddX
