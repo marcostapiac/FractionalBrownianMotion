@@ -211,6 +211,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         stable_targets_chunks = []
         stable_targets_masks = []
         # Loop over the target tensors in chunks
+        print(target_x_exp.shape[0], chunk_size)
         for i in range(0, target_x_exp.shape[0], chunk_size):
             i_end = min(i + chunk_size, target_x_exp.shape[0])
 
@@ -227,6 +228,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             mask_chunk = ((torch.norm(candidate_x - target_chunk, p=2, dim=-1) / D) <= dX).float()
             if mask_chunk.dim() > 2: mask_chunk = mask_chunk.squeeze(-1)
             assert mask_chunk.shape == (chunk_size, B2 * T)
+            print(mask_chunk.shape, mask_chunk)
 
             # 2. find columns where no element is 1
             #    `any` over dim=0 gives [B2*T] bool telling us if each column has any True
