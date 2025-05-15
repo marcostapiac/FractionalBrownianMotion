@@ -693,6 +693,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         all_losses_per_epoch, learning_rates = self._load_loss_tracker(
             model_filename)  # This will contain synchronised losses
         end_epoch = max(max_epochs)
+        self.ewma_loss = 0. # Force recomputation of EWMA losses each time
         for epoch in range(self.epochs_run, end_epoch):
             t0 = time.time()
             device_epoch_losses = self._run_epoch(epoch=epoch, batch_size=batch_size, chunk_size=config.chunk_size,
@@ -726,9 +727,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 else:
                     if self.ewma_loss == 0.:  # Issue with saving ewma_loss
                         for i in range(1, len(all_losses_per_epoch)):
-                            self.ewma_loss = (1. - 0.99) * all_losses_per_epoch[i] + 0.99 * self.ewma_loss
+                            self.ewma_loss = (1. - 0.975) * all_losses_per_epoch[i] + 0.975 * self.ewma_loss
                         assert (self.ewma_loss != 0.)
-                    self.ewma_loss = (1. - 0.99) * curr_loss + 0.99 * self.ewma_loss
+                    self.ewma_loss = (1. - 0.975) * curr_loss + 0.975 * self.ewma_loss
                 if isinstance(self.scheduler, torch.optim.lr_scheduler.LambdaLR):
                     print("Using LambdaLR")
                     self.scheduler.step()
