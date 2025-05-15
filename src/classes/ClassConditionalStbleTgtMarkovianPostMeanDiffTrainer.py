@@ -233,10 +233,10 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             # 2. find columns where no element is 1
             #    `any` over dim=0 gives [B2*T] bool telling us if each column has any True
             col_has_any = mask_chunk.bool().any(dim=1)  # shape: [chunk_size]
-            print(col_has_any, col_has_any.shape)
-            print(col_has_any.all())
             # 3. if some columns are all zero, recompute them with 2*dX
             ddX = dX
+            print(col_has_any, col_has_any.shape)
+            print(col_has_any.all(), ddX)
             while not col_has_any.all():
                 # recompute full mask at 2*dX
                 ddX = 2.*ddX
