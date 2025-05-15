@@ -249,7 +249,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 mask_chunk[:, zero_cols] = mask2[:, zero_cols]
                 col_has_any = mask_chunk.bool().any(dim=0)  # shape: [B2*T]
                 print(col_has_any, col_has_any.shape)
-                print(col_has_any.all(), ddX)
+                print(col_has_any.all(), ddX, dX)
             raise RuntimeError
             if mask_chunk.dim() == 2:
                 mask_chunk = mask_chunk.unsqueeze(-1)
