@@ -236,15 +236,19 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             print(col_has_any, col_has_any.shape)
             print(col_has_any.all())
             # 3. if some columns are all zero, recompute them with 2*dX
+            ddX = dX
             while not col_has_any.all():
                 # recompute full mask at 2*dX
-                mask2 = ((torch.norm(candidate_x - target_chunk, p=2, dim=-1) / D) <= 1.2 * dX).float()
+                ddX = 2.*ddX
+                mask2 = ((torch.norm(candidate_x - target_chunk, p=2, dim=-1) / D) <= ddX).float()
                 if mask2.dim() > 2: mask2 = mask2.squeeze(-1)
                 # replace only the “all-zero” columns
                 zero_cols = ~col_has_any  # shape: [B2+T]
                 mask_chunk[:, zero_cols] = mask2[:, zero_cols]
                 col_has_any = mask_chunk.bool().any(dim=0)  # shape: [B2*T]
-
+                print(col_has_any, col_has_any.shape)
+                print(col_has_any.all(), ddX)
+            raise RuntimeError
             if mask_chunk.dim() == 2:
                 mask_chunk = mask_chunk.unsqueeze(-1)
             assert mask_chunk.shape == (chunk_size, B2 * T, 1)
@@ -274,7 +278,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             assert weights_masked_chunk.shape == (chunk_size, B2*T, 1)
             # --- Aggregate weights and candidate_Z contributions ---
             # Sum over the candidate dimension (dim=1) to get total weights per target element.
-            weight_sum_chunk = weights_masked_chunk.sum(dim=1)  # [chunk, 1]
+            weight_sum_chunk = weights_masked_chunk.sum(dim=1)  # [chunk_size, 1]
             assert weight_sum_chunk.shape == (chunk_size, 1)
             c = 1./torch.max(torch.abs(weights_masked_chunk[:,:, 0]))
             num = torch.pow(torch.sum(c * weights_masked_chunk, dim=1), 2)
