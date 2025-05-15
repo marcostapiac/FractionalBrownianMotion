@@ -225,6 +225,23 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             # Broadcasting: candidate_x is [1, B2*T, D] and target_chunk is [chunk, 1, D].
             # candidate_x, target_chunk = candidate_x.to(self.device_id), target_chunk.to(self.device_id)
             mask_chunk = ((torch.norm(candidate_x - target_chunk, p=2, dim=-1) / D) <= dX).float()
+            if mask_chunk.dim() > 2: mask_chunk = mask_chunk.squeeze(-1)
+            assert mask_chunk.shape == (chunk_size, B2 * T)
+
+            # 2. find columns where no element is 1
+            #    `any` over dim=0 gives [B2*T] bool telling us if each column has any True
+            col_has_any = mask_chunk.bool().any(dim=0)  # shape: [B2*T]
+
+            # 3. if some columns are all zero, recompute them with 2*dX
+            while not col_has_any.all():
+                # recompute full mask at 2*dX
+                mask2 = ((torch.norm(candidate_x - target_chunk, p=2, dim=-1) / D) <= 1.2 * dX).float()
+                if mask2.dim() > 2: mask2 = mask2.squeeze(-1)
+                # replace only the “all-zero” columns
+                zero_cols = ~col_has_any  # shape: [B2+T]
+                mask_chunk[:, zero_cols] = mask2[:, zero_cols]
+                col_has_any = mask_chunk.bool().any(dim=0)  # shape: [B2*T]
+
             if mask_chunk.dim() == 2:
                 mask_chunk = mask_chunk.unsqueeze(-1)
             assert mask_chunk.shape == (chunk_size, B2 * T, 1)
@@ -271,6 +288,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             stable_targets_chunk = weighted_Z_sum_chunk / (weight_sum_chunk + epsilon)  # [chunk, D]
             assert stable_targets_chunk.shape == (chunk_size, D)
             stable_targets_chunks.append(stable_targets_chunk)
+            assert (not torch.any(torch.isnan(stable_targets_chunk)))
             del weight_sum_chunk, weighted_Z_sum_chunk
         stable_targets_masks = (torch.cat(stable_targets_masks, dim=0))
         assert stable_targets_masks.shape == (B1 * T, 1)
