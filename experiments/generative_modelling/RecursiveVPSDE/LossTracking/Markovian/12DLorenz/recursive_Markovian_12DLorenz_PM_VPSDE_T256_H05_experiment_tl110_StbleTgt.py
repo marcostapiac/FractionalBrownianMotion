@@ -37,6 +37,7 @@ if __name__ == "__main__":
         training_size = int(
             max(1000, min(int(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad) / (
                         config.ts_length - 1)), 1200000)))
+        training_size += (config.ref_batch_size - (training_size % config.ref_batch_size)) % config.ref_batch_size
         print(training_size)
         try:
             data = np.load(config.data_path, allow_pickle=True)
