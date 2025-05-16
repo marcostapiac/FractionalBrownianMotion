@@ -124,46 +124,50 @@ class CondUpsampler(nn.Module):
 class HybridStates(nn.Module):
     def __init__(self, D, M):
         super().__init__()
-        self.W = nn.Parameter(torch.randn(M, D), requires_grad=True)
-        self.b = nn.Parameter(2 * torch.pi * torch.rand(M), requires_grad=True)
-        self.log_scale = nn.Parameter(torch.zeros(M), requires_grad=True)  # <-- added
+        self.W = nn.Parameter(torch.randn(M, D))  # No fixed scaling factor
+        self.b = nn.Parameter(2 * torch.pi * torch.rand(M))
+        self.log_scale = nn.Parameter(torch.zeros(M))  # Learnable frequency magnitudes
         self.gate_net = nn.Sequential(
-                            nn.Linear(D, D),
-                            nn.ELU(),
-                            nn.Linear(D, 1)
-                        )
+            nn.Linear(D, D),
+            nn.ELU(),
+            nn.Linear(D, 1)
+        )
 
     def forward(self, x):
-        scales = torch.exp(self.log_scale).unsqueeze(1)  # [M,1]      <-- added
-        W_scaled = scales * self.W
-        proj = x @ W_scaled.T + self.b  # [batch, M]
+        scales = torch.exp(self.log_scale).unsqueeze(1)  # [M, 1]
+        W_scaled = scales * self.W                       # [M, D]
+        proj = x @ W_scaled.T + self.b                   # [batch, M]
         fourier = torch.cat([torch.sin(proj), torch.cos(proj)], dim=-1)  # [batch, 2M]
-        logit = self.gate_net(x).squeeze(-1)  # [batch]    <-- added
-        g = torch.sigmoid(logit).unsqueeze(-1)
-        print(f"Gated Fourier Components: {g}\n")
-        print(f"Fourier Scales: {scales}\n")
-        gated_fourier = g * fourier
-        return torch.cat([x, gated_fourier], dim=-1)  # final input is [batch, D + 2M]
+
+        logit = self.gate_net(x).squeeze(-1)             # [batch]
+        g = torch.sigmoid(logit).unsqueeze(-1)           # [batch, 1]
+        gated_fourier = g * fourier                      # [batch, 2M]
+
+        return gated_fourier
 
 class MLPStateMapper(nn.Module):
-    def __init__(self, ts_input_dim:int, hidden_dim:int,  target_dims:int):
+    def __init__(self, ts_input_dim: int, hidden_dim: int, target_dims: int):
         super().__init__()
         M = 4
         self.hybrid = HybridStates(D=ts_input_dim, M=M)
-        self.linear1 = nn.Linear(ts_input_dim+2*M, hidden_dim, bias=True)
-        self.linear2 = nn.Linear(hidden_dim, hidden_dim, bias=True)
-        self.linear3 = nn.Linear(hidden_dim, target_dims, bias=True)
+        self.preprocess = nn.Sequential(
+            nn.Linear(ts_input_dim, hidden_dim),
+            nn.ELU()
+        )
+        self.linear2 = nn.Linear(hidden_dim + 2 * M, hidden_dim)
+        self.linear3 = nn.Linear(hidden_dim, target_dims)
 
     def forward(self, x):
-        assert (x.ndim == 3 and x.size(1) == 1)
-        x = x.squeeze(1)
-        x = self.hybrid(x)
-        x = self.linear1(x)
-        x = F.elu(x)
-        x = self.linear2(x)
-        x = F.elu(x)
-        x= self.linear3(x)
-        return x.unsqueeze(1)
+        assert (x.ndim == 3 and x.size(1) == 1) # [batch, 1, D]
+        x = x.squeeze(1)    # [batch, D]
+
+        x_raw = self.preprocess(x)            # [batch, hidden_dim]
+        x_fourier = self.hybrid(x)            # [batch, 2M]
+        x_combined = torch.cat([x_raw, x_fourier], dim=-1)  # [batch, hidden_dim + 2M]
+
+        x = F.elu(self.linear2(x_combined))   # [batch, hidden_dim]
+        x = self.linear3(x)                   # [batch, target_dims]
+        return x.unsqueeze(1)                 # [batch, 1, target_dims]
 
 class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
     def __init__(
