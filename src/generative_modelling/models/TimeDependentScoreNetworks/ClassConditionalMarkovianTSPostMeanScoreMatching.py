@@ -126,11 +126,19 @@ class HybridStates(nn.Module):
         super().__init__()
         self.W = nn.Parameter(scale * torch.randn(M, D), requires_grad=True)
         self.b = nn.Parameter(2 * torch.pi * torch.rand(M), requires_grad=True)
+        self.log_scale = nn.Parameter(torch.zeros(M), requires_grad=True)  # <-- added
+        self.gate_net = nn.Linear(D, 1)
 
-    def forward(self, x):
-        proj = x @ self.W.T + self.b  # [batch, M]
+def forward(self, x):
+        scales = torch.exp(self.log_scale).unsqueeze(1)  # [M,1]      <-- added
+        W_scaled = scales * self.W
+        proj = x @ W_scaled.T + self.b  # [batch, M]
         fourier = torch.cat([torch.sin(proj), torch.cos(proj)], dim=-1)  # [batch, 2M]
-        return torch.cat([x, fourier], dim=-1)  # final input is [batch, D + 2M]
+        logit = self.gate_net(x).squeeze(-1)  # [batch]    <-- added
+        g = torch.sigmoid(logit).unsqueeze(-1)
+        gated_fourier = g * fourier
+        return torch.cat([x, gated_fourier], dim=-1)  # final input is [batch, D + 2M]
+
 class MLPStateMapper(nn.Module):
     def __init__(self, ts_input_dim:int, hidden_dim:int,  target_dims:int):
         super().__init__()
@@ -141,7 +149,7 @@ class MLPStateMapper(nn.Module):
         self.linear3 = nn.Linear(hidden_dim, target_dims, bias=True)
 
     def forward(self, x):
-        assert (x.ndim == 3)
+        assert (x.ndim == 3 and x.size(1) == 1)
         x = x.squeeze(1)
         x = self.hybrid(x)
         x = self.linear1(x)
