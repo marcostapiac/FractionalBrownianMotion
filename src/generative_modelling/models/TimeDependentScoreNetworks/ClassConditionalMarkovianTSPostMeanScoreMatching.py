@@ -132,9 +132,9 @@ class MLPStateMapper(nn.Module):
         assert (x.ndim == 3)
         x = x.squeeze(1)
         x= self.linear1(x)
-        x = F.gelu(x)
+        x = F.elu(x)
         x = self.linear2(x)
-        x = F.gelu(x)
+        x = F.elu(x)
         x= self.linear3(x)
         return x.unsqueeze(1)
 
