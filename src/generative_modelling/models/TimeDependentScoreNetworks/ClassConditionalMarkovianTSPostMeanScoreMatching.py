@@ -121,17 +121,30 @@ class CondUpsampler(nn.Module):
         x = F.leaky_relu(x, 0.4)
         return x
 
+class HybridStates(nn.Module):
+    def __init__(self, D, M, scale=10.0):
+        super().__init__()
+        self.W = nn.Parameter(scale * torch.randn(M, D), requires_grad=True)
+        self.b = nn.Parameter(2 * torch.pi * torch.rand(M), requires_grad=True)
+
+    def forward(self, x):
+        proj = x @ self.W.T + self.b  # [batch, M]
+        fourier = torch.cat([torch.sin(proj), torch.cos(proj)], dim=-1)  # [batch, 2M]
+        return torch.cat([x, fourier], dim=-1)  # final input is [batch, D + 2M]
 class MLPStateMapper(nn.Module):
     def __init__(self, ts_input_dim:int, hidden_dim:int,  target_dims:int):
         super().__init__()
-        self.linear1 = nn.Linear(ts_input_dim, hidden_dim, bias=True)
+        M = 4
+        self.hybrid = HybridStates(D=ts_input_dim, M=M)
+        self.linear1 = nn.Linear(ts_input_dim+2*M, hidden_dim, bias=True)
         self.linear2 = nn.Linear(hidden_dim, hidden_dim, bias=True)
         self.linear3 = nn.Linear(hidden_dim, target_dims, bias=True)
 
     def forward(self, x):
         assert (x.ndim == 3)
         x = x.squeeze(1)
-        x= self.linear1(x)
+        x = self.hybrid(x)
+        x = self.linear1(x)
         x = F.elu(x)
         x = self.linear2(x)
         x = F.elu(x)
