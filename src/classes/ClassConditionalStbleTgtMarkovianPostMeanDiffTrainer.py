@@ -381,8 +381,10 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             snapshot = torch.load(snapshot_path, map_location=loc)
             self.epochs_run = snapshot["EPOCHS_RUN"]
             self.opt.load_state_dict(snapshot["OPTIMISER_STATE"])
-            if "BiPot" in config.data_path:
-                self.opt.param_groups[0]["lr"] = 1e-3
+            if "QuadSin" in config.data_path and config.sin_space_scale == 4. and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./500: self.opt.param_groups[0]["lr"]=0.0001
+            if "QuadSin" in config.data_path and config.sin_space_scale == 4. and self.opt.param_groups[0]["lr"] == 7.500000000000001e-05 and config.feat_thresh == 1./50: self.opt.param_groups[0]["lr"]*= 0.5
+            if "QuadSin" in config.data_path and config.sin_space_scale == 25. and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./1000.: self.opt.param_groups[0]["lr"]*= 0.75
+
             try:
                 self.ewma_loss = snapshot["EWMA_LOSS"]
             except KeyError as e:
@@ -401,7 +403,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                     self.opt,
                     mode='min',  # We're monitoring a loss that should decrease.
-                    factor=0.75,  # Reduce learning rate by 25% (more conservative than 90%).
+                    factor=0.5,  # Reduce learning rate by 50% (more conservative than 90%).
                     patience=300,  # Wait for 300 epochs of no sufficient improvement.
                     verbose=True,  # Print a message when the LR is reduced.
                     threshold=1e-4,  # Set the threshold for what counts as improvement.
