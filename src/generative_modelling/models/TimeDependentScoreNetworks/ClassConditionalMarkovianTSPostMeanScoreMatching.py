@@ -136,6 +136,7 @@ class HybridStates(nn.Module):
         fourier = torch.cat([torch.sin(proj), torch.cos(proj)], dim=-1)  # [batch, 2M]
         logit = self.gate_net(x).squeeze(-1)  # [batch]    <-- added
         g = torch.sigmoid(logit).unsqueeze(-1)
+        print(f"Gated Fourier Components: {g}\n")
         gated_fourier = g * fourier
         return torch.cat([x, gated_fourier], dim=-1)  # final input is [batch, D + 2M]
 
