@@ -122,12 +122,16 @@ class CondUpsampler(nn.Module):
         return x
 
 class HybridStates(nn.Module):
-    def __init__(self, D, M, scale=10.0):
+    def __init__(self, D, M):
         super().__init__()
-        self.W = nn.Parameter(scale * torch.randn(M, D), requires_grad=True)
+        self.W = nn.Parameter(torch.randn(M, D), requires_grad=True)
         self.b = nn.Parameter(2 * torch.pi * torch.rand(M), requires_grad=True)
         self.log_scale = nn.Parameter(torch.zeros(M), requires_grad=True)  # <-- added
-        self.gate_net = nn.Linear(D, 1)
+        self.gate_net = nn.Sequential(
+                            nn.Linear(D, D),
+                            nn.ELU(),
+                            nn.Linear(D, 1)
+                        )
 
     def forward(self, x):
         scales = torch.exp(self.log_scale).unsqueeze(1)  # [M,1]      <-- added

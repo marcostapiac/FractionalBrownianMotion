@@ -384,7 +384,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             # Here to manually change the LR
             #if "BiPot" in config.data_path and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./50 and 550<= self.epochs_run <= 600: self.opt.param_groups[0]["lr"]=0.0001
             #if "QuadSin" in config.data_path and config.sin_space_scale == 4. and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./50 and 630<= self.epochs_run <= 640 : self.opt.param_groups[0]["lr"]=0.0001
-            if "QuadSin" in config.data_path and config.sin_space_scale == 25. and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./50. and 490<= self.epochs_run <= 520 : self.opt.param_groups[0]["lr"]=0.0001
+            #if "QuadSin" in config.data_path and config.sin_space_scale == 25. and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./50. and 490<= self.epochs_run <= 520 : self.opt.param_groups[0]["lr"]=0.0001
 
             try:
                 self.ewma_loss = snapshot["EWMA_LOSS"]
@@ -405,7 +405,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     self.opt,
                     mode='min',  # We're monitoring a loss that should decrease.
                     factor=0.5,  # Reduce learning rate by 50% (more conservative than 90%).
-                    patience=100,  # Wait for 300 epochs of no sufficient improvement.
+                    patience=50,  # Wait for 50 epochs of no sufficient improvement.
                     verbose=True,  # Print a message when the LR is reduced.
                     threshold=1e-4,  # Set the threshold for what counts as improvement.
                     threshold_mode='rel',  # Relative change compared to the best value so far.
@@ -427,8 +427,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                     self.opt,
                     mode='min',  # We're monitoring a loss that should decrease.
-                    factor=0.75,  # Reduce learning rate by 25% (more conservative than 90%).
-                    patience=300,  # Wait for 300 epochs of no sufficient improvement.
+                    factor=0.5,  # Reduce learning rate by 50% (more conservative than 90%).
+                    patience=50,  # Wait for 50 epochs of no sufficient improvement.
                     verbose=True,  # Print a message when the LR is reduced.
                     threshold=1e-4,  # Set the threshold for what counts as improvement.
                     threshold_mode='rel',  # Relative change compared to the best value so far.
