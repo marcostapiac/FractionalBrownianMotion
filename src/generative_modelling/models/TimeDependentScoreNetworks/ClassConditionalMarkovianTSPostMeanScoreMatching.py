@@ -129,7 +129,7 @@ class HybridStates(nn.Module):
         self.log_scale = nn.Parameter(torch.zeros(M), requires_grad=True)  # <-- added
         self.gate_net = nn.Linear(D, 1)
 
-def forward(self, x):
+    def forward(self, x):
         scales = torch.exp(self.log_scale).unsqueeze(1)  # [M,1]      <-- added
         W_scaled = scales * self.W
         proj = x @ W_scaled.T + self.b  # [batch, M]
