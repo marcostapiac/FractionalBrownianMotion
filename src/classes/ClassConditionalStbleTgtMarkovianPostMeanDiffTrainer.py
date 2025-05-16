@@ -383,7 +383,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             self.opt.load_state_dict(snapshot["OPTIMISER_STATE"])
             # Here to manually change the LR
             if "BiPot" in config.data_path and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./50 and 550<= self.epochs_run <= 600: self.opt.param_groups[0]["lr"]=0.0001
-            #if "QuadSin" in config.data_path and config.sin_space_scale == 4. and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./500: self.opt.param_groups[0]["lr"]=0.0001
+            if "QuadSin" in config.data_path and config.sin_space_scale == 4. and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./50 and 630<= self.epochs_run <= 640 : self.opt.param_groups[0]["lr"]=0.0001
             #if "QuadSin" in config.data_path and config.sin_space_scale == 4. and self.opt.param_groups[0]["lr"] == 7.500000000000001e-05 and config.feat_thresh == 1./50 and self.epochs_run>0: self.opt.param_groups[0]["lr"]*= 0.5
             #if "QuadSin" in config.data_path and config.sin_space_scale == 25. and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./1000. and self.epochs_run > 1000: self.opt.param_groups[0]["lr"]*= 0.75
 
@@ -406,7 +406,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     self.opt,
                     mode='min',  # We're monitoring a loss that should decrease.
                     factor=0.5,  # Reduce learning rate by 50% (more conservative than 90%).
-                    patience=300,  # Wait for 300 epochs of no sufficient improvement.
+                    patience=100,  # Wait for 300 epochs of no sufficient improvement.
                     verbose=True,  # Print a message when the LR is reduced.
                     threshold=1e-4,  # Set the threshold for what counts as improvement.
                     threshold_mode='rel',  # Relative change compared to the best value so far.
