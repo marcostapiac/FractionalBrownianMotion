@@ -126,7 +126,8 @@ class HybridStates(nn.Module):
         super().__init__()
         self.W = nn.Parameter(torch.randn(M, D))  # No fixed scaling factor
         self.b = nn.Parameter(2 * torch.pi * torch.rand(M))
-        self.log_scale = nn.Parameter(torch.zeros(M))  # Learnable frequency magnitudes
+        mu, sigma = torch.log(10.0), 2.0
+        self.log_scale = nn.Parameter(torch.randn(M) * sigma + mu) # Learnable frequency magnitudes
         self.gate_net = nn.Sequential(
             nn.Linear(D, D),
             nn.ELU(),
@@ -149,7 +150,7 @@ class HybridStates(nn.Module):
 class MLPStateMapper(nn.Module):
     def __init__(self, ts_input_dim: int, hidden_dim: int, target_dims: int):
         super().__init__()
-        M = 4
+        M = 16
         self.hybrid = HybridStates(D=ts_input_dim, M=M)
         self.preprocess = nn.Sequential(
             nn.Linear(ts_input_dim, hidden_dim),
