@@ -150,7 +150,7 @@ class HybridStates(nn.Module):
 class MLPStateMapper(nn.Module):
     def __init__(self, ts_input_dim: int, hidden_dim: int, target_dims: int):
         super().__init__()
-        M = 32
+        M = 16
         self.hybrid = HybridStates(D=ts_input_dim, M=M)
         self.preprocess = nn.Sequential(
             nn.Linear(ts_input_dim, hidden_dim),
