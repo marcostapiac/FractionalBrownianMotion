@@ -142,7 +142,8 @@ class HybridStates(nn.Module):
         logit = self.gate_net(x).squeeze(-1)             # [batch]
         g = torch.sigmoid(logit).unsqueeze(-1)           # [batch, 1]
         gated_fourier = g * fourier                      # [batch, 2M]
-
+        print(f"Gated Fourier {g}\n")
+        print(f"Learnt Scales {scales}\n")
         return gated_fourier
 
 class MLPStateMapper(nn.Module):
@@ -164,7 +165,6 @@ class MLPStateMapper(nn.Module):
         x_raw = self.preprocess(x)            # [batch, hidden_dim]
         x_fourier = self.hybrid(x)            # [batch, 2M]
         x_combined = torch.cat([x_raw, x_fourier], dim=-1)  # [batch, hidden_dim + 2M]
-
         x = F.elu(self.linear2(x_combined))   # [batch, hidden_dim]
         x = self.linear3(x)                   # [batch, target_dims]
         return x.unsqueeze(1)                 # [batch, 1, target_dims]
