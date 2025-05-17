@@ -126,7 +126,7 @@ class HybridStates(nn.Module):
         super().__init__()
         self.W = nn.Parameter(torch.randn(M, D))  # No fixed scaling factor
         self.b = nn.Parameter(2 * torch.pi * torch.rand(M))
-        mu, sigma = torch.log(10.0), 2.0
+        mu, sigma = math.log(10.), 2.0
         self.log_scale = nn.Parameter(torch.randn(M) * sigma + mu) # Learnable frequency magnitudes
         self.gate_net = nn.Sequential(
             nn.Linear(D, D),
