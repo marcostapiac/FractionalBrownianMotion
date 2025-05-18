@@ -10,6 +10,7 @@ class FractionalSinLog:
     def __init__(self, log_space_scale:float,sin_space_scale: float, diff: float, X0: float = 0,
                  rng: np.random.Generator = np.random.default_rng()):
         self.sin_space_scale = sin_space_scale
+        self.log_space_scale = log_space_scale
         self.diff = diff
         self.initialVol = X0
         self.rng = rng
