@@ -131,7 +131,7 @@ class HybridStates(nn.Module):
         self.gate_net = nn.Sequential(
             nn.Linear(D, D),
             nn.ELU(),
-            nn.Linear(D, 1)
+            nn.Linear(D, 2*M)
         )
         self.T = nn.Parameter(torch.tensor(1.))
 
@@ -141,7 +141,7 @@ class HybridStates(nn.Module):
         proj = x @ W_scaled.T + self.b                   # [batch, M]
         fourier = torch.cat([torch.sin(proj), torch.cos(proj)], dim=-1)  # [batch, 2M]
 
-        logits = self.gate_net(x).squeeze(-1)             # [batch]
+        logits = self.gate_net(x).squeeze(-1)             # [batch, 1]
         # Clamp temperature to avoid extreme divide-by-zero
         temp = torch.clamp(self.T, min=1e-3)
         p = torch.sigmoid(logits / temp)  # [batch, 2M]
