@@ -138,6 +138,7 @@ def MLP_1D_drifts(config, PM):
         with torch.no_grad():
             vec_predicted_score = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
                                              eff_times=vec_eff_times)
+            vec_state_mapper = PM.mlp_state_mapper(vec_conditioner)
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
                                                                                            predicted_score=vec_predicted_score,
                                                                                            diff_index=torch.Tensor(
@@ -155,14 +156,17 @@ def MLP_1D_drifts(config, PM):
                                                                                 ts_step * beta_taus)) * vec_scores)
 
         assert (final_mu_hats.shape == (num_taus * Xshape, 1, config.ts_dims))
+        assert (vec_state_mapper.shape == (num_taus * Xshape, 1, 20))
+
         means = final_mu_hats.reshape((num_taus, Xshape, config.ts_dims))
+        state_mappers = vec_state_mapper.reshape((num_taus, Xshape, 20))
         # print(vec_Z_taus.shape, vec_scores.shape)
         final_vec_mu_hats[:, difftime_idx, :] = means.permute((1, 0, 2)).cpu().numpy()
         vec_z = torch.randn_like(vec_drift).to(device)
         vec_Z_taus = vec_drift + vec_diffParam * vec_z
         difftime_idx -= 1
     assert (final_vec_mu_hats.shape == (Xshape, num_diff_times, num_taus, config.ts_dims))
-    return final_vec_mu_hats[:, -es:, :, 0]
+    return final_vec_mu_hats[:, -es:, :, 0], state_mappers
 
 
 def LSTM_2D_drifts(PM, config):

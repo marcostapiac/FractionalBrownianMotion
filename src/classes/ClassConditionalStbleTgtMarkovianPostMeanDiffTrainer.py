@@ -545,7 +545,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         if "MullerBrown" in config.data_path:
             final_vec_mu_hats = MLP_2D_drifts(PM=self.score_network.module, config=config)
         else:
-            final_vec_mu_hats = MLP_1D_drifts(PM=self.score_network.module, config=config)
+            final_vec_mu_hats, state_mapper = MLP_1D_drifts(PM=self.score_network.module, config=config)
         type = "PM"
         assert (type in config.scoreNet_trained_path)
         assert ("_ST_" in config.scoreNet_trained_path)
@@ -567,6 +567,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 ".", "")
         print(f"Save path:{save_path}\n")
         np.save(save_path + "_muhats.npy", final_vec_mu_hats)
+        np.save(save_path + "_stateMappers.npy", state_mapper)
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
 
