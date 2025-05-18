@@ -729,29 +729,24 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 float(
                     self.loss_aggregator.compute().item()), float(time.time() - t0)))
             curr_loss = float(torch.mean(torch.tensor(all_losses_per_epoch[-1])).cpu().numpy())
-            if ("QuadSin" in config.data_path) \
-                    or ("4DLnz" in config.data_path) \
-                    or ("8DLnz" in config.data_path) \
-                    or ("12DLnz" in config.data_path) \
-                    or ("BiPot" in config.data_path):
-                # Step the scheduler with the validation loss:
-                if epoch == 0:
-                    self.ewma_loss = curr_loss
-                else:
-                    if self.ewma_loss == 0.:  # Issue with saving ewma_loss
-                        for i in range(1, len(all_losses_per_epoch)):
-                            self.ewma_loss = (1. - 0.975) * all_losses_per_epoch[i] + 0.975 * self.ewma_loss
-                        assert (self.ewma_loss != 0.)
-                    self.ewma_loss = (1. - 0.975) * curr_loss + 0.975 * self.ewma_loss
-                if isinstance(self.scheduler, torch.optim.lr_scheduler.LambdaLR):
-                    print("Using LambdaLR")
-                    self.scheduler.step()
-                else:
-                    self.scheduler.step(self.ewma_loss)
-                # Log current learning rate:
-                current_lr = self.opt.param_groups[0]['lr']
-                print(f"Epoch {epoch + 1}: EWMA Loss: {self.ewma_loss:.6f}, LR: {current_lr:.12f}\n")
-                learning_rates.append(current_lr)
+            # Step the scheduler with the validation loss:
+            if epoch == 0:
+                self.ewma_loss = curr_loss
+            else:
+                if self.ewma_loss == 0.:  # Issue with saving ewma_loss
+                    for i in range(1, len(all_losses_per_epoch)):
+                        self.ewma_loss = (1. - 0.975) * all_losses_per_epoch[i] + 0.975 * self.ewma_loss
+                    assert (self.ewma_loss != 0.)
+                self.ewma_loss = (1. - 0.975) * curr_loss + 0.975 * self.ewma_loss
+            if isinstance(self.scheduler, torch.optim.lr_scheduler.LambdaLR):
+                print("Using LambdaLR")
+                self.scheduler.step()
+            else:
+                self.scheduler.step(self.ewma_loss)
+            # Log current learning rate:
+            current_lr = self.opt.param_groups[0]['lr']
+            print(f"Epoch {epoch + 1}: EWMA Loss: {self.ewma_loss:.6f}, LR: {current_lr:.12f}\n")
+            learning_rates.append(current_lr)
 
             if self.device_id == 0 or type(self.device_id) == torch.device:
                 print("Stored Running Mean {} vs Aggregator Mean {}\n".format(
