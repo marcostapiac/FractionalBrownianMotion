@@ -133,6 +133,7 @@ class HybridStates(nn.Module):
             nn.ELU(),
             nn.Linear(D, 1)
         )
+        self.T = nn.Parameter(torch.tensor(1.))
 
     def forward(self, x):
         scales = torch.exp(self.log_scale).unsqueeze(1)  # [M, 1]
@@ -140,8 +141,13 @@ class HybridStates(nn.Module):
         proj = x @ W_scaled.T + self.b                   # [batch, M]
         fourier = torch.cat([torch.sin(proj), torch.cos(proj)], dim=-1)  # [batch, 2M]
 
-        logit = self.gate_net(x).squeeze(-1)             # [batch]
-        g = torch.sigmoid(logit).unsqueeze(-1)           # [batch, 1]
+        logits = self.gate_net(x).squeeze(-1)             # [batch]
+        # Clamp temperature to avoid extreme divide-by-zero
+        temp = torch.clamp(self.T, min=1e-3)
+        p = torch.sigmoid(logits / temp)  # [batch, 2M]
+        # Straight-through hard gates: forward uses binary, backward uses soft prob
+        hard_g = (p > 0.5).float()
+        g = (hard_g - p).detach() + p
         gated_fourier = g * fourier                      # [batch, 2M]
         print(f"Gated Fourier {g}\n")
         print(f"Learnt Scales {scales}\n")

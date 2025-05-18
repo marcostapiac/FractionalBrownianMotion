@@ -558,6 +558,10 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_fQuadSinHF_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
+        elif "SinLog" in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_fSinLog_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                ".", "")
         elif "MullerBrown" in config.data_path:
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_fMullerBrown_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
@@ -662,6 +666,10 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         elif "QuadSin" in config.data_path:
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_fQuadSinHF_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                ".", "")
+        elif "SinLog" in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_fSinLog_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
         elif "MullerBrown" in config.data_path:
             save_path = (
