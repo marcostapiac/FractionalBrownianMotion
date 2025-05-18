@@ -51,8 +51,7 @@ if __name__ == "__main__":
                                      diff=config.diffusion,
                                      initial_state=config.initState)
             np.save(config.data_path, data)
-            print(np.quantile(data.flatten(), q=0.025), np.quantile(data.flatten(), q=0.975))
-            raise RuntimeError
+            print(np.min(data.flatten()), np.max(data.flatten()))
         data = np.concatenate([data[:, [0]] - config.initState, np.diff(data, axis=1)], axis=1)
         data = np.atleast_3d(data[:training_size, :])
         assert (data.shape == (training_size, config.ts_length, config.ts_dims))
