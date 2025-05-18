@@ -358,7 +358,7 @@ def generate_fQuadSin(config, H: float, T: int, S: int, isUnitInterval: bool, a:
     return data[:, 1:]
 
 
-def generate_fSinLog(config, H: float, T: int, S: int, isUnitInterval: bool, c: float, diff: float,
+def generate_fSinLog(config, H: float, T: int, S: int, isUnitInterval: bool, b:float, c: float, diff: float,
                       initial_state: float,
                       rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
     """
@@ -383,7 +383,7 @@ def generate_fSinLog(config, H: float, T: int, S: int, isUnitInterval: bool, c: 
             deltaT = 1.
             t0 = 0.
             t1 = T
-    fQuadSin = FractionalSinLog(sin_space_scale=c, diff=diff, X0=initial_state)
+    fQuadSin = FractionalSinLog(sin_space_scale=c, log_space_scale=b, diff=diff, X0=initial_state)
     data = np.array(
         [fQuadSin.euler_simulation(H=H, N=T, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=None, Ms=None,
                                    gaussRvs=rvs,

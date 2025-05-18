@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 class FractionalSinLog:
 
-    def __init__(self, sin_space_scale: float, diff: float, X0: float = 0,
+    def __init__(self, log_space_scale:float,sin_space_scale: float, diff: float, X0: float = 0,
                  rng: np.random.Generator = np.random.default_rng()):
         self.sin_space_scale = sin_space_scale
         self.diff = diff
@@ -34,7 +34,7 @@ class FractionalSinLog:
 
     def increment_state(self, prev: np.ndarray, deltaT: float, M: int):
         # driftX = -V'(x) where V'(x) = (ax^2+b*cos(cx)) potential --> 2ax- b*c *sin(cx) drift
-        driftX = -np.sin(self.sin_space_scale*prev)*np.log(1+np.abs(prev))/self.sin_space_scale  # gamma*sin(Xt-1)
+        driftX = -np.sin(self.sin_space_scale*prev)*np.log(1+self.log_space_scale*np.abs(prev))/self.sin_space_scale  # gamma*sin(Xt-1)
         diffX = self.diff * M
         return prev + driftX * deltaT + diffX
 
