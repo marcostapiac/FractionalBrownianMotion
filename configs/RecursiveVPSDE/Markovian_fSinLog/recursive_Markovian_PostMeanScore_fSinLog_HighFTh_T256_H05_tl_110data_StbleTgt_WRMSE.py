@@ -18,8 +18,8 @@ def get_config():
     config.t0 = 0.
     config.deltaT = 1./(256)
     config.t1 = config.deltaT*config.ts_length
-    config.sin_space_scale = 1.
-    config.log_space_scale = 1.
+    config.sin_space_scale = 2.
+    config.log_space_scale = 5.
     config.data_path = project_config.ROOT_DIR + "data/fSinLog_samples_t0{:g}_dT{:.3e}_T{}_{}b_{}c_{}Diff_{}Init".format(
         config.t0, config.deltaT, config.ts_length,config.log_space_scale, config.sin_space_scale,
         config.diffusion, config.initState).replace(
