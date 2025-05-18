@@ -23,6 +23,7 @@ from src.classes.ClassFractionalMullerBrown import FractionalMullerBrown
 from src.classes.ClassFractionalOU import FractionalOU
 from src.classes.ClassFractionalQuadSin import FractionalQuadSin
 from src.classes.ClassFractionalSin import FractionalSin
+from src.classes.ClassFractionalSinLog import FractionalSinLog
 
 
 # from src.classes.ClassFractionalSin import FractionalSin
@@ -348,6 +349,41 @@ def generate_fQuadSin(config, H: float, T: int, S: int, isUnitInterval: bool, a:
             t0 = 0.
             t1 = T
     fQuadSin = FractionalQuadSin(quad_coeff=a, sin_coeff=b, sin_space_scale=c, diff=diff, X0=initial_state)
+    data = np.array(
+        [fQuadSin.euler_simulation(H=H, N=T, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=None, Ms=None,
+                                   gaussRvs=rvs,
+                                   t0=t0, t1=t1) for _ in range(S)]).reshape(
+        (S, T + 1))
+    assert (data.shape == (S, T + 1))
+    return data[:, 1:]
+
+
+def generate_fSinLog(config, H: float, T: int, S: int, isUnitInterval: bool, c: float, diff: float,
+                      initial_state: float,
+                      rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
+    """
+    Function generates samples of fractional QuadSin SDE
+        :param H: Hurst parameter
+        :param T: Length of each sample
+        :param S: Number of samples
+        :param rvs: Pre-computed Gaussian random variables
+        :param isUnitInterval: Whether to scale samples to unit time interval.
+        :return: LSTM_fBm samples
+    """
+    try:
+        deltaT = config.deltaT
+        t0 = config.t0
+        t1 = config.t1
+    except AttributeError:
+        if isUnitInterval:
+            deltaT = 1. / T
+            t0 = 0.
+            t1 = 1.
+        else:
+            deltaT = 1.
+            t0 = 0.
+            t1 = T
+    fQuadSin = FractionalSinLog(sin_space_scale=c, diff=diff, X0=initial_state)
     data = np.array(
         [fQuadSin.euler_simulation(H=H, N=T, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=None, Ms=None,
                                    gaussRvs=rvs,

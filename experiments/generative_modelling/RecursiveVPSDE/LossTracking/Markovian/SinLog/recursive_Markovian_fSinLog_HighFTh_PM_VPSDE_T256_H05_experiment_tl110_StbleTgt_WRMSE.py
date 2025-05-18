@@ -20,7 +20,7 @@ if __name__ == "__main__":
     assert (config.hurst == 0.5)
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 110)
-    assert (config.sin_space_scale == 4.)
+    assert (config.sin_space_scale == 1.)
     assert (config.feat_thresh == 1./50.)
     print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()
@@ -29,7 +29,7 @@ if __name__ == "__main__":
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     print(
         config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad) / (config.ts_length - 1))
-    init_experiment(config=config)
+    #init_experiment(config=config)
     end_epoch = max(config.max_epochs)
     try:
         scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))

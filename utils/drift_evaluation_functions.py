@@ -112,10 +112,10 @@ def MLP_1D_drifts(config, PM):
     diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_time,
                                      steps=Ndiff_discretisation).to(device)
 
-    if config.deltaT > 1 / (32 * 256):
-        Xs = torch.linspace(-1.5, 1.5, steps=Xshape)
+    if "SinLog" in config.data_path:
+        Xs = torch.linspace(-1.2, 1.2, steps=Xshape)
     else:
-        Xs = torch.linspace(-.4, .4, steps=Xshape)
+        Xs = torch.linspace(-1.5, 1.5, steps=Xshape)
     features_tensor = torch.stack([Xs for _ in range(1)], dim=0).reshape(Xshape * 1, 1, -1).to(device)
     final_vec_mu_hats = np.zeros(
         (Xshape, num_diff_times, num_taus, config.ts_dims))  # Xvalues, DiffTimes, Ztaus, Ts_Dims
