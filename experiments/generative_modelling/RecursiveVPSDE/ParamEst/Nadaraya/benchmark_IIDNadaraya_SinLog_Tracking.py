@@ -3,16 +3,14 @@ import multiprocessing as mp
 from multiprocessing import shared_memory
 from tqdm import tqdm
 from configs import project_config
-from configs.RecursiveVPSDE.LSTM_fQuadSinHF.recursive_LSTM_PostMeanScore_fQuadSinHF1_T256_H05_tl_110data_StbleTgt_WRMSE import \
-    get_config
-from src.classes.ClassFractionalQuadSin import FractionalQuadSin
+from configs.RecursiveVPSDE.Markovian_fSinLog.recursive_Markovian_PostMeanScore_fSinLog_HighFTh_T256_H05_tl_110data_StbleTgt_WRMSE import get_config
+from src.classes.ClassFractionalSinLog import FractionalSinLog
 from utils.drift_evaluation_functions import process_IID_bandwidth
 
 
 def true_drift(prev, num_paths, config):
     assert (prev.shape == (num_paths, config.ndims))
-    drift_X = -2. * config.quad_coeff * prev + config.sin_coeff * config.sin_space_scale * np.sin(
-        config.sin_space_scale * prev)
+    drift_X = (-np.sin(config.sin_space_scale*prev)*np.log(1+config.log_space_scale*np.abs(prev))/config.sin_space_scale)
     return drift_X[:, np.newaxis, :]
 
 
@@ -34,17 +32,19 @@ if __name__ == "__main__":
         is_path_observations = np.concatenate(
             [np.repeat(np.array(config.initState).reshape((1, 1)), is_path_observations.shape[0], axis=0),
              is_path_observations], axis=1)
+        print(is_path_observations.shape, num_paths, config.ts_length + 1)
         assert is_path_observations.shape == (num_paths, config.ts_length + 1)
     except FileNotFoundError as e:
-
-        fQuadSin = FractionalQuadSin(quad_coeff=config.quad_coeff, sin_coeff=config.sin_coeff,
-                                     sin_space_scale=config.sin_space_scale, diff=diff, X0=initial_state)
+        fSinLog = FractionalSinLog(log_space_scale=config.log_space_scale,
+                                   sin_space_scale=config.sin_space_scale, diff=diff, X0=initial_state)
         is_path_observations = np.array(
-            [fQuadSin.euler_simulation(H=H, N=num_time_steps, deltaT=deltaT, isUnitInterval=isUnitInterval,
-                                       X0=initial_state, Ms=None, gaussRvs=rvs,
-                                       t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
+            [fSinLog.euler_simulation(H=H, N=num_time_steps, deltaT=deltaT, isUnitInterval=isUnitInterval,
+                                      X0=initial_state,
+                                      Ms=None, gaussRvs=rvs,
+                                      t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
             (num_paths, num_time_steps + 1))
         np.save(config.data_path, is_path_observations[:, 1:])
+        assert is_path_observations.shape == (num_paths, config.ts_length + 1)
 
     is_idxs = np.arange(is_path_observations.shape[0])
     path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False), :]
@@ -96,7 +96,7 @@ if __name__ == "__main__":
         all_local_states = np.concatenate([v[1][np.newaxis, :] for v in results.values()], axis=0)
         assert (all_true_states.shape == all_global_states.shape == all_local_states.shape)
         save_path = (
-                project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fQuadSinHF_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.ts_length}NumDPS").replace(
+                project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fSinLog_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.log_space_scale}b_{config.sin_space_scale}c_{config.ts_length}NumDPS").replace(
             ".", "")
         np.save(save_path + "_true_states.npy", all_true_states)
         np.save(save_path + "_global_states.npy", all_global_states)
