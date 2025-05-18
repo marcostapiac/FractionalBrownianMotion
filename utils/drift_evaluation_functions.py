@@ -166,7 +166,7 @@ def MLP_1D_drifts(config, PM):
         vec_Z_taus = vec_drift + vec_diffParam * vec_z
         difftime_idx -= 1
     assert (final_vec_mu_hats.shape == (Xshape, num_diff_times, num_taus, config.ts_dims))
-    return final_vec_mu_hats[:, -es:, :, 0], state_mappers
+    return final_vec_mu_hats[:, -es:, :, 0], state_mappers.cpu().numpy()
 
 
 def LSTM_2D_drifts(PM, config):
