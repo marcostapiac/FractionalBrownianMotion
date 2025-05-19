@@ -128,11 +128,11 @@ class HybridStates(nn.Module):
         self.b = nn.Parameter(2 * torch.pi * torch.rand(M))
         mu, sigma = math.log(10.), 2.0
         self.log_scale = nn.Parameter(torch.randn(M) * sigma + mu) # Learnable frequency magnitudes
-        self.gate_net = nn.Sequential(
-            nn.Linear(D, D),
-            nn.ELU(),
-            nn.Linear(D, 2*M)
-        )
+        #self.gate_net = nn.Sequential(
+        #    nn.Linear(D, D),
+        #    nn.ELU(),
+        #    nn.Linear(D, 2*M)
+        #)
         self.gate_logits = nn.Parameter(torch.zeros(2*M))
         self.tau = tau
 
@@ -149,7 +149,7 @@ class HybridStates(nn.Module):
             logits = self.gate_logits + gumbel
         else:
             logits = self.gate_logits  # no noise at inference
-        g = torch.sigmoid(logits / self.tau).unsqueeze(0)               # [2M]
+        g = torch.sigmoid(logits / self.tau).unsqueeze(0)               # [1, 2M]
         gated_fourier = g * fourier                      # [batch, 2M]
         print(f"Gated Fourier {g}\n")
         print(f"Learnt Scales {scales}\n")
