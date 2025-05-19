@@ -34,7 +34,7 @@ if __name__ == "__main__":
              is_path_observations], axis=1)
         print(is_path_observations.shape, num_paths, config.ts_length + 1)
         assert is_path_observations.shape == (num_paths, config.ts_length + 1)
-    except FileNotFoundError as e:
+    except (FileNotFoundError, AssertionError) as e:
         fSinLog = FractionalSinLog(log_space_scale=config.log_space_scale,
                                    sin_space_scale=config.sin_space_scale, diff=diff, X0=initial_state)
         is_path_observations = np.array(
