@@ -15,7 +15,7 @@ from utils.drift_evaluation_functions import process_single_R_hermite
 
 def true_drift(prev, num_paths, config):
     assert (prev.shape == (num_paths, config.ndims))
-    drift_X = -(4. * config.quartic_coeff * np.power(prev, 3) + 2. * config.quad_coeff * prev + config.const)
+    drift_X = (-np.sin(config.sin_space_scale*prev)*np.log(1+config.log_space_scale*np.abs(prev))/config.sin_space_scale)
     return drift_X[:, np.newaxis, :]
 
 
