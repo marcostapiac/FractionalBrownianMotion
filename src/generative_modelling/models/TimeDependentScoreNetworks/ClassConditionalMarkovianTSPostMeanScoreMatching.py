@@ -134,8 +134,10 @@ class HybridStates(nn.Module):
         #    nn.Linear(D, 2*M)
         #)
         self.gate_logits = nn.Parameter(torch.zeros(2*M))
-        self.set_tau(init_tau)
+        self.init_tau = init_tau
         self.final_tau = final_tau
+        self.set_tau(self.init_tau)
+
 
     def set_tau(self, tau):
         self.tau = tau
