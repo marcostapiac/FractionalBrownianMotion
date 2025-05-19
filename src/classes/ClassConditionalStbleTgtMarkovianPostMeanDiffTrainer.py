@@ -109,7 +109,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             :return: Batch Loss
         """
         loss = self.loss_fn()(outputs, targets)
-        loss += 0.0001*torch.mean(self.score_network.module.mlp_state_mapper.hybrid.log_scale**2)
+        var_loss = ((self.score_network.module.mlp_state_mapper.hybrid.log_scale - self.score_network.module.mlp_state_mapper.hybrid.log_scale.mean()) ** 2).mean()
+        loss += 0.0001*var_loss
         return self._batch_update(loss, epoch=epoch, batch_idx=batch_idx, num_batches=num_batches)
 
 

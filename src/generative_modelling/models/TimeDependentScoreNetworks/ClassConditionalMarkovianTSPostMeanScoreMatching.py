@@ -142,12 +142,14 @@ class HybridStates(nn.Module):
         fourier = torch.cat([torch.sin(proj), torch.cos(proj)], dim=-1)  # [batch, 2M]
 
         logits = self.gate_net(x).squeeze(-1)             # [batch, 1]
-        # Clamp temperature to avoid extreme divide-by-zero
-        temp = torch.clamp(self.T, min=1e-3)
-        p = torch.sigmoid(logits / temp)  # [batch, 2M]
-        # Straight-through hard gates: forward uses binary, backward uses soft prob
-        hard_g = (p > 0.5).float()
-        g = (hard_g - p).detach() + p
+        temp = 0.5  # small fixed temp
+        if self.training:
+            # Gumbel softmax trick for smooth near-discrete gatings
+            u = torch.rand_like(logits).clamp(1e-6, 1 - 1e-6)
+            gumbel = -torch.log(-torch.log(u))
+        else:
+            gumbel = torch.zeros_like(logits)
+        g = torch.sigmoid((logits + gumbel) / temp)
         gated_fourier = g * fourier                      # [batch, 2M]
         print(f"Gated Fourier {g}\n")
         print(f"Learnt Scales {scales}\n")
