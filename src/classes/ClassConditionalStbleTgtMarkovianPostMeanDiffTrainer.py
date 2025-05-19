@@ -110,7 +110,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         """
         loss = self.loss_fn()(outputs, targets)
         var_loss = ((self.score_network.module.mlp_state_mapper.hybrid.log_scale - self.score_network.module.mlp_state_mapper.hybrid.log_scale.mean()) ** 2).mean()
-        loss += 0.0001*var_loss
+        loss += 0.001*var_loss
         return self._batch_update(loss, epoch=epoch, batch_idx=batch_idx, num_batches=num_batches)
 
 
@@ -729,9 +729,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             else:
                 if self.ewma_loss == 0.:  # Issue with saving ewma_loss
                     for i in range(1, len(all_losses_per_epoch)):
-                        self.ewma_loss = (1. - 0.975) * all_losses_per_epoch[i] + 0.975 * self.ewma_loss
+                        self.ewma_loss = (1. - 0.95) * all_losses_per_epoch[i] + 0.95 * self.ewma_loss
                     assert (self.ewma_loss != 0.)
-                self.ewma_loss = (1. - 0.975) * curr_loss + 0.975 * self.ewma_loss
+                self.ewma_loss = (1. - 0.95) * curr_loss + 0.95 * self.ewma_loss
             if isinstance(self.scheduler, torch.optim.lr_scheduler.LambdaLR):
                 print("Using LambdaLR")
                 self.scheduler.step()
