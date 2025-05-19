@@ -122,7 +122,7 @@ class CondUpsampler(nn.Module):
         return x
 
 class HybridStates(nn.Module):
-    def __init__(self, D, M, tau=0.1):
+    def __init__(self, D, M, init_tau=1., final_tau=0.1):
         super().__init__()
         self.W = nn.Parameter(torch.randn(M, D))  # No fixed scaling factor
         self.b = nn.Parameter(2 * torch.pi * torch.rand(M))
@@ -134,7 +134,8 @@ class HybridStates(nn.Module):
         #    nn.Linear(D, 2*M)
         #)
         self.gate_logits = nn.Parameter(torch.zeros(2*M))
-        self.tau = tau
+        self.set_tau(init_tau)
+        self.final_tau = final_tau
 
     def set_tau(self, tau):
         self.tau = tau
@@ -149,9 +150,10 @@ class HybridStates(nn.Module):
             u = torch.rand_like(self.gate_logits).clamp(1e-6, 1 - 1e-6)
             gumbel = -torch.log(-torch.log(u))
             logits = self.gate_logits + gumbel
+            g = torch.sigmoid(logits / self.tau).unsqueeze(0)  # [1, 2M]
         else:
             logits = self.gate_logits  # no noise at inference
-        g = torch.sigmoid(logits / self.tau).unsqueeze(0)               # [1, 2M]
+            g = torch.sigmoid(logits / self.final_tau).unsqueeze(0)  # [1, 2M]
         gated_fourier = g * fourier                      # [batch, 2M]
         print(f"Gated Fourier {g}\n")
         print(f"Learnt Scales {scales}\n")
