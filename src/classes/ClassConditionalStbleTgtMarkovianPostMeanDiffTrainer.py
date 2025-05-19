@@ -111,7 +111,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         loss = self.loss_fn()(outputs, targets)
         print(f"Loss, {loss}\n")
         var_loss = ((self.score_network.module.mlp_state_mapper.hybrid.log_scale - self.score_network.module.mlp_state_mapper.hybrid.log_scale.mean()) ** 2).mean()
-        loss += 0.001*var_loss
+        loss += 0.005*var_loss
         print(f"VarLoss, {0.001*var_loss}\n")
         return self._batch_update(loss, epoch=epoch, batch_idx=batch_idx, num_batches=num_batches)
 
