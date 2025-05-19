@@ -141,7 +141,7 @@ class HybridStates(nn.Module):
         fourier = torch.cat([torch.sin(proj), torch.cos(proj)], dim=-1)  # [batch, 2M]
 
         logits = self.gate_net(x).squeeze(-1)             # [batch, 1]
-        temp = 0.5  # small fixed temp
+        temp = 0.1  # small fixed temp
         if self.training:
             # Gumbel softmax trick for smooth near-discrete gatings
             u = torch.rand_like(logits).clamp(1e-6, 1 - 1e-6)
