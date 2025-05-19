@@ -122,7 +122,7 @@ class CondUpsampler(nn.Module):
         return x
 
 class HybridStates(nn.Module):
-    def __init__(self, D, M):
+    def __init__(self, D, M, tau=0.1):
         super().__init__()
         self.W = nn.Parameter(torch.randn(M, D))  # No fixed scaling factor
         self.b = nn.Parameter(2 * torch.pi * torch.rand(M))
@@ -133,6 +133,8 @@ class HybridStates(nn.Module):
             nn.ELU(),
             nn.Linear(D, 2*M)
         )
+        self.gate_logits = nn.Parameter(torch.zeros(2*M))
+        self.tau = tau
 
     def forward(self, x):
         scales = torch.exp(self.log_scale).unsqueeze(1)  # [M, 1]
@@ -140,15 +142,14 @@ class HybridStates(nn.Module):
         proj = x @ W_scaled.T + self.b                   # [batch, M]
         fourier = torch.cat([torch.sin(proj), torch.cos(proj)], dim=-1)  # [batch, 2M]
 
-        logits = self.gate_net(x).squeeze(-1)             # [batch, 1]
-        temp = 0.1  # small fixed temp
+        # TRAIN vs EVAL for Gumbel
         if self.training:
-            # Gumbel softmax trick for smooth near-discrete gatings
-            u = torch.rand_like(logits).clamp(1e-6, 1 - 1e-6)
+            u = torch.rand_like(self.gate_logits).clamp(1e-6, 1 - 1e-6)
             gumbel = -torch.log(-torch.log(u))
+            logits = self.gate_logits + gumbel
         else:
-            gumbel = torch.zeros_like(logits)
-        g = torch.sigmoid((logits + gumbel) / temp)
+            logits = self.gate_logits  # no noise at inference
+        g = torch.sigmoid(logits / self.tau).unsqueeze(0)               # [2M]
         gated_fourier = g * fourier                      # [batch, 2M]
         print(f"Gated Fourier {g}\n")
         print(f"Learnt Scales {scales}\n")
