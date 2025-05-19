@@ -136,6 +136,8 @@ class HybridStates(nn.Module):
         self.gate_logits = nn.Parameter(torch.zeros(2*M))
         self.tau = tau
 
+    def set_tau(self, tau):
+        self.tau = tau
     def forward(self, x):
         scales = torch.exp(self.log_scale).unsqueeze(1)  # [M, 1]
         W_scaled = scales * self.W                       # [M, D]

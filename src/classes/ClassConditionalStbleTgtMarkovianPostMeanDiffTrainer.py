@@ -705,6 +705,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.ewma_loss = 0. # Force recomputation of EWMA losses each time
         for epoch in range(self.epochs_run, end_epoch):
             t0 = time.time()
+            # Temperature annealing for gumbel softmax
+            tau = max(0.1, 1. * (0.99 ** epoch))
+            self.score_network.mlp_state_mapper.hybrid.set_tau(tau)
             device_epoch_losses = self._run_epoch(epoch=epoch, batch_size=batch_size, chunk_size=config.chunk_size,
                                                   feat_thresh=config.feat_thresh)
             # Average epoch loss for each device over batches
