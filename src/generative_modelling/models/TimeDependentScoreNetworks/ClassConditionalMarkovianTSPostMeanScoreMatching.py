@@ -133,7 +133,6 @@ class HybridStates(nn.Module):
             nn.ELU(),
             nn.Linear(D, 2*M)
         )
-        self.T = nn.Parameter(torch.tensor(1.))
 
     def forward(self, x):
         scales = torch.exp(self.log_scale).unsqueeze(1)  # [M, 1]
