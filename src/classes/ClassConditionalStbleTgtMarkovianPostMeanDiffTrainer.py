@@ -377,7 +377,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             # Here to manually change the LR
             #if "BiPot" in config.data_path and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./50 and 550<= self.epochs_run <= 600: self.opt.param_groups[0]["lr"]=0.0001
             #if "QuadSin" in config.data_path and config.sin_space_scale == 4. and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./50 and 630<= self.epochs_run <= 640 : self.opt.param_groups[0]["lr"]=0.0001
-            if "QuadSin" in config.data_path and config.sin_space_scale == 25. and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./50. and 250<= self.epochs_run <= 300 : self.opt.param_groups[0]["lr"]=0.0001
+            if "QuadSin" in config.data_path and config.sin_space_scale == 25. and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./50. and 100<= self.epochs_run <= 120 : self.opt.param_groups[0]["lr"]=0.0001
 
             try:
                 self.ewma_loss = snapshot["EWMA_LOSS"]
