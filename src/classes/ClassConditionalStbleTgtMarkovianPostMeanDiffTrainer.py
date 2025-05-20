@@ -70,7 +70,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.is_hybrid = hybrid_training
         self.include_weightings = to_weight
         self.var_loss_reg = 0.005
-        self.mean_loss_reg = 0.005
+        self.mean_loss_reg = 0.0005
         assert (to_weight == True)
         # Move score network to appropriate device
         if type(self.device_id) == int:
@@ -105,7 +105,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         base_loss = self.loss_fn()(outputs, targets)
         print(f"Loss, {base_loss}\n")
         var_loss = ((self.score_network.module.mlp_state_mapper.hybrid.log_scale - self.score_network.module.mlp_state_mapper.hybrid.log_scale.mean()) ** 2).mean()
-        mean_loss = (torch.mean((self.score_network.module.mlp_state_mapper.hybrid.log_scale - 1.)**2))
+        mean_loss = (torch.mean((self.score_network.module.mlp_state_mapper.hybrid.log_scale - 0.)**2))
         reg_var_loss = self.var_loss_reg * var_loss
         reg_mean_loss = self.mean_loss_reg * mean_loss
         loss = base_loss + reg_var_loss + reg_mean_loss
@@ -403,6 +403,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             except KeyError as e:
                 print(e)
                 pass
+            try:
+                self.mean_loss_reg = snapshot["MEAN_REG"]
+            except KeyError as e:
+                print(e)
+                pass
             if type(self.device_id) == int:
                 self.score_network.module.load_state_dict(snapshot["MODEL_STATE"])
             else:
@@ -448,10 +453,10 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         """
         try:
             snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(),
-                        "SCHEDULER_STATE": self.scheduler.state_dict(), "EWMA_LOSS": self.ewma_loss, "VAR_REG": self.var_loss_reg}
+                        "SCHEDULER_STATE": self.scheduler.state_dict(), "EWMA_LOSS": self.ewma_loss, "VAR_REG": self.var_loss_reg, "MEAN_REG": self.mean_loss_reg}
         except AttributeError as e:
             print(e)
-            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(), "EWMA_LOSS": self.ewma_loss, "VAR_REG": self.var_loss_reg}
+            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(), "EWMA_LOSS": self.ewma_loss, "VAR_REG": self.var_loss_reg, "MEAN_REG": self.mean_loss_reg}
 
         # self.score_network now points to DDP wrapped object, so we need to access parameters via ".module"
         if type(self.device_id) == int:
@@ -762,8 +767,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             ratio = (0.01 * average_base_loss_per_epoch) / ((1. - 0.01) * average_var_loss_per_epoch + 1e-12)
             self.var_loss_reg = max(min(ratio, 0.1), 0.005)
 
-            ratio = (0.01 * average_base_loss_per_epoch) / ((1. - 0.01) * average_mean_loss_per_epoch + 1e-12)
-            self.var_loss_reg = max(min(ratio, 0.1), 0.005)
+            ratio = (0.005 * average_base_loss_per_epoch) / ((1. - 0.005) * average_mean_loss_per_epoch + 1e-12)
+            self.mean_loss_reg = max(min(ratio, 0.01), 0.0005)
 
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
             # see  https://github.com/Lightning-AI/torchmetrics/issues/626
