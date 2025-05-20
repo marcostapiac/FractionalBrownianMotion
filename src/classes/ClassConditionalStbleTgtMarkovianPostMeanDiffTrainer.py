@@ -401,15 +401,15 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             except KeyError as e:
                 print(e)
                 pass
+            try:
+                self.var_reg_loss = snapshot["VAR_REG"]
+            except KeyError as e:
+                print(e)
+                pass
             if type(self.device_id) == int:
                 self.score_network.module.load_state_dict(snapshot["MODEL_STATE"])
             else:
                 self.score_network.load_state_dict(snapshot["MODEL_STATE"])
-            # if ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
-            #    print("Using linear LR increase over 1000 epochs\n")
-            #    self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lambda e: (1e-4 / 1e-5) ** (e / 1000),
-            #                                                       last_epoch=-1)
-            # else:
             print("Using RLRP scheduler\n")
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 self.opt,
@@ -428,11 +428,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 print(e)
                 pass
         except FileNotFoundError:
-            # if ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
-            #    print("Using linear LR increase over 1000 epochs\n")
-            #    self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lambda e: (1e-3 / 1e-5) ** min(1.,(e / 2000)),
-            #                                                       last_epoch=-1)
-            # else:
             print("Using RLRP scheduler\n")
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
                 self.opt,
@@ -456,10 +451,10 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         """
         try:
             snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(),
-                        "SCHEDULER_STATE": self.scheduler.state_dict(), "EWMA_LOSS": self.ewma_loss}
+                        "SCHEDULER_STATE": self.scheduler.state_dict(), "EWMA_LOSS": self.ewma_loss, "VAR_REG": self.var_loss_reg}
         except AttributeError as e:
             print(e)
-            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(), "EWMA_LOSS": self.ewma_loss}
+            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(), "EWMA_LOSS": self.ewma_loss, "VAR_REG": self.var_loss_reg}
 
         # self.score_network now points to DDP wrapped object, so we need to access parameters via ".module"
         if type(self.device_id) == int:
