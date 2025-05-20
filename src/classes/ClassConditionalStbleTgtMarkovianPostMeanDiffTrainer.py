@@ -69,8 +69,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.end_diff_time = end_diff_time
         self.is_hybrid = hybrid_training
         self.include_weightings = to_weight
-        self.var_loss_reg = 0.005
-        self.mean_loss_reg = 0.0005
+        self.var_loss_reg = 1e-8
+        self.mean_loss_reg = 1e-8
         assert (to_weight == True)
         # Move score network to appropriate device
         if type(self.device_id) == int:
