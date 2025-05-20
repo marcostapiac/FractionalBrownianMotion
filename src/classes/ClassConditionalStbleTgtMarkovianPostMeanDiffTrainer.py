@@ -402,7 +402,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 print(e)
                 pass
             try:
-                self.var_reg_loss = snapshot["VAR_REG"]
+                self.var_loss_reg = snapshot["VAR_REG"]
             except KeyError as e:
                 print(e)
                 pass
