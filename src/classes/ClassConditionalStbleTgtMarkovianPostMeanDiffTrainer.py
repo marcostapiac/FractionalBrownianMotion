@@ -69,6 +69,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.end_diff_time = end_diff_time
         self.is_hybrid = hybrid_training
         self.include_weightings = to_weight
+        self.var_loss_reg = 0.005
         assert (to_weight == True)
         # Move score network to appropriate device
         if type(self.device_id) == int:
@@ -81,44 +82,45 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.snapshot_path = snapshot_path
         print("!!Setup Done!!\n")
 
-
-    def _batch_update(self, loss, epoch:int, batch_idx:int, num_batches:int) -> float:
-            """
+    def _batch_update(self, loss, base_loss: float, reg_loss: float) -> [float, float, float]:
+        """
             Backward pass and optimiser update step
                 :param loss: loss tensor / function output
                 :return: Batch Loss
             """
-            loss.backward()  # single gpu functionality
-            self.opt.step()
-            #try:
-            #    self.scheduler.step(epoch + batch_idx / num_batches)
-            #except AttributeError as e:
-            #    pass
+        loss.backward()  # single gpu functionality
+        self.opt.step()
+        # try:
+        #    self.scheduler.step(epoch + batch_idx / num_batches)
+        # except AttributeError as e:
+        #    pass
 
-            # Detach returns the loss as a Tensor that does not require gradients, so you can manipulate it
-            # independently of the original value, which does require gradients
-            # Item is used to return a 1x1 tensor as a standard Python dtype (determined by Tensor dtype)
-            self.loss_aggregator.update(loss.detach().item())
-            return loss.detach().item()
+        # Detach returns the loss as a Tensor that does not require gradients, so you can manipulate it
+        # independently of the original value, which does require gradients
+        # Item is used to return a 1x1 tensor as a standard Python dtype (determined by Tensor dtype)
+        self.loss_aggregator.update(loss.detach().item())
+        return loss.detach().item(), base_loss, reg_loss
 
-    def _batch_loss_compute(self, outputs: torch.Tensor, targets: torch.Tensor, epoch:int, batch_idx:int, num_batches:int) -> float:
+    def _batch_loss_compute(self, outputs: torch.Tensor, targets: torch.Tensor, epoch: int, batch_idx: int,
+                            num_batches: int) -> [float, float, float]:
         """
         Computes loss and calls helper function to compute backward pass
             :param outputs: Model forward pass output
             :param targets: Target values to compare against outputs
             :return: Batch Loss
         """
-        loss = self.loss_fn()(outputs, targets)
-        print(f"Loss, {loss}\n")
-        var_loss = ((self.score_network.module.mlp_state_mapper.hybrid.log_scale - self.score_network.module.mlp_state_mapper.hybrid.log_scale.mean()) ** 2).mean()
-        loss += 0.005*var_loss
-        print(f"VarLoss, {0.005*var_loss}\n")
-        return self._batch_update(loss, epoch=epoch, batch_idx=batch_idx, num_batches=num_batches)
-
+        base_loss = self.loss_fn()(outputs, targets)
+        print(f"Loss, {base_loss}\n")
+        var_loss = ((
+                                self.score_network.module.mlp_state_mapper.hybrid.log_scale - self.score_network.module.mlp_state_mapper.hybrid.log_scale.mean()) ** 2).mean()
+        reg_loss = self.var_loss_reg * var_loss
+        loss = base_loss + reg_loss
+        print(f"VarReg, VarLoss, {self.var_loss_reg, reg_loss}\n")
+        return self._batch_update(loss, base_loss=base_loss.detach().item(), reg_loss=reg_loss.detach().item())
 
     def _run_batch(self, xts: torch.Tensor, features: torch.Tensor, stable_targets: torch.Tensor,
                    diff_times: torch.Tensor,
-                   eff_times: torch.Tensor, epoch:int, batch_idx:int, num_batches:int) -> float:
+                   eff_times: torch.Tensor, epoch: int, batch_idx: int, num_batches: int) -> [float, float, float]:
         """
         Compute batch output and loss
             :param xts: Diffused samples
@@ -138,10 +140,10 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         # Now reshape again into (NumTimeSeries*TimeSeriesLength, 1, LookBackWindow*TimeSeriesDim)
         # Note this is for the simplest implementation of CondUpsampler which is simply an MLP
         ##features = features.reshape(B * T, 1, 1 * D, 1).permute((0, 1, 3, 2)).squeeze(2)
-        features = features.reshape(B*T, 1, D)
+        features = features.reshape(B * T, 1, D)
         stable_targets = stable_targets.reshape(B * T, 1, -1)
         diff_times = diff_times.reshape(B * T)
-        eff_times = torch.cat([eff_times]*D, dim=2).reshape(stable_targets.shape)
+        eff_times = torch.cat([eff_times] * D, dim=2).reshape(stable_targets.shape)
         outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times, eff_times=eff_times)
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         # For times larger than tau0, use inverse_weighting
@@ -157,9 +159,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         # Now implement the stable target field
         outputs = (outputs + xts / sigma_tau) * (sigma_tau / beta_tau)  # This gives us the network D_theta
         assert (outputs.shape == stable_targets.shape)
-        return self._batch_loss_compute(outputs=outputs * weights, targets=stable_targets * weights, epoch=epoch, batch_idx=batch_idx, num_batches=num_batches)
+        return self._batch_loss_compute(outputs=outputs * weights, targets=stable_targets * weights, epoch=epoch,
+                                        batch_idx=batch_idx, num_batches=num_batches)
 
-    def _compute_stable_targets(self, batch: torch.Tensor, noised_z:torch.Tensor, eff_times: torch.Tensor, ref_batch: torch.Tensor, chunk_size:int, feat_thresh:float):
+    def _compute_stable_targets(self, batch: torch.Tensor, noised_z: torch.Tensor, eff_times: torch.Tensor,
+                                ref_batch: torch.Tensor, chunk_size: int, feat_thresh: float):
         import time
         t0 = time.time()
         B1, T, D = batch.shape
@@ -228,7 +232,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             # Broadcasting: candidate_x is [1, B2*T, D] and target_chunk is [chunk, 1, D].
             # candidate_x, target_chunk = candidate_x.to(self.device_id), target_chunk.to(self.device_id)
             mask_chunk = ((torch.norm(candidate_x - target_chunk, p=2, dim=-1) / D) <= dX).float()
-            assert (mask_chunk.shape == (chunk_size, B2 * T) or mask_chunk.shape == (chunk_size, B2*T, 1))
+            assert (mask_chunk.shape == (chunk_size, B2 * T) or mask_chunk.shape == (chunk_size, B2 * T, 1))
             if mask_chunk.dim() > 2: mask_chunk = mask_chunk.squeeze(-1)
             assert mask_chunk.shape == (chunk_size, B2 * T)
             # 2. find columns where no element is 1
@@ -238,7 +242,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             ddX = dX
             while not rows_has_any.all():
                 # recompute full mask at 2*dX
-                ddX = 1.2*ddX
+                ddX = 1.2 * ddX
                 mask2 = ((torch.norm(candidate_x - target_chunk, p=2, dim=-1) / D) <= ddX).float()
                 if mask2.dim() > 2: mask2 = mask2.squeeze(-1)
                 # replace only the “all-zero” columns
@@ -267,20 +271,21 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             # noised_z_chunk = noised_z_chunk.to(self.device_id)
             # Compute weights via the log probability of noised_z_chunk, then exponentiate.
             weights_chunk = dist_chunk.log_prob(noised_z_chunk).sum(dim=-1, keepdim=True).exp()  # [chunk, B2*T, 1]
-            assert weights_chunk.shape == (chunk_size, B2*T, 1)
+            assert weights_chunk.shape == (chunk_size, B2 * T, 1)
             # noised_z_chunk = noised_z_chunk.to("cpu")
 
             # Apply the mask to zero out values that are not in the desired range.
             weights_masked_chunk = weights_chunk * mask_chunk  # [chunk_size, B2*T, 1]
-            assert weights_masked_chunk.shape == (chunk_size, B2*T, 1)
+            assert weights_masked_chunk.shape == (chunk_size, B2 * T, 1)
             # --- Aggregate weights and candidate_Z contributions ---
             # Sum over the candidate dimension (dim=1) to get total weights per target element.
             weight_sum_chunk = weights_masked_chunk.sum(dim=1)  # [chunk_size, 1]
             assert weight_sum_chunk.shape == (chunk_size, 1)
-            c = 1./torch.max(torch.abs(weights_masked_chunk[:,:, 0]))
+            c = 1. / torch.max(torch.abs(weights_masked_chunk[:, :, 0]))
             num = torch.pow(torch.sum(c * weights_masked_chunk, dim=1), 2)
             denom = (torch.sum(torch.pow(c * weights_masked_chunk, 2), dim=1)) + 1e-12
-            ESS = torch.where(denom == 0, torch.tensor(0.0, device=denom.device, dtype=denom.dtype), num / denom).to("cpu")
+            ESS = torch.where(denom == 0, torch.tensor(0.0, device=denom.device, dtype=denom.dtype), num / denom).to(
+                "cpu")
             stable_targets_masks.append(ESS)
             assert (not torch.any(torch.isnan(ESS)))
             weighted_Z_sum_chunk = (weights_masked_chunk * candidate_Z).sum(dim=1)  # [chunk, D]
@@ -295,7 +300,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 epsilon = 0.
             # Now apply epsilon only where needed
             denominator = weight_sum_chunk + (weight_sum_chunk == 0) * epsilon
-            stable_targets_chunk = weighted_Z_sum_chunk / denominator # [chunk_size, D]
+            stable_targets_chunk = weighted_Z_sum_chunk / denominator  # [chunk_size, D]
             assert stable_targets_chunk.shape == (chunk_size, D)
             stable_targets_chunks.append(stable_targets_chunk)
             assert (not torch.any(torch.isnan(stable_targets_chunk)))
@@ -303,7 +308,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             if ddX != dX: print(f"Final feat thresh vs original feat thresh: {ddX, dX}\n")
         stable_targets_masks = (torch.cat(stable_targets_masks, dim=0))
         assert stable_targets_masks.shape == (B1 * T, 1)
-        print(f"IQR ESS: {torch.quantile(stable_targets_masks, q=0.005, dim=0).item(), torch.quantile(stable_targets_masks, q=0.995, dim=0).item()}\n")
+        print(
+            f"IQR ESS: {torch.quantile(stable_targets_masks, q=0.005, dim=0).item(), torch.quantile(stable_targets_masks, q=0.995, dim=0).item()}\n")
         # Concatenate all chunks to form the full result.
         stable_targets = torch.cat(stable_targets_chunks, dim=0)  # [B1*T, D]
         assert (stable_targets.shape == (B1 * T, D))
@@ -311,13 +317,15 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         # ref_batch, batch, eff_times = ref_batch.to(self.device_id), batch.to(self.device_id), eff_times.to(self.device_id)
         return stable_targets.to(self.device_id)
 
-    def _run_epoch(self, epoch: int,batch_size: int, chunk_size:int, feat_thresh:float) -> list:
+    def _run_epoch(self, epoch: int, batch_size: int, chunk_size: int, feat_thresh: float) -> [list, list, list]:
         """
         Single epoch run
             :param epoch: Epoch index
             :return: List of batch Losses
         """
         device_epoch_losses = []
+        device_epoch_base_losses = []
+        device_epoch_reg_losses = []
         b_sz = len(next(iter(self.train_loader))[0])
         print(
             f"[Device {self.device_id}] Epoch {epoch + 1} | Batchsize: {b_sz} | Total Num of Batches: {len(self.train_loader)} \n")
@@ -351,14 +359,20 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             # For each timeseries "b", at time "t", we want the score p(timeseries_b_attime_t_diffusedTo_efftime|time_series_b_attime_t)
             # So target score should be size (NumBatches, Time Series Length, 1)
             # And xts should be size (NumBatches, TimeSeriesLength, NumDimensions)
-            stable_targets = self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=ref_x0s, eff_times=eff_times, chunk_size=chunk_size, feat_thresh=feat_thresh)
+            stable_targets = self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=ref_x0s,
+                                                          eff_times=eff_times, chunk_size=chunk_size,
+                                                          feat_thresh=feat_thresh)
 
-            batch_loss = self._run_batch(xts=xts, features=features, stable_targets=stable_targets,
-                                         diff_times=diff_times,
-                                         eff_times=eff_times, epoch=epoch, batch_idx=batch_idx,
-                                         num_batches=len(self.train_loader))
+            batch_loss, batch_base_loss, batch_reg_loss = self._run_batch(xts=xts, features=features,
+                                                                          stable_targets=stable_targets,
+                                                                          diff_times=diff_times,
+                                                                          eff_times=eff_times, epoch=epoch,
+                                                                          batch_idx=batch_idx,
+                                                                          num_batches=len(self.train_loader))
             device_epoch_losses.append(batch_loss)
-        return device_epoch_losses
+            device_epoch_base_losses.append(batch_base_loss)
+            device_epoch_reg_losses.append(batch_reg_loss)
+        return device_epoch_losses, device_epoch_base_losses, device_epoch_reg_losses
 
     def _load_snapshot(self, snapshot_path: str, config) -> None:
         """
@@ -369,7 +383,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         # Snapshot should be python dict
         for param_group in self.opt.param_groups:
             param_group['lr'] = 1e-3
-        print(f"Before loading snapshot Epochs Run, EWMA Loss, LR: {self.epochs_run, self.ewma_loss, self.opt.param_groups[0]['lr']}\n")
+        print(
+            f"Before loading snapshot Epochs Run, EWMA Loss, LR: {self.epochs_run, self.ewma_loss, self.opt.param_groups[0]['lr']}\n")
 
         loc = 'cuda:{}'.format(self.device_id) if type(self.device_id) == int else self.device_id
         try:
@@ -377,9 +392,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             self.epochs_run = snapshot["EPOCHS_RUN"]
             self.opt.load_state_dict(snapshot["OPTIMISER_STATE"])
             # Here to manually change the LR
-            #if "BiPot" in config.data_path and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./50 and 550<= self.epochs_run <= 600: self.opt.param_groups[0]["lr"]=0.0001
-            #if "QuadSin" in config.data_path and config.sin_space_scale == 4. and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./50 and 630<= self.epochs_run <= 640 : self.opt.param_groups[0]["lr"]=0.0001
-            #if "QuadSin" in config.data_path and config.sin_space_scale == 25. and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./50. and 100<= self.epochs_run <= 120 : self.opt.param_groups[0]["lr"]=0.0001
+            # if "BiPot" in config.data_path and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./50 and 550<= self.epochs_run <= 600: self.opt.param_groups[0]["lr"]=0.0001
+            # if "QuadSin" in config.data_path and config.sin_space_scale == 4. and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./50 and 630<= self.epochs_run <= 640 : self.opt.param_groups[0]["lr"]=0.0001
+            # if "QuadSin" in config.data_path and config.sin_space_scale == 25. and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./50. and 100<= self.epochs_run <= 120 : self.opt.param_groups[0]["lr"]=0.0001
 
             try:
                 self.ewma_loss = snapshot["EWMA_LOSS"]
@@ -390,48 +405,48 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 self.score_network.module.load_state_dict(snapshot["MODEL_STATE"])
             else:
                 self.score_network.load_state_dict(snapshot["MODEL_STATE"])
-            #if ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
+            # if ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
             #    print("Using linear LR increase over 1000 epochs\n")
             #    self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lambda e: (1e-4 / 1e-5) ** (e / 1000),
             #                                                       last_epoch=-1)
-            #else:
+            # else:
             print("Using RLRP scheduler\n")
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                    self.opt,
-                    mode='min',  # We're monitoring a loss that should decrease.
-                    factor=0.5,  # Reduce learning rate by 50% (more conservative than 90%).
-                    patience=50,  # Wait for 50 epochs of no sufficient improvement.
-                    verbose=True,  # Print a message when the LR is reduced.
-                    threshold=1e-4,  # Set the threshold for what counts as improvement.
-                    threshold_mode='rel',  # Relative change compared to the best value so far.
-                    cooldown=200,  # Optionally, add cooldown epochs after a reduction.
-                    min_lr=1e-5
-                )
+                self.opt,
+                mode='min',  # We're monitoring a loss that should decrease.
+                factor=0.5,  # Reduce learning rate by 50% (more conservative than 90%).
+                patience=50,  # Wait for 50 epochs of no sufficient improvement.
+                verbose=True,  # Print a message when the LR is reduced.
+                threshold=1e-4,  # Set the threshold for what counts as improvement.
+                threshold_mode='rel',  # Relative change compared to the best value so far.
+                cooldown=200,  # Optionally, add cooldown epochs after a reduction.
+                min_lr=1e-5
+            )
             try:
                 self.scheduler.load_state_dict(snapshot["SCHEDULER_STATE"])
             except (KeyError, AttributeError) as e:
                 print(e)
                 pass
         except FileNotFoundError:
-            #if ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
+            # if ("QuadSinHF" in config.data_path and "004b" in config.data_path and config.feat_thresh == 1. / 50.):
             #    print("Using linear LR increase over 1000 epochs\n")
             #    self.scheduler = torch.optim.lr_scheduler.LambdaLR(self.opt, lambda e: (1e-3 / 1e-5) ** min(1.,(e / 2000)),
             #                                                       last_epoch=-1)
-            #else:
+            # else:
             print("Using RLRP scheduler\n")
             self.scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-                    self.opt,
-                    mode='min',  # We're monitoring a loss that should decrease.
-                    factor=0.5,  # Reduce learning rate by 50% (more conservative than 90%).
-                    patience=50,  # Wait for 50 epochs of no sufficient improvement.
-                    verbose=True,  # Print a message when the LR is reduced.
-                    threshold=1e-4,  # Set the threshold for what counts as improvement.
-                    threshold_mode='rel',  # Relative change compared to the best value so far.
-                    cooldown=200,  # Optionally, add cooldown epochs after a reduction.
-                    min_lr=1e-5
-                )
-        print(f"After loading snapshot Epochs Run, EWMA Loss, LR: {self.epochs_run, self.ewma_loss, self.opt.param_groups[0]['lr']}\n")
-
+                self.opt,
+                mode='min',  # We're monitoring a loss that should decrease.
+                factor=0.5,  # Reduce learning rate by 50% (more conservative than 90%).
+                patience=50,  # Wait for 50 epochs of no sufficient improvement.
+                verbose=True,  # Print a message when the LR is reduced.
+                threshold=1e-4,  # Set the threshold for what counts as improvement.
+                threshold_mode='rel',  # Relative change compared to the best value so far.
+                cooldown=200,  # Optionally, add cooldown epochs after a reduction.
+                min_lr=1e-5
+            )
+        print(
+            f"After loading snapshot Epochs Run, EWMA Loss, LR: {self.epochs_run, self.ewma_loss, self.opt.param_groups[0]['lr']}\n")
 
     def _save_snapshot(self, epoch: int) -> None:
         """
@@ -440,10 +455,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             :return: None
         """
         try:
-            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(), "SCHEDULER_STATE":self.scheduler.state_dict(), "EWMA_LOSS":self.ewma_loss}
+            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(),
+                        "SCHEDULER_STATE": self.scheduler.state_dict(), "EWMA_LOSS": self.ewma_loss}
         except AttributeError as e:
             print(e)
-            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(), "EWMA_LOSS":self.ewma_loss}
+            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(), "EWMA_LOSS": self.ewma_loss}
 
         # self.score_network now points to DDP wrapped object, so we need to access parameters via ".module"
         if type(self.device_id) == int:
@@ -475,7 +491,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         except FileNotFoundError:
             print("Snapshot file does not exist\n")
 
-
     def _from_incs_to_positions(self, batch):
         # dbatch = torch.cat([torch.zeros((batch.shape[0], 1, batch.shape[-1])).to(batch.device), batch], dim=1)
         # batch shape (N_batches, Time Series Length, Input Size)
@@ -484,7 +499,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         init_state = init_state.expand(batch.shape[0], -1, -1)  # Expand to (B, 1, D)
         dbatch = torch.cat([init_state, batch], dim=1)
         dbatch = dbatch.cumsum(dim=1)
-        dbatch[:, 0, :] +=  1e-3*torch.randn((dbatch.shape[0], dbatch.shape[-1])).to(dbatch.device)
+        dbatch[:, 0, :] += 1e-3 * torch.randn((dbatch.shape[0], dbatch.shape[-1])).to(dbatch.device)
         return dbatch
 
     def create_feature_vectors_from_position(self, batch):
@@ -530,11 +545,10 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 learning_rates = learning_rates[:self.epochs_run]
         except FileNotFoundError:
             learning_rates = []
-        if len(l) > len(learning_rates) and len(learning_rates) == 0: # Issue due to unsaved learning rates
-            learning_rates = [self.opt.param_groups[0]["lr"]]*len(l)
+        if len(l) > len(learning_rates) and len(learning_rates) == 0:  # Issue due to unsaved learning rates
+            learning_rates = [self.opt.param_groups[0]["lr"]] * len(l)
         assert (len(learning_rates) >= self.epochs_run)
         return l, learning_rates
-
 
     def _domain_rmse(self, epoch, config):
         assert (config.ndims <= 2)
@@ -578,7 +592,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     config.sin_space_scale * prev)
                 return drift_X[:, np.newaxis, :]
             elif "SinLog" in config.data_path:
-                drift_X = -np.sin(config.sin_space_scale*prev)*np.log(1+config.log_space_scale*np.abs(prev))/config.sin_space_scale
+                drift_X = -np.sin(config.sin_space_scale * prev) * np.log(
+                    1 + config.log_space_scale * np.abs(prev)) / config.sin_space_scale
                 return drift_X[:, np.newaxis, :]
             elif "MullerBrown" in config.data_path:
                 Aks = np.array(config.Aks)[np.newaxis, :]
@@ -645,7 +660,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 true_states[:, [i], :] = true_states[:, [i - 1], :] \
                                          + true_mean * deltaT \
                                          + eps
-                local_mean= multivar_score_based_MLP_drift_OOS(
+                local_mean = multivar_score_based_MLP_drift_OOS(
                     score_model=self.score_network.module,
                     num_diff_times=num_diff_times,
                     diffusion=diffusion,
@@ -684,8 +699,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
 
-
-    def train(self, max_epochs: list, model_filename: str,batch_size: int, config) -> None:
+    def train(self, max_epochs: list, model_filename: str, batch_size: int, config) -> None:
         """
         Run training for model
             :param max_epochs: List of maximum number of epochs (to allow for iterative training)
@@ -702,26 +716,51 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         all_losses_per_epoch, learning_rates = self._load_loss_tracker(
             model_filename)  # This will contain synchronised losses
         end_epoch = max(max_epochs)
-        self.ewma_loss = 0. # Force recomputation of EWMA losses each time
+        self.ewma_loss = 0.  # Force recomputation of EWMA losses each time
         for epoch in range(self.epochs_run, end_epoch):
             t0 = time.time()
             # Temperature annealing for gumbel softmax
             if epoch % 20 == 0:
-                tau = max(self.score_network.module.mlp_state_mapper.hybrid.final_tau, self.score_network.module.mlp_state_mapper.hybrid.init_tau * (0.9 ** (epoch//20)))
+                tau = max(self.score_network.module.mlp_state_mapper.hybrid.final_tau,
+                          self.score_network.module.mlp_state_mapper.hybrid.init_tau * (0.9 ** (epoch // 20)))
                 self.score_network.module.mlp_state_mapper.hybrid.set_tau(tau)
-            device_epoch_losses = self._run_epoch(epoch=epoch, batch_size=batch_size, chunk_size=config.chunk_size,
-                                                  feat_thresh=config.feat_thresh)
+            device_epoch_losses, device_epoch_base_losses, device_epoch_reg_losses = self._run_epoch(epoch=epoch,
+                                                                                                     batch_size=batch_size,
+                                                                                                     chunk_size=config.chunk_size,
+                                                                                                     feat_thresh=config.feat_thresh)
             # Average epoch loss for each device over batches
             epoch_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_losses)).item())
+            epoch_base_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_base_losses)).item())
+            epoch_reg_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_reg_losses)).item())
+
             if type(self.device_id) == int:
                 epoch_losses_tensor = epoch_losses_tensor.cuda()
                 all_gpus_losses = [torch.zeros_like(epoch_losses_tensor) for _ in range(torch.cuda.device_count())]
                 torch.distributed.all_gather(all_gpus_losses, epoch_losses_tensor)
+
+                epoch_base_losses_tensor = epoch_base_losses_tensor.cuda()
+                all_gpus_base_losses = [torch.zeros_like(epoch_base_losses_tensor) for _ in
+                                        range(torch.cuda.device_count())]
+                torch.distributed.all_gather(all_gpus_base_losses, epoch_base_losses_tensor)
+
+                epoch_reg_losses_tensor = epoch_reg_losses_tensor.cuda()
+                all_gpus_reg_losses = [torch.zeros_like(epoch_reg_losses_tensor) for _ in
+                                       range(torch.cuda.device_count())]
+                torch.distributed.all_gather(all_gpus_reg_losses, epoch_reg_losses_tensor)
             else:
                 all_gpus_losses = [epoch_losses_tensor]
+                all_gpus_base_losses = [epoch_base_losses_tensor]
+                all_gpus_reg_losses = [epoch_reg_losses_tensor]
             # Obtain epoch loss averaged over devices
             average_loss_per_epoch = torch.mean(torch.stack(all_gpus_losses), dim=0)
             all_losses_per_epoch.append(float(average_loss_per_epoch.cpu().numpy()))
+
+            average_base_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_base_losses), dim=0).cpu().numpy())
+            average_reg_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_reg_losses), dim=0).cpu().numpy())
+
+            ratio = (0.01 * average_base_loss_per_epoch) / ((1. - 0.01) * average_reg_loss_per_epoch + 1e-12)
+            self.var_loss_reg = max(min(10 ** ratio, 0.1), 0.005)
+
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
             # see  https://github.com/Lightning-AI/torchmetrics/issues/626
             print("Device {} :: Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format(
