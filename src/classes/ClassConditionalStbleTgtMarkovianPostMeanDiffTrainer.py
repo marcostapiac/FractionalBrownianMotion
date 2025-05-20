@@ -764,10 +764,10 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             average_var_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_var_losses), dim=0).cpu().numpy())
             average_mean_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_mean_losses), dim=0).cpu().numpy())
 
-            ratio = (0.02 * average_base_loss_per_epoch) / ((1. - 0.02) * average_var_loss_per_epoch + 1e-12)
+            ratio = (0.03 * average_base_loss_per_epoch) / ((1. - 0.03) * average_var_loss_per_epoch + 1e-12)
             self.var_loss_reg = min(ratio, 0.1)
 
-            ratio = (0.01 * average_base_loss_per_epoch) / ((1. - 0.01) * average_mean_loss_per_epoch + 1e-12)
+            ratio = (0.02 * average_base_loss_per_epoch) / ((1. - 0.02) * average_mean_loss_per_epoch + 1e-12)
             self.mean_loss_reg = min(ratio, 0.01)
 
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
