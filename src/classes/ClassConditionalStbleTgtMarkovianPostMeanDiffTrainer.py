@@ -70,6 +70,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.is_hybrid = hybrid_training
         self.include_weightings = to_weight
         self.var_loss_reg = 0.005
+        self.mean_loss_reg = 0.005
         assert (to_weight == True)
         # Move score network to appropriate device
         if type(self.device_id) == int:
@@ -82,7 +83,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.snapshot_path = snapshot_path
         print("!!Setup Done!!\n")
 
-    def _batch_update(self, loss, base_loss: float, reg_loss: float) -> [float, float, float]:
+    def _batch_update(self, loss, base_loss: float, var_loss: float, mean_loss:float) -> [float, float, float, float]:
         """
             Backward pass and optimiser update step
                 :param loss: loss tensor / function output
@@ -90,19 +91,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             """
         loss.backward()  # single gpu functionality
         self.opt.step()
-        # try:
-        #    self.scheduler.step(epoch + batch_idx / num_batches)
-        # except AttributeError as e:
-        #    pass
-
-        # Detach returns the loss as a Tensor that does not require gradients, so you can manipulate it
-        # independently of the original value, which does require gradients
-        # Item is used to return a 1x1 tensor as a standard Python dtype (determined by Tensor dtype)
         self.loss_aggregator.update(loss.detach().item())
-        return loss.detach().item(), base_loss, reg_loss
+        return loss.detach().item(), base_loss, var_loss, mean_loss
 
     def _batch_loss_compute(self, outputs: torch.Tensor, targets: torch.Tensor, epoch: int, batch_idx: int,
-                            num_batches: int) -> [float, float, float]:
+                            num_batches: int) -> [float, float, float, float]:
         """
         Computes loss and calls helper function to compute backward pass
             :param outputs: Model forward pass output
@@ -111,16 +104,18 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         """
         base_loss = self.loss_fn()(outputs, targets)
         print(f"Loss, {base_loss}\n")
-        var_loss = ((
-                                self.score_network.module.mlp_state_mapper.hybrid.log_scale - self.score_network.module.mlp_state_mapper.hybrid.log_scale.mean()) ** 2).mean()
-        reg_loss = self.var_loss_reg * var_loss
-        loss = base_loss + reg_loss
-        print(f"VarReg, VarLoss, {self.var_loss_reg, reg_loss}\n")
-        return self._batch_update(loss, base_loss=base_loss.detach().item(), reg_loss=reg_loss.detach().item())
+        var_loss = ((self.score_network.module.mlp_state_mapper.hybrid.log_scale - self.score_network.module.mlp_state_mapper.hybrid.log_scale.mean()) ** 2).mean()
+        mean_loss = (torch.mean((self.score_network.module.mlp_state_mapper.hybrid.log_scale - 1.)**2))
+        reg_var_loss = self.var_loss_reg * var_loss
+        reg_mean_loss = self.mean_loss_reg * mean_loss
+        loss = base_loss + reg_var_loss + reg_mean_loss
+        print(f"VarReg, RegVarLoss, {self.var_loss_reg, reg_var_loss}\n")
+        print(f"MeanReg, RegMeanLoss, {self.mean_loss_reg, reg_mean_loss}\n")
+        return self._batch_update(loss, base_loss=base_loss.detach().item(), var_loss=var_loss.detach().item(), mean_loss=mean_loss.detach().item())
 
     def _run_batch(self, xts: torch.Tensor, features: torch.Tensor, stable_targets: torch.Tensor,
                    diff_times: torch.Tensor,
-                   eff_times: torch.Tensor, epoch: int, batch_idx: int, num_batches: int) -> [float, float, float]:
+                   eff_times: torch.Tensor, epoch: int, batch_idx: int, num_batches: int) -> [float, float, float, float]:
         """
         Compute batch output and loss
             :param xts: Diffused samples
@@ -317,7 +312,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         # ref_batch, batch, eff_times = ref_batch.to(self.device_id), batch.to(self.device_id), eff_times.to(self.device_id)
         return stable_targets.to(self.device_id)
 
-    def _run_epoch(self, epoch: int, batch_size: int, chunk_size: int, feat_thresh: float) -> [list, list, list]:
+    def _run_epoch(self, epoch: int, batch_size: int, chunk_size: int, feat_thresh: float) -> [list, list, list, list]:
         """
         Single epoch run
             :param epoch: Epoch index
@@ -325,7 +320,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         """
         device_epoch_losses = []
         device_epoch_base_losses = []
-        device_epoch_reg_losses = []
+        device_epoch_var_losses = []
+        device_epoch_mean_losses = []
         b_sz = len(next(iter(self.train_loader))[0])
         print(
             f"[Device {self.device_id}] Epoch {epoch + 1} | Batchsize: {b_sz} | Total Num of Batches: {len(self.train_loader)} \n")
@@ -363,7 +359,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                                           eff_times=eff_times, chunk_size=chunk_size,
                                                           feat_thresh=feat_thresh)
 
-            batch_loss, batch_base_loss, batch_reg_loss = self._run_batch(xts=xts, features=features,
+            batch_loss, batch_base_loss, batch_var_loss, batch_mean_loss = self._run_batch(xts=xts, features=features,
                                                                           stable_targets=stable_targets,
                                                                           diff_times=diff_times,
                                                                           eff_times=eff_times, epoch=epoch,
@@ -371,8 +367,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                                                           num_batches=len(self.train_loader))
             device_epoch_losses.append(batch_loss)
             device_epoch_base_losses.append(batch_base_loss)
-            device_epoch_reg_losses.append(batch_reg_loss)
-        return device_epoch_losses, device_epoch_base_losses, device_epoch_reg_losses
+            device_epoch_var_losses.append(batch_var_loss)
+            device_epoch_mean_losses.append(batch_mean_loss)
+        return device_epoch_losses, device_epoch_base_losses, device_epoch_var_losses, device_epoch_mean_losses
 
     def _load_snapshot(self, snapshot_path: str, config) -> None:
         """
@@ -719,14 +716,15 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 tau = max(self.score_network.module.mlp_state_mapper.hybrid.final_tau,
                           self.score_network.module.mlp_state_mapper.hybrid.init_tau * (0.9 ** (epoch // 20)))
                 self.score_network.module.mlp_state_mapper.hybrid.set_tau(tau)
-            device_epoch_losses, device_epoch_base_losses, device_epoch_reg_losses = self._run_epoch(epoch=epoch,
+            device_epoch_losses, device_epoch_base_losses, device_epoch_var_losses,device_epoch_mean_losses  = self._run_epoch(epoch=epoch,
                                                                                                      batch_size=batch_size,
                                                                                                      chunk_size=config.chunk_size,
                                                                                                      feat_thresh=config.feat_thresh)
             # Average epoch loss for each device over batches
             epoch_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_losses)).item())
             epoch_base_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_base_losses)).item())
-            epoch_reg_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_reg_losses)).item())
+            epoch_var_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_var_losses)).item())
+            epoch_mean_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_mean_losses)).item())
 
             if type(self.device_id) == int:
                 epoch_losses_tensor = epoch_losses_tensor.cuda()
@@ -738,22 +736,33 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                         range(torch.cuda.device_count())]
                 torch.distributed.all_gather(all_gpus_base_losses, epoch_base_losses_tensor)
 
-                epoch_reg_losses_tensor = epoch_reg_losses_tensor.cuda()
-                all_gpus_reg_losses = [torch.zeros_like(epoch_reg_losses_tensor) for _ in
+                epoch_var_losses_tensor = epoch_var_losses_tensor.cuda()
+                all_gpus_var_losses = [torch.zeros_like(epoch_var_losses_tensor) for _ in
                                        range(torch.cuda.device_count())]
-                torch.distributed.all_gather(all_gpus_reg_losses, epoch_reg_losses_tensor)
+                torch.distributed.all_gather(all_gpus_var_losses, epoch_var_losses_tensor)
+
+                epoch_mean_losses_tensor = epoch_mean_losses_tensor.cuda()
+                all_gpus_mean_losses = [torch.zeros_like(epoch_mean_losses_tensor) for _ in
+                                       range(torch.cuda.device_count())]
+                torch.distributed.all_gather(all_gpus_mean_losses, epoch_mean_losses_tensor)
             else:
                 all_gpus_losses = [epoch_losses_tensor]
                 all_gpus_base_losses = [epoch_base_losses_tensor]
-                all_gpus_reg_losses = [epoch_reg_losses_tensor]
+                all_gpus_var_losses = [epoch_var_losses_tensor]
+                all_gpus_mean_losses = [epoch_mean_losses_tensor]
+
             # Obtain epoch loss averaged over devices
             average_loss_per_epoch = torch.mean(torch.stack(all_gpus_losses), dim=0)
             all_losses_per_epoch.append(float(average_loss_per_epoch.cpu().numpy()))
 
             average_base_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_base_losses), dim=0).cpu().numpy())
-            average_reg_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_reg_losses), dim=0).cpu().numpy())
+            average_var_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_var_losses), dim=0).cpu().numpy())
+            average_mean_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_mean_losses), dim=0).cpu().numpy())
 
-            ratio = (0.01 * average_base_loss_per_epoch) / ((1. - 0.01) * average_reg_loss_per_epoch + 1e-12)
+            ratio = (0.01 * average_base_loss_per_epoch) / ((1. - 0.01) * average_var_loss_per_epoch + 1e-12)
+            self.var_loss_reg = max(min(ratio, 0.1), 0.005)
+
+            ratio = (0.01 * average_base_loss_per_epoch) / ((1. - 0.01) * average_mean_loss_per_epoch + 1e-12)
             self.var_loss_reg = max(min(ratio, 0.1), 0.005)
 
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
