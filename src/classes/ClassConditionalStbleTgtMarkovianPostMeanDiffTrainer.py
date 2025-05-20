@@ -759,7 +759,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             average_reg_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_reg_losses), dim=0).cpu().numpy())
 
             ratio = (0.01 * average_base_loss_per_epoch) / ((1. - 0.01) * average_reg_loss_per_epoch + 1e-12)
-            self.var_loss_reg = max(min(10 ** ratio, 0.1), 0.005)
+            self.var_loss_reg = max(min(ratio, 0.1), 0.005)
 
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
             # see  https://github.com/Lightning-AI/torchmetrics/issues/626
