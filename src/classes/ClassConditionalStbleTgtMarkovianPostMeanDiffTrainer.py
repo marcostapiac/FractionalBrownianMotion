@@ -763,8 +763,10 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             average_base_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_base_losses), dim=0).cpu().numpy())
             average_var_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_var_losses), dim=0).cpu().numpy())
             average_mean_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_mean_losses), dim=0).cpu().numpy())
+
             # (0.4, 0.15) pre __ epochs; (1., 0.3) post __ epochs.
-            ratio = 1.#(1. * average_base_loss_per_epoch) / ((1. - 1.) * average_var_loss_per_epoch + 1e-12)
+            print("Calibrating Regulatisation: Base {average_base_loss_per_epoch}, Var {average_var_loss_per_epoch}, Mean {average_mean_loss_per_epoch}\n")
+            ratio = (.99 * average_base_loss_per_epoch) / ((1. - .99) * average_var_loss_per_epoch + 1e-12)
             self.var_loss_reg = min(ratio, 0.005)
 
             ratio = (0.75 * average_base_loss_per_epoch) / ((1. - 0.75) * average_mean_loss_per_epoch + 1e-12)
