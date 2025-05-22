@@ -768,7 +768,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             ratio = (.99 * average_base_loss_per_epoch) / (average_var_loss_per_epoch + 1e-12)
             self.var_loss_reg = min(ratio, 0.005)
 
-            ratio = (0.75 * average_base_loss_per_epoch) / (average_mean_loss_per_epoch + 1e-12)
+            ratio = (2. * average_base_loss_per_epoch) / (average_mean_loss_per_epoch + 1e-12)
             self.mean_loss_reg = min(ratio, 0.01)
 
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
