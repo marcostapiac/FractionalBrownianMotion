@@ -109,8 +109,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         reg_var_loss = self.var_loss_reg * var_loss
         reg_mean_loss = self.mean_loss_reg * mean_loss
         loss = base_loss + reg_var_loss + reg_mean_loss
-        print(f"VarReg, RegVarLoss, {self.var_loss_reg, reg_var_loss}\n")
-        print(f"MeanReg, RegMeanLoss, {self.mean_loss_reg, reg_mean_loss}\n")
+        print(f"VarReg, VarLoss, RegVarLoss, {self.var_loss_reg, var_loss, reg_var_loss}\n")
+        print(f"MeanReg, MeanLoss, RegMeanLoss, {self.mean_loss_reg, mean_loss, reg_mean_loss}\n")
         return self._batch_update(loss, base_loss=base_loss.detach().item(), var_loss=var_loss.detach().item(), mean_loss=mean_loss.detach().item())
 
     def _run_batch(self, xts: torch.Tensor, features: torch.Tensor, stable_targets: torch.Tensor,
