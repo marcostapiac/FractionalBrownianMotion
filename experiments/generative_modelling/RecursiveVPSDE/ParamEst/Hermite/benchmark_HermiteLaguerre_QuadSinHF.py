@@ -13,7 +13,7 @@ config = get_config()
 print("Starting\n")
 # In[3]:
 
-num_paths = 10952
+num_paths = 10240
 num_time_steps = config.ts_length
 isUnitInterval = True
 diff = config.diffusion

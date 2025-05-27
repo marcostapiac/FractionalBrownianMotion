@@ -19,7 +19,7 @@ def true_drift(prev, num_paths, config):
 
 if __name__ == "__main__":
     config = get_config()
-    num_paths = 10952
+    num_paths = 10240
     t0 = config.t0
     deltaT = config.deltaT
     t1 = deltaT * config.ts_length

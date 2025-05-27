@@ -30,7 +30,7 @@ def rmse_ignore_nans(y_true, y_pred):
 
 config = get_config()
 
-num_paths = 10952
+num_paths = 10240
 num_time_steps = config.ts_length
 isUnitInterval = True
 diff = config.diffusion

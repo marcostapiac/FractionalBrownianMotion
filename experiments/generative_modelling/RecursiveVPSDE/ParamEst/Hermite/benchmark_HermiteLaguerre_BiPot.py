@@ -19,7 +19,7 @@ config = get_config()
 # In[3]:
 
 
-num_paths = 10952
+num_paths = 10240
 num_time_steps = config.ts_length
 isUnitInterval = True
 diff = config.diffusion
@@ -29,7 +29,7 @@ H = config.hurst
 deltaT = config.deltaT
 t0 = config.t0
 t1 = deltaT * num_time_steps
-fBiPot = FractionalBiPotential(const=config.const, quartic_coeff=config.quartic_coeff, quad_coeff=config.quad_coeff,
+fBiPot = FractionalBiPotential(num_dims=config.ndims, const=config.const, quartic_coeff=config.quartic_coeff, quad_coeff=config.quad_coeff,
                                diff=diff, X0=initial_state)
 paths = np.array(
     [fBiPot.euler_simulation(H=H, N=num_time_steps, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=initial_state,
