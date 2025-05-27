@@ -394,7 +394,7 @@ def generate_fSinLog(config, H: float, T: int, S: int, isUnitInterval: bool, b:f
 
 
 def generate_fBiPot(config, H: float, T: int, S: int, isUnitInterval: bool, a: float, b: float, c: float, diff: float,
-                    initial_state: float,
+                    initial_state: float, num_dims:int,
                     rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
     """
     Function generates samples of fractional BiPotential SDE
@@ -418,14 +418,16 @@ def generate_fBiPot(config, H: float, T: int, S: int, isUnitInterval: bool, a: f
             deltaT = 1.
             t0 = 0.
             t1 = T
-    fBiPot = FractionalBiPotential(quartic_coeff=a, quad_coeff=b, const=c, diff=diff, X0=initial_state)
+    fBiPot = FractionalBiPotential(num_dims = num_dims,quartic_coeff=a, quad_coeff=b, const=c, diff=diff, X0=initial_state)
     data = np.array(
         [fBiPot.euler_simulation(H=H, N=T, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=None, Ms=None,
                                  gaussRvs=rvs,
-                                 t0=t0, t1=t1) for _ in range(S)]).reshape(
-        (S, T + 1))
-    assert (data.shape == (S, T + 1))
-    return data[:, 1:]
+                                 t0=t0, t1=t1).reshape(-1, 1) for _ in range(S)]).reshape(
+        (S, T + 1, num_dims))
+    assert (data.shape == (S, T + 1, num_dims))
+    if num_dims == 1:
+        return data[:, 1:, 0]
+    return data[:, 1:, :]
 
 
 def generate_CEV(H: float, T: int, S: int, alpha: float, sigmaX: float, muU: float, muX: float, X0: float,
