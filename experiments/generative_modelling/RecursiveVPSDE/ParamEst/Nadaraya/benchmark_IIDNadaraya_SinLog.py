@@ -45,7 +45,7 @@ t1 = deltaT * num_time_steps
 print(deltaT, t0, t1)
 
 try:
-    is_path_observations = np.load(config.data_path, allow_pickle=True)
+    is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :]
     is_path_observations = np.concatenate(
         [np.repeat(np.array(config.initState).reshape((1, 1)), is_path_observations.shape[0], axis=0),
          is_path_observations], axis=1)

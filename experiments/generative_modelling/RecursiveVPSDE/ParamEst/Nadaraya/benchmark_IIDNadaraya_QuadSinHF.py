@@ -42,14 +42,23 @@ deltaT = config.deltaT
 t0 = config.t0
 t1 = deltaT * num_time_steps
 print(deltaT, t0, t1)
-
-fQuadSin = FractionalQuadSin(quad_coeff=config.quad_coeff, sin_coeff=config.sin_coeff,
-                             sin_space_scale=config.sin_space_scale, diff=diff, X0=initial_state)
-is_path_observations = np.array(
-    [fQuadSin.euler_simulation(H=H, N=config.ts_length, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=initial_state,
-                               Ms=None, gaussRvs=rvs,
-                               t0=t0, t1=t1) for _ in (range(num_paths * 10))]).reshape(
-    (num_paths * 10, config.ts_length + 1))
+try:
+    is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :]
+    is_path_observations = np.concatenate(
+        [np.repeat(np.array(config.initState).reshape((1, 1)), is_path_observations.shape[0], axis=0),
+         is_path_observations], axis=1)
+    assert is_path_observations.shape == (num_paths, config.ts_length + 1)
+except FileNotFoundError as e:
+    print(e)
+    fQuadSin = FractionalQuadSin(quad_coeff=config.quad_coeff, sin_coeff=config.sin_coeff,
+                                 sin_space_scale=config.sin_space_scale, diff=diff, X0=initial_state)
+    is_path_observations = np.array(
+        [fQuadSin.euler_simulation(H=H, N=config.ts_length, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=initial_state,
+                                   Ms=None, gaussRvs=rvs,
+                                   t0=t0, t1=t1) for _ in (range(num_paths * 10))]).reshape(
+        (num_paths, config.ts_length + 1))
+    np.save(config.data_path, is_path_observations[:, 1:])
+    assert is_path_observations.shape == (num_paths, config.ts_length + 1)
 
 is_idxs = np.arange(is_path_observations.shape[0])
 path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False), :]
