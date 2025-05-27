@@ -19,7 +19,7 @@ def true_drift(prev, num_paths, config):
 
 if __name__ == "__main__":
     config = get_config()
-    num_paths = 10952
+    num_paths = 10240
     t0 = config.t0
     deltaT = config.deltaT
     t1 = deltaT * config.ts_length
@@ -36,7 +36,7 @@ if __name__ == "__main__":
             [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0),
              is_path_observations], axis=1)
         assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
-    except FileNotFoundError as e:
+    except (FileNotFoundError, AssertionError) as e:
         print(e)
         fLnz = FractionalLorenz63(initialState=initial_state, diff=config.diffusion, sigma=config.ts_sigma, beta=config.ts_beta,
                                   rho=config.ts_rho)

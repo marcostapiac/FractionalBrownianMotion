@@ -27,7 +27,7 @@ def rmse_ignore_nans(y_true, y_pred):
 
 config = get_config()
 print(config.deltaT)
-num_paths = 10952
+num_paths = 10240
 num_time_steps = config.ts_length
 isUnitInterval = True
 diff = config.diffusion
@@ -45,7 +45,7 @@ try:
         [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0),
          is_path_observations], axis=1)
     assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
-except FileNotFoundError as e:
+except (FileNotFoundError, AssertionError) as e:
     print(e)
     fMB = FractionalMullerBrown(initialState=np.array(initial_state), X0s=np.array(config.X0s), Y0s=np.array(config.Y0s),
                                 diff=config.diffusion, Aks=np.array(config.Aks),
