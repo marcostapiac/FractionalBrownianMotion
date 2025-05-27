@@ -31,7 +31,7 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 50
     config.lr = 1e-3
-    config.max_epochs = [960, 1440, 1920, 2920, 6920]
+    config.max_epochs = [20000]config.max_epochs = [960, 1440, 1920, 2920, 6920]
     config.batch_size = 256
     config.isfBm = True
     config.isUnitInterval = True
