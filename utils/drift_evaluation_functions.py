@@ -538,8 +538,8 @@ def multivar_score_based_LSTM_drift_OOS(score_model, time_idx, h, c, num_diff_ti
 
 
 def drifttrack_cummse(true, local, deltaT):
-    all_true_states = np.load(true) / np.sqrt(deltaT)
-    all_local_states = np.load(local) / np.sqrt(deltaT)
+    all_true_states = true / np.sqrt(deltaT)
+    all_local_states = local / np.sqrt(deltaT)
     all_local_errors = np.cumsum(np.mean(np.power(all_true_states - all_local_states, 2), axis=(1, 3)),
                                  axis=-1) / np.arange(1, all_local_states.shape[2] + 1)
     total_local_errors = np.mean(all_local_errors, axis=0)
