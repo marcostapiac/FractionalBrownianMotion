@@ -254,6 +254,7 @@ def LSTM_2D_drifts(PM, config):
     assert (final_vec_mu_hats.shape == (Xshape, num_diff_times, num_taus, config.ts_dims))
     return final_vec_mu_hats[:, -es:, :, :]
 
+
 def MLP_2D_drifts(PM, config):
     raise RuntimeError("Implementation not needed or completed\n")
     print("Beta Min : ", config.beta_min)
@@ -409,13 +410,14 @@ def multivar_score_based_LSTM_drift(score_model, num_diff_times, diffusion, num_
 
 
 def multivar_score_based_MLP_drift(score_model, num_diff_times, diffusion, num_paths, prev, ts_step, config,
-                                    device):
+                                   device):
     """ Computes drift using MLP score network when features obtained from in-sample data """
     score_model = score_model.to(device)
     num_taus = 100
     Ndiff_discretisation = config.max_diff_steps
     assert (prev.shape == (num_paths, config.ndims))
-    features_tensor = torch.stack([torch.tensor(prev, dtype=torch.float32) for _ in range(1)], dim=0).reshape(num_paths * 1, 1, -1).to(device)
+    features_tensor = torch.stack([torch.tensor(prev, dtype=torch.float32) for _ in range(1)], dim=0).reshape(
+        num_paths * 1, 1, -1).to(device)
     assert (features_tensor.shape[0] == num_paths)
     vec_Z_taus = diffusion.prior_sampling(shape=(num_paths * num_taus, 1, config.ts_dims)).to(device)
 
@@ -535,9 +537,26 @@ def multivar_score_based_LSTM_drift_OOS(score_model, time_idx, h, c, num_diff_ti
     return means.mean(dim=0).reshape(num_paths, 1, config.ts_dims).cpu().numpy(), h, c
 
 
+def drifttrack_cummse(true, local, deltaT):
+    all_true_states = np.load(true) / np.sqrt(deltaT)
+    all_local_states = np.load(local) / np.sqrt(deltaT)
+    all_local_errors = np.cumsum(np.mean(np.power(all_true_states - all_local_states, 2), axis=(1, 3)),
+                                 axis=-1) / np.arange(1, all_local_states.shape[2] + 1)
+    total_local_errors = np.mean(all_local_errors, axis=0)
+    return total_local_errors[-1]
+
+
+def driftevalexp_mse_ignore_nans(true, pred):
+    assert (true.shape[0] == pred.shape[0])
+    true = true.flatten()
+    pred = pred.flatten()
+    mask = ~np.isnan(true) & ~np.isnan(pred)  # Ignore NaNs in both arrays
+    return np.mean((true[mask] - pred[mask]) ** 2)
+
+
 def multivar_score_based_MLP_drift_OOS(score_model, num_diff_times, diffusion, num_paths, prev,
-                                        ts_step, config,
-                                        device):
+                                       ts_step, config,
+                                       device):
     """ Computes drift using MLP score network when features obtained from LSTM directly """
 
     score_model = score_model.to(device)

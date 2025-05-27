@@ -19,7 +19,8 @@ import numpy as np
 from configs import project_config
 from tqdm import tqdm
 
-from utils.drift_evaluation_functions import MLP_2D_drifts, MLP_1D_drifts, multivar_score_based_MLP_drift_OOS
+from utils.drift_evaluation_functions import MLP_2D_drifts, MLP_1D_drifts, multivar_score_based_MLP_drift_OOS, \
+    drifttrack_cummse, driftevalexp_mse_ignore_nans
 
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
@@ -62,6 +63,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.loss_aggregator = loss_aggregator().to(self.device_id)
         self.loss_factor = loss_factor
         self.deltaT = torch.Tensor([deltaT]).to(self.device_id)
+        self.curr_best_track_mse = np.inf
+        self.curr_best_evalexp_mse = np.inf
 
         self.diffusion = diffusion
         self.train_eps = train_eps
@@ -408,6 +411,17 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             except KeyError as e:
                 print(e)
                 pass
+            try:
+                self.curr_best_evalexp_mse = snapshot["EVALEXP_MSE"]
+            except KeyError as e:
+                print(e)
+                pass
+            try:
+               self.curr_best_track_mse = snapshot["TRACK_MSE"]
+            except KeyError as e:
+                print(e)
+                pass
+
             if type(self.device_id) == int:
                 self.score_network.module.load_state_dict(snapshot["MODEL_STATE"])
             else:
@@ -453,7 +467,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         """
         try:
             snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(),
-                        "SCHEDULER_STATE": self.scheduler.state_dict(), "EWMA_LOSS": self.ewma_loss, "VAR_REG": self.var_loss_reg, "MEAN_REG": self.mean_loss_reg}
+                        "SCHEDULER_STATE": self.scheduler.state_dict(), "EWMA_LOSS": self.ewma_loss, "VAR_REG": self.var_loss_reg, "MEAN_REG": self.mean_loss_reg, "TRACK_MSE": self.curr_best_track_mse, "EVALEXP_MSE":self.curr_best_evalexp_mse}
         except AttributeError as e:
             print(e)
             snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(), "EWMA_LOSS": self.ewma_loss, "VAR_REG": self.var_loss_reg, "MEAN_REG": self.mean_loss_reg}
@@ -466,7 +480,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         torch.save(snapshot, self.snapshot_path)
         print(f"Epoch {epoch + 1} | Training snapshot saved at {self.snapshot_path}\n")
 
-    def _save_model(self, filepath: str, final_epoch: int) -> None:
+    def _save_model(self, filepath: str, final_epoch: int, type: str) -> None:
         """
         Save final trained model
             :param filepath: Filepath to save model
@@ -478,7 +492,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             ckp = self.score_network.to(torch.device("cpu")).module.state_dict()  # Save model on CPU
         else:
             ckp = self.score_network.to(torch.device("cpu")).state_dict()  # Save model on CPU
-        filepath = filepath + "_NEp{}".format(final_epoch)
+        filepath = filepath + f"_{type}BestNEp{final_epoch}"
         torch.save(ckp, filepath)
         print(f"Trained model saved at {filepath}\n")
         self.score_network.to(self.device_id)  # In the event we continue training after saving
@@ -553,6 +567,16 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             final_vec_mu_hats = MLP_2D_drifts(PM=self.score_network.module, config=config)
         else:
             final_vec_mu_hats = MLP_1D_drifts(PM=self.score_network.module, config=config)
+        Xs = torch.linspace(-1.5, 1.5, steps=config.ts_length).numpy()
+        if "BiPot" in config.data_path:
+            true_drifts = -(4. * config.quartic_coeff * np.power(Xs,
+                                                                 3) + 2. * config.quad_coeff * Xs + config.const).numpy()
+        elif "QuadSin" in config.data_path:
+            true_drifts = (-2. * config.quad_coeff * Xs + config.sin_coeff * config.sin_space_scale * np.sin(
+                config.sin_space_scale * Xs)).numpy()
+        elif "SinLog" in config.data_path:
+            true_drifts = (-np.sin(config.sin_space_scale * Xs) * np.log(
+                1 + config.log_space_scale * np.abs(Xs)) / config.sin_space_scale).numpy()
         type = "PM"
         assert (type in config.scoreNet_trained_path)
         assert ("_ST_" in config.scoreNet_trained_path)
@@ -576,6 +600,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         np.save(save_path + "_muhats.npy", final_vec_mu_hats)
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
+        return driftevalexp_mse_ignore_nans(true=true_drifts, pred=final_vec_mu_hats[:, -1, :].reshape(final_vec_mu_hats.shape[0], final_vec_mu_hats.shape[-1]*1).mean(dim=-1).numpy())
+
 
     def _tracking_errors(self, epoch, config):
         def true_drift(prev, num_paths, config):
@@ -703,6 +729,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         np.save(save_path + "_local_states.npy", all_local_states)
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
+        return drifttrack_cummse(true=all_true_states, local=all_local_states, deltaT=config.deltaT)
 
     def train(self, max_epochs: list, model_filename: str, batch_size: int, config) -> None:
         """
@@ -809,16 +836,18 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     float(torch.mean(torch.tensor(all_losses_per_epoch[self.epochs_run:])).cpu().numpy()), float(
                         self.loss_aggregator.compute().item())))
                 print(f"Current Loss {curr_loss}\n")
-                if epoch + 1 in max_epochs:
-                    self._save_snapshot(epoch=epoch)
-                    self._save_loss(losses=all_losses_per_epoch, learning_rates=learning_rates, filepath=model_filename)
-                    self._save_model(filepath=model_filename, final_epoch=epoch + 1)
-                elif (epoch + 1) % self.save_every == 0:
+                if (epoch + 1) % self.save_every == 0:
                     self._save_loss(losses=all_losses_per_epoch, learning_rates=learning_rates, filepath=model_filename)
                     self._save_snapshot(epoch=epoch)
-                    self._tracking_errors(epoch=epoch + 1, config=config)
+                    track_mse = self._tracking_errors(epoch=epoch + 1, config=config)
+                    if track_mse < self.curr_best_track_mse:
+                        self._save_model(filepath=model_filename, final_epoch=epoch + 1, type="DriftTrack")
+                        self.curr_best_track_mse = track_mse
                     if config.ndims <= 2:
-                        self._domain_rmse(config=config, epoch=epoch + 1)
+                        evalexp_mse = self._domain_rmse(config=config, epoch=epoch + 1)
+                        if evalexp_mse < self.curr_best_evalexp_mse:
+                            self._save_model(filepath=model_filename, final_epoch=epoch + 1, type="DriftEvalExp")
+                            self.curr_best_evalexp_mse = evalexp_mse
             if type(self.device_id) == int: dist.barrier()
             print(f"Calibrating Regulatisation: Base {average_base_loss_per_epoch}, Var {average_var_loss_per_epoch}, Mean {average_mean_loss_per_epoch}\n")
 
