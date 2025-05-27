@@ -817,7 +817,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     self._save_loss(losses=all_losses_per_epoch, learning_rates=learning_rates, filepath=model_filename)
                     self._save_snapshot(epoch=epoch)
                     self._tracking_errors(epoch=epoch + 1, config=config)
-                    if "Lnz" not in config.data_path:
+                    if config.ndims <= 2:
                         self._domain_rmse(config=config, epoch=epoch + 1)
             if type(self.device_id) == int: dist.barrier()
             print(f"Calibrating Regulatisation: Base {average_base_loss_per_epoch}, Var {average_var_loss_per_epoch}, Mean {average_mean_loss_per_epoch}\n")
