@@ -46,7 +46,7 @@ try:
         [np.repeat(np.array(config.initState).reshape((1, 1)), is_path_observations.shape[0], axis=0),
          is_path_observations], axis=1)
     assert is_path_observations.shape == (num_paths, config.ts_length + 1)
-except FileNotFoundError as e:
+except (FileNotFoundError, AssertionError) as e:
     print(e)
     fBiPot = FractionalBiPotential(num_dims=config.ndims, const=config.const, quartic_coeff=config.quartic_coeff, quad_coeff=config.quad_coeff,
                                    diff=diff, X0=initial_state)

@@ -23,14 +23,22 @@ H = config.hurst
 deltaT = config.deltaT
 t0 = config.t0
 t1 = deltaT * num_time_steps
-
-fQuadSin = FractionalQuadSin(quad_coeff=config.quad_coeff, sin_coeff=config.sin_coeff,
-                             sin_space_scale=config.sin_space_scale, diff=diff, X0=initial_state)
-paths = np.array(
-    [fQuadSin.euler_simulation(H=H, N=num_time_steps, deltaT=deltaT, isUnitInterval=isUnitInterval,
-                               X0=initial_state, Ms=None, gaussRvs=rvs,
-                               t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
-    (num_paths, num_time_steps + 1))
+try:
+    paths = np.load(config.data_path, allow_pickle=True)[:num_paths, :]
+    paths = np.concatenate(
+        [np.repeat(np.array(config.initState).reshape((1, 1)), paths.shape[0], axis=0),
+         paths], axis=1)
+    assert paths.shape == (num_paths, config.ts_length + 1)
+except (FileNotFoundError, AssertionError) as e:
+    fQuadSin = FractionalQuadSin(quad_coeff=config.quad_coeff, sin_coeff=config.sin_coeff,
+                                 sin_space_scale=config.sin_space_scale, diff=diff, X0=initial_state)
+    paths = np.array(
+        [fQuadSin.euler_simulation(H=H, N=num_time_steps, deltaT=deltaT, isUnitInterval=isUnitInterval,
+                                   X0=initial_state, Ms=None, gaussRvs=rvs,
+                                   t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
+        (num_paths, num_time_steps + 1))
+    np.save(config.data_path, paths[:, 1:])
+    assert paths.shape == (num_paths, config.ts_length + 1)
 
 
 def hermite_basis(R, paths):

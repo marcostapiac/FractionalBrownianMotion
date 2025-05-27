@@ -35,7 +35,7 @@ if __name__ == "__main__":
             [np.repeat(np.array(config.initState).reshape((1, 1)), is_path_observations.shape[0], axis=0),
              is_path_observations], axis=1)
         assert is_path_observations.shape == (num_paths, config.ts_length + 1)
-    except FileNotFoundError as e:
+    except (FileNotFoundError, AssertionError) as e:
         print(e)
         fQuadSin = FractionalQuadSin(quad_coeff=config.quad_coeff, sin_coeff=config.sin_coeff,
                                      sin_space_scale=config.sin_space_scale, diff=diff, X0=initial_state)

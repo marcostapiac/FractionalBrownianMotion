@@ -34,7 +34,7 @@ if __name__ == "__main__":
             [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0),
              is_path_observations], axis=1)
         assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
-    except FileNotFoundError as e:
+    except (FileNotFoundError, AssertionError) as e:
         print(e)
         fLnz = FractionalLorenz96(X0=config.initState, diff=config.diffusion, num_dims=config.ndims,
                                   forcing_const=config.forcing_const)
