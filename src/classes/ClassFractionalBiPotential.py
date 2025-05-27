@@ -7,13 +7,22 @@ from tqdm import tqdm
 
 class FractionalBiPotential:
 
-    def __init__(self, const: float, quartic_coeff: float, quad_coeff: float, diff: float, X0: float = 0,
+    def __init__(self, num_dims:int, const: float, quartic_coeff: float, quad_coeff: float, diff: float, X0,
                  rng: np.random.Generator = np.random.default_rng()):
-        self.const = const
-        self.quartic_coeff = quartic_coeff
-        self.quad_coeff = quad_coeff
+        assert (num_dims >= 1)
+        self.ndims = num_dims
+
+        if self.ndims == 1:
+            self.const = const
+            self.quartic_coeff = quartic_coeff
+            self.quad_coeff = quad_coeff
+            self.initialVol = X0
+        else:
+            self.const = np.array(const)
+            self.quartic_coeff = np.array(quartic_coeff)
+            self.quad_coeff = np.array(quad_coeff)
+            self.initialVol = np.array(X0)
         self.diff = diff
-        self.initialVol = X0
         self.rng = rng
         self.gaussIncs = None
 
@@ -45,10 +54,10 @@ class FractionalBiPotential:
         return prev + driftX * deltaT + diffX
 
     def euler_simulation(self, H: float, N: int, isUnitInterval: bool, t0: float, t1: float, deltaT: float,
-                         X0: float = None, Ms: np.ndarray = None,
+                         X0 = None, Ms: np.ndarray = None,
                          gaussRvs: np.ndarray = None):
-        #assert ((isUnitInterval and t0 == 0. and t1 == 1.) or ((not isUnitInterval) and t0 == 0. and t1 != 1.))
         time_ax = np.arange(start=t0, stop=t1 + deltaT, step=deltaT)
+        if t1==1: assert (isUnitInterval == True)
         assert (time_ax[-1] == t1 and time_ax[0] == t0)
         if X0 is None:
             Zs = [self.initialVol]  # [self.lamperti(self.initialVol)]

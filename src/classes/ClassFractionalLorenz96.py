@@ -41,6 +41,7 @@ class FractionalLorenz96:
                          Ms: np.ndarray = None, gaussRvs: np.ndarray = None):
         time_ax = np.arange(start=t0, stop=t1 + deltaT, step=deltaT)
         assert (time_ax[-1] == t1 and time_ax[0] == t0)
+        isUnitInterval = True if np.allclose(t1, 1.) else False
         if X0 is None:
             Zs = [self.initialVol]  # [self.lamperti(self.initialVol)]
         else:

@@ -36,7 +36,7 @@ if __name__ == '__main__':
         print(is_path_observations.shape, num_paths, config.ts_length + 1)
         assert is_path_observations.shape == (num_paths, config.ts_length + 1)
     except FileNotFoundError as e:
-        fBiPot = FractionalBiPotential(const=config.const, quartic_coeff=config.quartic_coeff, quad_coeff=config.quad_coeff,
+        fBiPot = FractionalBiPotential(num_dims=config.ndims, const=config.const, quartic_coeff=config.quartic_coeff, quad_coeff=config.quad_coeff,
                                        diff=diff, X0=initial_state)
         is_path_observations = np.array(
             [fBiPot.euler_simulation(H=H, N=num_time_steps, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=initial_state,
