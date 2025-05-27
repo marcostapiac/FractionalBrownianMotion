@@ -480,7 +480,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         torch.save(snapshot, self.snapshot_path)
         print(f"Epoch {epoch + 1} | Training snapshot saved at {self.snapshot_path}\n")
 
-    def _save_model(self, filepath: str, final_epoch: int, type: str) -> None:
+    def _save_model(self, filepath: str, final_epoch: int, save_type: str) -> None:
         """
         Save final trained model
             :param filepath: Filepath to save model
@@ -492,7 +492,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             ckp = self.score_network.to(torch.device("cpu")).module.state_dict()  # Save model on CPU
         else:
             ckp = self.score_network.to(torch.device("cpu")).state_dict()  # Save model on CPU
-        filepath = filepath + f"_{type}BestNEp{final_epoch}"
+        filepath = filepath + f"_{save_type}BestNEp{final_epoch}"
         torch.save(ckp, filepath)
         print(f"Trained model saved at {filepath}\n")
         self.score_network.to(self.device_id)  # In the event we continue training after saving
@@ -841,12 +841,12 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     self._save_snapshot(epoch=epoch)
                     track_mse = self._tracking_errors(epoch=epoch + 1, config=config)
                     if track_mse < self.curr_best_track_mse and (epoch + 1) >= 250:
-                        self._save_model(filepath=model_filename, final_epoch=epoch + 1, type="DriftTrack")
+                        self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="DriftTrack")
                         self.curr_best_track_mse = track_mse
                     if config.ndims <= 2:
                         evalexp_mse = self._domain_rmse(config=config, epoch=epoch + 1)
                         if evalexp_mse < self.curr_best_evalexp_mse and (epoch + 1) >= 250:
-                            self._save_model(filepath=model_filename, final_epoch=epoch + 1, type="DriftEvalExp")
+                            self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="DriftEvalExp")
                             self.curr_best_evalexp_mse = evalexp_mse
             if type(self.device_id) == int: dist.barrier()
             print(f"Calibrating Regulatisation: Base {average_base_loss_per_epoch}, Var {average_var_loss_per_epoch}, Mean {average_mean_loss_per_epoch}\n")
