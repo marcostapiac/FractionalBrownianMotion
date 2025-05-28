@@ -492,7 +492,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             ckp = self.score_network.to(torch.device("cpu")).module.state_dict()  # Save model on CPU
         else:
             ckp = self.score_network.to(torch.device("cpu")).state_dict()  # Save model on CPU
-        filepath = filepath + f"_{save_type}BNEp{final_epoch}"
+        filepath = filepath + f"_{save_type}NEp{final_epoch}"
         torch.save(ckp, filepath)
         print(f"Trained model saved at {filepath}\n")
         self.score_network.to(self.device_id)  # In the event we continue training after saving
