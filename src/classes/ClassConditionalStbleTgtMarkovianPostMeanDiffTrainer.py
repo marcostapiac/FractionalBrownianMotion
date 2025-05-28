@@ -578,13 +578,13 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         Xs = torch.linspace(-1.5, 1.5, steps=config.ts_length).numpy()
         if "BiPot" in config.data_path:
             true_drifts = -(4. * config.quartic_coeff * np.power(Xs,
-                                                                 3) + 2. * config.quad_coeff * Xs + config.const).numpy()
+                                                                 3) + 2. * config.quad_coeff * Xs + config.const)
         elif "QuadSin" in config.data_path:
             true_drifts = (-2. * config.quad_coeff * Xs + config.sin_coeff * config.sin_space_scale * np.sin(
-                config.sin_space_scale * Xs)).numpy()
+                config.sin_space_scale * Xs))
         elif "SinLog" in config.data_path:
             true_drifts = (-np.sin(config.sin_space_scale * Xs) * np.log(
-                1 + config.log_space_scale * np.abs(Xs)) / config.sin_space_scale).numpy()
+                1 + config.log_space_scale * np.abs(Xs)) / config.sin_space_scale)
         type = "PM"
         assert (type in config.scoreNet_trained_path)
         assert ("_ST_" in config.scoreNet_trained_path)
