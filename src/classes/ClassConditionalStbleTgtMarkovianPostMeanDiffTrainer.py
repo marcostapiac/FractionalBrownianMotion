@@ -858,5 +858,5 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                             self.curr_best_evalexp_mse = evalexp_mse
             if type(self.device_id) == int: dist.barrier()
             print(f"Calibrating Regulatisation: Base {average_base_loss_per_epoch}, Var {average_var_loss_per_epoch}, Mean {average_mean_loss_per_epoch}\n")
-            print(f"TrackMSE: {self.curr_best_track_mse}\n")
+            print(f"TrackMSE, EvalExpMSE: {self.curr_best_track_mse, self.curr_best_evalexp_mse}\n")
 
