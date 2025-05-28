@@ -608,7 +608,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         np.save(save_path + "_muhats.npy", final_vec_mu_hats)
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
-        return driftevalexp_mse_ignore_nans(true=true_drifts, pred=final_vec_mu_hats[:, -1, :].reshape(final_vec_mu_hats.shape[0], final_vec_mu_hats.shape[-1]*1).mean(dim=-1).numpy())
+        return driftevalexp_mse_ignore_nans(true=true_drifts, pred=final_vec_mu_hats[:, -1, :].reshape(final_vec_mu_hats.shape[0], final_vec_mu_hats.shape[-1]*1).mean(axis=-1))
 
 
     def _tracking_errors(self, epoch, config):
