@@ -207,8 +207,8 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
 
         self.mlp_state_mapper = MLPStateMapper(ts_input_dim=ts_dims, hidden_dim=mlp_hidden_dims, target_dims=condupsampler_length)
         self.cond_upsampler = CondUpsampler(
-            target_dim=1, cond_length=condupsampler_length
-        )
+            target_dim=ts_dims, cond_length=condupsampler_length
+        )#target_dim = 1 or target_dim = ts_dims
         self.residual_layers = nn.ModuleList(
             [
                 ResidualBlock(
