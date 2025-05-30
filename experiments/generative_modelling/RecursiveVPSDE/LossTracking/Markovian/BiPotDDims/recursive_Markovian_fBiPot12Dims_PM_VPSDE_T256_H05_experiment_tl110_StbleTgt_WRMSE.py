@@ -14,12 +14,12 @@ from utils.math_functions import generate_fBiPot
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.Markovian_fBiPotDDims.recursive_Markovian_PostMeanScore_fBiPotDDims_T256_H05_tl_110data_StbleTgt_WRMSE import \
+    from configs.RecursiveVPSDE.Markovian_fBiPotDDims.recursive_Markovian_PostMeanScore_fBiPot12Dims_T256_H05_tl_110data_StbleTgt_WRMSE import \
         get_config
 
     config = get_config()
     assert (config.hurst == 0.5)
-    assert (config.ndims == 8)
+    assert (config.ndims == 12)
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 110)
     print(config.scoreNet_trained_path, config.dataSize)
