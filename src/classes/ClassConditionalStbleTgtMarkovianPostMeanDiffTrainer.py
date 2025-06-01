@@ -661,16 +661,16 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
         diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
         num_diff_times = 1
-        rmse_quantile_nums = 20
+        rmse_quantile_nums = 10
         num_paths = 100
-        num_time_steps = 100
+        num_time_steps = 256
         all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         # all_global_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         all_local_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         for quant_idx in tqdm(range(rmse_quantile_nums)):
             self.score_network.module.eval()
             num_paths = 100
-            num_time_steps = 100
+            num_time_steps = 256
             deltaT = config.deltaT
             initial_state = np.repeat(np.atleast_2d(config.initState)[np.newaxis, :], num_paths, axis=0)
             assert (initial_state.shape == (num_paths, 1, config.ndims))

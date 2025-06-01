@@ -72,9 +72,9 @@ if __name__ == "__main__":
     np.copyto(prevPath_shm_array, prevPath_observations)
     np.copyto(path_incs_shm_array, path_incs)
 
-    num_time_steps = 100
+    num_time_steps = 256
     num_state_paths = 100
-    rmse_quantile_nums = 20
+    rmse_quantile_nums = 10
     # Euler-Maruyama Scheme for Tracking Errors
     shape = prevPath_observations.shape
     for bw_idx in tqdm(range(bws.shape[0])):

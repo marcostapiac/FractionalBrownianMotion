@@ -4,7 +4,7 @@ from tqdm import tqdm
 from configs import project_config
 import multiprocessing as mp
 from multiprocessing import shared_memory
-from configs.RecursiveVPSDE.Markovian_fBiPotDDims.recursive_Markovian_PostMeanScore_fBiPotDDims_T256_H05_tl_110data_StbleTgt_WRMSE import \
+from configs.RecursiveVPSDE.Markovian_fBiPotDDims.recursive_Markovian_PostMeanScore_fBiPot8Dims_T256_H05_tl_110data_StbleTgt_WRMSE import \
         get_config
 from src.classes.ClassFractionalBiPotential import FractionalBiPotential
 from utils.drift_evaluation_functions import IID_NW_multivar_estimator, process_IID_bandwidth
@@ -72,9 +72,9 @@ if __name__ == "__main__":
     np.copyto(prevPath_shm_array, prevPath_observations)
     np.copyto(path_incs_shm_array, path_incs)
 
-    num_time_steps = 100
+    num_time_steps = 256
     num_state_paths = 100
-    rmse_quantile_nums = 20
+    rmse_quantile_nums = 10
     # Euler-Maruyama Scheme for Tracking Errors
     shape = prevPath_observations.shape
     for bw_idx in tqdm(range(bws.shape[0])):
