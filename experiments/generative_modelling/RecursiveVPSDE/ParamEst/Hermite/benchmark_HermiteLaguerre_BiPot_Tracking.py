@@ -55,9 +55,9 @@ if __name__ == "__main__":
     # Copy the data into the shared memory arrays
     np.copyto(prevPath_shm_array, paths)
 
-    num_time_steps = 100
+    num_time_steps = 256
     num_state_paths = 100
-    rmse_quantile_nums = 20
+    rmse_quantile_nums = 10
     # Euler-Maruyama Scheme for Tracking Errors
     shape = paths.shape
     Rs = np.array([2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12])
