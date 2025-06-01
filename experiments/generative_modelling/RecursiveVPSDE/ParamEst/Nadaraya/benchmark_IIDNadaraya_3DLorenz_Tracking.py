@@ -3,7 +3,7 @@ from configs import project_config
 from tqdm import tqdm
 import multiprocessing as mp
 from multiprocessing import shared_memory
-from configs.RecursiveVPSDE.LSTM_3DLorenz.recursive_LSTM_PostMeanScore_3DLorenz_T256_H05_tl_110data import get_config
+from configs.RecursiveVPSDE.Markovian_3DLorenz.recursive_Markovian_PostMeanScore_3DLorenz_T256_H05_tl_110data import get_config
 from src.classes.ClassFractionalLorenz63 import FractionalLorenz63
 from utils.drift_evaluation_functions import process_IID_bandwidth
 
