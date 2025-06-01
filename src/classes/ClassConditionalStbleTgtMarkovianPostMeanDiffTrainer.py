@@ -757,7 +757,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             model_filename)  # This will contain synchronised losses
         end_epoch = max(max_epochs)
         self.ewma_loss = 0.  # Force recomputation of EWMA losses each time
-        self.curr_best_track_mse = np.inf # Force recomputation once
+        #self.curr_best_track_mse = np.inf # Force recomputation once
         for epoch in range(self.epochs_run, end_epoch):
             t0 = time.time()
             # Temperature annealing for gumbel softmax
