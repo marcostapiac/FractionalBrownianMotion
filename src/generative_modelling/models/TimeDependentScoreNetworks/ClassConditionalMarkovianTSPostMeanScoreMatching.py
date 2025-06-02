@@ -122,9 +122,9 @@ class CondUpsampler(nn.Module):
         return x
 
 class HybridStates(nn.Module):
-    def __init__(self, D, M, init_tau=1., final_tau=0.5):
+    def __init__(self, D, M, init_tau=1., final_tau=1.):
         super().__init__()
-        # TODO: CHANGE FINAL_TAU TO 0.5 AFTER 12DLNZ EXPERIMENT
+        # TODO: CHANGE FINAL_TAU TO 0.5 AFTER 12DLNZ AND DDIMS EXPERIMENTS
         self.W = nn.Parameter(torch.randn(M, D))  # No fixed scaling factor
         self.b = nn.Parameter(2 * torch.pi * torch.rand(M))
         mu, sigma = math.log(10.), 2.0
