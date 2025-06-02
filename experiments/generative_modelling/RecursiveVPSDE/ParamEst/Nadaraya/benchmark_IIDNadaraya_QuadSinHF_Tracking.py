@@ -18,7 +18,7 @@ def true_drift(prev, num_paths, config):
 if __name__ == "__main__":
     config = get_config()
 
-    num_paths = 10937
+    num_paths = 10240
     num_time_steps = config.ts_length
     isUnitInterval = True
     diff = config.diffusion
