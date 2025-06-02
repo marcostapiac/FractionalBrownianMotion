@@ -122,8 +122,9 @@ class CondUpsampler(nn.Module):
         return x
 
 class HybridStates(nn.Module):
-    def __init__(self, D, M, init_tau=1., final_tau=0.5):
+    def __init__(self, D, M, init_tau=1., final_tau=1):
         super().__init__()
+        # TODO: CHANGE FINAL_TAU TO 0.5 AFTER 12DLNZ EXPERIMENT
         self.W = nn.Parameter(torch.randn(M, D))  # No fixed scaling factor
         self.b = nn.Parameter(2 * torch.pi * torch.rand(M))
         mu, sigma = math.log(10.), 2.0
@@ -149,6 +150,7 @@ class HybridStates(nn.Module):
 
         # TRAIN vs EVAL for Gumbel
         if self.training:
+            print(f"Used temp annealing {self.tau}\n")
             u = torch.rand_like(self.gate_logits).clamp(1e-6, 1 - 1e-6)
             gumbel = -torch.log(-torch.log(u))
             logits = self.gate_logits + gumbel
