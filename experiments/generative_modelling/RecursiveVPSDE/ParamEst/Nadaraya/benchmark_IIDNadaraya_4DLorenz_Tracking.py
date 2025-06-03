@@ -58,7 +58,7 @@ if __name__ == "__main__":
     assert (path_incs.shape[1] == config.ts_length - 1)
     assert (path_observations.shape[1] == prevPath_observations.shape[1] + 2)
     assert (prevPath_observations.shape[1] * deltaT == (t1 - t0))
-    grid_1d = np.logspace(-4, -0.05, 40)
+    grid_1d = np.logspace(-4, -1, 40)
     bws = np.stack([grid_1d for m in range(config.ndims)], axis=-1)
     assert (bws.shape == (40, config.ndims))
 
