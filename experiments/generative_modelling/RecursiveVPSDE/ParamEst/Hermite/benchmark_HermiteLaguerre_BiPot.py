@@ -6,7 +6,7 @@ import numpy as np
 import math
 from scipy.special import eval_laguerre
 from src.classes.ClassFractionalBiPotential import FractionalBiPotential
-from configs.RecursiveVPSDE.Markovian_fBiPot.recursive_Markovian_PostMeanScore_fBiPot_T256_H05_tl_110data import get_config
+from configs.RecursiveVPSDE.Markovian_fBiPot.recursive_Markovian_PostMeanScore_fBiPot_T256_H05_tl_110data_StbleTgt_WRMSE import get_config
 
 
 # # From Nonparametric drift estimation for IID paths of SDE (Comte et al 2020)

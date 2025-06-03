@@ -6,7 +6,7 @@ from configs import project_config
 import multiprocessing as mp
 import numpy as np
 from src.classes.ClassFractionalBiPotential import FractionalBiPotential
-from configs.RecursiveVPSDE.Markovian_fBiPot.recursive_Markovian_PostMeanScore_fBiPot_T256_H05_tl_110data import get_config
+from configs.RecursiveVPSDE.Markovian_fBiPot.recursive_Markovian_PostMeanScore_fBiPot_T256_H05_tl_110data_StbleTgt_WRMSE import get_config
 from tqdm import tqdm
 
 from utils.drift_evaluation_functions import process_single_R_hermite
