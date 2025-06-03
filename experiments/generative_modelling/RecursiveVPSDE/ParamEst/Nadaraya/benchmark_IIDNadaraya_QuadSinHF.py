@@ -11,7 +11,7 @@ from scipy.stats import norm
 
 from configs import project_config
 from src.classes.ClassFractionalQuadSin import FractionalQuadSin
-from configs.RecursiveVPSDE.Markovian_fQuadSinHF.recursive_Markovian_PostMeanScore_fQuadSinHF_T256_H05_tl_110data import \
+from configs.RecursiveVPSDE.Markovian_fQuadSinHF.recursive_Markovian_PostMeanScore_fQuadSinHF2_HighFTh_T256_H05_tl_110data_StbleTgt_WRMSE import \
     get_config
 
 
