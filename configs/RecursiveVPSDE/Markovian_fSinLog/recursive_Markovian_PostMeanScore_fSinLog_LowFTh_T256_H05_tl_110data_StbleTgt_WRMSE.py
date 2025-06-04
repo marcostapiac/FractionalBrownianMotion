@@ -12,19 +12,16 @@ def get_config():
     # Data set parameters
     config.ndims = 1
     config.hurst = 0.5
-    config.quad_coeff = .5
-    assert(config.quad_coeff > 0.)
-    config.sin_coeff = 1./25.
-    config.sin_space_scale = 25.
     config.diffusion = 1.
     config.initState = 0.
     config.ts_length = 256
     config.t0 = 0.
     config.deltaT = 1./(256)
     config.t1 = config.deltaT*config.ts_length
-
-    config.data_path = project_config.ROOT_DIR + "data/fQuadSinHF_samples_t0{:g}_dT{:.3e}_T{}_{}a_{}b_{}c_{}Diff_{}Init".format(
-        config.t0, config.deltaT, config.ts_length, config.quad_coeff, config.sin_coeff, config.sin_space_scale,
+    config.sin_space_scale = 2.
+    config.log_space_scale = 5.
+    config.data_path = project_config.ROOT_DIR + "data/fSinLog_samples_t0{:g}_dT{:.3e}_T{}_{}b_{}c_{}Diff_{}Init".format(
+        config.t0, config.deltaT, config.ts_length,config.log_space_scale, config.sin_space_scale,
         config.diffusion, config.initState).replace(
         ".", "") + ".npy"
 
@@ -35,7 +32,6 @@ def get_config():
     config.save_freq = 2
     config.lr = 1e-3
     config.max_epochs = [20000]
-    config.max_epochs = [60, 100, 150, 300, 960, 1440, 1920, 2920, 6920, 7190, 8190, 9700, 12920, 28920]
     config.ref_batch_size = 2048
     config.batch_size = 128
     config.chunk_size = 512
@@ -59,7 +55,7 @@ def get_config():
     config.diff_hidden_size = 64
     config.dialation_length = 10
 
-    # MLP Architecture parameters 
+    # MLP Architecture parameters
     config.mlp_hidden_dims = 4
     config.condupsampler_length = 20
 
@@ -72,21 +68,21 @@ def get_config():
             config.lstm_dropout > 0 and config.lstm_numlay > 1))
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_ST_{:.3f}FTh_PM_MLP_{}LFac_fQuadSinHF_1FT_VPSDE_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_{}a_{}b_{}c_MLP_H{}_CUp{}_tl{}".format(
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_ST_{:.3f}FTh_PM_MLP_{}LFac_fSinLog_1FT_VPSDE_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_{}b_{}c_MLP_H{}_CUp{}_tl{}".format(
         config.feat_thresh, config.loss_factor, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings, config.t0, config.deltaT,
-        config.quad_coeff, config.sin_coeff, config.sin_space_scale, config.mlp_hidden_dims, config.condupsampler_length, config.tdata_mult).replace(".", "")
-
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_ST_{:.3f}FTh_PM_TSM_{}LFac_fQuadSinHF_1FT_VPSDE_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_{}a_{}b_{}c_LSTM_H{}_Nly{}_tl{}".format(
+        config.log_space_scale, config.sin_space_scale, config.mlp_hidden_dims, config.condupsampler_length, config.tdata_mult).replace(".", "")
+    # RLRP is for reduce LR on plateau (to remove when we compare with same without reduceLR on plateau)
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_ST_{:.3f}FTh_RLRP_PM_TSM_{}LFac_1FT_fSinLog_VPSDE_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_{}b_{}c_LSTM_H{}_Nly{}_tl{}".format(
         config.feat_thresh, config.loss_factor, config.hurst,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings, config.t0, config.deltaT,
-        config.quad_coeff, config.sin_coeff, config.sin_space_scale, config.lstm_hiddendim, config.lstm_numlay, config.tdata_mult).replace(".", "")
+        config.log_space_scale, config.sin_space_scale, config.lstm_hiddendim, config.lstm_numlay, config.tdata_mult).replace(".", "")
 
     config.model_choice = "MLP"
     config.scoreNet_trained_path = tsmFileName if config.model_choice == "TSM" else mlpFileName
