@@ -117,7 +117,7 @@ def compute_cv_for_bw(_bw):
     return np.sum(cvs)
 
 
-bws = np.logspace(-4, -1, 20)
+bws = np.logspace(-4, -1, 40)
 # CVs = np.zeros(len(bws))
 # for h in tqdm(range(bws.shape[0])):
 #    CVs[h] = compute_cv_for_bw(bws[h])
