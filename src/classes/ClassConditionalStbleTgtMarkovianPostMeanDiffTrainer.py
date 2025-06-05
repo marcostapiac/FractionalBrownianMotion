@@ -813,7 +813,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
             ratio = (.75 * average_base_loss_per_epoch) / (average_mean_loss_per_epoch + 1e-12)
             self.mean_loss_reg = min(ratio, 0.005/config.ts_dims) # vs 0.01
-            print(ratio, 0.005/config.ts_dims, self.mean_loss_reg)
 
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
             # see  https://github.com/Lightning-AI/torchmetrics/issues/626
