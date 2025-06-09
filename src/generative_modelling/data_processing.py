@@ -42,8 +42,6 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP im
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTSScoreMatching import \
     TSScoreMatching
 from utils.math_functions import compute_sig_size
-
-
 def prepare_scoreModel_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> DataLoader:
     """
     Split data into train, eval, test sets and create DataLoaders for training

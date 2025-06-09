@@ -6,14 +6,14 @@ import torch
 from src.classes.ClassConditionalStbleTgtMarkovianPostMeanDiffTrainer import ConditionalStbleTgtMarkovianPostMeanDiffTrainer
 from src.generative_modelling.data_processing import train_and_save_recursive_diffusion_model
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
-    ConditionalMarkovianTSPostMeanScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatchingWithAttention import \
+    ConditionalMarkovianTSPostMeanScoreMatchingWithAttention
 from utils.data_processing import init_experiment, cleanup_experiment
 from utils.math_functions import generate_Lorenz96
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.Markovian_4DLorenz.recursive_Markovian_PostMeanScore_4DLorenz_T256_H05_tl_110data_StbleTgt import \
+    from configs.RecursiveVPSDE.Markovian_12DLorenz.recursive_Markovian_PostMeanScore_12DLorenz_T256_H05_tl_110data_StbleTgt_WAttn import \
         get_config
 
     config = get_config()
@@ -21,10 +21,10 @@ if __name__ == "__main__":
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 110)
     assert (config.forcing_const == 0.75)
-    assert (config.ndims == 4)
+    assert (config.ndims == 12)
     print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()
-    scoreModel = ConditionalMarkovianTSPostMeanScoreMatching(
+    scoreModel = ConditionalMarkovianTSPostMeanScoreMatchingWithAttention(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
 
@@ -39,6 +39,7 @@ if __name__ == "__main__":
                         config.ts_length - 1)), 1200000)))
         training_size -= (training_size % config.ref_batch_size)
         print(training_size)
+        training_size = 10240
         try:
             data = np.load(config.data_path, allow_pickle=True)
             assert (data.shape[0] >= training_size)
