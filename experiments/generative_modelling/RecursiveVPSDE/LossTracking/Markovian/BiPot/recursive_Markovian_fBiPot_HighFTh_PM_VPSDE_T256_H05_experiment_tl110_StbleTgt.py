@@ -14,14 +14,14 @@ from utils.math_functions import generate_fBiPot
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.Markovian_fBiPot.recursive_Markovian_PostMeanScore_fBiPot_LowFTh_T256_H05_tl_110data_StbleTgt_WRMSE import \
+    from configs.RecursiveVPSDE.Markovian_fBiPot.recursive_Markovian_PostMeanScore_fBiPot_HighFTh_T256_H05_tl_110data_StbleTgt import \
         get_config
 
     config = get_config()
     assert (config.hurst == 0.5)
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 110)
-    assert (config.feat_thresh == 1./500.)
+    assert (config.feat_thresh == 1./50.)
     print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()
     scoreModel = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters)
