@@ -178,22 +178,24 @@ class FeatureSelfAttention(nn.Module):
         x: [batch, D]
         returns: [batch, D]  — each output feature is a weighted sum of all input features
         """
-        # project
-        Q = self.to_q(x)  # [batch, D]
-        K = self.to_k(x)  # [batch, D]
-        V = self.to_v(x)  # [batch, D]
+        # project to queries, keys, values
+        Q = self.to_q(x)   # [batch, D]
+        K = self.to_k(x)   # [batch, D]
+        V = self.to_v(x)   # [batch, D]
 
-        # compute (batch, Q_i · K_j) / sqrt(D)  →  [batch, D, D]
-        attn_logits = torch.einsum('bd,cd->bcd', Q, K) * self.scale
+        # compute per-sample attention: [batch, D, D]
+        attn_logits = torch.bmm(
+            Q.unsqueeze(2),  # [batch, D, 1]
+            K.unsqueeze(1)   # [batch, 1, D]
+        ) * self.scale
 
-        # normalize across “key” dim (j)
+        # softmax over key dimension (last dim)
         attn = torch.softmax(attn_logits, dim=-1)  # [batch, D, D]
 
-        # attend and collapse
-        out = torch.einsum('bcd,bd->bc', attn, V)  # [batch, D]
+        # apply attention to V: [batch, D, 1] -> squeeze -> [batch, D]
+        out = torch.bmm(attn, V.unsqueeze(2)).squeeze(2)  # [batch, D]
+
         return out
-
-
 class MLPStateMapper(nn.Module):
     def __init__(self, ts_input_dim: int, hidden_dim: int, target_dims: int):
         super().__init__()
