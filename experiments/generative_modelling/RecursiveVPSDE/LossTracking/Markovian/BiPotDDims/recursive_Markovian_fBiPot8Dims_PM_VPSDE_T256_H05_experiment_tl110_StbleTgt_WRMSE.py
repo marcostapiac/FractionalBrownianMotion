@@ -14,7 +14,7 @@ from utils.math_functions import generate_fBiPot
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.Markovian_fBiPotDDims.recursive_Markovian_PostMeanScore_fBiPot8Dims_T256_H05_tl_110data_StbleTgt_WRMSE import \
+    from configs.RecursiveVPSDE.Markovian_fBiPotDDims.recursive_Markovian_PostMeanScore_fBiPot8Dims_T256_H05_tl_110data_StbleTgt import \
         get_config
 
     config = get_config()
