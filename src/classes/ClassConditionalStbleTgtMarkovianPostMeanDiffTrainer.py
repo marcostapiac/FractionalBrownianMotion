@@ -760,7 +760,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
         mse = drifttrack_cummse(true=all_true_states, local=all_local_states, deltaT=config.deltaT)
-        print(f"Best vs Current MSE {mse}, {self.curr_best_track_mse} at Epoch {epoch}\n")
+        print(f"Current vs Best MSE {mse}, {self.curr_best_track_mse} at Epoch {epoch}\n")
         return mse
 
     def train(self, max_epochs: list, model_filename: str, batch_size: int, config) -> None:
