@@ -124,7 +124,6 @@ class CondUpsampler(nn.Module):
 class HybridStates(nn.Module):
     def __init__(self, D, M, init_tau=1., final_tau=1.):
         super().__init__()
-        # TODO: CHANGE FINAL_TAU TO 0.5 AFTER 12DLNZ, 8DLNZ AND DDIMS EXPERIMENTS
         self.W = nn.Parameter(torch.randn(M, D))  # No fixed scaling factor
         self.b = nn.Parameter(2 * torch.pi * torch.rand(M))
         mu, sigma = math.log(10.), 2.0
@@ -159,8 +158,6 @@ class HybridStates(nn.Module):
             logits = self.gate_logits  # no noise at inference
             g = torch.sigmoid(logits / self.final_tau).unsqueeze(0)  # [1, 2M]
         gated_fourier = g * fourier                      # [batch, 2M]
-        print(f"Gated Fourier {g}\n")
-        print(f"Learnt Scales {scales}\n")
         return gated_fourier
 
 class MLPStateMapper(nn.Module):

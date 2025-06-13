@@ -588,26 +588,27 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         type = "PM"
         assert (type in config.scoreNet_trained_path)
         assert ("_ST_" in config.scoreNet_trained_path)
+        enforce_fourier_reg = "NFMReg_" if not config.enforce_fourier_mean_reg else ""
         if "BiPot" in config.data_path and config.ndims == 1:
             if "WAttn" in config.scoreNet_trained_path:
                 save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLPWAttn_ST_{config.feat_thresh:.3f}FTh_fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLPWAttn_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                     ".", "")
             else:
                 save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                     ".", "")
         elif "QuadSin" in config.data_path:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_fQuadSinHF_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fQuadSinHF_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
         elif "SinLog" in config.data_path:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_fSinLog_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.log_space_scale}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fSinLog_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.log_space_scale}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
         elif "MullerBrown" in config.data_path:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_fMullerBrown_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fMullerBrown_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
         print(f"Save path:{save_path}\n")
         np.save(save_path + "_muhats.npy", final_vec_mu_hats)
@@ -712,44 +713,45 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
             all_true_states[quant_idx, :, :, :] = true_states
             all_local_states[quant_idx, :, :, :] = local_states
+        enforce_fourier_reg = "NFMReg_" if not config.enforce_fourier_mean_reg else ""
         if "BiPot" in config.data_path and config.ndims == 1:
             if "WAttn" in config.scoreNet_trained_path:
                 save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLPWAttn_ST_{config.feat_thresh:.3f}FTh_fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLPWAttn_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                     ".", "")
             else:
                 save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                     ".", "")
         elif "BiPot" in config.data_path and config.ndims > 1:
             if "WAttn" in config.scoreNet_trained_path:
                 save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLPWAttn_ST_{config.feat_thresh:.3f}FTh_fBiPot_{config.ndims}DDims_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLPWAttn_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDims_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
             else:
                 save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_fBiPot_{config.ndims}DDims_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDims_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                     ".", "")
         elif "QuadSin" in config.data_path:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_fQuadSinHF_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fQuadSinHF_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
         elif "SinLog" in config.data_path:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_fSinLog_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.log_space_scale}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fSinLog_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.log_space_scale}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
         elif "MullerBrown" in config.data_path:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_fMullerBrown_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fMullerBrown_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
         elif "Lnz" in config.data_path:
             if "WAttn" in config.scoreNet_trained_path:
                 save_path = (
-                            project_config.ROOT_DIR + f"experiments/results/TSPM_MLPWAttn_ST_{config.feat_thresh:.3f}FTh_{config.ndims}DLnz_OOSDriftTrack_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}_{round(config.forcing_const, 3)}FConst").replace(
+                            project_config.ROOT_DIR + f"experiments/results/TSPM_MLPWAttn_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}{config.ndims}DLnz_OOSDriftTrack_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}_{round(config.forcing_const, 3)}FConst").replace(
                         ".", "")
             else:
                 save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{config.ndims}DLnz_OOSDriftTrack_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}_{round(config.forcing_const, 3)}FConst").replace(
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}{config.ndims}DLnz_OOSDriftTrack_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}_{round(config.forcing_const, 3)}FConst").replace(
                     ".", "")
         print(f"Save path for OOS DriftTrack:{save_path}\n")
         np.save(save_path + "_true_states.npy", all_true_states)
@@ -826,14 +828,15 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
             average_base_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_base_losses), dim=0).cpu().numpy())
             average_var_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_var_losses), dim=0).cpu().numpy())
-            average_mean_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_mean_losses), dim=0).cpu().numpy())
-
             ratio = (.99 * average_base_loss_per_epoch) / (average_var_loss_per_epoch + 1e-12)
             self.var_loss_reg = min(ratio, 0.01)
 
-            ratio = (.75 * average_base_loss_per_epoch) / (average_mean_loss_per_epoch + 1e-12)
-            self.mean_loss_reg = min(ratio, 0.01/config.ts_dims) # vs 0.01
-
+            if config.enforce_fourier_mean_reg:
+                average_mean_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_mean_losses), dim=0).cpu().numpy())
+                ratio = (.75 * average_base_loss_per_epoch) / (average_mean_loss_per_epoch + 1e-12)
+                self.mean_loss_reg = min(ratio, 0.01/config.ts_dims) # vs 0.01
+            else:
+                self.mean_loss_reg = 0.
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
             # see  https://github.com/Lightning-AI/torchmetrics/issues/626
             print("Device {} :: Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format(
