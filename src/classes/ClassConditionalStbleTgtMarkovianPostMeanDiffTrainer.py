@@ -759,7 +759,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         np.save(save_path + "_local_states.npy", all_local_states)
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
-        return drifttrack_cummse(true=all_true_states, local=all_local_states, deltaT=config.deltaT)
+        mse = drifttrack_cummse(true=all_true_states, local=all_local_states, deltaT=config.deltaT)
+        print(f"Best vs Current MSE {mse}, {self.curr_best_track_mse} at Epoch {epoch}\n")
+        return mse
 
     def train(self, max_epochs: list, model_filename: str, batch_size: int, config) -> None:
         """
