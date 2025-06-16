@@ -45,6 +45,7 @@ def get_config():
     config.tdata_mult = 110
     config.ts_dims = config.ndims
     config.loss_factor = 2
+    config.enforce_fourier_mean_reg = True
 
     # Diffusion hyperparameters
     config.beta_max = 20.
