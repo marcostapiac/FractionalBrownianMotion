@@ -580,7 +580,23 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             true_drifts = -(4. * config.quartic_coeff * np.power(Xs,
                                                                  3) + 2. * config.quad_coeff * Xs + config.const)
         elif "BiPot" in config.data_path and config.ndims > 1:
-            Xs = torch.linspace(-1.5, 1.5, steps=config.ts_length).numpy()
+            Xshape = 256
+            if config.ndims == 12:
+                Xs = np.concatenate([torch.linspace(-5, 5, steps=Xshape), torch.linspace(-4.7, 4.7, steps=Xshape), \
+                                     torch.linspace(-4.4, 4.4, steps=Xshape), torch.linspace(-4.2, 4.2, steps=Xshape), \
+                                     torch.linspace(-4.05, 4.05, steps=Xshape), torch.linspace(-3.9, 3.9, steps=Xshape), \
+                                     torch.linspace(-3.7, 3.7, steps=Xshape), torch.linspace(-3.6, 3.6, steps=Xshape), \
+                                     torch.linspace(-3.55, 3.55, steps=Xshape),
+                                     torch.linspace(-3.48, 3.48, steps=Xshape), \
+                                     torch.linspace(-3.4, 3.4, steps=Xshape), torch.linspace(-3.4, 3.4, steps=Xshape)],
+                                    axis=0)
+            elif config.ndims == 8:
+                Xs = np.concatenate([torch.linspace(-4.9, 4.9, steps=Xshape), torch.linspace(-4.4, 4.4, steps=Xshape), \
+                                     torch.linspace(-4.05, 4.05, steps=Xshape), torch.linspace(-3.9, 3.9, steps=Xshape), \
+                                     torch.linspace(-3.7, 3.7, steps=Xshape), torch.linspace(-3.6, 3.6, steps=Xshape), \
+                                     torch.linspace(-3.5, 3.5, steps=Xshape), torch.linspace(-3.4, 3.4, steps=Xshape)],
+                                    axis=0)
+
             drift_X = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
                                                                        3) + 2. * np.array(
                 config.quad_coeff) * Xs + np.array(config.const))
@@ -888,7 +904,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     float(torch.mean(torch.tensor(all_losses_per_epoch[self.epochs_run:])).cpu().numpy()), float(
                         self.loss_aggregator.compute().item())))
                 print(f"Current Loss {curr_loss}\n")
-                if (epoch + 1) % self.save_every == 0:
+                if ((epoch + 1) % self.save_every == 0) or epoch == 0:
                     self._save_loss(losses=all_losses_per_epoch, learning_rates=learning_rates, filepath=model_filename)
                     self._save_snapshot(epoch=epoch)
                     track_mse = self._tracking_errors(epoch=epoch + 1, config=config)
