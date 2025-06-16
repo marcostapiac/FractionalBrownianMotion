@@ -112,7 +112,7 @@ Ys = np.linspace(miny, maxy, numXs)
 Xs, Ys = np.meshgrid(Xs, Ys)
 Xs = np.column_stack([Xs.ravel(), Ys.ravel()])
 
-num_dhats = 10
+num_dhats = 100
 for bw in bws:
     unif_is_drift_hats = np.zeros((Xs.shape[0], num_dhats, config.ndims))
 

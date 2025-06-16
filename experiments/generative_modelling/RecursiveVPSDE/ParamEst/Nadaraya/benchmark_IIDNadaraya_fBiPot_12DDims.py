@@ -11,7 +11,7 @@ from scipy.stats import norm
 
 from configs import project_config
 from src.classes.ClassFractionalBiPotential import FractionalBiPotential
-from configs.RecursiveVPSDE.Markovian_fBiPotDDims.recursive_Markovian_PostMeanScore_fBiPot8Dims_T256_H05_tl_110data_StbleTgt import get_config
+from configs.RecursiveVPSDE.Markovian_fBiPotDDims.recursive_Markovian_PostMeanScore_fBiPot12Dims_T256_H05_tl_110data_StbleTgt import get_config
 from utils.drift_evaluation_functions import IID_NW_multivar_estimator
 
 
@@ -118,13 +118,14 @@ assert (bws.shape == (50, config.ndims))
 # bw = bws[np.argmin(CVs)]
 # print(CVs)
 
-Xshape = 256 #config.ts_length
-minx = -1.5
-maxx = -minx
-Xs = np.concatenate([np.linspace(-4.9, 4.9, num=Xshape).reshape(-1, 1), np.linspace(-4.4, 4.4, num=Xshape).reshape(-1,1), \
+Xshape = 256
+Xs = np.concatenate([np.linspace(-5, 5, num=Xshape).reshape(-1,1), np.linspace(-4.7, 4.7, num=Xshape).reshape(-1,1), \
+                                     np.linspace(-4.4, 4.4, num=Xshape).reshape(-1,1), np.linspace(-4.2, 4.2, num=Xshape).reshape(-1,1), \
                                      np.linspace(-4.05, 4.05, num=Xshape).reshape(-1,1), np.linspace(-3.9, 3.9, num=Xshape).reshape(-1,1), \
                                      np.linspace(-3.7, 3.7, num=Xshape).reshape(-1,1), np.linspace(-3.6, 3.6, num=Xshape).reshape(-1,1), \
-                                     np.linspace(-3.5, 3.5, num=Xshape).reshape(-1,1), np.linspace(-3.4, 3.4, num=Xshape).reshape(-1,1)],
+                                     np.linspace(-3.55, 3.55, num=Xshape).reshape(-1,1),
+                                     np.linspace(-3.48, 3.48, num=Xshape).reshape(-1,1), \
+                                     np.linspace(-3.4, 3.4, num=Xshape).reshape(-1,1), np.linspace(-3.4, 3.4, num=Xshape).reshape(-1,1)],
                                     axis=1)
 num_dhats = 100
 for bw in bws:
