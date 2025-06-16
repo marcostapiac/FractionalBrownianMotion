@@ -575,38 +575,36 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             final_vec_mu_hats = MLP_fBiPotDDims_drifts(PM=self.score_network.module, config=config)
         else:
             final_vec_mu_hats = MLP_1D_drifts(PM=self.score_network.module, config=config)
-        if "BiPot" in config.data_path:
-            Xs = torch.linspace(-1.5, 1.5, steps=config.ts_length).numpy()
+        if "BiPot" in config.data_path and config.ndims == 1:
+            Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
             true_drifts = -(4. * config.quartic_coeff * np.power(Xs,
                                                                  3) + 2. * config.quad_coeff * Xs + config.const)
         elif "BiPot" in config.data_path and config.ndims > 1:
             Xshape = 256
             if config.ndims == 12:
-                Xs = np.concatenate([torch.linspace(-5, 5, steps=Xshape), torch.linspace(-4.7, 4.7, steps=Xshape), \
-                                     torch.linspace(-4.4, 4.4, steps=Xshape), torch.linspace(-4.2, 4.2, steps=Xshape), \
-                                     torch.linspace(-4.05, 4.05, steps=Xshape), torch.linspace(-3.9, 3.9, steps=Xshape), \
-                                     torch.linspace(-3.7, 3.7, steps=Xshape), torch.linspace(-3.6, 3.6, steps=Xshape), \
-                                     torch.linspace(-3.55, 3.55, steps=Xshape),
-                                     torch.linspace(-3.48, 3.48, steps=Xshape), \
-                                     torch.linspace(-3.4, 3.4, steps=Xshape), torch.linspace(-3.4, 3.4, steps=Xshape)],
-                                    axis=0)
+                Xs = np.concatenate([np.linspace(-5, 5, num=Xshape).reshape(-1,1), np.linspace(-4.7, 4.7, num=Xshape).reshape(-1,1), \
+                                     np.linspace(-4.4, 4.4, num=Xshape).reshape(-1,1), np.linspace(-4.2, 4.2, num=Xshape).reshape(-1,1), \
+                                     np.linspace(-4.05, 4.05, num=Xshape).reshape(-1,1), np.linspace(-3.9, 3.9, num=Xshape).reshape(-1,1), \
+                                     np.linspace(-3.7, 3.7, num=Xshape).reshape(-1,1), np.linspace(-3.6, 3.6, num=Xshape).reshape(-1,1), \
+                                     np.linspace(-3.55, 3.55, num=Xshape).reshape(-1,1),
+                                     np.linspace(-3.48, 3.48, num=Xshape).reshape(-1,1), \
+                                     np.linspace(-3.4, 3.4, num=Xshape).reshape(-1,1), np.linspace(-3.4, 3.4, num=Xshape).reshape(-1,1)],
+                                    axis=1)
             elif config.ndims == 8:
-                Xs = np.concatenate([torch.linspace(-4.9, 4.9, steps=Xshape), torch.linspace(-4.4, 4.4, steps=Xshape), \
-                                     torch.linspace(-4.05, 4.05, steps=Xshape), torch.linspace(-3.9, 3.9, steps=Xshape), \
-                                     torch.linspace(-3.7, 3.7, steps=Xshape), torch.linspace(-3.6, 3.6, steps=Xshape), \
-                                     torch.linspace(-3.5, 3.5, steps=Xshape), torch.linspace(-3.4, 3.4, steps=Xshape)],
-                                    axis=0)
-
-            drift_X = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
+                Xs = np.concatenate([np.linspace(-4.9, 4.9, num=Xshape).reshape(-1, 1), np.linspace(-4.4, 4.4, num=Xshape).reshape(-1,1), \
+                                     np.linspace(-4.05, 4.05, num=Xshape).reshape(-1,1), np.linspace(-3.9, 3.9, num=Xshape).reshape(-1,1), \
+                                     np.linspace(-3.7, 3.7, num=Xshape).reshape(-1,1), np.linspace(-3.6, 3.6, num=Xshape).reshape(-1,1), \
+                                     np.linspace(-3.5, 3.5, num=Xshape).reshape(-1,1), np.linspace(-3.4, 3.4, num=Xshape).reshape(-1,1)],
+                                    axis=1)
+            true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
                                                                        3) + 2. * np.array(
                 config.quad_coeff) * Xs + np.array(config.const))
-            return drift_X[:, np.newaxis, :]
         elif "QuadSin" in config.data_path:
-            Xs = torch.linspace(-1.5, 1.5, steps=config.ts_length).numpy()
+            Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
             true_drifts = (-2. * config.quad_coeff * Xs + config.sin_coeff * config.sin_space_scale * np.sin(
                 config.sin_space_scale * Xs))
         elif "SinLog" in config.data_path:
-            Xs = torch.linspace(-1.5, 1.5, steps=config.ts_length).numpy()
+            Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
             true_drifts = (-np.sin(config.sin_space_scale * Xs) * np.log(
                 1 + config.log_space_scale * np.abs(Xs)) / config.sin_space_scale)
         type = "PM"
@@ -647,8 +645,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         np.save(save_path + "_muhats.npy", final_vec_mu_hats)
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
-        print(f" True vs Estimated Drift Shapes: {true_drifts.shape}, {final_vec_mu_hats.shape}")
-        return driftevalexp_mse_ignore_nans(true=true_drifts, pred=final_vec_mu_hats[:, -1, :].reshape(final_vec_mu_hats.shape[0], final_vec_mu_hats.shape[-1]*1).mean(axis=-1))
+        return driftevalexp_mse_ignore_nans(true=true_drifts, pred=final_vec_mu_hats[:, -1, :,:].reshape(final_vec_mu_hats.shape[0], final_vec_mu_hats.shape[2], final_vec_mu_hats.shape[-1]*1).mean(axis=1))
 
 
     def _tracking_errors(self, epoch, config):
@@ -905,17 +902,18 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                         self.loss_aggregator.compute().item())))
                 print(f"Current Loss {curr_loss}\n")
                 if ((epoch + 1) % self.save_every == 0) or epoch == 0:
-                    self._save_loss(losses=all_losses_per_epoch, learning_rates=learning_rates, filepath=model_filename)
-                    self._save_snapshot(epoch=epoch)
-                    track_mse = self._tracking_errors(epoch=epoch + 1, config=config)
-                    if track_mse < self.curr_best_track_mse and (epoch + 1) >= 40:
-                        self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="")
-                        self.curr_best_track_mse = track_mse
                     if config.ndims <= 2 or ("BiPot" in config.data_path and config.ndims > 1):
                         evalexp_mse = self._domain_rmse(config=config, epoch=epoch + 1)
                         if evalexp_mse < self.curr_best_evalexp_mse and (epoch + 1) >= 40:
                             self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="EE")
                             self.curr_best_evalexp_mse = evalexp_mse
+                    track_mse = self._tracking_errors(epoch=epoch + 1, config=config)
+                    if track_mse < self.curr_best_track_mse and (epoch + 1) >= 40:
+                        self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="")
+                        self.curr_best_track_mse = track_mse
+                    raise RuntimeError
+                    self._save_loss(losses=all_losses_per_epoch, learning_rates=learning_rates, filepath=model_filename)
+                    self._save_snapshot(epoch=epoch)
             if type(self.device_id) == int: dist.barrier()
             print(f"Calibrating Regulatisation: Base {average_base_loss_per_epoch}, Var {average_var_loss_per_epoch}, Mean {average_mean_loss_per_epoch}\n")
             print(f"TrackMSE, EvalExpMSE: {self.curr_best_track_mse, self.curr_best_evalexp_mse}\n")

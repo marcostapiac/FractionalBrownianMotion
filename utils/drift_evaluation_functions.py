@@ -274,18 +274,17 @@ def MLP_fBiPotDDims_drifts(config, PM):
     diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_time,
                                      steps=Ndiff_discretisation).to(device)
     if config.ndims == 12:
-        Xs = np.concatenate([torch.linspace(-5, 5, steps=Xshape),torch.linspace(-4.7, 4.7, steps=Xshape),\
-                             torch.linspace(-4.4, 4.4, steps=Xshape), torch.linspace(-4.2, 4.2, steps=Xshape),\
-                             torch.linspace(-4.05, 4.05, steps=Xshape), torch.linspace(-3.9, 3.9, steps=Xshape), \
-                             torch.linspace(-3.7, 3.7, steps=Xshape), torch.linspace(-3.6, 3.6, steps=Xshape), \
-                             torch.linspace(-3.55, 3.55, steps=Xshape), torch.linspace(-3.48, 3.48, steps=Xshape), \
-                             torch.linspace(-3.4, 3.4, steps=Xshape), torch.linspace(-3.4, 3.4, steps=Xshape)], axis=0)
+        Xs = torch.concat([torch.linspace(-5, 5, steps=Xshape).reshape(-1,1),torch.linspace(-4.7, 4.7, steps=Xshape).reshape(-1,1),\
+                             torch.linspace(-4.4, 4.4, steps=Xshape).reshape(-1,1), torch.linspace(-4.2, 4.2, steps=Xshape).reshape(-1,1),\
+                             torch.linspace(-4.05, 4.05, steps=Xshape).reshape(-1,1), torch.linspace(-3.9, 3.9, steps=Xshape).reshape(-1,1), \
+                             torch.linspace(-3.7, 3.7, steps=Xshape).reshape(-1,1), torch.linspace(-3.6, 3.6, steps=Xshape).reshape(-1,1), \
+                             torch.linspace(-3.55, 3.55, steps=Xshape).reshape(-1,1), torch.linspace(-3.48, 3.48, steps=Xshape).reshape(-1,1), \
+                             torch.linspace(-3.4, 3.4, steps=Xshape).reshape(-1,1), torch.linspace(-3.4, 3.4, steps=Xshape).reshape(-1,1)], dim=1)
     elif config.ndims == 8:
-        Xs = np.concatenate([torch.linspace(-4.9, 4.9, steps=Xshape), torch.linspace(-4.4, 4.4, steps=Xshape), \
-                             torch.linspace(-4.05, 4.05, steps=Xshape), torch.linspace(-3.9, 3.9, steps=Xshape), \
-                             torch.linspace(-3.7, 3.7, steps=Xshape), torch.linspace(-3.6, 3.6, steps=Xshape), \
-                             torch.linspace(-3.5, 3.5, steps=Xshape), torch.linspace(-3.4, 3.4, steps=Xshape)], axis=0)
-
+        Xs = torch.concat([torch.linspace(-4.9, 4.9, steps=Xshape).reshape(-1,1), torch.linspace(-4.4, 4.4, steps=Xshape).reshape(-1,1), \
+                             torch.linspace(-4.05, 4.05, steps=Xshape).reshape(-1,1), torch.linspace(-3.9, 3.9, steps=Xshape).reshape(-1,1), \
+                             torch.linspace(-3.7, 3.7, steps=Xshape).reshape(-1,1), torch.linspace(-3.6, 3.6, steps=Xshape).reshape(-1,1), \
+                             torch.linspace(-3.5, 3.5, steps=Xshape).reshape(-1,1), torch.linspace(-3.4, 3.4, steps=Xshape).reshape(-1,1)], dim=1)
 
     features_tensor = torch.stack([Xs for _ in range(1)], dim=0).reshape(Xshape * 1, 1, -1).to(device)
     final_vec_mu_hats = np.zeros(
@@ -298,7 +297,6 @@ def MLP_fBiPotDDims_drifts(config, PM):
     # mu_hats_mean = np.zeros((tot_num_feats, num_taus))
     # mu_hats_std = np.zeros((tot_num_feats, num_taus))
     difftime_idx = num_diff_times - 1
-
     PM.eval()
     while difftime_idx >= num_diff_times - es:
         d = diffusion_times[Ndiff_discretisation - (num_diff_times - 1 - difftime_idx) - 1].to(device)
@@ -543,10 +541,16 @@ def drifttrack_cummse(true, local, deltaT):
 
 def driftevalexp_mse_ignore_nans(true, pred):
     assert (true.shape[0] == pred.shape[0])
-    true = true.flatten()
-    pred = pred.flatten()
-    mask = ~np.isnan(true) & ~np.isnan(pred)  # Ignore NaNs in both arrays
-    return np.mean((true[mask] - pred[mask]) ** 2)
+    assert len(true.shape) == len(pred.shape)
+    assert len(true.shape) == 1 or len(true.shape) == 2
+    if len(true.shape) == 2 and true.shape[-1] > 1:
+        assert true.shape[1] == pred.shape[1]
+        return np.nanmean(np.sum((true-pred)**2, axis=-1))
+    else:
+        true = true.flatten()
+        pred = pred.flatten()
+        mask = ~np.isnan(true) & ~np.isnan(pred)  # Ignore NaNs in both arrays
+        return np.mean((true[mask] - pred[mask]) ** 2)
 
 
 def multivar_score_based_MLP_drift_OOS(score_model, num_diff_times, diffusion, num_paths, prev,
