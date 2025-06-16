@@ -38,9 +38,9 @@ if __name__ == "__main__":
     for Nepoch in config.max_epochs:
         print(f"Starting Epoch {Nepoch}\n")
         num_diff_times = 1
-        rmse_quantile_nums = 20
+        rmse_quantile_nums = 10
         num_paths = 100
-        num_time_steps = 100
+        num_time_steps = 256
         all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         all_global_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         all_local_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
@@ -50,7 +50,7 @@ if __name__ == "__main__":
             PM = PM.to(device)
 
             num_paths = 100
-            num_time_steps = 100
+            num_time_steps = 256
             deltaT = config.deltaT
             initial_state = np.repeat(np.array(config.initState)[np.newaxis, np.newaxis, :], num_paths, axis=0)
             assert (initial_state.shape == (num_paths, 1, config.ndims))
@@ -70,7 +70,7 @@ if __name__ == "__main__":
             global_h, global_c = None, None
             local_h, local_c = None, None
             for i in range(1, num_time_steps + 1):
-                eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT)
+                eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT)*config.diffusion
                 assert (eps.shape == (num_paths, 1, config.ndims))
                 true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config)
 

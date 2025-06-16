@@ -807,7 +807,7 @@ def process_IID_bandwidth(quant_idx, shape, inv_H, norm_const, true_drift, confi
     # global_states[:, [0], :] = config.initState
     local_states[:, [0], :] = config.initState
     for i in range(1, num_time_steps + 1):
-        eps = np.random.randn(num_state_paths, 1, config.ndims) * np.sqrt(deltaT)
+        eps = np.random.randn(num_state_paths, 1, config.ndims) * np.sqrt(deltaT)*config.diffusion
         assert (eps.shape == (num_state_paths, 1, config.ndims))
         true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_state_paths, config=config)
         # global_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, inv_H=inv_H, norm_const=norm_const,
@@ -947,7 +947,7 @@ def process_single_R_hermite(quant_idx, R, shape, true_drift, config, num_time_s
     local_states[:, [0], :] = config.initState
 
     for i in range(1, num_time_steps + 1):
-        eps = np.random.randn(num_state_paths, 1, config.ndims) * np.sqrt(deltaT)
+        eps = np.random.randn(num_state_paths, 1, config.ndims) * np.sqrt(deltaT)*config.diffusion
         assert (eps.shape == (num_state_paths, 1, config.ndims))
         true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_state_paths, config=config)
         # global_basis = hermite_basis(R=R, paths=global_states[:, i - 1, :])

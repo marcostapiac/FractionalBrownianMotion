@@ -694,7 +694,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
             # Euler-Maruyama Scheme for Tracking Errors
             for i in range(1, num_time_steps + 1):
-                eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT)
+                eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT)*config.diffusion
                 assert (eps.shape == (num_paths, 1, config.ndims))
                 true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config)
 

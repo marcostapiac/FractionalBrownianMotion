@@ -4,7 +4,7 @@ from tqdm import tqdm
 from configs import project_config
 import multiprocessing as mp
 from multiprocessing import shared_memory
-from configs.RecursiveVPSDE.Markovian_fBiPotDDims.recursive_Markovian_PostMeanScore_fBiPot12Dims_T256_H05_tl_110data_StbleTgt_WRMSE import \
+from configs.RecursiveVPSDE.Markovian_fBiPotDDims.recursive_Markovian_PostMeanScore_fBiPot12Dims_T256_H05_tl_110data_StbleTgt import \
         get_config
 from src.classes.ClassFractionalBiPotential import FractionalBiPotential
 from utils.drift_evaluation_functions import IID_NW_multivar_estimator, process_IID_bandwidth
