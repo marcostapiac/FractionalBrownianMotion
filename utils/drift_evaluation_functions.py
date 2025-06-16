@@ -790,7 +790,9 @@ def IID_NW_multivar_estimator(prevPath_observations, path_incs, inv_H, norm_cons
 
 
 def process_IID_bandwidth(quant_idx, shape, inv_H, norm_const, true_drift, config, num_time_steps, num_state_paths,
-                          deltaT, prevPath_name, path_incs_name):
+                          deltaT, prevPath_name, path_incs_name, seed_seq):
+    rng = np.random.default_rng(seed_seq)  # This RNG can generate all needed arrays
+
     # Attach to the shared memory blocks by name.
     shm_prev = shared_memory.SharedMemory(name=prevPath_name)
     shm_incs = shared_memory.SharedMemory(name=path_incs_name)
@@ -807,7 +809,8 @@ def process_IID_bandwidth(quant_idx, shape, inv_H, norm_const, true_drift, confi
     # global_states[:, [0], :] = config.initState
     local_states[:, [0], :] = config.initState
     for i in range(1, num_time_steps + 1):
-        eps = np.random.randn(num_state_paths, 1, config.ndims) * np.sqrt(deltaT)*config.diffusion
+        eps = rng.normal(loc=0.0, scale=1.0, size=(num_state_paths, 1, config.ndims))
+        eps *= np.sqrt(deltaT) * config.diffusion
         assert (eps.shape == (num_state_paths, 1, config.ndims))
         true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_state_paths, config=config)
         # global_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, inv_H=inv_H, norm_const=norm_const,
@@ -929,7 +932,9 @@ def basis_number_selection(paths, num_paths, num_time_steps, deltaT, t1):
 
 
 def process_single_R_hermite(quant_idx, R, shape, true_drift, config, num_time_steps, num_state_paths, deltaT,
-                             path_name):
+                             path_name, seed_seq):
+    rng = np.random.default_rng(seed_seq)  # This RNG can generate all needed arrays
+
     # Attach to the shared memory blocks by name.
     shm_path = shared_memory.SharedMemory(name=path_name)
 
@@ -947,7 +952,8 @@ def process_single_R_hermite(quant_idx, R, shape, true_drift, config, num_time_s
     local_states[:, [0], :] = config.initState
 
     for i in range(1, num_time_steps + 1):
-        eps = np.random.randn(num_state_paths, 1, config.ndims) * np.sqrt(deltaT)*config.diffusion
+        eps = rng.normal(loc=0.0, scale=1.0, size=(num_state_paths, 1, config.ndims))
+        eps *= np.sqrt(deltaT) * config.diffusion
         assert (eps.shape == (num_state_paths, 1, config.ndims))
         true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_state_paths, config=config)
         # global_basis = hermite_basis(R=R, paths=global_states[:, i - 1, :])
