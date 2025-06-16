@@ -59,9 +59,9 @@ if __name__ == "__main__":
     assert (path_incs.shape[1] == config.ts_length - 1)
     assert (path_observations.shape[1] == prevPath_observations.shape[1] + 2)
     assert (prevPath_observations.shape[1] * deltaT == (t1 - t0))
-    grid_1d = np.logspace(-4, -1, 40)
+    grid_1d = np.logspace(-4, -0.05, 50)
     bws = np.stack([grid_1d for m in range(config.ndims)], axis=-1)
-    assert (bws.shape == (40, config.ndims))
+    assert (bws.shape == (50, config.ndims))
 
     prevPath_shm = shared_memory.SharedMemory(create=True, size=prevPath_observations.nbytes)
     path_incs_shm = shared_memory.SharedMemory(create=True, size=path_incs.nbytes)
@@ -77,6 +77,11 @@ if __name__ == "__main__":
     num_time_steps = 256
     num_state_paths = 100
     rmse_quantile_nums = 10
+    # Ensure randomness across starmap calls
+    master_seed = 42
+    seed_seq = np.random.SeedSequence(master_seed)
+    child_seeds = seed_seq.spawn(rmse_quantile_nums)  # One per quant_idx
+
     # Euler-Maruyama Scheme for Tracking Errors
     shape = prevPath_observations.shape
     for bw_idx in tqdm(range(bws.shape[0])):
@@ -88,7 +93,7 @@ if __name__ == "__main__":
         with mp.Pool(processes=rmse_quantile_nums) as pool:
             # Prepare the arguments for each task
             tasks = [(quant_idx, shape, inv_H, norm_const, true_drift, config, num_time_steps, num_state_paths, deltaT,
-                      prevPath_shm.name, path_incs_shm.name) for quant_idx in range(rmse_quantile_nums)]
+                      prevPath_shm.name, path_incs_shm.name, seed_seq) for quant_idx in range(rmse_quantile_nums)]
 
             # Run the tasks in parallel
             results = pool.starmap(process_IID_bandwidth, tasks)

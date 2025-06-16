@@ -98,7 +98,7 @@ eps = 0.
 log_h_min = np.log10(np.power(float(config.ts_length - 1), -(1. / (2. - eps))))
 
 
-grid_1d = np.logspace(-4, -1, 40)
+grid_1d = np.logspace(-4, -0.05, 50)
 bws = np.stack([grid_1d for m in range(config.ndims)], axis=-1)
 print(bws.shape)
 
