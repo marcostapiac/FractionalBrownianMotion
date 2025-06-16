@@ -20,8 +20,8 @@ import numpy as np
 from configs import project_config
 from tqdm import tqdm
 
-from utils.drift_evaluation_functions import MLP_2D_drifts, MLP_1D_drifts, multivar_score_based_MLP_drift_OOS, \
-    drifttrack_cummse, driftevalexp_mse_ignore_nans
+from utils.drift_evaluation_functions import MLP_1D_drifts, multivar_score_based_MLP_drift_OOS, \
+    drifttrack_cummse, driftevalexp_mse_ignore_nans,  MLP_fBiPotDDims_drifts
 
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
@@ -570,19 +570,27 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         return l, learning_rates
 
     def _domain_rmse(self, epoch, config):
-        assert (config.ndims <= 2)
-        if "MullerBrown" in config.data_path:
-            final_vec_mu_hats = MLP_2D_drifts(PM=self.score_network.module, config=config)
+        #assert (config.ndims <= 2)
+        if config.ndims > 1 and "BiPot" in config.data_path:
+            final_vec_mu_hats = MLP_fBiPotDDims_drifts(PM=self.score_network.module, config=config)
         else:
             final_vec_mu_hats = MLP_1D_drifts(PM=self.score_network.module, config=config)
-        Xs = torch.linspace(-1.5, 1.5, steps=config.ts_length).numpy()
         if "BiPot" in config.data_path:
+            Xs = torch.linspace(-1.5, 1.5, steps=config.ts_length).numpy()
             true_drifts = -(4. * config.quartic_coeff * np.power(Xs,
                                                                  3) + 2. * config.quad_coeff * Xs + config.const)
+        elif "BiPot" in config.data_path and config.ndims > 1:
+            Xs = torch.linspace(-1.5, 1.5, steps=config.ts_length).numpy()
+            drift_X = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
+                                                                       3) + 2. * np.array(
+                config.quad_coeff) * Xs + np.array(config.const))
+            return drift_X[:, np.newaxis, :]
         elif "QuadSin" in config.data_path:
+            Xs = torch.linspace(-1.5, 1.5, steps=config.ts_length).numpy()
             true_drifts = (-2. * config.quad_coeff * Xs + config.sin_coeff * config.sin_space_scale * np.sin(
                 config.sin_space_scale * Xs))
         elif "SinLog" in config.data_path:
+            Xs = torch.linspace(-1.5, 1.5, steps=config.ts_length).numpy()
             true_drifts = (-np.sin(config.sin_space_scale * Xs) * np.log(
                 1 + config.log_space_scale * np.abs(Xs)) / config.sin_space_scale)
         type = "PM"
@@ -597,6 +605,15 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             else:
                 save_path = (
                         project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                    ".", "")
+        elif "BiPot" in config.data_path and config.ndims > 1:
+            if "WAttn" in config.scoreNet_trained_path:
+                save_path = (
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLPWAttn_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDims_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                ".", "")
+            else:
+                save_path = (
+                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDims_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                     ".", "")
         elif "QuadSin" in config.data_path:
             save_path = (
@@ -614,6 +631,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         np.save(save_path + "_muhats.npy", final_vec_mu_hats)
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
+        print(f" True vs Estimated Drift Shapes: {true_drifts.shape}, {final_vec_mu_hats.shape}")
         return driftevalexp_mse_ignore_nans(true=true_drifts, pred=final_vec_mu_hats[:, -1, :].reshape(final_vec_mu_hats.shape[0], final_vec_mu_hats.shape[-1]*1).mean(axis=-1))
 
 
@@ -877,7 +895,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     if track_mse < self.curr_best_track_mse and (epoch + 1) >= 40:
                         self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="")
                         self.curr_best_track_mse = track_mse
-                    if config.ndims <= 2:
+                    if config.ndims <= 2 or ("BiPot" in config.data_path and config.ndims > 1):
                         evalexp_mse = self._domain_rmse(config=config, epoch=epoch + 1)
                         if evalexp_mse < self.curr_best_evalexp_mse and (epoch + 1) >= 40:
                             self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="EE")
