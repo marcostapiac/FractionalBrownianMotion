@@ -63,7 +63,7 @@ if __name__ == "__main__":
     # Ensure randomness across starmap calls
     master_seed = 42
     seed_seq = np.random.SeedSequence(master_seed)
-    child_seeds = seed_seq.spawn(rmse_quantile_nums)  # One per quant_idx
+    child_seeds = seed_seq.spawn(rmse_quantile_nums)  # One per quant_idx  # One per quant_idx
 
     # Euler-Maruyama Scheme for Tracking Errors
     shape = paths.shape
@@ -73,7 +73,7 @@ if __name__ == "__main__":
         with mp.Pool(processes=rmse_quantile_nums) as pool:
             # Prepare the arguments for each task
             tasks = [(quant_idx, R, shape, true_drift, config, num_time_steps, num_state_paths, deltaT,
-                      prevPath_shm.name, seed_seq) for quant_idx in range(rmse_quantile_nums)]
+                      prevPath_shm.name, child_seeds[quant_idx]) for quant_idx in range(rmse_quantile_nums)]
 
             # Run the tasks in parallel
             results = pool.starmap(process_single_R_hermite, tasks)
