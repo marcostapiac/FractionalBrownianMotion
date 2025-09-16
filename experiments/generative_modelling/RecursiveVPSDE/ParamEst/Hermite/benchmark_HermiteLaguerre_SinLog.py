@@ -1,11 +1,14 @@
 #!/usr/bin/env python
 # coding: utf-8
-from configs import project_config
+import math
+
 import matplotlib.pyplot as plt
 import numpy as np
-import math
 from scipy.special import eval_laguerre
-from configs.RecursiveVPSDE.Markovian_fSinLog.recursive_Markovian_PostMeanScore_fSinLog_HighFTh_T256_H05_tl_110data_StbleTgt_WRMSE import get_config
+
+from configs import project_config
+from configs.RecursiveVPSDE.Markovian_fSinLog.recursive_Markovian_PostMeanScore_fSinLog_HighFTh_T256_H05_tl_110data_StbleTgt_WRMSE import \
+    get_config
 from src.classes.ClassFractionalSinLog import FractionalSinLog
 
 # # From Nonparametric drift estimation for IID paths of SDE (Comte et al 2020)
@@ -38,11 +41,11 @@ try:
     assert paths.shape == (num_paths, config.ts_length + 1)
 except (FileNotFoundError, AssertionError) as e:
     fSinLog = FractionalSinLog(log_space_scale=config.log_space_scale,
-                         sin_space_scale=config.sin_space_scale, diff=diff, X0=initial_state)
+                               sin_space_scale=config.sin_space_scale, diff=diff, X0=initial_state)
     paths = np.array(
         [fSinLog.euler_simulation(H=H, N=num_time_steps, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=initial_state,
-                                 Ms=None, gaussRvs=rvs,
-                                 t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
+                                  Ms=None, gaussRvs=rvs,
+                                  t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
         (num_paths, num_time_steps + 1))
     np.save(config.data_path, paths[:, 1:])
     assert paths.shape == (num_paths, config.ts_length + 1)
@@ -105,7 +108,7 @@ def construct_Phi_matrix(R, deltaT, T, basis, paths):
     deltaT /= T
     intermediate = deltaT * basis.transpose((0, 2, 1)) @ basis
     assert intermediate.shape == (
-    N, R, R), f"Intermidate matrix is shape {intermediate.shape} but shoould be {(N, R, R)}"
+        N, R, R), f"Intermidate matrix is shape {intermediate.shape} but shoould be {(N, R, R)}"
     for i in range(N):
         es = np.linalg.eigvalsh(intermediate[i, :, :]) >= 0.
         assert (np.all(es)), f"Submat at {i} is not PD, for R={R}"
@@ -160,9 +163,9 @@ def basis_number_selection(paths, num_paths, num_time_steps, deltaT, t1):
     return poss_Rs[np.argmin(cvs)]
 
 
-#R = basis_number_selection(paths=paths, num_paths=num_paths, num_time_steps=num_time_steps, deltaT=deltaT, t1=t1)
-#print(R)
-numXs = 256 #config.ts_length
+# R = basis_number_selection(paths=paths, num_paths=num_paths, num_time_steps=num_time_steps, deltaT=deltaT, t1=t1)
+# print(R)
+numXs = 256  # config.ts_length
 minx = -1.5
 maxx = -minx
 

@@ -1,16 +1,20 @@
-import numpy as np
 import multiprocessing as mp
 from multiprocessing import shared_memory
+
+import numpy as np
 from tqdm import tqdm
+
 from configs import project_config
-from configs.RecursiveVPSDE.Markovian_fSinLog.recursive_Markovian_PostMeanScore_fSinLog_HighFTh_T256_H05_tl_110data_StbleTgt_WRMSE import get_config
+from configs.RecursiveVPSDE.Markovian_fSinLog.recursive_Markovian_PostMeanScore_fSinLog_HighFTh_T256_H05_tl_110data_StbleTgt_WRMSE import \
+    get_config
 from src.classes.ClassFractionalSinLog import FractionalSinLog
 from utils.drift_evaluation_functions import process_IID_bandwidth
 
 
 def true_drift(prev, num_paths, config):
     assert (prev.shape == (num_paths, config.ndims))
-    drift_X = (-np.sin(config.sin_space_scale*prev)*np.log(1+config.log_space_scale*np.abs(prev))/config.sin_space_scale)
+    drift_X = (-np.sin(config.sin_space_scale * prev) * np.log(
+        1 + config.log_space_scale * np.abs(prev)) / config.sin_space_scale)
     return drift_X[:, np.newaxis, :]
 
 
@@ -59,7 +63,7 @@ if __name__ == "__main__":
     assert (path_incs.shape[1] == config.ts_length - 1)
     assert (path_observations.shape[1] == prevPath_observations.shape[1] + 2)
     assert (prevPath_observations.shape[1] * deltaT == (t1 - t0))
-    bws = np.logspace(-4, -0.05, 50) #np.logspace(-4, -1, 40)
+    bws = np.logspace(-4, -0.05, 50)  # np.logspace(-4, -1, 40)
 
     prevPath_shm = shared_memory.SharedMemory(create=True, size=prevPath_observations.nbytes)
     path_incs_shm = shared_memory.SharedMemory(create=True, size=path_incs.nbytes)
@@ -91,14 +95,15 @@ if __name__ == "__main__":
         with mp.Pool(processes=rmse_quantile_nums) as pool:
             # Prepare the arguments for each task
             tasks = [(quant_idx, shape, inv_H, norm_const, true_drift, config, num_time_steps, num_state_paths, deltaT,
-                      prevPath_shm.name, path_incs_shm.name, child_seeds[quant_idx]) for quant_idx in range(rmse_quantile_nums)]
+                      prevPath_shm.name, path_incs_shm.name, child_seeds[quant_idx]) for quant_idx in
+                     range(rmse_quantile_nums)]
 
             # Run the tasks in parallel
             results = pool.starmap(process_IID_bandwidth, tasks)
         results = {k: v for d in results for k, v in d.items()}
         all_true_states = np.concatenate([v[0][np.newaxis, :] for v in results.values()], axis=0)
-        all_global_states = np.zeros(shape=(rmse_quantile_nums, num_state_paths, 1 + num_time_steps, config.ndims))
-        all_local_states = np.concatenate([v[1][np.newaxis, :] for v in results.values()], axis=0)
+        all_local_states = np.zeros(shape=(rmse_quantile_nums, num_state_paths, 1 + num_time_steps, config.ndims))
+        all_global_states = np.concatenate([v[1][np.newaxis, :] for v in results.values()], axis=0)
         assert (all_true_states.shape == all_global_states.shape == all_local_states.shape)
         save_path = (
                 project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fSinLog_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.log_space_scale}b_{config.sin_space_scale}c_{config.ts_length}NumDPS").replace(

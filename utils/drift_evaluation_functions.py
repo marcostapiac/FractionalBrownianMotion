@@ -538,6 +538,9 @@ def drifttrack_cummse(true, local, deltaT):
     total_local_errors = np.mean(all_local_errors, axis=0)
     return total_local_errors[-1]
 
+def drifttrack_mse(true, local, deltaT):
+    return np.sqrt(np.mean(np.sum(np.power(true - local, 2), axis=-1), axis=(0, 1)))[-1]
+
 
 def driftevalexp_mse_ignore_nans(true, pred):
     assert (true.shape[0] == pred.shape[0])
@@ -801,28 +804,28 @@ def process_IID_bandwidth(quant_idx, shape, inv_H, norm_const, true_drift, confi
     path_incs = np.ndarray(shape, dtype=np.float64, buffer=shm_incs.buf)
 
     true_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
-    # global_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
+    global_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
     local_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
     # Initialise the "true paths"
     true_states[:, [0], :] = config.initState
-    # global_states[:, [0], :] = config.initState
-    local_states[:, [0], :] = config.initState
+    global_states[:, [0], :] = config.initState
+    #local_states[:, [0], :] = config.initState
     for i in range(1, num_time_steps + 1):
         eps = rng.normal(loc=0.0, scale=1.0, size=(num_state_paths, 1, config.ndims))
         eps *= np.sqrt(deltaT) * config.diffusion
         assert (eps.shape == (num_state_paths, 1, config.ndims))
         true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_state_paths, config=config)
-        # global_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, inv_H=inv_H, norm_const=norm_const,
-        #                                       x=global_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
-        #                                       t0=config.t0, truncate=True)[:, np.newaxis, :]
-        local_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, inv_H=inv_H,
-                                               norm_const=norm_const,
-                                               x=true_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
+        global_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, inv_H=inv_H, norm_const=norm_const,
+                                               x=global_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
                                                t0=config.t0, truncate=True)[:, np.newaxis, :]
+        #local_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, inv_H=inv_H,
+        #                                       norm_const=norm_const,
+        #                                       x=true_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
+        #                                       t0=config.t0, truncate=True)[:, np.newaxis, :]
         true_states[:, [i], :] = true_states[:, [i - 1], :] + true_mean * deltaT + eps
-        # global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
-        local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
-    return {quant_idx: (true_states, local_states)}
+        global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
+        #local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
+    return {quant_idx: (true_states, global_states)}
 
 
 def hermite_basis(R, paths):
@@ -943,23 +946,23 @@ def process_single_R_hermite(quant_idx, R, shape, true_drift, config, num_time_s
     basis = hermite_basis(R=R, paths=paths)
     coeffs = estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=config.t1, Phi=None)
     true_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
-    # global_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
-    local_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
+    global_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
+    #local_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
     # Initialise the "true paths"
     true_states[:, [0], :] = config.initState
-    # global_states[:, [0], :] = config.initState
-    local_states[:, [0], :] = config.initState
+    global_states[:, [0], :] = config.initState
+    #local_states[:, [0], :] = config.initState
 
     for i in range(1, num_time_steps + 1):
         eps = rng.normal(loc=0.0, scale=1.0, size=(num_state_paths, 1, config.ndims))
         eps *= np.sqrt(deltaT) * config.diffusion
         assert (eps.shape == (num_state_paths, 1, config.ndims))
         true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_state_paths, config=config)
-        # global_basis = hermite_basis(R=R, paths=global_states[:, i - 1, :])
-        # global_mean = construct_Hermite_drift(basis=global_basis, coefficients=coeffs)[:, np.newaxis, :]
-        local_basis = hermite_basis(R=R, paths=true_states[:, i - 1, :])
-        local_mean = construct_Hermite_drift(basis=local_basis, coefficients=coeffs)[:, np.newaxis, :]
+        global_basis = hermite_basis(R=R, paths=global_states[:, i - 1, :])
+        global_mean = construct_Hermite_drift(basis=global_basis, coefficients=coeffs)[:, np.newaxis, :]
+        #local_basis = hermite_basis(R=R, paths=true_states[:, i - 1, :])
+        #local_mean = construct_Hermite_drift(basis=local_basis, coefficients=coeffs)[:, np.newaxis, :]
         true_states[:, [i], :] = true_states[:, [i - 1], :] + true_mean * deltaT + eps
-        # global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
-        local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
-    return {quant_idx: (true_states, local_states)}
+        global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
+        #local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
+    return {quant_idx: (true_states, global_states)}

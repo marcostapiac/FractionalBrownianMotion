@@ -6,12 +6,13 @@
 
 import numpy as np
 from joblib import Parallel, delayed
-from tqdm import tqdm
 from scipy.stats import norm
+from tqdm import tqdm
 
 from configs import project_config
+from configs.RecursiveVPSDE.Markovian_fBiPot.recursive_Markovian_PostMeanScore_fBiPot_LowFTh_T256_H05_tl_110data_StbleTgt import \
+    get_config
 from src.classes.ClassFractionalBiPotential import FractionalBiPotential
-from configs.RecursiveVPSDE.Markovian_fBiPot.recursive_Markovian_PostMeanScore_fBiPot_LowFTh_T256_H05_tl_110data_StbleTgt import get_config
 
 
 def gaussian_kernel(bw, x):
@@ -48,12 +49,13 @@ try:
     assert is_path_observations.shape == (num_paths, config.ts_length + 1)
 except (FileNotFoundError, AssertionError) as e:
     print(e)
-    fBiPot = FractionalBiPotential(num_dims=config.ndims, const=config.const, quartic_coeff=config.quartic_coeff, quad_coeff=config.quad_coeff,
+    fBiPot = FractionalBiPotential(num_dims=config.ndims, const=config.const, quartic_coeff=config.quartic_coeff,
+                                   quad_coeff=config.quad_coeff,
                                    diff=diff, X0=initial_state)
     is_path_observations = np.array(
         [fBiPot.euler_simulation(H=H, N=num_time_steps, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=initial_state,
                                  Ms=None, gaussRvs=rvs,
-                                 t0=t0, t1=t1) for _ in (range(num_paths*10))]).reshape(
+                                 t0=t0, t1=t1) for _ in (range(num_paths * 10))]).reshape(
         (num_paths, num_time_steps + 1))
     np.save(config.data_path, is_path_observations[:, 1:])
 is_idxs = np.arange(is_path_observations.shape[0])
@@ -125,7 +127,7 @@ bws = np.logspace(-4, -0.05, 50)
 # bw = bws[np.argmin(CVs)]
 # print(CVs)
 
-numXs = 256 #config.ts_length
+numXs = 256  # config.ts_length
 minx = -1.5
 maxx = -minx
 Xs = np.linspace(minx, maxx, numXs)

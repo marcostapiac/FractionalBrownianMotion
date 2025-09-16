@@ -1,8 +1,10 @@
-import numpy as np
-from configs import project_config
 import multiprocessing as mp
 from multiprocessing import shared_memory
+
+import numpy as np
 from tqdm import tqdm
+
+from configs import project_config
 from configs.RecursiveVPSDE.LSTM_fMullerBrown.recursive_LSTM_PostMeanScore_MullerBrown_T256_H05_tl_110data import \
     get_config
 from src.classes.ClassFractionalMullerBrown import FractionalMullerBrown
@@ -97,7 +99,7 @@ if __name__ == "__main__":
     # Euler-Maruyama Scheme for Tracking Errors
     shape = prevPath_observations.shape
     for bw_idx in tqdm(range(bws.shape[0])):
-        bw = bws[bw_idx,:]
+        bw = bws[bw_idx, :]
         inv_H = np.diag(np.power(bw, -2))
         norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
 
@@ -105,14 +107,15 @@ if __name__ == "__main__":
         with mp.Pool(processes=rmse_quantile_nums) as pool:
             # Prepare the arguments for each task
             tasks = [(quant_idx, shape, inv_H, norm_const, true_drift, config, num_time_steps, num_state_paths, deltaT,
-                      prevPath_shm.name, path_incs_shm.name, child_seeds[quant_idx]) for quant_idx in range(rmse_quantile_nums)]
+                      prevPath_shm.name, path_incs_shm.name, child_seeds[quant_idx]) for quant_idx in
+                     range(rmse_quantile_nums)]
 
             # Run the tasks in parallel
             results = pool.starmap(process_IID_bandwidth, tasks)
         results = {k: v for d in results for k, v in d.items()}
         all_true_states = np.concatenate([v[0][np.newaxis, :] for v in results.values()], axis=0)
-        all_global_states = np.zeros(shape=(rmse_quantile_nums, num_state_paths, 1 + num_time_steps, config.ndims))
-        all_local_states = np.concatenate([v[1][np.newaxis, :] for v in results.values()], axis=0)
+        all_local_states = np.zeros(shape=(rmse_quantile_nums, num_state_paths, 1 + num_time_steps, config.ndims))
+        all_global_states = np.concatenate([v[1][np.newaxis, :] for v in results.values()], axis=0)
         assert (all_true_states.shape == all_global_states.shape == all_local_states.shape)
         save_path = (
                 project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fMullerBrown_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT").replace(

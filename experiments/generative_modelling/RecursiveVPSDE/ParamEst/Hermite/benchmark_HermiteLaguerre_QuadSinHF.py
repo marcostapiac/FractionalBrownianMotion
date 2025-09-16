@@ -1,13 +1,15 @@
 #!/usr/bin/env python
 # coding: utf-8
-from configs import project_config
+import math
+
 import matplotlib.pyplot as plt
 import numpy as np
-import math
 from scipy.special import eval_laguerre
-from src.classes.ClassFractionalQuadSin import FractionalQuadSin
+
+from configs import project_config
 from configs.RecursiveVPSDE.Markovian_fQuadSinHF.recursive_Markovian_PostMeanScore_fQuadSinHF2_HighFTh_T256_H05_tl_110data_StbleTgt_WRMSE import \
     get_config
+from src.classes.ClassFractionalQuadSin import FractionalQuadSin
 
 config = get_config()
 print("Starting\n")
@@ -98,7 +100,7 @@ def construct_Phi_matrix(R, deltaT, T, basis, paths):
     deltaT /= T
     intermediate = deltaT * basis.transpose((0, 2, 1)) @ basis
     assert intermediate.shape == (
-    N, R, R), f"Intermidate matrix is shape {intermediate.shape} but shoould be {(N, R, R)}"
+        N, R, R), f"Intermidate matrix is shape {intermediate.shape} but shoould be {(N, R, R)}"
     for i in range(N):
         es = np.linalg.eigvalsh(intermediate[i, :, :]) >= 0.
         assert (np.all(es)), f"Submat at {i} is not PD, for R={R}"
@@ -153,9 +155,9 @@ def basis_number_selection(paths, num_paths, num_time_steps, deltaT, t1):
     return poss_Rs[np.argmin(cvs)]
 
 
-#R = basis_number_selection(paths=paths, num_paths=num_paths, num_time_steps=num_time_steps, deltaT=deltaT, t1=t1)
-#print(R)
-numXs = 256#config.ts_length
+# R = basis_number_selection(paths=paths, num_paths=num_paths, num_time_steps=num_time_steps, deltaT=deltaT, t1=t1)
+# print(R)
+numXs = 256  # config.ts_length
 minx = -1.5
 maxx = -minx
 

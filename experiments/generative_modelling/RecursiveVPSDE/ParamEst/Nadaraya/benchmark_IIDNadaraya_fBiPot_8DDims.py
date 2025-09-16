@@ -6,12 +6,13 @@
 
 import numpy as np
 from joblib import Parallel, delayed
-from tqdm import tqdm
 from scipy.stats import norm
+from tqdm import tqdm
 
 from configs import project_config
+from configs.RecursiveVPSDE.Markovian_fBiPotDDims.recursive_Markovian_PostMeanScore_fBiPot8Dims_T256_H05_tl_110data_StbleTgt import \
+    get_config
 from src.classes.ClassFractionalBiPotential import FractionalBiPotential
-from configs.RecursiveVPSDE.Markovian_fBiPotDDims.recursive_Markovian_PostMeanScore_fBiPot8Dims_T256_H05_tl_110data_StbleTgt import get_config
 from utils.drift_evaluation_functions import IID_NW_multivar_estimator
 
 
@@ -72,8 +73,6 @@ assert (prevPath_observations.shape == path_incs.shape)
 assert (path_incs.shape[1] == config.ts_length - 1)
 assert (path_observations.shape[1] == prevPath_observations.shape[1] + 2)
 
-
-
 assert (prevPath_observations.shape[1] * deltaT == (t1 - t0))
 
 # Note that because b(x) = sin(x) is bounded, we take \epsilon = 0 hence we have following h_max
@@ -118,14 +117,15 @@ assert (bws.shape == (50, config.ndims))
 # bw = bws[np.argmin(CVs)]
 # print(CVs)
 
-Xshape = 256 #config.ts_length
+Xshape = 256  # config.ts_length
 minx = -1.5
 maxx = -minx
-Xs = np.concatenate([np.linspace(-4.9, 4.9, num=Xshape).reshape(-1, 1), np.linspace(-4.4, 4.4, num=Xshape).reshape(-1,1), \
-                                     np.linspace(-4.05, 4.05, num=Xshape).reshape(-1,1), np.linspace(-3.9, 3.9, num=Xshape).reshape(-1,1), \
-                                     np.linspace(-3.7, 3.7, num=Xshape).reshape(-1,1), np.linspace(-3.6, 3.6, num=Xshape).reshape(-1,1), \
-                                     np.linspace(-3.5, 3.5, num=Xshape).reshape(-1,1), np.linspace(-3.4, 3.4, num=Xshape).reshape(-1,1)],
-                                    axis=1)
+Xs = np.concatenate(
+    [np.linspace(-4.9, 4.9, num=Xshape).reshape(-1, 1), np.linspace(-4.4, 4.4, num=Xshape).reshape(-1, 1), \
+     np.linspace(-4.05, 4.05, num=Xshape).reshape(-1, 1), np.linspace(-3.9, 3.9, num=Xshape).reshape(-1, 1), \
+     np.linspace(-3.7, 3.7, num=Xshape).reshape(-1, 1), np.linspace(-3.6, 3.6, num=Xshape).reshape(-1, 1), \
+     np.linspace(-3.5, 3.5, num=Xshape).reshape(-1, 1), np.linspace(-3.4, 3.4, num=Xshape).reshape(-1, 1)],
+    axis=1)
 num_dhats = 100
 for bw in bws:
     inv_H = np.diag(np.power(bw, -2))
@@ -136,8 +136,10 @@ for bw in bws:
         is_ss_path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False), :]
         is_prevPath_observations = is_ss_path_observations[:, 1:-1]
         is_path_incs = np.diff(is_ss_path_observations, axis=1)[:, 1:]
-        unif_is_drift_hats[:, k, :] = IID_NW_multivar_estimator(prevPath_observations=is_prevPath_observations, inv_H=inv_H, x=Xs,
-                                                    path_incs=is_path_incs, t1=t1, t0=t0, truncate=True, norm_const=norm_const)
+        unif_is_drift_hats[:, k, :] = IID_NW_multivar_estimator(prevPath_observations=is_prevPath_observations,
+                                                                inv_H=inv_H, x=Xs,
+                                                                path_incs=is_path_incs, t1=t1, t0=t0, truncate=True,
+                                                                norm_const=norm_const)
 
     save_path = (
             project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fBiPot_{config.ndims}DDims_DriftEvalExp_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c").replace(

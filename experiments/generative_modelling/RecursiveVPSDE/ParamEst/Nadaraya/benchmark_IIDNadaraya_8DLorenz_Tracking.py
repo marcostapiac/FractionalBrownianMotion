@@ -1,12 +1,14 @@
+import multiprocessing as mp
+from multiprocessing import shared_memory
+
 import numpy as np
 from tqdm import tqdm
 
 from configs import project_config
-import multiprocessing as mp
-from multiprocessing import shared_memory
-from configs.RecursiveVPSDE.Markovian_8DLorenz.recursive_Markovian_PostMeanScore_8DLorenz_T256_H05_tl_110data_StbleTgt import get_config
+from configs.RecursiveVPSDE.Markovian_8DLorenz.recursive_Markovian_PostMeanScore_8DLorenz_T256_H05_tl_110data_StbleTgt import \
+    get_config
 from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
-from utils.drift_evaluation_functions import IID_NW_multivar_estimator, process_IID_bandwidth
+from utils.drift_evaluation_functions import process_IID_bandwidth
 
 
 def true_drift(prev, num_paths, config):
@@ -16,6 +18,7 @@ def true_drift(prev, num_paths, config):
         drift_X[:, i] = (prev[:, (i + 1) % config.ndims] - prev[:, i - 2]) * prev[:, i - 1] - prev[:,
                                                                                               i] + config.forcing_const
     return drift_X[:, np.newaxis, :]
+
 
 if __name__ == "__main__":
     config = get_config()
@@ -30,7 +33,9 @@ if __name__ == "__main__":
     H = config.hurst
     try:
         is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :, :]
-        is_path_observations = np.concatenate([np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0), is_path_observations], axis=1)
+        is_path_observations = np.concatenate(
+            [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0),
+             is_path_observations], axis=1)
         assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
     except (FileNotFoundError, AssertionError) as e:
         print(e)
@@ -81,7 +86,7 @@ if __name__ == "__main__":
     # Euler-Maruyama Scheme for Tracking Errors
     shape = prevPath_observations.shape
     for bw_idx in tqdm(range(bws.shape[0])):
-        bw = bws[bw_idx,:]
+        bw = bws[bw_idx, :]
         inv_H = np.diag(np.power(bw, -2))
         norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
 
@@ -89,19 +94,20 @@ if __name__ == "__main__":
         with mp.Pool(processes=rmse_quantile_nums) as pool:
             # Prepare the arguments for each task
             tasks = [(quant_idx, shape, inv_H, norm_const, true_drift, config, num_time_steps, num_state_paths, deltaT,
-                      prevPath_shm.name, path_incs_shm.name, child_seeds[quant_idx]) for quant_idx in range(rmse_quantile_nums)]
+                      prevPath_shm.name, path_incs_shm.name, child_seeds[quant_idx]) for quant_idx in
+                     range(rmse_quantile_nums)]
 
             # Run the tasks in parallel
             results = pool.starmap(process_IID_bandwidth, tasks)
         results = {k: v for d in results for k, v in d.items()}
         all_true_states = np.concatenate([v[0][np.newaxis, :] for v in results.values()], axis=0)
-        all_global_states = np.zeros(shape=(rmse_quantile_nums, num_state_paths, 1 + num_time_steps, config.ndims))
-        all_local_states = np.concatenate([v[1][np.newaxis, :] for v in results.values()], axis=0)
+        all_local_states = np.zeros(shape=(rmse_quantile_nums, num_state_paths, 1 + num_time_steps, config.ndims))
+        all_global_states = np.concatenate([v[1][np.newaxis, :] for v in results.values()], axis=0)
         assert (all_true_states.shape == all_global_states.shape == all_local_states.shape)
 
         save_path = (
-            project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_f{config.ndims}DLnz_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
-        ".", "")
+                project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_f{config.ndims}DLnz_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
+            ".", "")
         print(f"Save path {save_path}\n")
         np.save(save_path + "_true_states.npy", all_true_states)
         np.save(save_path + "_global_states.npy", all_global_states)

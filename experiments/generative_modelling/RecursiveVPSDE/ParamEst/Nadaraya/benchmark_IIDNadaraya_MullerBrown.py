@@ -1,10 +1,11 @@
 import numpy as np
-from configs import project_config
-from tqdm import tqdm
 from scipy.stats import norm
-from src.classes.ClassFractionalMullerBrown import FractionalMullerBrown
+from tqdm import tqdm
+
+from configs import project_config
 from configs.RecursiveVPSDE.LSTM_fMullerBrown.recursive_LSTM_PostMeanScore_MullerBrown_T256_H05_tl_110data import \
     get_config
+from src.classes.ClassFractionalMullerBrown import FractionalMullerBrown
 
 
 def gaussian_kernel(bw, x):
@@ -17,6 +18,7 @@ def multivar_gaussian_kernel(bw, x):
     norm_const = 1 / np.sqrt((2. * np.pi) ** D * (1. / np.linalg.det(inv_H)))
     exponent = -0.5 * np.einsum('...i,ij,...j', x, inv_H, x)
     return norm_const * np.exp(exponent)
+
 
 def rmse_ignore_nans(y_true, y_pred):
     y_true = y_true.flatten()
@@ -47,7 +49,8 @@ try:
     assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
 except (FileNotFoundError, AssertionError) as e:
     print(e)
-    fMB = FractionalMullerBrown(initialState=np.array(initial_state), X0s=np.array(config.X0s), Y0s=np.array(config.Y0s),
+    fMB = FractionalMullerBrown(initialState=np.array(initial_state), X0s=np.array(config.X0s),
+                                Y0s=np.array(config.Y0s),
                                 diff=config.diffusion, Aks=np.array(config.Aks),
                                 aks=np.array(config.aks), bks=np.array(config.bks), cks=np.array(config.cks))
     is_path_observations = np.array(
@@ -78,7 +81,7 @@ def IID_NW_multivar_estimator(prevPath_observations, path_incs, bw, x, t1, t0, t
     denominator = np.sum(kernel_weights_unnorm, axis=(1, 0))[:, np.newaxis] / (N * n)
     assert (denominator.shape == (x.shape[0], 1))
     numerator = np.sum(kernel_weights_unnorm[..., np.newaxis] * path_incs[:, :, np.newaxis, :], axis=(1, 0)) / N * (
-                t1 - t0)
+            t1 - t0)
     assert (numerator.shape == x.shape)
     estimator = numerator / denominator
     assert (estimator.shape == x.shape)
@@ -90,13 +93,11 @@ def IID_NW_multivar_estimator(prevPath_observations, path_incs, bw, x, t1, t0, t
     return estimator
 
 
-
 assert (prevPath_observations.shape[1] * deltaT == (t1 - t0))
 
 # Note that because b(x) = sin(x) is bounded, we take \epsilon = 0 hence we have following h_max
 eps = 0.
 log_h_min = np.log10(np.power(float(config.ts_length - 1), -(1. / (2. - eps))))
-
 
 grid_1d = np.logspace(-4, -0.05, 50)
 bws = np.stack([grid_1d for m in range(config.ndims)], axis=-1)
@@ -121,8 +122,9 @@ for bw in bws:
         # Remember t0 = deltaT so X_t1 = is_ss_path_observations[:, 2] not is_ss_path_observations[:, 1]
         is_prevPath_observations = is_ss_path_observations[:, 1:-1]
         is_path_incs = np.diff(is_ss_path_observations, axis=1)[:, 1:]
-        unif_is_drift_hats[:, k, :] = IID_NW_multivar_estimator(prevPath_observations=is_prevPath_observations, bw=bw, x=Xs,
-                                                    path_incs=is_path_incs, t1=t1, t0=t0, truncate=True)
+        unif_is_drift_hats[:, k, :] = IID_NW_multivar_estimator(prevPath_observations=is_prevPath_observations, bw=bw,
+                                                                x=Xs,
+                                                                path_incs=is_path_incs, t1=t1, t0=t0, truncate=True)
     save_path = (
             project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fMullerBrown_DriftEvalExp_{bw[0]}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT").replace(
         ".", "")

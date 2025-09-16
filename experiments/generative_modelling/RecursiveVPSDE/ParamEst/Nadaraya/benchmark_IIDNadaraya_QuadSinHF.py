@@ -6,13 +6,13 @@
 
 import numpy as np
 from joblib import Parallel, delayed
-from tqdm import tqdm
 from scipy.stats import norm
+from tqdm import tqdm
 
 from configs import project_config
-from src.classes.ClassFractionalQuadSin import FractionalQuadSin
 from configs.RecursiveVPSDE.Markovian_fQuadSinHF.recursive_Markovian_PostMeanScore_fQuadSinHF2_HighFTh_T256_H05_tl_110data_StbleTgt_WRMSE import \
     get_config
+from src.classes.ClassFractionalQuadSin import FractionalQuadSin
 
 
 def gaussian_kernel(bw, x):
@@ -53,7 +53,8 @@ except (FileNotFoundError, AssertionError) as e:
     fQuadSin = FractionalQuadSin(quad_coeff=config.quad_coeff, sin_coeff=config.sin_coeff,
                                  sin_space_scale=config.sin_space_scale, diff=diff, X0=initial_state)
     is_path_observations = np.array(
-        [fQuadSin.euler_simulation(H=H, N=config.ts_length, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=initial_state,
+        [fQuadSin.euler_simulation(H=H, N=config.ts_length, deltaT=deltaT, isUnitInterval=isUnitInterval,
+                                   X0=initial_state,
                                    Ms=None, gaussRvs=rvs,
                                    t0=t0, t1=t1) for _ in (range(num_paths * 10))]).reshape(
         (num_paths, config.ts_length + 1))
