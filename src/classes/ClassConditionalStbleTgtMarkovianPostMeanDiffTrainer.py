@@ -645,6 +645,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         np.save(save_path + "_muhats.npy", final_vec_mu_hats)
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
+        if len(true_drifts.shape) == 1:
+            true_drifts = true_drifts.reshape(-1,1)
         mse = driftevalexp_mse_ignore_nans(true=true_drifts, pred=final_vec_mu_hats[:, -1, :,:].reshape(final_vec_mu_hats.shape[0], final_vec_mu_hats.shape[2], final_vec_mu_hats.shape[-1]*1).mean(axis=1))
         print(f"Current vs Best MSE {mse}, {self.curr_best_evalexp_mse} at Epoch {epoch}\n")
         return mse
