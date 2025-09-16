@@ -54,6 +54,7 @@ def get_config():
     config.residual_channels = 8
     config.diff_hidden_size = 64
     config.dialation_length = 10
+    config.enforce_fourier_mean_reg = True
 
     # MLP Architecture parameters
     config.mlp_hidden_dims = 4
