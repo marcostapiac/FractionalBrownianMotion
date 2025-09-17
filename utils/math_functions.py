@@ -4,7 +4,6 @@ from math import gamma
 from typing import Union, Tuple
 
 import numpy as np
-import roughpy as rhpy
 import scipy.optimize as so
 import torch
 from ml_collections import ConfigDict
