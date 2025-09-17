@@ -21,7 +21,7 @@ from configs import project_config
 from tqdm import tqdm
 
 from utils.drift_evaluation_functions import MLP_1D_drifts, multivar_score_based_MLP_drift_OOS, \
-    drifttrack_cummse, driftevalexp_mse_ignore_nans,  MLP_fBiPotDDims_drifts
+    drifttrack_cummse, driftevalexp_mse_ignore_nans, MLP_fBiPotDDims_drifts, drifttrack_mse
 
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
@@ -706,7 +706,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         num_time_steps = 256
         all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         all_global_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
-        #all_local_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+        all_local_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         for quant_idx in tqdm(range(rmse_quantile_nums)):
             self.score_network.module.eval()
             num_paths = 100
@@ -717,13 +717,13 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
             true_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
             global_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
-            #local_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+            local_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
 
             # Initialise the "true paths"
             true_states[:, [0], :] = initial_state + 0.00001 * np.random.randn(*initial_state.shape)
             # Initialise the "global score-based drift paths"
             global_states[:, [0], :] = true_states[:, [0], :]
-            # local_states[:, [0], :] = true_states[:, [0], :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
+            local_states[:, [0], :] = true_states[:, [0], :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
 
             # Euler-Maruyama Scheme for Tracking Errors
             for i in range(1, num_time_steps + 1):
@@ -734,14 +734,14 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 true_states[:, [i], :] = true_states[:, [i - 1], :] \
                                          + true_mean * deltaT \
                                          + eps
-                #local_mean = multivar_score_based_MLP_drift_OOS(
-                #    score_model=self.score_network.module,
-                #    num_diff_times=num_diff_times,
-                #    diffusion=diffusion,
-                #    num_paths=num_paths, ts_step=deltaT,
-                #    config=config,
-                #    device=self.device_id,
-                #    prev=true_states[:, i - 1, :])
+                local_mean = multivar_score_based_MLP_drift_OOS(
+                    score_model=self.score_network.module,
+                   num_diff_times=num_diff_times,
+                    diffusion=diffusion,
+                    num_paths=num_paths, ts_step=deltaT,
+                    config=config,
+                    device=self.device_id,
+                    prev=true_states[:, i - 1, :])
 
                 global_mean = multivar_score_based_MLP_drift_OOS(score_model=self.score_network.module,
                                                                                       num_diff_times=num_diff_times,
@@ -751,11 +751,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                                                                       device=self.device_id,
                                                                                       prev=global_states[:, i - 1, :])
 
-                #local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
+                local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
                 global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
 
             all_true_states[quant_idx, :, :, :] = true_states
-            #all_local_states[quant_idx, :, :, :] = local_states
+            all_local_states[quant_idx, :, :, :] = local_states
             all_global_states[quant_idx, :, :, :] = global_states
         enforce_fourier_reg = "NFMReg_" if not config.enforce_fourier_mean_reg else ""
         if "BiPot" in config.data_path and config.ndims == 1:
@@ -800,11 +800,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         print(f"Save path for OOS DriftTrack:{save_path}\n")
         np.save(save_path + "_true_states.npy", all_true_states)
         np.save(save_path + "_global_states.npy", all_global_states)
-        #np.save(save_path + "_local_states.npy", all_local_states)
+        np.save(save_path + "_local_states.npy", all_local_states)
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
         #mse = drifttrack_cummse(true=all_true_states, local=all_local_states, deltaT=config.deltaT)
-        mse = drifttrack_cummse(true=all_true_states, local=all_global_states, deltaT=config.deltaT)
+        mse = drifttrack_mse(true=all_true_states, local=all_global_states, deltaT=config.deltaT)
         print(f"Current vs Best MSE {mse}, {self.curr_best_track_mse} at Epoch {epoch}\n")
         return mse
 
