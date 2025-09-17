@@ -701,7 +701,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
         diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
         num_diff_times = 1
-        rmse_quantile_nums = 10
+        rmse_quantile_nums = 2
         num_paths = 100
         num_time_steps = 256
         all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))

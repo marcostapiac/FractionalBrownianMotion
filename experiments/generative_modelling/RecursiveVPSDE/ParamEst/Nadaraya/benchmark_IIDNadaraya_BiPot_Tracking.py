@@ -78,7 +78,7 @@ if __name__ == '__main__':
 
     num_time_steps = 256
     num_state_paths = 100
-    rmse_quantile_nums = 10
+    rmse_quantile_nums = 2
     # Ensure randomness across starmap calls
     master_seed = 42
     seed_seq = np.random.SeedSequence(master_seed)
@@ -102,7 +102,7 @@ if __name__ == '__main__':
             results = pool.starmap(process_IID_bandwidth, tasks)
         results = {k: v for d in results for k, v in d.items()}
         all_true_states = np.concatenate([v[0][np.newaxis, :] for v in results.values()], axis=0)
-        all_local_states = np.zeros(shape=(rmse_quantile_nums, num_state_paths, 1 + num_time_steps, config.ndims))
+        all_local_states = np.concatenate([v[2][np.newaxis, :] for v in results.values()], axis=0)
         all_global_states = np.concatenate([v[1][np.newaxis, :] for v in results.values()], axis=0)
         assert (all_true_states.shape == all_global_states.shape == all_local_states.shape)
 
