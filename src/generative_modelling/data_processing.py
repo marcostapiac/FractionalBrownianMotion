@@ -16,7 +16,6 @@ from src.classes.ClassConditionalMarkovianWithPositionDiffTrainer import Conditi
 from src.classes.ClassConditionalLSTMPostMeanDiffTrainer import ConditionalLSTMPostMeanDiffTrainer
 from src.classes.ClassConditionalMarkovianPostMeanDiffTrainer import ConditionalMarkovianPostMeanDiffTrainer
 from src.classes.ClassConditionalSDESampler import ConditionalSDESampler
-from src.classes.ClassConditionalSignatureDiffTrainer import ConditionalSignatureDiffTrainer
 from src.classes.ClassConditionalStbleTgtLSTMPostMeanDiffTrainer import \
     ConditionalStbleTgtLSTMPostMeanDiffTrainer
 from src.classes.ClassConditionalStbleTgtMarkovianPostMeanDiffTrainer import \
@@ -34,14 +33,11 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
     ConditionalMarkovianTSPostMeanScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSScoreMatching import \
     ConditionalMarkovianTSScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalSignatureTSScoreMatching import \
-    ConditionalSignatureTSScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTSScoreMatching import \
     ConditionalTSScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTSScoreMatching import \
     TSScoreMatching
-from utils.math_functions import compute_sig_size
 def prepare_scoreModel_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> DataLoader:
     """
     Split data into train, eval, test sets and create DataLoaders for training
@@ -137,108 +133,6 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
     # Sample
     final_samples = sampler.sample(shape=data_shape, torch_device=device, early_stop_idx=config.early_stop_idx)
     return final_samples  # TODO Check if need to detach
-
-
-def compute_current_sig_feature(ts_time: int, device: Union[int, str], past_feat: torch.Tensor, basepoint: torch.Tensor,
-                                latest_path: torch.Tensor, config: ConfigDict,
-                                score_network: ConditionalSignatureTSScoreMatching,
-                                full_path: torch.Tensor) -> torch.Tensor:
-    """
-    Efficient computation of path signature through concatenation
-        :param ts_time: Current time series time
-        :param device: Device on which tensors are stored
-        :param past_feat: Last feature
-        :param latest_path: Last path value
-        :param config: ML experiment configuration file
-    :return: Concactenated path feature
-    """
-    # ts_time: we have generated x1:x_tstime and want to generate x_(ts_time+1)
-    # ts_time == 0: we have generated nothing
-    # ts_time == 1: we have generated x1, want to generate x2
-    T = config.ts_length
-    """assert(len(basepoint.shape)==len(latest_path.shape)==3)
-    basepoint = torch.zeros_like(basepoint) if ts_time <= 1  else basepoint
-    latest_path = torch.zeros_like(latest_path) if ts_time == 0  else latest_path
-    if isinstance(past_feat.device, int):
-        increment_sig = score_network.module.signet.forward(latest_path, time_ax=torch.atleast_2d(
-            torch.Tensor([ts_time]) / T).T, basepoint=time_aug(basepoint, time_ax=torch.atleast_2d(
-            torch.Tensor([max(ts_time - 1, 0)]) / T).T.to(device)))
-    else:
-        increment_sig = score_network.signet.forward(latest_path, time_ax=torch.atleast_2d(
-            torch.Tensor([ts_time]) / T).T, basepoint=time_aug(basepoint, time_ax=torch.atleast_2d(
-            torch.Tensor([max(ts_time - 1, 0)]) / T).T.to(device)))
-    if ts_time >= 1:
-        # past_feat = features[[0], [ts_time - 1], :]  # Feature for generating x1 (using x0 only)
-        curr_feat = signatory.signature_combine(sigtensor1=past_feat.squeeze(dim=1),
-                                                sigtensor2=increment_sig.squeeze(dim=1),
-                                                input_channels=2, depth=5)
-        curr_feat = curr_feat.unsqueeze(dim=1)
-    else:
-        curr_feat = increment_sig
-    assert (curr_feat.shape == past_feat.shape)"""
-    if ts_time == 0: full_path = torch.zeros_like(latest_path)
-    expectsig = score_network.signet.forward(full_path, time_ax=torch.atleast_2d(
-        torch.arange(1 * min(1, ts_time), ts_time + 1) / T).T, basepoint=True)[:, [-1], :]
-    # assert((torch.abs(expectsig-curr_feat).squeeze(1).sum(dim=1).sum(dim=0)) <= 1e-15)
-    return expectsig
-
-
-@record
-def recursive_signature_reverse_sampling(diffusion: VPSDEDiffusion,
-                                         scoreModel: ConditionalSignatureTSScoreMatching,
-                                         data_shape: Tuple[int, int, int],
-                                         config: ConfigDict) -> torch.Tensor:
-    """
-    Recursive reverse sampling using path signatures
-        :param diffusion: Diffusion model
-        :param scoreModel: Trained score network
-        :param data_shape: Desired shape of generated samples
-        :param config: Configuration dictionary for experiment
-        :return: Final reverse-time samples
-    """
-    if config.has_cuda:
-        # Sampling is sequential, so only single-machine, single-GPU/CPU
-        device = 0
-    else:
-        device = torch.device("cpu")
-    # Define predictor
-    predictor_params = [diffusion, scoreModel, config.end_diff_time, config.max_diff_steps, device, config.sample_eps]
-    if config.predictor_model == "CondAncestral":
-        predictor = ConditionalAncestralSamplingPredictor(*predictor_params)
-    elif config.predictor_model == "CondReverseDiffusion":
-        predictor = ConditionalReverseDiffusionSamplingPredictor(*predictor_params)
-    elif config.predictor_model == "CondProbODE":
-        predictor = ConditionalProbODESamplingPredictor(*predictor_params)
-
-    # Define corrector
-    corrector_params = [config.max_lang_steps, torch.Tensor([config.snr]), device, diffusion]
-    if config.corrector_model == "VE":
-        corrector = VESDECorrector(*corrector_params)
-    elif config.corrector_model == "VP":
-        corrector = VPSDECorrector(*corrector_params)
-    else:
-        corrector = None
-    sampler = ConditionalSDESampler(diffusion=diffusion, sample_eps=config.sample_eps, predictor=predictor,
-                                    corrector=corrector)
-    scoreModel.eval()
-    with torch.no_grad():
-        paths = [torch.zeros((data_shape[0], 1, data_shape[-1])).to(
-            device)]  # Initial starting point (can be set to anything)
-        output = torch.zeros((data_shape[0], 1, compute_sig_size(dim=config.sig_dim, trunc=config.sig_trunc) - 1)).to(
-            device)
-        for t in range(config.ts_length):
-            print("Sampling at real time {}\n".format(t + 1))
-            output = compute_current_sig_feature(ts_time=t, device=device, past_feat=output,
-                                                 basepoint=paths[max(t - 1, 0)], latest_path=paths[max(0, t)],
-                                                 config=config, score_network=scoreModel,
-                                                 full_path=torch.concat(paths[1 * min(1, t):], dim=1))
-            samples = sampler.sample(shape=(data_shape[0], data_shape[-1]), torch_device=device, feature=output,
-                                     early_stop_idx=config.early_stop_idx)
-            assert (samples.shape == (data_shape[0], 1, data_shape[-1]))
-            paths.append(samples)
-    final_paths = torch.squeeze(torch.concat(paths, dim=1).cpu(), dim=2)[:, 1:]
-    assert (final_paths.shape == (data_shape[0], data_shape[1]))
-    return np.atleast_2d(final_paths.numpy())
 
 
 @record
@@ -443,7 +337,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                              scoreModel: Union[
                                                  NaiveMLP, ConditionalTSScoreMatching, ConditionalTSScoreMatching, ConditionalMarkovianTSPostMeanScoreMatching, ConditionalMarkovianTSScoreMatching],
                                              trainClass: Union[ConditionalLSTMPostMeanDiffTrainer,
-                                                               ConditionalLSTMDiffTrainer,ConditionalStbleTgtMarkovianPostMeanDiffTrainer, ConditionalMarkovianWithPositionDiffTrainer, ConditionalMarkovianPostMeanDiffTrainer, ConditionalStbleTgtMarkovianPostMeanDiffTrainer, ConditionalSignatureDiffTrainer, DiffTrainer]) -> None:
+                                                               ConditionalLSTMDiffTrainer,ConditionalStbleTgtMarkovianPostMeanDiffTrainer, ConditionalMarkovianWithPositionDiffTrainer, ConditionalMarkovianPostMeanDiffTrainer, ConditionalStbleTgtMarkovianPostMeanDiffTrainer, DiffTrainer]) -> None:
     """
     Helper function to initiate training for recursive diffusion model
         :param data: Dataset
@@ -499,18 +393,6 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                              loss_factor=config.loss_factor,
                              hybrid_training=config.hybrid, init_state=init_state, deltaT=config.deltaT)
         trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
-    elif isinstance(trainClass, type) and issubclass(trainClass, ConditionalSignatureDiffTrainer):
-                trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
-                                     checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
-                                     loss_aggregator=MeanMetric,
-                                     snapshot_path=config.scoreNet_snapshot_path, device=device,
-                                     train_eps=train_eps,
-                                     end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
-                                     to_weight=config.weightings,
-                                     hybrid_training=config.hybrid, init_state=init_state, deltaT=config.deltaT)
-                # Start training
-                trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path,
-                              ts_dims=config.ts_dims)
     elif isinstance(trainClass, type) and issubclass(trainClass, ConditionalLSTMWithPositionDiffTrainer):
         trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                              checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
