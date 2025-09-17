@@ -73,9 +73,9 @@ if __name__ == "__main__":
     assert (path_incs.shape[1] == config.ts_length - 1)
     assert (path_observations.shape[1] == prevPath_observations.shape[1] + 2)
     assert (prevPath_observations.shape[1] * deltaT == (t1 - t0))
-    grid_1d = np.logspace(-4, -0.05, 50)
+    grid_1d = np.logspace(-3.55, -0.05, 30)
     bws = np.stack([grid_1d for m in range(config.ndims)], axis=-1)
-    assert (bws.shape == (50, config.ndims))
+    assert (bws.shape == (30, config.ndims))
 
     prevPath_shm = shared_memory.SharedMemory(create=True, size=prevPath_observations.nbytes)
     path_incs_shm = shared_memory.SharedMemory(create=True, size=path_incs.nbytes)
