@@ -694,7 +694,7 @@ def invisibility_reset(timeaug: torch.Tensor, ts_dim: int) -> torch.Tensor:
     # assert (torch.sum(np.abs(torch.sum(torch.sum(Wi, dim=2), dim=1)), dim=0) < 1e-10)
     return Wi
 
-
+"""
 def compute_signature(sample: torch.Tensor, trunc: int, interval: rhpy.Interval, dim: int, coefftype: rhpy.ScalarMeta):
     # To work with RoughPy, we first need to first construct a context
     CTX = rhpy.get_context(width=dim, depth=trunc,
@@ -714,14 +714,14 @@ def compute_signature(sample: torch.Tensor, trunc: int, interval: rhpy.Interval,
 
 
 def assert_chen_identity(sample: np.ndarray, trunc: int, dim: int, coefftype: rhpy.ScalarMeta) -> None:
-    """
+    '
     Sanity check to ensure Chen's identity is preserved
     :param sample: Single time series sample
     :param trunc: Signature truncation level
     :param dim: Time series dimensionality
     :param coefftype: Time series data type
     :return: AssertionError or None
-    """
+    '
     assert (len(sample.shape) == 2)
     T = sample.shape[0]
     intv1 = rhpy.RealInterval(0, T // 2)
@@ -735,12 +735,12 @@ def assert_chen_identity(sample: np.ndarray, trunc: int, dim: int, coefftype: rh
 
 
 def ts_signature_pipeline(data_batch: torch.Tensor, trunc: int, times: torch.Tensor, interval=None) -> torch.Tensor:
-    """
+    '
     Pipeline to compute the signature at each time for each sample of data batch
         :param data_batch: Data of shape (NumSamples, TSLength, TSDims)
         :param trunc: Signature truncation level
         :return: Signature for each time
-    """
+    '
     assert (len(data_batch.shape) == 3 and len(times.shape) == 2)
     N, T, d = data_batch.shape
     timeaug = time_aug(data_batch, times[:T, :])
@@ -754,12 +754,12 @@ def ts_signature_pipeline(data_batch: torch.Tensor, trunc: int, times: torch.Ten
 
 
 def compute_sig_size(dim: int, trunc: int) -> int:
-    """
+    '
     Compute the number of elements for a truncated signature
         :param dim: Dimension of augmented time series
         :param trunc: Truncation level of signature
         :return: Number of elements in the truncated signature
-    """
+    '
     if dim > 1:
         return int(np.power(dim, trunc + 1) - 1 / (dim - 1))
     else:
@@ -767,14 +767,14 @@ def compute_sig_size(dim: int, trunc: int) -> int:
 
 
 def tensor_algebra_product(sig1: torch.Tensor, sig2: torch.Tensor, dim: int, trunc: int) -> torch.Tensor:
-    """
+    '
     Manually compute Chen's identity over two non-overlapping consecutive intervals
         :param sig1: Signature over first interval
         :param sig2: Signature over second interval
         :param dim: Dimension of augmented time series
         :param trunc: Signature truncation level
         :return: Signature of concatenated path
-    """
+    '
     assert (len(sig1.shape) == len(sig2.shape) == 1 and sig1.shape == sig2.shape and sig1[0] == sig2[
         0] == 1. and 1 <= trunc <= 3)
     device = sig1.device
@@ -817,3 +817,5 @@ def tensor_algebra_product(sig1: torch.Tensor, sig2: torch.Tensor, dim: int, tru
             product[compute_sig_size(dim=dim, trunc=2):compute_sig_size(dim=dim, trunc=3)] = level3
     assert (product.shape == (compute_sig_size(dim=dim, trunc=trunc),))
     return torch.atleast_2d(product)
+    
+"""
