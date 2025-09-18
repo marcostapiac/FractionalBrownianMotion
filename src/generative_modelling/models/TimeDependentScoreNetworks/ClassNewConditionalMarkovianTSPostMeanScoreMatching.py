@@ -226,6 +226,8 @@ class MLPStateMapper(nn.Module):
             u = ranks / (x_std.size(0) + 1.0)
             u = u.clamp_(1e-6, 1 - 1e-6)
             gauss = math.sqrt(2.0) * torch.erfinv(2 * u - 1)
+            print(gauss)
+
 
         xr = torch.cat([x_std, log1p_abs, sign, x2, gauss], dim=-1)  # [B,5D]
 
@@ -333,4 +335,5 @@ class NewConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
         # VPSDE posterior mean target (numerically stabilized; no loss change)
         beta_tau = torch.exp(-0.5 * eff_times)
         sigma2_tau = (1.0 - torch.exp(-eff_times)).clamp_min(1e-4)
+        if torch.any(torch.isnan(x)) or torch.any(torch.isinf(x)): raise RuntimeError
         return -inputs / sigma2_tau + (beta_tau / sigma2_tau) * x
