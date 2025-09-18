@@ -224,10 +224,9 @@ class MLPStateMapper(nn.Module):
             # Batchwise rank -> Gaussian via erf^{-1}; clamp u to avoid infs
             ranks = torch.argsort(torch.argsort(x_std, dim=0), dim=0).float() + 1.0
             u = ranks / (x_std.size(0) + 1.0)
-            u = u.clamp_(1e-6, 1 - 1e-6)
+            u = u.clamp(1e-3, 1 - 1e-3)
             gauss = math.sqrt(2.0) * torch.erfinv(2 * u - 1)
-            print(gauss)
-
+            if torch.any(torch.isnan(gauss)) or torch.any(torch.isinf(gauss)): raise RuntimeError
 
         xr = torch.cat([x_std, log1p_abs, sign, x2, gauss], dim=-1)  # [B,5D]
 
