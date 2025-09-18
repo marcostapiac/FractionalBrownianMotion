@@ -38,7 +38,7 @@ if __name__ == "__main__":
         print("Error {}; no valid trained model found; proceeding to training\n".format(e))
         training_size = int(
             max(1000, min(int(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad) / (
-                        config.ts_length - 1)), 1200000)))
+                        config.ts_length - 1)), 10240)))
         print(training_size)
         training_size -= 53
         try:
