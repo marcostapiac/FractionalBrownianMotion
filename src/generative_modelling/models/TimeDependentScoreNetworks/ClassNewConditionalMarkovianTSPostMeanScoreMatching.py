@@ -82,10 +82,9 @@ class ResidualBlock(nn.Module):
         # Conditioner expects [B,1,T]
         self.conditioner_projection = nn.Conv1d(1, 2 * residual_channels, 1)
         self.diffusion_projection = nn.Linear(diffusion_hidden_size, residual_channels)
-        self.output_projection = nn.Conv1d(residual_channels, 2 * residual_channels, 1)
 
-        nn.init.zeros_(self.output_projection.weight)
-        nn.init.zeros_(self.output_projection.bias)
+        self.output_projection = nn.Conv1d(residual_channels, 2 * residual_channels, 1)
+        nn.init.kaiming_normal_(self.output_projection.weight)
 
         # Mild channel-wise normalization to reduce gain spikes
         self.gn_in = nn.GroupNorm(1, residual_channels)
@@ -294,7 +293,7 @@ class NewConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
 
         # WeightNorm to control gain and reduce wiggles
         self.skip_projection = nn.utils.weight_norm(nn.Conv1d(residual_channels, residual_channels, 1))
-        self.output_projection = nn.utils.weight_norm(nn.Conv1d(residual_channels, 1, 1))
+        self.output_projection = (nn.Conv1d(residual_channels, 1, 1))
 
         nn.init.kaiming_normal_(self.input_projection.weight)
         # weight_norm reparam: init weight_v
@@ -332,8 +331,6 @@ class NewConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
 
         x = torch.sum(torch.stack(skip), dim=0) / math.sqrt(len(self.residual_layers))
         x = F.leaky_relu(self.skip_projection(x), 0.01)
-        if torch.any(torch.isnan(x)) or torch.any(torch.isinf(x)): raise RuntimeError
-        print(x)
         x = self.output_projection(x)
         if torch.any(torch.isnan(x)) or torch.any(torch.isinf(x)): raise RuntimeError
 
