@@ -548,7 +548,7 @@ def driftevalexp_mse_ignore_nans(true, pred):
     assert len(true.shape) == 1 or len(true.shape) == 2
     if len(true.shape) == 2 and true.shape[-1] > 1:
         assert true.shape[1] == pred.shape[1]
-        return np.nanmean((true-pred)**2)
+        return np.nanmean(np.sum((true-pred)**2), dim=-1)
     else:
         true = true.flatten()
         pred = pred.flatten()
