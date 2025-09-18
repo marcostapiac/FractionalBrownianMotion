@@ -317,6 +317,7 @@ class NewConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
 
         diffusion_step = self.diffusion_embedding(times)        # [B,H]
         conditioner = self.mlp_state_mapper(conditioner)        # [B,1,L]
+        if torch.any(torch.isnan(conditioner)) or torch.any(torch.isinf(conditioner)): raise RuntimeError
         cond_up = self.cond_upsampler(conditioner)              # [B,T]
         if cond_up.dim() == 2:
             cond_up = cond_up.unsqueeze(1)                      # -> [B,1,T]
