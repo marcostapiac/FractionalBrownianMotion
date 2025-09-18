@@ -874,18 +874,23 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             # Obtain epoch loss averaged over devices
             average_loss_per_epoch = torch.mean(torch.stack(all_gpus_losses), dim=0)
             all_losses_per_epoch.append(float(average_loss_per_epoch.cpu().numpy()))
+            if "New" not in config.scoreNet_trained_path:
+                average_base_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_base_losses), dim=0).cpu().numpy())
+                average_var_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_var_losses), dim=0).cpu().numpy())
+                average_mean_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_mean_losses), dim=0).cpu().numpy())
+                ratio = (.99 * average_base_loss_per_epoch) / (average_var_loss_per_epoch + 1e-12)
+                self.var_loss_reg = min(ratio, 0.01)
 
-            average_base_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_base_losses), dim=0).cpu().numpy())
-            average_var_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_var_losses), dim=0).cpu().numpy())
-            average_mean_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_mean_losses), dim=0).cpu().numpy())
-            ratio = (.99 * average_base_loss_per_epoch) / (average_var_loss_per_epoch + 1e-12)
-            self.var_loss_reg = min(ratio, 0.01)
-
-            if config.enforce_fourier_mean_reg:
-                ratio = (.75 * average_base_loss_per_epoch) / (average_mean_loss_per_epoch + 1e-12)
-                self.mean_loss_reg = min(ratio, 0.01/config.ts_dims) # vs 0.01
+                if config.enforce_fourier_mean_reg:
+                    ratio = (.75 * average_base_loss_per_epoch) / (average_mean_loss_per_epoch + 1e-12)
+                    self.mean_loss_reg = min(ratio, 0.01/config.ts_dims) # vs 0.01
+                else:
+                    self.mean_loss_reg = 0.
+                print(
+                f"Calibrating Regulatisation: Base {average_base_loss_per_epoch}, Var {average_var_loss_per_epoch}, Mean {average_mean_loss_per_epoch}\n")
             else:
                 self.mean_loss_reg = 0.
+                self.var_loss_reg = 0.
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
             # see  https://github.com/Lightning-AI/torchmetrics/issues/626
             print("Device {} :: Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format(
@@ -930,6 +935,5 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     self._save_loss(losses=all_losses_per_epoch, learning_rates=learning_rates, filepath=model_filename)
                     self._save_snapshot(epoch=epoch)
             if type(self.device_id) == int: dist.barrier()
-            print(f"Calibrating Regulatisation: Base {average_base_loss_per_epoch}, Var {average_var_loss_per_epoch}, Mean {average_mean_loss_per_epoch}\n")
             print(f"TrackMSE, EvalExpMSE: {self.curr_best_track_mse, self.curr_best_evalexp_mse}\n")
 
