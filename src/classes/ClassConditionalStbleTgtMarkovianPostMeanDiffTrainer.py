@@ -611,6 +611,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         assert (type in config.scoreNet_trained_path)
         assert ("_ST_" in config.scoreNet_trained_path)
         enforce_fourier_reg = "NFMReg_" if not config.enforce_fourier_mean_reg else ""
+        enforce_fourier_reg += "New_" if "New" in config.scoreNet_trained_path else ""
         if "BiPot" in config.data_path and config.ndims == 1:
             if "WAttn" in config.scoreNet_trained_path:
                 save_path = (
@@ -758,6 +759,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             all_local_states[quant_idx, :, :, :] = local_states
             all_global_states[quant_idx, :, :, :] = global_states
         enforce_fourier_reg = "NFMReg_" if not config.enforce_fourier_mean_reg else ""
+        enforce_fourier_reg += "New_" if "New" in config.scoreNet_trained_path else ""
         if "BiPot" in config.data_path and config.ndims == 1:
             if "WAttn" in config.scoreNet_trained_path:
                 save_path = (
