@@ -9,12 +9,14 @@ from src.generative_modelling.data_processing import train_and_save_recursive_di
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
     ConditionalMarkovianTSPostMeanScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNewConditionalMarkovianTSPostMeanScoreMatching import \
+    NewConditionalMarkovianTSPostMeanScoreMatching
 from utils.data_processing import init_experiment, cleanup_experiment
 from utils.math_functions import generate_fSinLog
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.Markovian_fSinLog.recursive_Markovian_PostMeanScore_fSinLog_LowFTh_T256_H05_tl_110data_StbleTgt_WRMSE import \
+    from configs.RecursiveVPSDE.Markovian_fSinLog.recursive_Markovian_PostMeanScore_fSinLog_LowFTh_T256_H05_tl_110data_StbleTgt_New import \
         get_config
     config = get_config()
     assert (config.hurst == 0.5)
@@ -25,7 +27,7 @@ if __name__ == "__main__":
     assert (config.feat_thresh == 1./500.)
     print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()
-    scoreModel = ConditionalMarkovianTSPostMeanScoreMatching(
+    scoreModel = NewConditionalMarkovianTSPostMeanScoreMatching(
         *config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     print(

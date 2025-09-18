@@ -61,7 +61,7 @@ def get_config():
     # MLP Architecture parameters
     config.mlp_hidden_dims = 4
     config.condupsampler_length = 20
-    config.enforce_fourier_mean_reg = False
+    config.enforce_fourier_mean_reg = True
     config.reg_label = "NFMReg_" if not config.enforce_fourier_mean_reg else ""
 
     # TSM Architecture parameters
