@@ -327,6 +327,7 @@ class NewConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
             x, s = layer(x, conditioner=cond_up, diffusion_step=diffusion_step)
             x = F.leaky_relu(x, 0.01)
             skip.append(s)
+            if torch.any(torch.isnan(x)) or torch.any(torch.isinf(x)): raise RuntimeError
 
         x = torch.sum(torch.stack(skip), dim=0) / math.sqrt(len(self.residual_layers))
         x = F.leaky_relu(self.skip_projection(x), 0.01)
