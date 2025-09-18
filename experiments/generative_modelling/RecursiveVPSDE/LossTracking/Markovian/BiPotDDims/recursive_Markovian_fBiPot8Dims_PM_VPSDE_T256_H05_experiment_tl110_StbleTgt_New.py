@@ -7,24 +7,26 @@ from src.classes.ClassConditionalStbleTgtMarkovianPostMeanDiffTrainer import \
     ConditionalStbleTgtMarkovianPostMeanDiffTrainer
 from src.generative_modelling.data_processing import train_and_save_recursive_diffusion_model
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatchingWithAttention import \
-    ConditionalMarkovianTSPostMeanScoreMatchingWithAttention
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
+    ConditionalMarkovianTSPostMeanScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNewConditionalMarkovianTSPostMeanScoreMatching import \
+    NewConditionalMarkovianTSPostMeanScoreMatching
 from utils.data_processing import init_experiment, cleanup_experiment
 from utils.math_functions import generate_fBiPot
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.Markovian_fBiPotDDims.recursive_Markovian_PostMeanScore_fBiPot12Dims_T256_H05_tl_110data_StbleTgt_WAttn import \
+    from configs.RecursiveVPSDE.Markovian_fBiPotDDims.recursive_Markovian_PostMeanScore_fBiPot8Dims_T256_H05_tl_110data_StbleTgt_New import \
         get_config
 
     config = get_config()
     assert (config.hurst == 0.5)
-    assert (config.ndims == 12)
+    assert (config.ndims == 8)
     assert (config.early_stop_idx == 0)
     assert (config.tdata_mult == 110)
     print(config.scoreNet_trained_path, config.dataSize)
     rng = np.random.default_rng()
-    scoreModel = ConditionalMarkovianTSPostMeanScoreMatchingWithAttention(*config.model_parameters)
+    scoreModel = NewConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     print(
         config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad) / (config.ts_length - 1))
@@ -38,8 +40,8 @@ if __name__ == "__main__":
             max(1000, min(int(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad) / (
                     config.ts_length - 1)), 1200000)))
         training_size -= (training_size % config.ref_batch_size)
-        print(training_size)
         training_size = 10240
+        print(training_size)
         try:
             data = np.load(config.data_path, allow_pickle=True)
             assert (data.shape[0] >= training_size)
@@ -51,7 +53,7 @@ if __name__ == "__main__":
                                    diff=config.diffusion,
                                    initial_state=config.initState)
             np.save(config.data_path, data)
-        data = np.concatenate([data[:, [0]] - config.initState, np.diff(data, axis=1)], axis=1)
+        data = np.concatenate([data[:, [0],:] - config.initState, np.diff(data, axis=1)], axis=1)
         data = np.atleast_3d(data[:training_size, :])
         assert (data.shape == (training_size, config.ts_length, config.ts_dims))
         # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)

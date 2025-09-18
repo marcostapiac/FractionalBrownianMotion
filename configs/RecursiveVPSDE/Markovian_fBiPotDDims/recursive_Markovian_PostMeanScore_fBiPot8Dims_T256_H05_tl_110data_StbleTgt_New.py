@@ -10,7 +10,7 @@ def get_config():
     # Experiment environment parameters
     config.has_cuda = torch.cuda.is_available()
     # Data set parameters
-    config.ndims = 12
+    config.ndims = 8
     config.hurst = 0.5
     config.quartic_coeff = list(np.linspace(0.25, 1.00, config.ndims))
     config.quad_coeff = list(-np.linspace(0.5, 2.00, config.ndims)[::-1])
@@ -45,6 +45,7 @@ def get_config():
     config.tdata_mult = 110
     config.ts_dims = config.ndims
     config.loss_factor = 2
+    config.enforce_fourier_mean_reg = True
 
     # Diffusion hyperparameters
     config.beta_max = 20.
@@ -70,8 +71,8 @@ def get_config():
             config.lstm_dropout > 0 and config.lstm_numlay > 1))
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/rec_ST_{:.3f}FTh_PM_MLPWAttn_{}LFac_fBiPot_{}DDims_VPSDE_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_{}a_{}b_{}c_MLP_H{}_CUp{}_tl{}".format(
-        config.feat_thresh, config.loss_factor, config.ndims,config.hurst,
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_New_rec_ST_{:.3f}FTh_PM_MLP_{}LFac_fBiPot_{}DDims_VPSDE_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_BetaMax{:.1e}_BetaMin{:.1e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_{}a_{}b_{}c_MLP_H{}_CUp{}_tl{}".format(
+        config.feat_thresh, config.loss_factor, config.ndims,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.beta_max, config.beta_min,
         config.temb_dim,
