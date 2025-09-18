@@ -150,7 +150,7 @@ class HybridStates(nn.Module):
         # x: [B,D]
         with torch.no_grad():
             self.log_scale.clamp_(self.min_log_scale, self.max_log_scale)
-        scales = torch.exp(self.log_scale).unsqueeze(1)   # [M,1]
+        scales = torch.exp(self.log_scale.clamp(-2.5, 2.5)).unsqueeze(1)
         W_scaled = scales * self.W                        # [M,D]
         proj = x @ W_scaled.T + self.b                    # [B,M]
         fourier = torch.cat([torch.sin(proj), torch.cos(proj)], dim=-1)  # [B,2M]
