@@ -85,6 +85,7 @@ class ResidualBlock(nn.Module):
 
         self.output_projection = nn.Conv1d(residual_channels, 2 * residual_channels, 1)
         nn.init.zeros_(self.output_projection.weight)
+        nn.init.zeros_(self.output_projection.bias)
 
         # Mild channel-wise normalization to reduce gain spikes
         self.gn_in = nn.GroupNorm(1, residual_channels)
