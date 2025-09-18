@@ -298,7 +298,7 @@ class NewConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
         nn.init.kaiming_normal_(self.input_projection.weight)
         # weight_norm reparam: init weight_v
         nn.init.kaiming_normal_(self.skip_projection.weight_v)
-        nn.init.zeros_(self.output_projection.weight_v)
+        nn.init.zeros_(self.output_projection.weight)
         with torch.no_grad():
             if hasattr(self.skip_projection, 'weight_g'):
                 self.skip_projection.weight_g.fill_(1.0)
