@@ -331,10 +331,11 @@ class NewConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
 
         x = torch.sum(torch.stack(skip), dim=0) / math.sqrt(len(self.residual_layers))
         x = F.leaky_relu(self.skip_projection(x), 0.01)
+        if torch.any(torch.isnan(x)) or torch.any(torch.isinf(x)): raise RuntimeError
         x = self.output_projection(x)
+        if torch.any(torch.isnan(x)) or torch.any(torch.isinf(x)): raise RuntimeError
 
         # VPSDE posterior mean target (numerically stabilized; no loss change)
         beta_tau = torch.exp(-0.5 * eff_times)
-        sigma2_tau = (1.0 - torch.exp(-eff_times)).clamp_min(1e-4)
-        if torch.any(torch.isnan(x)) or torch.any(torch.isinf(x)): raise RuntimeError
+        sigma2_tau = (1.0 - torch.exp(-eff_times))
         return -inputs / sigma2_tau + (beta_tau / sigma2_tau) * x
