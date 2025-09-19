@@ -596,9 +596,14 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                      np.linspace(-3.7, 3.7, num=Xshape).reshape(-1,1), np.linspace(-3.6, 3.6, num=Xshape).reshape(-1,1), \
                                      np.linspace(-3.5, 3.5, num=Xshape).reshape(-1,1), np.linspace(-3.4, 3.4, num=Xshape).reshape(-1,1)],
                                     axis=1)
-            true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
-                                                                       3) + 2. * np.array(
-                config.quad_coeff) * Xs + np.array(config.const))
+            if "DDimsNS" in config.data_path:
+                true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
+                                                                               3) + 2. * np.array(
+                    config.quad_coeff) * Xs + np.array(config.const)) + config.coupling*(np.roll(Xs,1, axis=-1)+np.rolL(Xs, -1, axis=-1))
+            else:
+                true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
+                                                                           3) + 2. * np.array(
+                    config.quad_coeff) * Xs + np.array(config.const))
         elif "QuadSin" in config.data_path:
             Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
             true_drifts = (-2. * config.quad_coeff * Xs + config.sin_coeff * config.sin_space_scale * np.sin(
@@ -613,23 +618,17 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         enforce_fourier_reg = "NFMReg_" if not config.enforce_fourier_mean_reg else ""
         enforce_fourier_reg += "New_" if "New" in config.scoreNet_trained_path else ""
         if "BiPot" in config.data_path and config.ndims == 1:
-            if "WAttn" in config.scoreNet_trained_path:
-                save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLPWAttn_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
-                    ".", "")
-            else:
-                save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
-                    ".", "")
-        elif "BiPot" in config.data_path and config.ndims > 1:
-            if "WAttn" in config.scoreNet_trained_path:
-                save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLPWAttn_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDims_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
-            else:
-                save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDims_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
-                    ".", "")
+        elif "BiPot" in config.data_path and config.ndims > 1 and "DDimsNS" not in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDims_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                ".", "")
+        elif "BiPot" in config.data_path and "DDimsNS" in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDimsNS_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                ".", "")
         elif "QuadSin" in config.data_path:
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fQuadSinHF_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
@@ -659,9 +658,13 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 drift_X = -(4. * config.quartic_coeff * np.power(prev,
                                                                  3) + 2. * config.quad_coeff * prev + config.const)
                 return drift_X[:, np.newaxis, :]
-            elif "BiPot" in config.data_path and config.ndims>1:
+            elif "BiPot" in config.data_path and config.ndims>1 and "DDimsNS" not in config.data_path:
                 drift_X = -(4. * np.array(config.quartic_coeff) * np.power(prev,
                                                                  3) + 2. * np.array(config.quad_coeff) * prev + np.array(config.const))
+                return drift_X[:, np.newaxis, :]
+            elif "BiPot" in config.data_path and config.ndims>1 and "DDimsNS" in config.data_path:
+                drift_X = -(4. * np.array(config.quartic_coeff) * np.power(prev,
+                                                                 3) + 2. * np.array(config.quad_coeff) * prev + np.array(config.const)) + config.coupling*(np.roll(prev, 1, axis=-1)+ np.roll(prev, -1, axis=-1))
                 return drift_X[:, np.newaxis, :]
             elif "QuadSin" in config.data_path:
                 drift_X = -2. * config.quad_coeff * prev + config.sin_coeff * config.sin_space_scale * np.sin(
@@ -761,23 +764,17 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         enforce_fourier_reg = "NFMReg_" if not config.enforce_fourier_mean_reg else ""
         enforce_fourier_reg += "New_" if "New" in config.scoreNet_trained_path else ""
         if "BiPot" in config.data_path and config.ndims == 1:
-            if "WAttn" in config.scoreNet_trained_path:
-                save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLPWAttn_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
-                    ".", "")
-            else:
-                save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
-                    ".", "")
-        elif "BiPot" in config.data_path and config.ndims > 1:
-            if "WAttn" in config.scoreNet_trained_path:
-                save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLPWAttn_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDims_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
-            else:
-                save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDims_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
-                    ".", "")
+        elif "BiPot" in config.data_path and config.ndims > 1 and "DDimsNS" not in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDims_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                ".", "")
+        elif "BiPot" in config.data_path and config.ndims > 1 and "DDimsNS" in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDimsNS_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                ".", "")
         elif "QuadSin" in config.data_path:
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fQuadSinHF_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(

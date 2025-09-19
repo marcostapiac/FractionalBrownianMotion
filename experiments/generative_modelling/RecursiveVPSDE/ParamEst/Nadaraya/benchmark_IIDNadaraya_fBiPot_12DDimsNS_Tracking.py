@@ -16,7 +16,7 @@ def true_drift(prev, num_paths, config):
     assert (prev.shape == (num_paths, config.ndims))
     drift_X = -(4. * np.array(config.quartic_coeff) * np.power(prev,
                                                                3) + 2. * np.array(config.quad_coeff) * prev + np.array(
-        config.const)) + config.coupling *(np.roll(prev, 1, axis=-1), np.roll(prev, -1, axis=-1))
+        config.const)) + config.coupling *(np.roll(prev, 1, axis=-1)+ np.roll(prev, -1, axis=-1))
     return drift_X[:, np.newaxis, :]
 
 
