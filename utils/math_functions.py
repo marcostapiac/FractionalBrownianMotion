@@ -14,18 +14,16 @@ from tqdm import tqdm
 from configs.project_config import NoneType
 from src.classes import ClassFractionalBrownianNoise
 from src.classes.ClassFractionalBiPotential import FractionalBiPotential
+from src.classes.ClassFractionalBiPotentialNonSep import FractionalBiPotentialNonSep
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
 from src.classes.ClassFractionalCEV import FractionalCEV
 from src.classes.ClassFractionalLorenz63 import FractionalLorenz63
 from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
 from src.classes.ClassFractionalMullerBrown import FractionalMullerBrown
-from src.classes.ClassFractionalOU import FractionalOU
 from src.classes.ClassFractionalQuadSin import FractionalQuadSin
-from src.classes.ClassFractionalSin import FractionalSin
 from src.classes.ClassFractionalSinLog import FractionalSinLog
 
 
-# from src.classes.ClassFractionalSin import FractionalSin
 
 
 def logsumexp(w: np.ndarray, x: np.ndarray, h: callable, axis: int = 0, isLog: bool = False):
@@ -233,6 +231,32 @@ def generate_Lorenz96(H: float, T: int, S: int, config, isUnitInterval: bool, in
     assert (sample_paths.shape == (S, T + 1, ndims))
     return sample_paths[:, 1:, :]
 
+def generate_fBiPotNonSep(H: float, T: int, S: int, config, isUnitInterval: bool, a: float, b: float, c: float, coupling:float,
+                    initial_state: float, diff: float, ndims: int):
+    assert (H == 0.5 and len(initial_state) == ndims)
+    assert (diff == 4.)
+    try:
+        deltaT = config.deltaT
+        t0 = config.t0
+        t1 = config.t1
+    except AttributeError:
+        if isUnitInterval:
+            deltaT = 1. / T
+            t0 = 0.
+            t1 = 1.
+        else:
+            deltaT = 1.
+            t0 = 0.
+            t1 = T
+    fBiPotNS = FractionalBiPotentialNonSep(num_dims=ndims, quartic_coeff=a, quad_coeff=b, const=c, diff=diff, coupling=coupling,
+                                   X0=initial_state)
+    sample_paths = np.array(
+        [fBiPotNS.euler_simulation(H=H, N=T, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=None, Ms=None,
+                                 t0=t0, t1=t1).reshape(-1, 1) for _ in range(S)]).reshape(
+        (S, T + 1, ndims))
+    assert (sample_paths.shape == (S, T + 1, ndims))
+    return sample_paths[:, 1:, :]
+
 
 def generate_MullerBrown(H: float, T: int, S: int, config, isUnitInterval: bool):
     assert (H == 0.5 and config.ndims == 2)
@@ -285,41 +309,6 @@ def generate_Lorenz63(H: float, T: int, S: int, config, isUnitInterval: bool):
                              range(S)]).reshape((S, T + 1, config.ndims))
     assert (sample_paths.shape == (S, T + 1, config.ndims))
     return sample_paths[:, 1:, :]
-
-
-
-def generate_fSin(config, H: float, T: int, S: int, isUnitInterval: bool, mean_rev: float, diff: float,
-                  initial_state: float,
-                  rvs: Union[NoneType, np.ndarray] = None) -> np.ndarray:
-    """
-    Function generates samples of fractional Sinusoidal SDE
-        :param H: Hurst parameter
-        :param T: Length of each sample
-        :param S: Number of samples
-        :param rvs: Pre-computed Gaussian random variables
-        :param isUnitInterval: Whether to scale samples to unit time interval.
-        :return: LSTM_fBm samples
-    """
-    try:
-        deltaT = config.deltaT
-        t0 = config.t0
-        t1 = config.t1
-    except AttributeError:
-        if isUnitInterval:
-            deltaT = 1. / T
-            t0 = 0.
-            t1 = 1.
-        else:
-            deltaT = 1.
-            t0 = 0.
-            t1 = T
-    fSin = FractionalSin(mean_rev=mean_rev, diff=diff, X0=initial_state)
-    data = np.array(
-        [fSin.euler_simulation(H=H, N=T, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=None, Ms=None, gaussRvs=rvs,
-                               t0=t0, t1=t1) for _ in range(S)]).reshape(
-        (S, T + 1))
-    assert (data.shape == (S, T + 1))
-    return data[:, 1:]
 
 
 def generate_fQuadSin(config, H: float, T: int, S: int, isUnitInterval: bool, a: float, b: float, c: float, diff: float,

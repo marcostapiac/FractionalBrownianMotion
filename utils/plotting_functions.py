@@ -570,7 +570,7 @@ def compare_fBm_to_approximate_fBm(generated_samples: np.ndarray, h: float, td: 
             N_samples=td).cumsum()  # TODO: Are we including initial sample?
     plot_tSNE(generated_samples, y=approx_samples,
               labels=["Reverse Diffusion Samples", "Approximate Samples: Paxon Method"],
-              image_path=project_config.ROOT_DIR + "pngs/tSNE_approxfBm_vs_generatedfBm_H{:.1e}_T{}".format(h, td))
+              image_path=project_config.ROOT_DIR + "pngs/tSNE_approxfBm_vs_generatedfBm__T{}".format(h, td))
 
 
 def compare_fBm_to_normal(h: float, generated_samples: np.ndarray, td: int, rng: np.random.Generator) -> None:
@@ -587,7 +587,7 @@ def compare_fBm_to_normal(h: float, generated_samples: np.ndarray, td: int, rng:
     for _ in range(S):
         normal_rvs[_, :] = rng.standard_normal(td)
     plot_tSNE(generated_samples, y=normal_rvs, labels=["Reverse Diffusion Samples", "Standard Normal RVS"],
-              image_path=project_config.ROOT_DIR + "pngs/tSNE_normal_vs_generatedfBm_H{:.1e}_T{}".format(h, td))
+              image_path=project_config.ROOT_DIR + "pngs/tSNE_normal_vs_generatedfBm__T{}".format(h, td))
 
 
 def plot_errors_ts(diff_time_space: np.ndarray, errors: np.ndarray, plot_title: str, path: str) -> None:

@@ -3,15 +3,7 @@ from typing import Tuple, Union
 import torch
 from torch import nn
 
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSScoreMatching import \
-    ConditionalLSTMTSScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSScoreMatching import \
-    ConditionalMarkovianTSScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTSScoreMatching import \
-    ConditionalTSScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTSScoreMatching import \
-    TSScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import ConditionalMarkovianTSPostMeanScoreMatching
 
 
 class VESDEDiffusion(nn.Module):
@@ -127,8 +119,7 @@ class VESDEDiffusion(nn.Module):
             noise_diff * next_var / curr_var if diff_index < max_diff_steps - 1 else torch.Tensor([0]).to(device))
 
     def get_ancestral_sampling(self, x: torch.Tensor, t: torch.Tensor,
-                               score_network: Union[
-                                   NaiveMLP, TSScoreMatching, ConditionalLSTMTSScoreMatching, ConditionalTSScoreMatching, ConditionalMarkovianTSScoreMatching],
+                               score_network: Union[ConditionalMarkovianTSPostMeanScoreMatching],
                                diff_index: torch.Tensor, max_diff_steps: int) -> Tuple[
         torch.Tensor, torch.Tensor, torch.Tensor]:
         """

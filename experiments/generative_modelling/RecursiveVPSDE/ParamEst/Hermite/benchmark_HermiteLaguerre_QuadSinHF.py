@@ -7,7 +7,7 @@ import numpy as np
 from scipy.special import eval_laguerre
 
 from configs import project_config
-from configs.RecursiveVPSDE.Markovian_fQuadSinHF.recursive_Markovian_PostMeanScore_fQuadSinHF2_HighFTh_T256_H05_tl_110data_StbleTgt_WRMSE import \
+from configs.RecursiveVPSDE.Markovian_fQuadSinHF.recursive_Markovian_PostMeanScore_fQuadSinHF2_LowFTh_T256_H05_tl_110data_StbleTgt import \
     get_config
 from src.classes.ClassFractionalQuadSin import FractionalQuadSin
 

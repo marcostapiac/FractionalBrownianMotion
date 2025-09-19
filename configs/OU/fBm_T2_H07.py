@@ -45,14 +45,14 @@ def get_config():
     config.dialation_length = 10
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_{}LFac_fBm_OUSDE_model_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_TembDim{}_EncShapes{}".format(
-        config.loss_factor, config.hurst,
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_MLP_{}LFac_fBm_OUSDE_model__T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_TembDim{}_EncShapes{}".format(
+        config.loss_factor,,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.temb_dim,
         config.enc_shapes).replace(".", "")
 
-    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_{}LFac_fBm_OUSDE_model_H{:.1e}_T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts".format(
-        config.loss_factor, config.hurst,
+    tsmFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_TSM_{}LFac_fBm_OUSDE_model__T{}_Ndiff{}_Tdiff{:.3e}_trainEps{:.0e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts".format(
+        config.loss_factor,,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, config.train_eps, config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid,

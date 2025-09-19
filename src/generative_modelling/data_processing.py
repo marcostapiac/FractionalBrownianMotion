@@ -10,18 +10,11 @@ from torch.utils.data import DataLoader
 from torch.utils.data.distributed import DistributedSampler
 from torchmetrics import MeanMetric
 
-from src.classes.ClassConditionalLSTMDiffTrainer import ConditionalLSTMDiffTrainer
-from src.classes.ClassConditionalLSTMWithPositionDiffTrainer import ConditionalLSTMWithPositionDiffTrainer
-from src.classes.ClassConditionalMarkovianWithPositionDiffTrainer import ConditionalMarkovianWithPositionDiffTrainer
-from src.classes.ClassConditionalLSTMPostMeanDiffTrainer import ConditionalLSTMPostMeanDiffTrainer
 from src.classes.ClassConditionalMarkovianPostMeanDiffTrainer import ConditionalMarkovianPostMeanDiffTrainer
 from src.classes.ClassConditionalSDESampler import ConditionalSDESampler
-from src.classes.ClassConditionalStbleTgtLSTMPostMeanDiffTrainer import \
-    ConditionalStbleTgtLSTMPostMeanDiffTrainer
 from src.classes.ClassConditionalStbleTgtMarkovianPostMeanDiffTrainer import \
     ConditionalStbleTgtMarkovianPostMeanDiffTrainer
 from src.classes.ClassCorrector import VESDECorrector, VPSDECorrector
-from src.classes.ClassDiffTrainer import DiffTrainer
 from src.classes.ClassPredictor import AncestralSamplingPredictor, \
     ConditionalAncestralSamplingPredictor, ConditionalReverseDiffusionSamplingPredictor, \
     ConditionalProbODESamplingPredictor
@@ -31,13 +24,7 @@ from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
     ConditionalMarkovianTSPostMeanScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSScoreMatching import \
-    ConditionalMarkovianTSScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTSScoreMatching import \
-    ConditionalTSScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTSScoreMatching import \
-    TSScoreMatching
+
 def prepare_scoreModel_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> DataLoader:
     """
     Split data into train, eval, test sets and create DataLoaders for training
@@ -60,48 +47,8 @@ def prepare_scoreModel_data(data: np.ndarray, batch_size: int, config: ConfigDic
 
 
 @record
-def train_and_save_diffusion_model(data: np.ndarray,
-                                   config: ConfigDict,
-                                   diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
-                                   scoreModel: Union[NaiveMLP, TSScoreMatching]) -> None:
-    """
-    Helper function to initiate training
-        :param data: Dataset
-        :param config: Configuration dictionary with relevant parameters
-        :param diffusion: SDE model
-        :param scoreModel: Score network architecture
-        :return: None
-    """
-    if config.has_cuda:
-        device = int(os.environ["LOCAL_RANK"])
-    else:
-        device = torch.device("cpu")
-
-    # Preprocess data
-    trainLoader = prepare_scoreModel_data(data=data, batch_size=config.batch_size, config=config)
-
-    # Define optimiser
-    optimiser = torch.optim.Adam((scoreModel.parameters()), lr=config.lr)  # TODO: Do we not need DDP?
-
-    # Define trainer
-    train_eps, end_diff_time, max_diff_steps, checkpoint_freq = config.train_eps, config.end_diff_time, config.max_diff_steps, config.save_freq
-
-    # TODO: When using DDP, set device = rank passed by mp.spawn OR by torchrun
-    trainer = DiffTrainer(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
-                          checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
-                          loss_aggregator=torchmetrics.aggregation.MeanMetric,
-                          snapshot_path=config.scoreNet_snapshot_path, device=device,
-                          train_eps=train_eps,
-                          end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
-                          to_weight=config.weightings, hybrid_training=config.hybrid)
-
-    # Start training
-    trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
-
-
-@record
 def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
-                     scoreModel: Union[NaiveMLP, TSScoreMatching], data_shape: Tuple[int, int],
+                     scoreModel: Union[ConditionalMarkovianTSPostMeanScoreMatching], data_shape: Tuple[int, int],
                      config: ConfigDict) -> torch.Tensor:
     """
     Helper function to initiate sampling
@@ -137,7 +84,7 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
 
 @record
 def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
-                                    scoreModel: ConditionalTSScoreMatching, data_shape: Tuple[int, int, int],
+                                    scoreModel: ConditionalMarkovianTSPostMeanScoreMatching, data_shape: Tuple[int, int, int],
                                     config: ConfigDict) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
     Recursive reverse sampling using LSTMs
@@ -221,7 +168,7 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
 
 @record
 def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
-                                         scoreModel: ConditionalTSScoreMatching,
+                                         scoreModel: ConditionalMarkovianTSPostMeanScoreMatching,
                                          data_shape: Tuple[int, int, int],
                                          config: ConfigDict) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
     """
@@ -334,10 +281,8 @@ def prepare_recursive_scoreModel_data(data: Union[np.ndarray, torch.Tensor], bat
 def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                              config: ConfigDict,
                                              diffusion: VPSDEDiffusion,
-                                             scoreModel: Union[
-                                                 NaiveMLP, ConditionalTSScoreMatching, ConditionalTSScoreMatching, ConditionalMarkovianTSPostMeanScoreMatching, ConditionalMarkovianTSScoreMatching],
-                                             trainClass: Union[ConditionalLSTMPostMeanDiffTrainer,
-                                                               ConditionalLSTMDiffTrainer,ConditionalStbleTgtMarkovianPostMeanDiffTrainer, ConditionalMarkovianWithPositionDiffTrainer, ConditionalMarkovianPostMeanDiffTrainer, ConditionalStbleTgtMarkovianPostMeanDiffTrainer, DiffTrainer]) -> None:
+                                             scoreModel: Union[ConditionalMarkovianTSPostMeanScoreMatching],
+                                             trainClass: Union[ConditionalStbleTgtMarkovianPostMeanDiffTrainer, ConditionalMarkovianPostMeanDiffTrainer, ConditionalStbleTgtMarkovianPostMeanDiffTrainer]) -> None:
     """
     Helper function to initiate training for recursive diffusion model
         :param data: Dataset
@@ -353,9 +298,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
         device = torch.device("cpu")
 
     # Preprocess data
-    if isinstance(trainClass, type) and issubclass(trainClass, ConditionalStbleTgtLSTMPostMeanDiffTrainer):
-        trainLoader = prepare_recursive_scoreModel_data(data=data, batch_size=config.ref_batch_size, config=config)
-    elif isinstance(trainClass, type) and issubclass(trainClass, ConditionalStbleTgtMarkovianPostMeanDiffTrainer):
+    if isinstance(trainClass, type) and issubclass(trainClass, ConditionalStbleTgtMarkovianPostMeanDiffTrainer):
         trainLoader = prepare_recursive_scoreModel_data(data=data, batch_size=config.ref_batch_size, config=config)
     else:
         trainLoader = prepare_recursive_scoreModel_data(data=data, batch_size=config.batch_size, config=config)
@@ -371,18 +314,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
     else:
         init_state = torch.Tensor(config.initState)
 
-    if isinstance(trainClass, type) and issubclass(trainClass, ConditionalMarkovianWithPositionDiffTrainer):
-        trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
-                             checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
-                             loss_aggregator=MeanMetric,
-                             snapshot_path=config.scoreNet_snapshot_path, device=device,
-                             train_eps=train_eps,
-                             end_diff_time=end_diff_time, max_diff_steps=max_diff_steps, to_weight=config.weightings,
-                             loss_factor=config.loss_factor,
-                             hybrid_training=config.hybrid, init_state=init_state, deltaT=config.deltaT)
-        # Start training
-        trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
-    elif isinstance(trainClass, type) and issubclass(trainClass, ConditionalMarkovianPostMeanDiffTrainer):
+    if isinstance(trainClass, type) and issubclass(trainClass, ConditionalMarkovianPostMeanDiffTrainer):
         trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                              checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
                              loss_aggregator=MeanMetric,
@@ -393,45 +325,6 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
                              loss_factor=config.loss_factor,
                              hybrid_training=config.hybrid, init_state=init_state, deltaT=config.deltaT)
         trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
-    elif isinstance(trainClass, type) and issubclass(trainClass, ConditionalLSTMWithPositionDiffTrainer):
-        trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
-                             checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
-                             loss_aggregator=MeanMetric,
-                             snapshot_path=config.scoreNet_snapshot_path, device=device,
-                             train_eps=train_eps,
-                             end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
-                             to_weight=config.weightings,
-                             loss_factor=config.loss_factor,
-                             hybrid_training=config.hybrid, init_state=init_state, deltaT=config.deltaT)
-
-        # Start training
-        trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path)
-    elif isinstance(trainClass, type) and issubclass(trainClass, ConditionalLSTMPostMeanDiffTrainer):
-        trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
-                             checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
-                             loss_aggregator=MeanMetric,
-                             snapshot_path=config.scoreNet_snapshot_path, device=device,
-                             train_eps=train_eps,
-                             end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
-                             to_weight=config.weightings,
-                             hybrid_training=config.hybrid, loss_factor=config.loss_factor,
-                             init_state=init_state, deltaT=config.deltaT)
-
-        # Start training
-        trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path, config=config)
-    elif isinstance(trainClass, type) and issubclass(trainClass, ConditionalStbleTgtLSTMPostMeanDiffTrainer):
-        trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
-                             checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
-                             loss_aggregator=MeanMetric,
-                             snapshot_path=config.scoreNet_snapshot_path, device=device,
-                             train_eps=train_eps,
-                             end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
-                             to_weight=config.weightings,
-                             hybrid_training=config.hybrid, loss_factor=config.loss_factor,
-                             init_state=init_state, deltaT=config.deltaT)
-
-        # Start training
-        trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path, batch_size=config.batch_size, config=config)
     elif isinstance(trainClass, type) and issubclass(trainClass, ConditionalStbleTgtMarkovianPostMeanDiffTrainer):
         trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
                              checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,

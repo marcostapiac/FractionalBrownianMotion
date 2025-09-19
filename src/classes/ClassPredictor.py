@@ -6,25 +6,14 @@ import torch
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
-    ConditionalLSTMTSPostMeanScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSScoreMatching import \
-    ConditionalLSTMTSScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalSignatureTSScoreMatching import \
-    ConditionalSignatureTSScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTSScoreMatching import \
-    ConditionalTSScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTSScoreMatching import \
-    TSScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import ConditionalMarkovianTSPostMeanScoreMatching
 
 
 class Predictor(abc.ABC):
     """ Base class for all predictor algorithms during reverse-time sampling """
 
     def __init__(self, diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffusion],
-                 score_function: Union[
-                     NaiveMLP, TSScoreMatching, ConditionalTSScoreMatching, ConditionalLSTMTSPostMeanScoreMatching, ConditionalSignatureTSScoreMatching, ConditionalLSTMTSScoreMatching],
+                 score_function: Union[ConditionalMarkovianTSPostMeanScoreMatching],
                  end_diff_time: float, max_diff_steps: int,
                  device: Union[int, torch.device], sample_eps: float):
         super().__init__()
@@ -56,8 +45,7 @@ class Predictor(abc.ABC):
 
 class AncestralSamplingPredictor(Predictor):
     def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion],
-                 score_function: Union[
-                     NaiveMLP, TSScoreMatching, ConditionalTSScoreMatching, ConditionalTSScoreMatching, ConditionalSignatureTSScoreMatching, ConditionalLSTMTSScoreMatching],
+                 score_function: Union[ConditionalMarkovianTSPostMeanScoreMatching],
                  end_diff_time: float, max_diff_steps: int,
                  device: Union[int, torch.device], sample_eps: float):
         try:
@@ -80,8 +68,7 @@ class AncestralSamplingPredictor(Predictor):
 
 class ConditionalAncestralSamplingPredictor(Predictor):
     def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion],
-                 score_function: Union[
-                     ConditionalTSScoreMatching, ConditionalSignatureTSScoreMatching, ConditionalLSTMTSScoreMatching],
+                 score_function: Union[ConditionalMarkovianTSPostMeanScoreMatching],
                  end_diff_time: float, max_diff_steps: int,
                  device: Union[int, torch.device], sample_eps: float):
         try:
@@ -149,8 +136,7 @@ class ConditionalAncestralSamplingPredictor(Predictor):
 
 class ConditionalReverseDiffusionSamplingPredictor(Predictor):
     def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion],
-                 score_function: Union[
-                     ConditionalTSScoreMatching, ConditionalSignatureTSScoreMatching, ConditionalLSTMTSScoreMatching],
+                 score_function: Union[ConditionalMarkovianTSPostMeanScoreMatching],
                  end_diff_time: float, max_diff_steps: int,
                  device: Union[int, torch.device], sample_eps: float):
         super().__init__(diffusion, score_function, end_diff_time, max_diff_steps, device, sample_eps)
@@ -190,7 +176,7 @@ class ConditionalReverseDiffusionSamplingPredictor(Predictor):
 
 class ConditionalProbODESamplingPredictor(Predictor):
     def __init__(self, diffusion: Union[VESDEDiffusion, VPSDEDiffusion],
-                 score_function: ConditionalTSScoreMatching, end_diff_time: float, max_diff_steps: int,
+                 score_function: ConditionalMarkovianTSPostMeanScoreMatching, end_diff_time: float, max_diff_steps: int,
                  device: Union[int, torch.device], sample_eps: float):
         super().__init__(diffusion, score_function, end_diff_time, max_diff_steps, device, sample_eps)
 

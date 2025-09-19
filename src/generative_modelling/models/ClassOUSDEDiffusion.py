@@ -4,17 +4,7 @@ import numpy as np
 import torch
 from torch import nn
 
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSScoreMatching import \
-    ConditionalLSTMTSScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSScoreMatching import \
-    ConditionalMarkovianTSScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalTSScoreMatching import \
-    ConditionalTSScoreMatching
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassNaiveMLP import NaiveMLP
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassTSScoreMatching import \
-    TSScoreMatching
-
-
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import ConditionalMarkovianTSPostMeanScoreMatching
 class OUSDEDiffusion(nn.Module):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -61,8 +51,7 @@ class OUSDEDiffusion(nn.Module):
         return torch.randn(shape)
 
     @staticmethod
-    def get_reverse_sde(x_prev: torch.Tensor, score_network: Union[
-        NaiveMLP, TSScoreMatching, ConditionalLSTMTSScoreMatching, ConditionalTSScoreMatching, ConditionalMarkovianTSScoreMatching],
+    def get_reverse_sde(x_prev: torch.Tensor, score_network: Union[ConditionalMarkovianTSPostMeanScoreMatching],
                         t: torch.Tensor, dt: float) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """ Euler Maruyama discretisation of reverse-time SDE
             :param x_prev: Current sample
