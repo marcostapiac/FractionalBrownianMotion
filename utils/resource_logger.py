@@ -13,7 +13,7 @@ except ImportError:
 
 
 class ResourceLogger:
-    def __init__(self, interval=2, outfile="experiment_log.json", job_type="unspecified", metadata=None):
+    def __init__(self, interval=120, outfile="experiment_log.json", job_type="unspecified", metadata=None):
         self.interval = interval
         self.outfile = outfile
         self.job_type = job_type

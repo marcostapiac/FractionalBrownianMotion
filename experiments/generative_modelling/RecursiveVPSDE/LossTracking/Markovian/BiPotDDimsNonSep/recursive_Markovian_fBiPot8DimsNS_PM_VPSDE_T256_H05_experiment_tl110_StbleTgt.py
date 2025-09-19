@@ -20,7 +20,7 @@ if __name__ == "__main__":
 
     config = get_config()
     with ResourceLogger(
-            interval=2,
+            interval=120,
             outfile=config.resource_logging_path,  # path where log will be written
             job_type="GPU training",
     ):

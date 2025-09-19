@@ -21,7 +21,7 @@ def true_drift(prev, num_paths, config):
 if __name__ == '__main__':
     config = get_config()
     with ResourceLogger(
-            interval=2,
+            interval=120,
             outfile=config.nadaraya_resource_logging_path,  # path where log will be written
             job_type="CPU multiprocessing drift evaluation",
     ):

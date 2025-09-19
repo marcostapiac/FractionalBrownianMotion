@@ -18,7 +18,7 @@ if __name__ == "__main__":
     from configs.RecursiveVPSDE.Markovian_fQuadSinHF.recursive_Markovian_PostMeanScore_fQuadSinHF2_LowFTh_T256_H05_tl_110data_StbleTgt import get_config
     config = get_config()
     with ResourceLogger(
-            interval=2,
+            interval=120,
             outfile=config.resource_logging_path,  # path where log will be written
             job_type="GPU training",
     ):
