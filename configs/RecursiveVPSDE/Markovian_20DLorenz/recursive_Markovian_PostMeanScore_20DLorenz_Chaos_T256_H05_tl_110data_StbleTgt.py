@@ -87,6 +87,8 @@ def get_config():
 
     # Snapshot filepath
     config.scoreNet_snapshot_path = config.scoreNet_trained_path.replace("trained_models/", "snapshots/")
+    config.resource_logging_path = config.scoreNet_trained_path.replace("trained_models/", "resource_logging/") + ".json"
+    config.nadaraya_resource_logging_path = config.scoreNet_trained_path.replace("trained_models/", "resource_logging/") + ".json".replace("trained_rec_PM_ST_{:.3f}FTh_MLP_{}LFac_", "").replace("_Ndiff{}_Tdiff{:.3e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_", "_").replace("_MLP_H{}_CUp{}", "") + ".json"
 
     # Sampling hyperparameters
     config.early_stop_idx = 0
