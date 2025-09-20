@@ -22,7 +22,7 @@ def get_config():
     config.t0 = 0.
     config.deltaT = 1. / (256)
     config.t1 = config.deltaT*config.ts_length
-    config.data_path = project_config.ROOT_DIR + "data/fBiPot_{}DDims_samples_t0{:g}_dT{:.3e}_T{}_{}a_{}b_{}c_{}coup_{}Diff_{}Init".format(
+    config.data_path = project_config.ROOT_DIR + "data/fBiPot_{}DDimsNS_samples_t0{:g}_dT{:.3e}_T{}_{}a_{}b_{}c_{}coup_{}Diff_{}Init".format(
         config.ndims, config.t0, config.deltaT, config.ts_length, config.quartic_coeff[0], config.quad_coeff[0], config.const[0], config.coupling,
         config.diffusion, config.initState[0]).replace(
         ".", "") + ".npy"
