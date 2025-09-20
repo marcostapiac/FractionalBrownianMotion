@@ -9,6 +9,7 @@ from configs.RecursiveVPSDE.Markovian_20DLorenz.recursive_Markovian_PostMeanScor
     get_config
 from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
 from utils.drift_evaluation_functions import process_IID_bandwidth
+from utils.resource_logger import ResourceLogger
 
 
 def true_drift(prev, num_paths, config):
