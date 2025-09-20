@@ -599,7 +599,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             if "coup" in config.data_path:
                 true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
                                                                                3) + 2. * np.array(
-                    config.quad_coeff) * Xs + np.array(config.const)) + config.coupling*(np.roll(Xs,1, axis=-1)+np.rolL(Xs, -1, axis=-1))
+                    config.quad_coeff) * Xs + np.array(config.const)) + config.coupling*(np.roll(Xs,1, axis=-1)+np.roll(Xs, -1, axis=-1))
             else:
                 true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
                                                                            3) + 2. * np.array(
