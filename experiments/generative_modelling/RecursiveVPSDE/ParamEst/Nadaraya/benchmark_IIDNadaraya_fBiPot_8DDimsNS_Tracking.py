@@ -112,7 +112,7 @@ if __name__ == "__main__":
             assert (all_true_states.shape == all_global_states.shape == all_local_states.shape)
 
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fBiPot_{config.ndims}DDims_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c").replace(
+                    project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fBiPot_{config.ndims}DDimsNS_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c").replace(
                 ".", "")
             print(f"Save path {save_path}\n")
             np.save(save_path + "_true_states.npy", all_true_states)

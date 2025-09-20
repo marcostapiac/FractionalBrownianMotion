@@ -596,7 +596,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                      np.linspace(-3.7, 3.7, num=Xshape).reshape(-1,1), np.linspace(-3.6, 3.6, num=Xshape).reshape(-1,1), \
                                      np.linspace(-3.5, 3.5, num=Xshape).reshape(-1,1), np.linspace(-3.4, 3.4, num=Xshape).reshape(-1,1)],
                                     axis=1)
-            if "DDimsNS" in config.data_path:
+            if "coup" in config.data_path:
                 true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
                                                                                3) + 2. * np.array(
                     config.quad_coeff) * Xs + np.array(config.const)) + config.coupling*(np.roll(Xs,1, axis=-1)+np.rolL(Xs, -1, axis=-1))
@@ -621,11 +621,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
-        elif "BiPot" in config.data_path and config.ndims > 1 and "DDimsNS" not in config.data_path:
+        elif "BiPot" in config.data_path and config.ndims > 1 and "coup" not in config.data_path:
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDims_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
-        elif "BiPot" in config.data_path and "DDimsNS" in config.data_path:
+        elif "BiPot" in config.data_path and "coup" in config.data_path:
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDimsNS_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
@@ -658,11 +658,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 drift_X = -(4. * config.quartic_coeff * np.power(prev,
                                                                  3) + 2. * config.quad_coeff * prev + config.const)
                 return drift_X[:, np.newaxis, :]
-            elif "BiPot" in config.data_path and config.ndims>1 and "DDimsNS" not in config.data_path:
+            elif "BiPot" in config.data_path and config.ndims>1 and "coup" not in config.data_path:
                 drift_X = -(4. * np.array(config.quartic_coeff) * np.power(prev,
                                                                  3) + 2. * np.array(config.quad_coeff) * prev + np.array(config.const))
                 return drift_X[:, np.newaxis, :]
-            elif "BiPot" in config.data_path and config.ndims>1 and "DDimsNS" in config.data_path:
+            elif "BiPot" in config.data_path and config.ndims>1 and "coup" in config.data_path:
                 drift_X = -(4. * np.array(config.quartic_coeff) * np.power(prev,
                                                                  3) + 2. * np.array(config.quad_coeff) * prev + np.array(config.const)) + config.coupling*(np.roll(prev, 1, axis=-1)+ np.roll(prev, -1, axis=-1))
                 return drift_X[:, np.newaxis, :]
@@ -767,11 +767,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
-        elif "BiPot" in config.data_path and config.ndims > 1 and "DDimsNS" not in config.data_path:
+        elif "BiPot" in config.data_path and config.ndims > 1 and "coup" not in config.data_path:
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDims_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
-        elif "BiPot" in config.data_path and config.ndims > 1 and "DDimsNS" in config.data_path:
+        elif "BiPot" in config.data_path and config.ndims > 1 and "coup" in config.data_path:
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDimsNS_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
@@ -788,12 +788,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fMullerBrown_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
         elif "Lnz" in config.data_path:
-            if "WAttn" in config.scoreNet_trained_path:
-                save_path = (
-                            project_config.ROOT_DIR + f"experiments/results/TSPM_MLPWAttn_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}{config.ndims}DLnz_OOSDriftTrack_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}_{round(config.forcing_const, 3)}FConst").replace(
-                        ".", "")
-            else:
-                save_path = (
+            save_path = (
                         project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}{config.ndims}DLnz_OOSDriftTrack_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}_{round(config.forcing_const, 3)}FConst").replace(
                     ".", "")
         print(f"Save path for OOS DriftTrack:{save_path}\n")
