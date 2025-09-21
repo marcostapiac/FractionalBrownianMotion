@@ -599,7 +599,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             if "coup" in config.data_path:
                 true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
                                                                                3) + 2. * np.array(
-                    config.quad_coeff) * Xs + np.array(config.const)) - 0.5*self.coupling*Xs*(np.roll(Xs,1, axis=-1)**2+np.roll(Xs, -1, axis=-1)**2)
+                    config.quad_coeff) * Xs + np.array(config.const)) - 0.5*config.coupling*Xs*(np.roll(Xs,1, axis=-1)**2+np.roll(Xs, -1, axis=-1)**2)
             else:
                 true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
                                                                            3) + 2. * np.array(
@@ -664,7 +664,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 return drift_X[:, np.newaxis, :]
             elif "BiPot" in config.data_path and config.ndims>1 and "coup" in config.data_path:
                 drift_X = -(4. * np.array(config.quartic_coeff) * np.power(prev,
-                                                                 3) + 2. * np.array(config.quad_coeff) * prev + np.array(config.const)) - 0.5*self.coupling*prev*(np.roll(prev,1, axis=-1)**2+np.roll(prev, -1, axis=-1)**2)
+                                                                 3) + 2. * np.array(config.quad_coeff) * prev + np.array(config.const)) - 0.5*config.coupling*prev*(np.roll(prev,1, axis=-1)**2+np.roll(prev, -1, axis=-1)**2)
                 return drift_X[:, np.newaxis, :]
             elif "QuadSin" in config.data_path:
                 drift_X = -2. * config.quad_coeff * prev + config.sin_coeff * config.sin_space_scale * np.sin(
