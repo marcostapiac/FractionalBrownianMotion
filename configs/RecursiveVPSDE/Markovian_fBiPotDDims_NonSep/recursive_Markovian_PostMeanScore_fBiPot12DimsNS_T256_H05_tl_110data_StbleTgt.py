@@ -15,6 +15,8 @@ def get_config():
     config.quartic_coeff = list(np.linspace(0.25, 1.00, config.ndims))
     config.quad_coeff = list(-np.linspace(0.5, 2.00, config.ndims)[::-1])
     config.coupling = 10
+    config.v = np.array([-0.17307135, 0.18174567, -0.26785012, -0.15083465, 0.25216444, 0.45399956,
+                    -0.01937965, 0.15461691, -0.34995137, -0.328612, 0.36020681, 0.4339756])
     config.const = list(np.zeros(config.ndims))
     config.diffusion = 4.
     config.initState = list(np.zeros(config.ndims))
@@ -34,7 +36,7 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 2
     config.lr = 1e-3
-    config.max_epochs = [20000]
+    config.max_epochs = [3000]
     config.ref_batch_size = 1024
     config.batch_size = 128
     config.chunk_size = 256

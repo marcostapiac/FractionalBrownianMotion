@@ -7,7 +7,7 @@ from tqdm import tqdm
 
 class FractionalBiPotentialNonSep:
 
-    def __init__(self, num_dims:int, const: float, quartic_coeff: float, quad_coeff: float, coupling:float, diff: float, X0,
+    def __init__(self, num_dims:int, const: float,  quartic_coeff: float, quad_coeff: float, coupling:float, diff: float, X0,
                  rng: np.random.Generator = np.random.default_rng()):
         assert (num_dims >= 1)
         self.ndims = num_dims
@@ -39,7 +39,7 @@ class FractionalBiPotentialNonSep:
 
     def increment_state(self, prev: np.ndarray, deltaT: float, M: int):
         # driftX = -V'(x) where V(x) = ax^4+bx^2+cx
-        driftX = -(4.*self.quartic_coeff * np.power(prev, 3) + 2.*self.quad_coeff * prev + self.const) + self.coupling * (np.roll(prev, 1) + np.roll(prev, -1))
+        driftX = -(4.*self.quartic_coeff * np.power(prev, 3) + 2.*self.quad_coeff * prev + self.const) - 0.5*self.coupling*prev*(np.roll(prev, 1, axis=-1)**2 + np.roll(prev, -1, axis=-1)**2)
         diffX = self.diff * M
         ## See (Weak approximation schemes for SDEs with super-linearly growing coefficients, 2023) for weak solution
         #diffX = diffX/(1.+deltaT*driftX)
