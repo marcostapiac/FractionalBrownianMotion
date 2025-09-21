@@ -3,6 +3,7 @@ import json
 import psutil
 import threading
 import subprocess
+import signal
 
 try:
     import pynvml
@@ -24,6 +25,14 @@ class ResourceLogger:
         self.gpu_util = []
         self.gpu_mem = []
         self._stop_flag = False
+        signal.signal(signal.SIGINT, self._handle_signal)
+        signal.signal(signal.SIGTERM, self._handle_signal)
+
+    def _handle_signal(self, signum, frame):
+        print(f"\nReceived signal {signum}, stopping ResourceLogger...")
+        self._stop_flag = True
+        self.__exit__(None, None, None)
+        raise SystemExit(1)
 
     def _log_resources(self):
         while not self._stop_flag:
