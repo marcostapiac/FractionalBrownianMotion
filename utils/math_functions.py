@@ -231,7 +231,7 @@ def generate_Lorenz96(H: float, T: int, S: int, config, isUnitInterval: bool, in
     assert (sample_paths.shape == (S, T + 1, ndims))
     return sample_paths[:, 1:, :]
 
-def generate_fBiPotNonSep(H: float, T: int, S: int, config, isUnitInterval: bool, a: float, b: float, c: float, coupling:float,
+def generate_fBiPotNonSep(H: float, T: int, S: int, scale:float,config, isUnitInterval: bool, a: float, b: float, c: float, coupling:float,
                     initial_state: float, diff: float, ndims: int):
     assert (H == 0.5 and len(initial_state) == ndims)
     assert (diff == 4.)
@@ -248,7 +248,7 @@ def generate_fBiPotNonSep(H: float, T: int, S: int, config, isUnitInterval: bool
             deltaT = 1.
             t0 = 0.
             t1 = T
-    fBiPotNS = FractionalBiPotentialNonSep(num_dims=ndims, quartic_coeff=a, quad_coeff=b, const=c, diff=diff, coupling=coupling,
+    fBiPotNS = FractionalBiPotentialNonSep(num_dims=ndims, scale=scale,quartic_coeff=a, quad_coeff=b, const=c, diff=diff, coupling=coupling,
                                    X0=initial_state)
     sample_paths = np.array(
         [fBiPotNS.euler_simulation(H=H, N=T, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=None, Ms=None,

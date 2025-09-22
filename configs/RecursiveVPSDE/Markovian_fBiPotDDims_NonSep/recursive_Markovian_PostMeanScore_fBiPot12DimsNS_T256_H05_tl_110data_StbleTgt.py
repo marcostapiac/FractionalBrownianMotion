@@ -14,9 +14,8 @@ def get_config():
     config.hurst = 0.5
     config.quartic_coeff = list(np.linspace(0.25, 1.00, config.ndims))
     config.quad_coeff = list(-np.linspace(0.5, 2.00, config.ndims)[::-1])
+    config.scale = np.sqrt(np.median(-np.array(config.quad_coeff) / 2 * (np.array(config.quartic_coeff))))
     config.coupling = 20
-    config.v = np.array([-0.17307135, 0.18174567, -0.26785012, -0.15083465, 0.25216444, 0.45399956,
-                    -0.01937965, 0.15461691, -0.34995137, -0.328612, 0.36020681, 0.4339756])
     config.const = list(np.zeros(config.ndims))
     config.diffusion = 4.
     config.initState = list(np.zeros(config.ndims))
@@ -75,7 +74,7 @@ def get_config():
 
     # Model filepath
     mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_ST_{:.3f}FTh_PM_MLP_{}LFac_fBiPot_{}DDimsNS_VPSDE_T{}_Ndiff{}_Tdiff{:.3e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_{}a_{}b_{}c_MLP_H{}_CUp{}_tl{}".format(
-        config.feat_thresh, config.loss_factor, config.ndims,config.hurst,
+        config.feat_thresh, config.loss_factor, config.ndims,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, 
         config.temb_dim,

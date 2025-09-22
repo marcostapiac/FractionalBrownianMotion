@@ -16,8 +16,17 @@ def true_drift(prev, num_paths, config):
     assert (prev.shape == (num_paths, config.ndims))
     drift_X = -(4. * np.array(config.quartic_coeff) * np.power(prev,
                                                                3) + 2. * np.array(config.quad_coeff) * prev + np.array(
-        config.const)) -0.5* config.coupling *prev*(np.roll(prev, 1, axis=-1)**2+ np.roll(prev, -1, axis=-1)**2)
-    return drift_X[:, np.newaxis, :]
+        config.const))
+    xstar = np.sqrt(np.maximum(1e-12, -config.quad_coeff / (2.0 * config.quartic_coeff)))
+    s2 = (config.scale * xstar) ** 2 + 1e-12  # (D,) or (K,1,D)
+    diff = prev ** 2 - xstar ** 2  # same shape as prev
+    phi = np.exp(-(diff ** 2) / (2.0 * s2 * xstar ** 2 + 1e-12))
+    phi_prime = phi * (-2.0 * prev * diff / ((config.scale ** 2) * (xstar ** 4 + 1e-12)))
+    nbr = np.roll(phi, 1, axis=-1) + np.roll(phi, -1, axis=-1)  # same shape as phi
+    drift_X = drift_X - 0.5 * config.coupling * phi_prime * nbr
+    drift_X = drift_X[:, np.newaxis, ]
+    assert drift_X.shape == prev.shape
+    return drift_X
 
 
 if __name__ == "__main__":

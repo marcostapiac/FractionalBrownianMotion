@@ -7,11 +7,12 @@ from tqdm import tqdm
 
 class FractionalBiPotentialNonSep:
 
-    def __init__(self, num_dims:int, const: float,  quartic_coeff: float, quad_coeff: float, coupling:float, diff: float, X0,
+    def __init__(self, num_dims:int, const: float, scale:float, quartic_coeff: float, quad_coeff: float, coupling:float, diff: float, X0,
                  rng: np.random.Generator = np.random.default_rng()):
         assert (num_dims >= 1)
         self.ndims = num_dims
         self.const = np.array(const)
+        self.scale = scale
         self.quartic_coeff = np.array(quartic_coeff)
         self.quad_coeff = np.array(quad_coeff)
         self.initialVol = np.array(X0)
@@ -39,7 +40,16 @@ class FractionalBiPotentialNonSep:
 
     def increment_state(self, prev: np.ndarray, deltaT: float, M: int):
         # driftX = -V'(x) where V(x) = ax^4+bx^2+cx
-        driftX = -(4.*self.quartic_coeff * np.power(prev, 3) + 2.*self.quad_coeff * prev + self.const) - 0.5*self.coupling*prev*(np.roll(prev, 1, axis=-1)**2 + np.roll(prev, -1, axis=-1)**2)
+        driftX = -(4.*self.quartic_coeff * np.power(prev, 3) + 2.*self.quad_coeff * prev + self.const)
+        xstar = np.sqrt(np.maximum(1e-12, -self.quad_coeff / (2.0 * self.quartic_coeff)))
+        s2 = (self.scale * xstar) ** 2 + 1e-12
+        # bump ψ_j(x_j)
+        diff = prev ** 2 - xstar ** 2
+        phi = np.exp(- (diff ** 2) / (2.0 * s2 * xstar ** 2 + 1e-12))
+        # derivative ψ'_j(x_j)
+        phi_prime = phi * (-2.0 * prev * diff / ((self.scale ** 2) * (xstar ** 4 + 1e-12)))
+        nbr = np.roll(phi, 1,axis=-1) + np.roll(phi, -1, axis=-1)  # ring neighbors
+        driftX = driftX-0.5*self.coupling*phi_prime * nbr
         diffX = self.diff * M
         ## See (Weak approximation schemes for SDEs with super-linearly growing coefficients, 2023) for weak solution
         #diffX = diffX/(1.+deltaT*driftX)

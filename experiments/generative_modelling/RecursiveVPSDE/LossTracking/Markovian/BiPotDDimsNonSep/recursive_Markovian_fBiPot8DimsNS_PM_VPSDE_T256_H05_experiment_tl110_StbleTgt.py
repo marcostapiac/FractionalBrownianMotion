@@ -51,7 +51,7 @@ if __name__ == "__main__":
                 assert (data.shape[0] >= training_size)
             except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
                 print("Error {}; generating synthetic data\n".format(e))
-                data = generate_fBiPotNonSep(ndims=config.ndims, config=config, T=config.ts_length, isUnitInterval=config.isUnitInterval,
+                data = generate_fBiPotNonSep(ndims=config.ndims, config=config,scale=config.scale, T=config.ts_length, isUnitInterval=config.isUnitInterval,
                                        S=training_size,
                                        H=config.hurst, a=config.quartic_coeff, b=config.quad_coeff, c=config.const,
                                        diff=config.diffusion,
