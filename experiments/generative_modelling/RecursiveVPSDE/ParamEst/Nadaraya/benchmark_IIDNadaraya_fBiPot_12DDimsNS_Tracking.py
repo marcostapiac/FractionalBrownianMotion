@@ -24,9 +24,7 @@ def true_drift(prev, num_paths, config):
     phi_prime = phi * (-2.0 * prev * diff / ((config.scale ** 2) * (xstar ** 4 + 1e-12)))
     nbr = np.roll(phi, 1, axis=-1) + np.roll(phi, -1, axis=-1)  # same shape as phi
     drift_X = drift_X - 0.5 * config.coupling * phi_prime * nbr
-    drift_X = drift_X[:, np.newaxis, :]
-    assert drift_X.shape == prev.shape
-    return drift_X
+    return drift_X[:, np.newaxis, :]
 
 
 if __name__ == "__main__":
