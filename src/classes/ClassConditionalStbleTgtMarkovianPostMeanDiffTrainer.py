@@ -163,157 +163,101 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
     def _compute_stable_targets(self, batch: torch.Tensor, noised_z: torch.Tensor, eff_times: torch.Tensor,
                                 ref_batch: torch.Tensor, chunk_size: int, feat_thresh: float):
-        import time
+        import math, time
         t0 = time.time()
+
         B1, T, D = batch.shape
-        B2, T, D = ref_batch.shape
-        print(B2, B1)
-        assert (B2 > B1)
+        B2, T2, D2 = ref_batch.shape
+        assert T2 == T and D2 == D
+        assert B2 > B1
+
         dX = feat_thresh
-        # ref_batch, batch, eff_times = ref_batch.to("cpu"), batch.to("cpu"), eff_times.to("cpu")
-        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # shape: [B2, T, D]
-        pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :]  # shape: [B1, T, D]
-        assert pos_batch.shape == batch.shape, "pos_batch must match batch shape"
+
+        # positions (X) and increments (Z)
+        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # [B2, T, D]
+        pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :]  # [B1, T, D]
         assert pos_batch.shape == (B1, T, D)
-        assert pos_ref_batch.shape == (B2, T, D)
-        pos_ref_batch = pos_ref_batch.reshape(-1, pos_ref_batch.shape[-1])
-        assert pos_ref_batch.shape == (B2 * T, D)
-        pos_batch = pos_batch.reshape(-1, pos_batch.shape[-1])
-        assert pos_batch.shape == (B1 * T, D)
-        ref_batch = ref_batch.reshape(-1, ref_batch.shape[-1])
-        assert ref_batch.shape == pos_ref_batch.shape
-        batch = batch.reshape(-1, batch.shape[-1])
-        assert batch.shape == pos_batch.shape
+
+        pos_ref_batch = pos_ref_batch.reshape(-1, D)  # [B2*T, D]
+        pos_batch = pos_batch.reshape(-1, D)  # [B1*T, D]
+        ref_batch = ref_batch.reshape(-1, D)  # [B2*T, D]
+
         eff_times = eff_times.reshape(-1, eff_times.shape[-1])
         if eff_times.shape[-1] == 1 and D > 1:
             eff_times = eff_times.expand(-1, D)
-        assert eff_times.shape == (B1 * T, D)  # Because the ref batch is only for the purposes of importance sampling
+        assert eff_times.shape == (B1 * T, D)
 
         target_x = pos_batch  # [B1*T, D]
         target_x_exp = target_x.unsqueeze(1)  # [B1*T, 1, D]
-        assert target_x_exp.shape == (B1 * T, 1, D)
-        # candidate -> potential positions which are close to our "X" feature
         candidate_x = pos_ref_batch.unsqueeze(0)  # [1, B2*T, D]
-        assert candidate_x.shape == (1, B2 * T, D)
-        # candidate_Z -> potential next increments whose previous position is close to our "X"
         candidate_Z = ref_batch.unsqueeze(0)  # [1, B2*T, D]
-        assert candidate_Z.shape == (1, B2 * T, D)
 
-        # batch, eff_times = batch.to(self.device_id), eff_times.to(self.device_id)
-        noised_z = noised_z.reshape(-1, noised_z.shape[-1])
-        assert (noised_z.shape == (B1 * T, D))
-        # batch, eff_times = batch.to("cpu"), eff_times.to("cpu")
-        beta_tau = torch.exp(-0.5 * eff_times)
-        assert beta_tau.shape == (B1 * T, D)
-        sigma_tau = 1. - torch.exp(-eff_times)
-        assert sigma_tau.shape == beta_tau.shape
-        # noised_z, beta_tau, sigma_tau = noised_z.to("cpu"), beta_tau.to("cpu"), sigma_tau.to("cpu")
+        noised_z = noised_z.reshape(-1, D)  # [B1*T, D]
+        beta_tau = torch.exp(-0.5 * eff_times)  # [B1*T, D]
+        sigma_tau = 1. - torch.exp(-eff_times)  # [B1*T, D]
 
         target_noised_z = noised_z.unsqueeze(1)  # [B1*T, 1, D]
         target_beta_tau = beta_tau.unsqueeze(1)  # [B1*T, 1, D]
         target_sigma_tau = sigma_tau.unsqueeze(1)  # [B1*T, 1, D]
-        assert target_noised_z.shape == target_beta_tau.shape == target_sigma_tau.shape == (B1 * T, 1, D)
-        # We will iterate over all targets in our sub-sampled batch
+
         stable_targets_chunks = []
         stable_targets_masks = []
-        # Loop over the target tensors in chunks
+
         for i in range(0, target_x_exp.shape[0], chunk_size):
             i_end = min(i + chunk_size, target_x_exp.shape[0])
 
-            # Extract the current chunk of target tensors.
             target_chunk = target_x_exp[i:i_end]  # [chunk, 1, D]
             noised_z_chunk = target_noised_z[i:i_end]  # [chunk, 1, D]
             beta_tau_chunk = target_beta_tau[i:i_end]  # [chunk, 1, D]
             sigma_tau_chunk = target_sigma_tau[i:i_end]  # [chunk, 1, D]
 
-            # --- Compute the mask ---
-            # For each target point, we want candidate positions within +/- dX.
-            # Broadcasting: candidate_x is [1, B2*T, D] and target_chunk is [chunk, 1, D].
-            # candidate_x, target_chunk = candidate_x.to(self.device_id), target_chunk.to(self.device_id)
-            mask_chunk = ((torch.norm(candidate_x - target_chunk, p=2, dim=-1) / D) <= dX).float()
-            assert (mask_chunk.shape == (chunk_size, B2 * T) or mask_chunk.shape == (chunk_size, B2 * T, 1))
-            if mask_chunk.dim() > 2: mask_chunk = mask_chunk.squeeze(-1)
-            assert mask_chunk.shape == (chunk_size, B2 * T)
-            # 2. find columns where no element is 1
-            #    `any` over dim=0 gives [B2*T] bool telling us if each column has any True
-            rows_has_any = mask_chunk.bool().any(dim=1)  # shape: [chunk_size]
-            # 3. if some columns are all zero, recompute them with 2*dX
-            ddX = dX
-            while not rows_has_any.all():
-                # recompute full mask at 2*dX
-                ddX = 1.2 * ddX
-                mask2 = ((torch.norm(candidate_x - target_chunk, p=2, dim=-1) / D) <= ddX).float()
-                if mask2.dim() > 2: mask2 = mask2.squeeze(-1)
-                # replace only the “all-zero” columns
-                zero_rows = ~rows_has_any  # shape: [chunk_size]
-                mask_chunk[zero_rows, :] = mask2[zero_rows, :]
-                rows_has_any = mask_chunk.bool().any(dim=1)  # shape: [chunk_size]
+            # ---- kNN in X (dimension-stable) ----
+            N = candidate_x.shape[1]  # B2*T
+            chunk = target_chunk.shape[0]
+            dists = torch.cdist(target_chunk.squeeze(1),  # [chunk, D]
+                                candidate_x.squeeze(0))  # [N, D] -> [chunk, N]
+            dists = dists / math.sqrt(D)
 
-            if mask_chunk.dim() == 2:
-                mask_chunk = mask_chunk.unsqueeze(-1)
-            assert mask_chunk.shape == (chunk_size, B2 * T, 1)
+            k = min(128, N)
+            vals, idx = torch.topk(dists, k, dim=1, largest=False)  # [chunk, k]
+            idx_exp = idx.unsqueeze(-1).expand(-1, -1, D)  # [chunk, k, D]
 
-            # candidate_x, target_chunk = candidate_x.to("cpu"), target_chunk.to("cpu")
+            cand_x_k = candidate_x.expand(chunk, -1, -1).gather(1, idx_exp)  # [chunk, k, D]
+            cand_Z_k = candidate_Z.expand(chunk, -1, -1).gather(1, idx_exp)  # [chunk, k, D]
 
-            # mask_chunk is size [chunk, B2*T, D]
+            # ---- soft kernel in X with adaptive bandwidth (k-th NN) ----
+            h = vals[:, -1:].clamp_min(1e-12)  # [chunk, 1]
+            Kx = torch.exp(-0.5 * (vals / h) ** 2).unsqueeze(-1)  # [chunk, k, 1]
 
-            # candidate_Z = candidate_Z.to(self.device_id)
-            # beta_tau_chunk, sigma_tau_chunk = beta_tau_chunk.to(self.device_id), sigma_tau_chunk.to(self.device_id)
+            # ---- exact Gaussian p(Z_tau | Z0) ----
+            nz = noised_z_chunk.expand(-1, k, -1)  # [chunk, k, D]
+            mean_k = beta_tau_chunk.expand_as(nz) * cand_Z_k  # [chunk, k, D]
+            std_k = torch.sqrt(sigma_tau_chunk.expand_as(nz))  # [chunk, k, D]
 
-            # --- Compute the distribution parameters (chunk) ---
-            # Compute dist_mean for this chunk: target_beta_tau_chunk * candidate_Z
-            dist_mean_chunk = beta_tau_chunk * candidate_Z  # [chunk, B1*T, D]
-            # Create a Normal distribution with mean=dist_mean_chunk and std = sqrt(sigma_tau_chunk).
-            dist_chunk = torch.distributions.Normal(dist_mean_chunk, torch.sqrt(sigma_tau_chunk))
+            logw = -0.5 * ((nz - mean_k) / std_k).pow(2) - torch.log(std_k) - 0.5 * math.log(2 * math.pi)
+            logw = logw.sum(dim=-1, keepdim=True)  # [chunk, k, 1]
 
-            # beta_tau_chunk, sigma_tau_chunk = beta_tau_chunk.to("cpu"), sigma_tau_chunk.to("cpu")
-            # noised_z_chunk = noised_z_chunk.to(self.device_id)
-            # Compute weights via the log probability of noised_z_chunk, then exponentiate.
-            weights_chunk = dist_chunk.log_prob(noised_z_chunk).sum(dim=-1, keepdim=True).exp()  # [chunk, B2*T, 1]
-            assert weights_chunk.shape == (chunk_size, B2 * T, 1)
-            # noised_z_chunk = noised_z_chunk.to("cpu")
+            # finite-sample guard against spikes
+            q = torch.quantile(logw.detach(), 0.995)
+            weights = torch.exp(torch.clamp(logw, max=q)) * Kx  # [chunk, k, 1]
 
-            # Apply the mask to zero out values that are not in the desired range.
-            weights_masked_chunk = weights_chunk * mask_chunk  # [chunk_size, B2*T, 1]
-            assert weights_masked_chunk.shape == (chunk_size, B2 * T, 1)
-            # --- Aggregate weights and candidate_Z contributions ---
-            # Sum over the candidate dimension (dim=1) to get total weights per target element.
-            weight_sum_chunk = weights_masked_chunk.sum(dim=1)  # [chunk_size, 1]
-            assert weight_sum_chunk.shape == (chunk_size, 1)
-            c = 1. / torch.max(torch.abs(weights_masked_chunk[:, :, 0]))
-            num = torch.pow(torch.sum(c * weights_masked_chunk, dim=1), 2)
-            denom = (torch.sum(torch.pow(c * weights_masked_chunk, 2), dim=1)) + 1e-12
-            ESS = torch.where(denom == 0, torch.tensor(0.0, device=denom.device, dtype=denom.dtype), num / denom).to(
-                "cpu")
-            stable_targets_masks.append(ESS)
-            assert (not torch.any(torch.isnan(ESS)))
-            weighted_Z_sum_chunk = (weights_masked_chunk * candidate_Z).sum(dim=1)  # [chunk, D]
-            assert weighted_Z_sum_chunk.shape == (chunk_size, D)
-            # candidate_Z = candidate_Z.to("cpu")
-            # Compute stable target estimates for this chunk.
-            # Add a small epsilon to avoid division by zero.
-            if torch.any(weight_sum_chunk == 0):
-                min_positive = torch.min(weight_sum_chunk[weight_sum_chunk > 0]).item()
-                epsilon = min_positive / 1000
-            else:
-                epsilon = 0.
-            # Now apply epsilon only where needed
-            denominator = weight_sum_chunk + (weight_sum_chunk == 0) * epsilon
-            stable_targets_chunk = weighted_Z_sum_chunk / denominator  # [chunk_size, D]
-            assert stable_targets_chunk.shape == (chunk_size, D)
+            # ---- aggregate (NW mean; swap for LLR if desired) ----
+            num = (weights * cand_Z_k).sum(dim=1)  # [chunk, D]
+            den = weights.sum(dim=1).clamp_min(1e-12)  # [chunk, 1]
+            stable_targets_chunk = num / den  # [chunk, D]
             stable_targets_chunks.append(stable_targets_chunk)
-            assert (not torch.any(torch.isnan(stable_targets_chunk)))
-            del weight_sum_chunk, weighted_Z_sum_chunk
-            if ddX != dX: print(f"Final feat thresh vs original feat thresh: {ddX, dX}\n")
-        stable_targets_masks = (torch.cat(stable_targets_masks, dim=0))
-        assert stable_targets_masks.shape == (B1 * T, 1)
+
+            # monitor ESS
+            ess = (weights.sum(dim=1, keepdim=True).pow(2) /
+                   (weights.pow(2).sum(dim=1, keepdim=True) + 1e-12)).squeeze(-1)  # [chunk, 1]
+            stable_targets_masks.append(ess.to("cpu"))
+
+        stable_targets_masks = torch.cat(stable_targets_masks, dim=0)  # [B1*T, 1]
         print(
-            f"IQR ESS: {torch.quantile(stable_targets_masks, q=0.005, dim=0).item(), torch.quantile(stable_targets_masks, q=0.995, dim=0).item()}\n")
-        # Concatenate all chunks to form the full result.
+            f"IQR ESS: {torch.quantile(stable_targets_masks, 0.005).item(), torch.quantile(stable_targets_masks, 0.995).item()}")
+
         stable_targets = torch.cat(stable_targets_chunks, dim=0)  # [B1*T, D]
-        assert (stable_targets.shape == (B1 * T, D))
-        del pos_batch, pos_ref_batch, mask_chunk, dist_mean_chunk, stable_targets_chunks, target_noised_z, target_beta_tau, target_sigma_tau
-        # ref_batch, batch, eff_times = ref_batch.to(self.device_id), batch.to(self.device_id), eff_times.to(self.device_id)
+        assert stable_targets.shape == (B1 * T, D)
         return stable_targets.to(self.device_id)
 
     def _run_epoch(self, epoch: int, batch_size: int, chunk_size: int, feat_thresh: float) -> [list, list, list, list]:
