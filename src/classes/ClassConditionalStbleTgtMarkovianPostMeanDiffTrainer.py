@@ -682,9 +682,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 phi_prime = phi * (-2.0 * prev * diff / ((config.scale ** 2) * (xstar ** 4 + 1e-12)))
                 nbr = np.roll(phi, 1, axis=-1) + np.roll(phi, -1, axis=-1)  # same shape as phi
                 drift_X = drift_X - 0.5 * config.coupling * phi_prime * nbr
-                drift_X = drift_X[:, np.newaxis, :]
-                assert drift_X.shape == prev.shape
-                return drift_X
+                return drift_X[:, np.newaxis, :]
             elif "QuadSin" in config.data_path:
                 drift_X = -2. * config.quad_coeff * prev + config.sin_coeff * config.sin_space_scale * np.sin(
                     config.sin_space_scale * prev)
