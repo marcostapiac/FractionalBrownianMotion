@@ -600,7 +600,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
                                                                                3) + 2. * np.array(
                     config.quad_coeff) * Xs + np.array(config.const))
-                xstar = np.sqrt(np.maximum(1e-12, -config.quad_coeff / (2.0 * config.quartic_coeff)))
+                xstar = np.sqrt(
+                    np.maximum(1e-12, -np.array(config.quad_coeff) / (2.0 * np.array(config.quartic_coeff))))
                 s2 = (config.scale * xstar) ** 2 + 1e-12  # (D,) or (K,1,D)
                 diff = Xs ** 2 - xstar ** 2  # same shape as prev
                 phi = np.exp(-(diff ** 2) / (2.0 * s2 * xstar ** 2 + 1e-12))
@@ -673,7 +674,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             elif "BiPot" in config.data_path and config.ndims>1 and "coup" in config.data_path:
                 drift_X = -(4. * np.array(config.quartic_coeff) * np.power(prev,
                                                                  3) + 2. * np.array(config.quad_coeff) * prev + np.array(config.const))
-                xstar = np.sqrt(np.maximum(1e-12, -config.quad_coeff / (2.0 * config.quartic_coeff)))
+                xstar = np.sqrt(
+                    np.maximum(1e-12, -np.array(config.quad_coeff) / (2.0 * np.array(config.quartic_coeff))))
                 s2 = (config.scale * xstar) ** 2 + 1e-12  # (D,) or (K,1,D)
                 diff = prev ** 2 - xstar ** 2  # same shape as prev
                 phi = np.exp(-(diff ** 2) / (2.0 * s2 * xstar ** 2 + 1e-12))
