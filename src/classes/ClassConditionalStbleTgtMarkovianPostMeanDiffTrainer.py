@@ -171,7 +171,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         assert T2 == T and D2 == D
         assert B2 > B1
 
-        dX = feat_thresh
+        # dX = feat_thresh
 
         # positions (X) and increments (Z)
         pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # [B2, T, D]
@@ -218,7 +218,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                 candidate_x.squeeze(0))  # [N, D] -> [chunk, N]
             dists = dists / math.sqrt(D)
 
-            k = min(128, N)
+            k = min(512, N)
             vals, idx = torch.topk(dists, k, dim=1, largest=False)  # [chunk, k]
             idx_exp = idx.unsqueeze(-1).expand(-1, -1, D)  # [chunk, k, D]
 
