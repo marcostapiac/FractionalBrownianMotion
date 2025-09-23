@@ -279,7 +279,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             indices = torch.randperm(ref_x0s.shape[0])[:batch_size]
             # x0s is the subsampled set of increments from the larger reference batch
 
-            x0s = ref_x0s[:, :, :]#ref_x0s[indices, :, :]
+            x0s = ref_x0s[indices, :, :]
 
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
             features = self.create_feature_vectors_from_position(x0s)
@@ -302,12 +302,12 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             # For each timeseries "b", at time "t", we want the score p(timeseries_b_attime_t_diffusedTo_efftime|time_series_b_attime_t)
             # So target score should be size (NumBatches, Time Series Length, 1)
             # And xts should be size (NumBatches, TimeSeriesLength, NumDimensions)
-            """stable_targets = self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=ref_x0s,
+            stable_targets = self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=ref_x0s,
                                                       eff_times=eff_times, chunk_size=chunk_size,
-                                                      feat_thresh=feat_thresh)"""
+                                                      feat_thresh=feat_thresh)
 
             batch_loss, batch_base_loss, batch_var_loss, batch_mean_loss = self._run_batch(xts=xts, features=features,
-                                                                          stable_targets=x0s,#stable_targets,
+                                                                          stable_targets=stable_targets,
                                                                           diff_times=diff_times,
                                                                           eff_times=eff_times, epoch=epoch,
                                                                           batch_idx=batch_idx,
