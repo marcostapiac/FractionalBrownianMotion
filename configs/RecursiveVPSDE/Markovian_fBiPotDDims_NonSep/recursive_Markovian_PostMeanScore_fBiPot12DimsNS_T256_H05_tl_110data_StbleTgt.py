@@ -56,7 +56,7 @@ def get_config():
     # Universal Architecture Parameters
     config.temb_dim = 64
     config.residual_layers = 10
-    config.residual_channels = 16
+    config.residual_channels = 8
     config.diff_hidden_size = 64
     config.dialation_length = 10
 
