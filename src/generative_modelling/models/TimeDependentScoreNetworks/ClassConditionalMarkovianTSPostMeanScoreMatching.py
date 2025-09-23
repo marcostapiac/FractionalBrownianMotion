@@ -172,6 +172,8 @@ class MLPStateMapper(nn.Module):
 
         x_raw = self.preprocess(x)            # [batch, hidden_dim]
         x_fourier = self.hybrid(x)            # [batch, 2M]
+        print(x.shape)
+        print(x_raw.shape, x_fourier.shape)
         x_combined = torch.cat([x, x_raw, x_fourier], dim=-1)  # [batch, D+hidden_dim + 2M]
         x = F.elu(self.linear2(x_combined))   # [batch, hidden_dim]
         x = self.linear3(x)                   # [batch, target_dims]
