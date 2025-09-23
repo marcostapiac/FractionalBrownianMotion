@@ -9,6 +9,7 @@ import torch.distributed as dist
 import torchmetrics
 from torch import nn
 from torch.nn.parallel import DistributedDataParallel as DDP
+from torch.utils.data import DistributedSampler
 from torchmetrics import MeanMetric
 
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
@@ -273,7 +274,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         b_sz = len(next(iter(self.train_loader))[0])
         print(
             f"[Device {self.device_id}] Epoch {epoch + 1} | Batchsize: {b_sz} | Total Num of Batches: {len(self.train_loader)} \n")
-        if type(self.device_id) != torch.device: self.train_loader.sampler.set_epoch(epoch)
+        if isinstance(self.train_loader.sampler, DistributedSampler):
+            self.train_loader.sampler.set_epoch(epoch)
         if self.is_hybrid:
             timesteps = torch.linspace(self.train_eps, end=self.end_diff_time,
                                        steps=self.max_diff_steps)
