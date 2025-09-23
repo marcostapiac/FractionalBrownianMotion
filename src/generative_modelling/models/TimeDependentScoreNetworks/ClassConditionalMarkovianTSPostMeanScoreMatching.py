@@ -224,7 +224,7 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
         conditioner = self.mlp_state_mapper(conditioner)
         cond_up = self.cond_upsampler(conditioner)
         cond_up = self.ln_cond(cond_up)
-
+        print(diffusion_step.shape)
         skip = []
         for layer in self.residual_layers:
             x, skip_connection = layer(x, conditioner=cond_up, time_bias=diffusion_step)
