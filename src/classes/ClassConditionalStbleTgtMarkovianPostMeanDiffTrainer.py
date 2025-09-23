@@ -239,7 +239,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             logw = logw.sum(dim=-1, keepdim=True)  # [chunk, k, 1]
 
             # finite-sample guard against spikes
-            q = torch.quantile(logw.detach(), 0.995)
+            q = torch.quantile(logw.detach(), 0.995).max()
             weights = torch.exp(torch.clamp(logw, max=q)) * Kx  # [chunk, k, 1]
 
             # ---- aggregate (NW mean; swap for LLR if desired) ----
