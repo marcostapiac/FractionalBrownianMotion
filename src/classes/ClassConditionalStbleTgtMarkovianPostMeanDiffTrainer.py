@@ -219,7 +219,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                 candidate_x.squeeze(0))  # [N, D] -> [chunk, N]
             dists = dists / math.sqrt(D)
 
-            k = min(512, N)
+            k = N#min(512, N)
             vals, idx = torch.topk(dists, k, dim=1, largest=False)  # [chunk, k]
             idx_exp = idx.unsqueeze(-1).expand(-1, -1, D)  # [chunk, k, D]
 
