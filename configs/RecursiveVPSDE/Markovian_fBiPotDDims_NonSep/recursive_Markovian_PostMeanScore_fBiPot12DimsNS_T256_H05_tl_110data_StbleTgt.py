@@ -56,12 +56,12 @@ def get_config():
     # Universal Architecture Parameters
     config.temb_dim = 64
     config.residual_layers = 10
-    config.residual_channels = 8
+    config.residual_channels = 16
     config.diff_hidden_size = 64
     config.dialation_length = 10
 
     # MLP Architecture parameters
-    config.mlp_hidden_dims = 4
+    config.mlp_hidden_dims = 16
     config.condupsampler_length = 20
 
     # TSM Architecture parameters

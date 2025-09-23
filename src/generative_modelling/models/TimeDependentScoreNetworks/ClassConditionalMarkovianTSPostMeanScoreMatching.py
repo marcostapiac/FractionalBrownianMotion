@@ -208,21 +208,17 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
             target_dim=ts_dims, cond_length=condupsampler_length
         )#target_dim = 1 or target_dim = ts_dims
 
-        def safe_dilations(L, depth, base=2):
-            vals = [1]
-            d = 1
-            while d * base < L:
-                d *= base
-                vals.append(d)
-            return [vals[i % len(vals)] for i in range(depth)]
+        def coprime_dilations(L: int, depth: int):
+            cands = [d for d in range(1, L) if math.gcd(d, L) == 1]  # permutation over all residues
+            # spread them roughly geometrically; then repeat to match depth
+            cands = sorted(cands, key=lambda d: (d, -d))  # simple stable order
+            return [cands[i % len(cands)] for i in range(depth)]
 
-        dils = safe_dilations(ts_dims, residual_layers)  # e.g., [1,2,4,8] for L=12
+        dils = coprime_dilations(ts_dims, residual_layers)
         self.residual_layers = nn.ModuleList([
-            ResidualBlock(residual_channels=residual_channels,
-                          diffusion_hidden_size=diff_hidden_size,
-                          dilation=d)  # pass different d each block
-            for d in dils
+            ResidualBlock(residual_channels, diff_hidden_size, d) for d in dils
         ])
+
         self.skip_projection = nn.Conv1d(residual_channels, residual_channels, 1)
         self.output_projection = nn.Conv1d(residual_channels, 1, 1)
 
