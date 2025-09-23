@@ -181,15 +181,14 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
 
         self.calib_scale = nn.Parameter(torch.ones(ts_dims))
         self.calib_bias = nn.Parameter(torch.zeros(ts_dims))
-        self.time_to_channels = nn.Linear(diff_hidden_size, residual_channels)
-
         self.input_projection = nn.Conv1d(
             1, residual_channels, 1
         )
         self.diffusion_embedding = DiffusionEmbedding(diff_embed_size=diff_embed_size,
                                                       diff_hidden_size=diff_hidden_size,
                                                       max_steps=max_diff_steps)  # get_timestep_embedding
-
+        self.time_to_channels = nn.Linear(self.diffusion_embedding.projection2.out_features,  # diff_hidden_size
+                                          residual_channels)
         self.mlp_state_mapper = MLPStateMapper(ts_input_dim=ts_dims, hidden_dim=mlp_hidden_dims, target_dims=condupsampler_length)
         self.cond_upsampler = CondUpsampler(
             target_dim=ts_dims, cond_length=condupsampler_length
