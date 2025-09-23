@@ -779,6 +779,21 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         end_epoch = max(max_epochs)
         self.ewma_loss = 0.  # Force recomputation of EWMA losses each time
         #self.curr_best_track_mse = np.inf # Force recomputation once
+        D = config.ts_dims
+        eps = 1e-6
+        count = 0
+        mean = torch.zeros(D, device=self.device)
+        M2 = torch.zeros(D, device=self.device)
+        with torch.no_grad():
+            for x0s in self.train_loader:  # x0s: [B,T,D] increments
+                z = x0s[0].to(self.device).reshape(-1, D)  # [-1,D]
+                count += z.size(0)
+                delta = z.mean(0) - mean
+                mean += delta * (z.size(0) / count)
+                M2 += ((z - mean) ** 2).sum(0)
+
+        var = (M2 / max(count - 1, 1)).clamp_min(eps)  # [D]
+        self.score_network.register_buffer("w_dim", 1.0 / var)  # broadcastable weights
         for epoch in range(self.epochs_run, end_epoch):
             t0 = time.time()
             # Temperature annealing for gumbel softmax
