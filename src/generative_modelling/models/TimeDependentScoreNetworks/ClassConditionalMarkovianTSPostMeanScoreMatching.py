@@ -150,7 +150,7 @@ class HybridStates(nn.Module):
 
         # TRAIN vs EVAL for Gumbel
         logits = self.gate_mlp(x) if self.training else self.gate_mlp(x).detach()
-        g = torch.sigmoid(logits / self.tau if self.training else logits / self.final_tau).unsqueeze(0)
+        g = torch.sigmoid(logits / self.tau if self.training else logits / self.final_tau)
         gated_fourier = g * fourier                      # [batch, 2M]
         return gated_fourier
 
@@ -172,8 +172,6 @@ class MLPStateMapper(nn.Module):
 
         x_raw = self.preprocess(x)            # [batch, hidden_dim]
         x_fourier = self.hybrid(x)            # [batch, 2M]
-        print(x.shape)
-        print(x_raw.shape, x_fourier.shape)
         x_combined = torch.cat([x, x_raw, x_fourier], dim=-1)  # [batch, D+hidden_dim + 2M]
         x = F.elu(self.linear2(x_combined))   # [batch, hidden_dim]
         x = self.linear3(x)                   # [batch, target_dims]
