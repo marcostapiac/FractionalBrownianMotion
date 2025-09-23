@@ -111,11 +111,11 @@ class CondUpsampler(nn.Module):
         # CondUpSampler applies transformations on a 3D tensor of dimensions [A, B, C] on the "C" dimension, in batch
         # across [A, B]
         x = self.linear1(x)
-        x = F.leaky_relu(x, 0.4)
+        x = F.silu(x)
         x = self.linear2(x)
-        x = F.leaky_relu(x, 0.4)
+        x = F.silu(x)
         x = self.linear3(x)
-        x = F.leaky_relu(x, 0.4)
+        x = F.silu(x)
         return x
 
 class HybridStates(nn.Module):
@@ -195,6 +195,7 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
 
         self.calib_scale = nn.Parameter(torch.ones(ts_dims))
         self.calib_bias = nn.Parameter(torch.zeros(ts_dims))
+        self.time_to_channels = nn.Linear(diff_hidden_size, residual_channels)
 
         self.input_projection = nn.Conv1d(
             1, residual_channels, 1
@@ -230,9 +231,10 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
         # inputs = inputs.unsqueeze(1)
         x = self.input_projection(inputs)
         x = self.ln_in(x)
-        x = F.leaky_relu(x, 0.01)
+        x = F.silu(x)
 
         diffusion_step = self.diffusion_embedding(times)
+        diffusion_step = self.time_to_channels(diffusion_step)
         conditioner = self.mlp_state_mapper(conditioner)
         cond_up = self.cond_upsampler(conditioner)
         cond_up = self.ln_cond(cond_up)
@@ -242,12 +244,12 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
             if cond_up.shape[1] != 1:
                 cond_up = cond_up.reshape(cond_up.shape[0]*cond_up.shape[1], 1, -1)
             x, skip_connection = layer(x, conditioner=cond_up, diffusion_step=diffusion_step)
-            x = F.leaky_relu(x, 0.01)
+            x = F.silu(x)
             skip.append(skip_connection)
 
         x = torch.sum(torch.stack(skip), dim=0) / math.sqrt(len(self.residual_layers))
         x = self.skip_projection(x)
-        x = F.leaky_relu(x, 0.01)
+        x = F.silu(x)
         x = self.output_projection(x)
         x = x * self.calib_scale.view(1, 1, -1) + self.calib_bias.view(1, 1, -1)
 
