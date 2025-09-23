@@ -596,7 +596,7 @@ def multivar_score_based_MLP_drift_OOS(score_model, num_diff_times, diffusion, n
         # assert np.allclose((scores- predicted_score).detach(), 0)
         beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
         sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
-        final_mu_hats = (0*vec_Z_taus / (ts_step * beta_taus)) + ((
+        final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
                                                                         (torch.pow(sigma_taus, 2) + (
                                                                                 torch.pow(beta_taus * config.diffusion,
                                                                                           2) * ts_step)) / (
