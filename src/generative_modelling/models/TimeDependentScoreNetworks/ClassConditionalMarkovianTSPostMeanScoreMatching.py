@@ -227,7 +227,7 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
 
         skip = []
         for layer in self.residual_layers:
-            x, skip_connection = layer(x, conditioner=cond_up, time_bias=time_bias)
+            x, skip_connection = layer(x, conditioner=cond_up, time_bias=diffusion_step)
             x = F.silu(x)
             skip.append(skip_connection)
 
