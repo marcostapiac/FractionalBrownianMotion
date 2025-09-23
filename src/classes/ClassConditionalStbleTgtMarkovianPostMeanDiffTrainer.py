@@ -99,7 +99,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.loss_aggregator.update(loss.detach().item())
         return loss.detach().item(), base_loss, var_loss, mean_loss
 
-    def _batch_loss_compute(self, outputs: torch.Tensor, targets: torch.Tensor, epoch: int, batch_idx: int,
+    def _batch_loss_compute(self, outputs: torch.Tensor, targets: torch.Tensor, w_dim, w_tau, epoch: int, batch_idx: int,
                             num_batches: int) -> [float, float, float, float]:
         """
         Computes loss and calls helper function to compute backward pass
@@ -107,7 +107,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             :param targets: Target values to compare against outputs
             :return: Batch Loss
         """
-        base_loss = self.loss_fn()(outputs, targets) # Penalise for higher dimensions
+        base_loss = ((outputs - targets).pow(2) * w_dim * w_tau).mean() # Penalise for higher dimensions
         print(f"Loss, {base_loss}\n")
         var_loss = ((self.score_network.module.mlp_state_mapper.hybrid.log_scale - self.score_network.module.mlp_state_mapper.hybrid.log_scale.mean()) ** 2).mean()
         mean_loss = (torch.mean((self.score_network.module.mlp_state_mapper.hybrid.log_scale - 0.)**2))
@@ -159,9 +159,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         # Now implement the stable target field
         outputs = (outputs + xts / sigma_tau) * (sigma_tau / beta_tau)  # This gives us the network D_theta
         assert (outputs.shape == stable_targets.shape)
-        w_dim = self.w_dim.view(1, 1, -1).expand_as(outputs).pow(0.5)
+        w_dim = self.w_dim.view(1, 1, -1)  # [1,1,D]
         print(f"WDIM {w_dim}\n\n\n\n")
-        return self._batch_loss_compute(outputs=outputs * weights*w_dim, targets=stable_targets * weights*w_dim, epoch=epoch,
+        return self._batch_loss_compute(outputs=outputs, targets=stable_targets, w_dim=w_dim, w_tau=weights.pow(2), epoch=epoch,
                                         batch_idx=batch_idx, num_batches=num_batches)
 
     def _compute_stable_targets(self, batch: torch.Tensor, noised_z: torch.Tensor, eff_times: torch.Tensor,
