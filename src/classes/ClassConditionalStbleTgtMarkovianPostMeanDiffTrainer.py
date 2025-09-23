@@ -799,7 +799,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         q25, q75 = torch.quantile(all_z, q, dim=0)  # [D],[D]
         iqr = (q75 - q25).clamp_min(1e-9)
         var_robust = (iqr / 1.349) ** 2  # [D]
-        self.model.register_buffer("w_dim", (1.0 / var_robust).float())
+        self.register_buffer("w_dim", (1.0 / var_robust).float())
         for epoch in range(self.epochs_run, end_epoch):
             t0 = time.time()
             # Temperature annealing for gumbel softmax
