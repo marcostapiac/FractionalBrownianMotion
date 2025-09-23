@@ -72,6 +72,7 @@ def get_timestep_embedding(timesteps: torch.Tensor, embedding_dim: int):
 class ResidualBlock(nn.Module):
     def __init__(self, diffusion_hidden_size, residual_channels, dilation):
         super().__init__()
+        dilation = 4
         self.dilated_conv = nn.Conv1d(
             residual_channels, 2 * residual_channels, 3,
             padding=dilation, dilation=dilation, padding_mode='circular'
