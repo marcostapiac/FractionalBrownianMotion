@@ -73,12 +73,9 @@ class ResidualBlock(nn.Module):
     def __init__(self, diffusion_hidden_size, residual_channels, dilation):
         super().__init__()
         self.dilated_conv = nn.Conv1d(
-            residual_channels,
-            2 * residual_channels,
-            3,
-            padding=dilation,
-            dilation=dilation
-        )
+                residual_channels, 2*residual_channels, 3,
+                padding=dilation, dilation=dilation, padding_mode='circular'   # key change
+            )
         self.conditioner_projection = nn.Conv1d(
             1, 2 * residual_channels, 1
         )
