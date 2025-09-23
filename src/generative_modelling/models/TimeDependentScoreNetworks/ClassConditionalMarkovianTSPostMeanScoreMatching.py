@@ -73,9 +73,9 @@ class ResidualBlock(nn.Module):
     def __init__(self, diffusion_hidden_size, residual_channels, dilation):
         super().__init__()
         self.dilated_conv = nn.Conv1d(
-                residual_channels, 2*residual_channels, 3,
-                padding=dilation, dilation=dilation, padding_mode='circular'   # key change
-            )
+            residual_channels, 2 * residual_channels, 3,
+            padding=dilation, dilation=dilation, padding_mode='circular'
+        )
         self.conditioner_projection = nn.Conv1d(
             1, 2 * residual_channels, 1
         )
@@ -188,6 +188,8 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
             dilation_cycle_length: int = 10
     ):
         super().__init__()
+        self.ln_in = nn.LayerNorm(ts_dims, eps=1e-6)
+        self.ln_cond = nn.LayerNorm(ts_dims, eps=1e-6)
 
         self.calib_scale = nn.Parameter(torch.ones(ts_dims))
         self.calib_bias = nn.Parameter(torch.zeros(ts_dims))
@@ -223,11 +225,14 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
     def forward(self, inputs, times, conditioner, eff_times):
         # inputs = inputs.unsqueeze(1)
         x = self.input_projection(inputs)
+        x = self.ln_in(x)
         x = F.leaky_relu(x, 0.01)
 
         diffusion_step = self.diffusion_embedding(times)
         conditioner = self.mlp_state_mapper(conditioner)
         cond_up = self.cond_upsampler(conditioner)
+        cond_up = self.ln_cond(cond_up)
+
         skip = []
         for layer in self.residual_layers:
             if cond_up.shape[1] != 1:
