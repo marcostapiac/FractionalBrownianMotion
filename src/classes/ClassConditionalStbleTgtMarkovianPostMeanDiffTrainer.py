@@ -782,11 +782,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         D = config.ts_dims
         eps = 1e-6
         count = 0
-        mean = torch.zeros(D, device=self.device)
-        M2 = torch.zeros(D, device=self.device)
+        mean = torch.zeros(D, device=self.device_id)
+        M2 = torch.zeros(D, device=self.device_id)
         with torch.no_grad():
             for x0s in self.train_loader:  # x0s: [B,T,D] increments
-                z = x0s[0].to(self.device).reshape(-1, D)  # [-1,D]
+                z = x0s[0].to(self.device_id).reshape(-1, D)  # [-1,D]
                 count += z.size(0)
                 delta = z.mean(0) - mean
                 mean += delta * (z.size(0) / count)
