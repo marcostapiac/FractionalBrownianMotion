@@ -875,11 +875,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 if ((epoch + 1) % self.save_every == 0) or epoch == 0:
                     if config.ndims <= 2 or ("BiPot" in config.data_path and config.ndims > 1):
                         evalexp_mse = self._domain_rmse(config=config, epoch=epoch + 1)
-                        if evalexp_mse < self.curr_best_evalexp_mse and (epoch + 1) >= 10:
+                        if evalexp_mse < self.curr_best_evalexp_mse and (epoch + 1) >= 1:
                             self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="EE")
                             self.curr_best_evalexp_mse = evalexp_mse
                     track_mse = self._tracking_errors(epoch=epoch + 1, config=config)
-                    if track_mse < self.curr_best_track_mse and (epoch + 1) >= 10:
+                    if track_mse < self.curr_best_track_mse and (epoch + 1) >= 1:
                         self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="")
                         self.curr_best_track_mse = track_mse
                     self._save_loss(losses=all_losses_per_epoch, learning_rates=learning_rates, filepath=model_filename)
