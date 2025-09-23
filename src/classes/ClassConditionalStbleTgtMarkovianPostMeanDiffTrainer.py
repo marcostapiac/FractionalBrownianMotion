@@ -223,7 +223,12 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             # product Gaussian kernel with per-dim h_d
             h_exp = h_d.unsqueeze(1)  # [chunk, 1, D]
             Kx_d = torch.exp(-0.5 * (diff / h_exp) ** 2).sum(dim=-1).unsqueeze(-1)  # [chunk, N, D]
-
+            h_exp = h_exp.detach().cpu()
+            vals_bw = vals_bw.detach().cpu()
+            h_d = h_d.detach().cpu()
+            abs_diff = abs_diff.detach().cpu()
+            diff = diff.detach().cpu()
+            del h_exp, vals_bw, h_d, diff, abs_diff
             # ---- exact Gaussian p(Z_tau | Z0) over ALL candidates ----
             nz = noised_z_chunk.expand(-1, N, -1)  # [chunk, N, D]
             cand_Z = candidate_Z.expand(chunk, -1, -1)  # [chunk, N, D]
