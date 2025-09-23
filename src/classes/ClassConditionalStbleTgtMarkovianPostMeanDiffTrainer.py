@@ -160,7 +160,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         outputs = (outputs + xts / sigma_tau) * (sigma_tau / beta_tau)  # This gives us the network D_theta
         assert (outputs.shape == stable_targets.shape)
         w_dim = self.w_dim.view(1, 1, -1).expand_as(outputs).pow(0.5)
-
+        print(f"WDIM {w_dim}\n\n\n\n")
         return self._batch_loss_compute(outputs=outputs * weights*w_dim, targets=stable_targets * weights*w_dim, epoch=epoch,
                                         batch_idx=batch_idx, num_batches=num_batches)
 
