@@ -79,7 +79,8 @@ class ResidualBlock(nn.Module):
         nn.init.kaiming_normal_(self.output_projection.weight)
 
     def forward(self, x, conditioner, time_bias):   # time_bias: [B, C, 1]
-        y = x + time_bias                           # broadcast across D
+        print(x.shape, time_bias.shape, conditioner.shape)
+        y = x + time_bias                           # broadcast across
         y = self.dilated_conv(y) + self.conditioner_projection(conditioner)
         gate, filt = torch.chunk(y, 2, dim=1)
         y = torch.sigmoid(gate) * torch.tanh(filt)
