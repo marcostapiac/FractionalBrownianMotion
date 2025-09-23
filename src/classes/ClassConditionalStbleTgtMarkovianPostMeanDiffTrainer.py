@@ -795,7 +795,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 M2 += ((z - mean) ** 2).sum(0)
 
         var = (M2 / max(count - 1, 1)).clamp_min(eps)  # [D]
-        self.score_network.register_buffer("w_dim", 1.0 / var)  # broadcastable weights
+        self.register_buffer("w_dim", 1.0 / var)  # broadcastable weights
         for epoch in range(self.epochs_run, end_epoch):
             t0 = time.time()
             # Temperature annealing for gumbel softmax
