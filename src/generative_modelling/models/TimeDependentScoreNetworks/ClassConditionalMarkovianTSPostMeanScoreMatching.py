@@ -72,34 +72,20 @@ def get_timestep_embedding(timesteps: torch.Tensor, embedding_dim: int):
 class ResidualBlock(nn.Module):
     def __init__(self, diffusion_hidden_size, residual_channels, dilation):
         super().__init__()
-        self.dilated_conv = nn.Conv1d(
-            residual_channels, 2 * residual_channels, 3,
-            padding=dilation, dilation=dilation, padding_mode='circular'
-        )
-        self.conditioner_projection = nn.Conv1d(
-            1, 2 * residual_channels, 1
-        )
-        self.diffusion_projection = nn.Linear(diffusion_hidden_size, residual_channels)  # hidden_size = 512
-
-        self.output_projection = nn.Conv1d(residual_channels, 2 * residual_channels, 1)
-
+        self.dilated_conv = nn.Conv1d(residual_channels, 2*residual_channels, 3,
+                                      padding=dilation, dilation=dilation, padding_mode='circular')
+        self.conditioner_projection = nn.Conv1d(1, 2*residual_channels, 1)
+        self.output_projection = nn.Conv1d(residual_channels, 2*residual_channels, 1)
         nn.init.kaiming_normal_(self.output_projection.weight)
 
-    def forward(self, x, conditioner, diffusion_step):
-        diffusion_step = self.diffusion_projection(diffusion_step).unsqueeze(-1)
-        conditioner = self.conditioner_projection(conditioner)
-        y = x + diffusion_step
-        y = self.dilated_conv(y) + conditioner
-
-        gate, filter = torch.chunk(y, 2, dim=1)
-        y = torch.sigmoid(gate) * torch.tanh(filter)
-
+    def forward(self, x, conditioner, time_bias):   # time_bias: [B, C, 1]
+        y = x + time_bias                           # broadcast across D
+        y = self.dilated_conv(y) + self.conditioner_projection(conditioner)
+        gate, filt = torch.chunk(y, 2, dim=1)
+        y = torch.sigmoid(gate) * torch.tanh(filt)
         y = self.output_projection(y)
-        # y = F.leaky_relu(y, 0.4)
         residual, skip = torch.chunk(y, 2, dim=1)
         return (x + residual) / math.sqrt(2.0), skip
-
-
 class CondUpsampler(nn.Module):
     def __init__(self, cond_length, target_dim):
         super().__init__()
@@ -234,16 +220,14 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
         x = F.silu(x)
 
         diffusion_step = self.diffusion_embedding(times)
-        diffusion_step = self.time_to_channels(diffusion_step)
+        diffusion_step = self.time_to_channels(diffusion_step).unsqueeze(-1)
         conditioner = self.mlp_state_mapper(conditioner)
         cond_up = self.cond_upsampler(conditioner)
         cond_up = self.ln_cond(cond_up)
 
         skip = []
         for layer in self.residual_layers:
-            if cond_up.shape[1] != 1:
-                cond_up = cond_up.reshape(cond_up.shape[0]*cond_up.shape[1], 1, -1)
-            x, skip_connection = layer(x, conditioner=cond_up, diffusion_step=diffusion_step)
+            x, skip_connection = layer(x, conditioner=cond_up, time_bias=time_bias)
             x = F.silu(x)
             skip.append(skip_connection)
 
