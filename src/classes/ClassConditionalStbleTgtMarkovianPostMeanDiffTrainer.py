@@ -789,7 +789,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             for x0s in self.train_loader:  # x0s: [B,T,D] increments
                 z = x0s[0].to(self.device_id).reshape(-1, D)  # [B*T,D]
                 count += z.size(0)
-                mean += z
+                mean += z.sum(dim=0)
             mean = mean.sum(dim=0)/count
             count = 0
             M2 = torch.zeros(D, device=self.device_id)
