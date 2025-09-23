@@ -781,25 +781,25 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         end_epoch = max(max_epochs)
         self.ewma_loss = 0.  # Force recomputation of EWMA losses each time
         #self.curr_best_track_mse = np.inf # Force recomputation once
-        D = config.ts_dims
-        eps = 1e-6
-        with torch.no_grad():
-            count = 0
-            mean = torch.zeros(D, device=self.device_id)
-            for x0s in self.train_loader:  # x0s: [B,T,D] increments
-                z = x0s[0].to(self.device_id).reshape(-1, D)  # [B*T,D]
-                count += z.size(0)
-                mean += z.sum(dim=0)
-            mean = mean.sum(dim=0)/count
-            count = 0
-            M2 = torch.zeros(D, device=self.device_id)
-            for x0s in self.train_loader:  # x0s: [B,T,D] increments
-                z = x0s[0].to(self.device_id).reshape(-1, D)  # [B*T,D]
-                count += z.size(0)
-                M2 += ((z - mean) ** 2).sum(0)
+        def collect_all_increments(loader, D, limit=None):
+            chunks, seen = [], 0
+            for x0s in loader:  # x0s: [B,T,D] increments Z0
+                z = x0s[0].reshape(-1, D).to('cpu')
+                if limit is not None:
+                    need = max(0, limit - seen)
+                    if need == 0: break
+                    z = z[:need]
+                    seen += z.size(0)
+                chunks.append(z)
+            return torch.cat(chunks, 0)  # [-1,D] on CPU
 
-        var = (M2 / max(count - 1, 1)).clamp_min(eps)  # [D]
-        self.register_buffer("w_dim", 1.0 / var)  # broadcastable weights
+        D = config.ts_dims
+        all_z = collect_all_increments(self.train_loader, D)  # [-1,D]
+        q = torch.tensor([0.25, 0.75])
+        q25, q75 = torch.quantile(all_z, q, dim=0)  # [D],[D]
+        iqr = (q75 - q25).clamp_min(1e-9)
+        var_robust = (iqr / 1.349) ** 2  # [D]
+        self.model.register_buffer("w_dim", (1.0 / var_robust).float())
         for epoch in range(self.epochs_run, end_epoch):
             t0 = time.time()
             # Temperature annealing for gumbel softmax
