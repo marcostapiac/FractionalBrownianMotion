@@ -798,7 +798,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         q = torch.tensor([0.25, 0.75])
         q25, q75 = torch.quantile(all_z, q, dim=0)  # [D],[D]
         iqr = (q75 - q25).clamp_min(1e-9)
-        var_robust = (iqr / 1.349) ** 2  # [D]
+        var_robust = (iqr.to(self.device_id) / 1.349) ** 2  # [D]
         self.register_buffer("w_dim", (1.0 / var_robust).float())
         for epoch in range(self.epochs_run, end_epoch):
             t0 = time.time()
