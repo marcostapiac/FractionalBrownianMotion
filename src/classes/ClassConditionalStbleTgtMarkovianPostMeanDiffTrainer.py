@@ -159,7 +159,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         # Now implement the stable target field
         outputs = (outputs + xts / sigma_tau) * (sigma_tau / beta_tau)  # This gives us the network D_theta
         assert (outputs.shape == stable_targets.shape)
-        return self._batch_loss_compute(outputs=outputs * weights, targets=stable_targets * weights, epoch=epoch,
+        w_dim = self.w_dim.view(1, 1, -1).expand_as(outputs).pow(0.5)
+
+        return self._batch_loss_compute(outputs=outputs * weights*w_dim, targets=stable_targets * weights*w_dim, epoch=epoch,
                                         batch_idx=batch_idx, num_batches=num_batches)
 
     def _compute_stable_targets(self, batch: torch.Tensor, noised_z: torch.Tensor, eff_times: torch.Tensor,
@@ -212,15 +214,15 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             # ---- distances in X_{t_{j-1}} (conditioning) ----
             N = candidate_x.shape[1]  # B2*T
             chunk = target_chunk.shape[0]
-            dists = torch.cdist(target_chunk.squeeze(1),  # [chunk, D]
-                                candidate_x.squeeze(0))  # [N, D] -> [chunk, N]
-            dists = dists / math.sqrt(D)
 
-            # bandwidth via k-NN in X, but sum over ALL N
-            k_bw = min(64, N)
-            vals_bw, _ = torch.topk(dists, k_bw, dim=1, largest=False)  # [chunk, k_bw]
-            h = vals_bw[:, -1:].clamp_min(1e-12)  # [chunk, 1]
-            Kx = torch.exp(-0.5 * (dists / h) ** 2).unsqueeze(-1)  # [chunk, N, 1]
+            diff = (target_chunk - candidate_x)  # [chunk, N, D]
+            abs_diff = diff.abs()  # [chunk, N, D]
+            k_bw = min(512, abs_diff.size(1))
+            vals_bw, _ = torch.topk(abs_diff, k_bw, dim=1, largest=False)  # [chunk, k_bw, D]
+            h_d = vals_bw[:, -1, :].clamp_min(1e-12)  # [chunk, D]
+            # product Gaussian kernel with per-dim h_d
+            h_exp = h_d.unsqueeze(1)  # [chunk, 1, D]
+            Kx_d = torch.exp(-0.5 * (diff / h_exp) ** 2)  # [chunk, N, D]
 
             # ---- exact Gaussian p(Z_tau | Z0) over ALL candidates ----
             nz = noised_z_chunk.expand(-1, N, -1)  # [chunk, N, D]
@@ -233,7 +235,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
             # numerically-stable weights (row-wise max subtraction), no global quantile
             m = logw.max(dim=1, keepdim=True).values  # [chunk, 1, 1]
-            weights = torch.exp(logw - m) * Kx  # [chunk, N, 1]
+            weights = torch.exp(logw - m).expand_as(Kx_d) * Kx_d  # [chunk, N, D]
 
             # ---- aggregate E[Z0 | Z_tau, X_{t_{j-1}}] ----
             num = (weights * cand_Z).sum(dim=1)  # [chunk, D]
