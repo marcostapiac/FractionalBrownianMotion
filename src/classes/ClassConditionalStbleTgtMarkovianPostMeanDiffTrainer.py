@@ -165,97 +165,125 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                         batch_idx=batch_idx, num_batches=num_batches)
 
     def _compute_stable_targets(self, batch: torch.Tensor, noised_z: torch.Tensor, eff_times: torch.Tensor,
-                                ref_batch: torch.Tensor, chunk_size: int, feat_thresh: float):
+                                ref_batch: torch.Tensor, chunk_size: int, feat_thresh: float,
+                                k_bw: int = 64, bw_subsample: int = 16384, block: int = 8192):
         import math, time
         t0 = time.time()
 
         B1, T, D = batch.shape
         B2, T2, D2 = ref_batch.shape
-        assert T2 == T and D2 == D
-        assert B2 > B1
+        assert T2 == T and D2 == D and B2 > B1
 
-        # positions (X) and increments (Z)
-        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # [B2, T, D] -> X_{t_{j-1}}
-        pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :]  # [B1, T, D] -> X_{t_{j-1}}
+        # X (positions) at t_{j-1} and Z0 (increments)
+        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # [B2,T,D]
+        pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :]  # [B1,T,D]
         assert pos_batch.shape == (B1, T, D)
 
-        pos_ref_batch = pos_ref_batch.reshape(-1, D)  # [B2*T, D]
-        pos_batch = pos_batch.reshape(-1, D)  # [B1*T, D]
-        ref_batch = ref_batch.reshape(-1, D)  # [B2*T, D]  (Z0 candidates)
+        candidate_x = pos_ref_batch.reshape(-1, D).unsqueeze(0)  # [1, N, D], N=B2*T
+        target_x_exp = pos_batch.reshape(-1, D).unsqueeze(1)  # [B1*T, 1, D]
+        candidate_Z = ref_batch.reshape(-1, D).unsqueeze(0)  # [1, N, D]
 
         eff_times = eff_times.reshape(-1, eff_times.shape[-1])
         if eff_times.shape[-1] == 1 and D > 1:
             eff_times = eff_times.expand(-1, D)
         assert eff_times.shape == (B1 * T, D)
 
-        target_x_exp = pos_batch.unsqueeze(1)  # [B1*T, 1, D]
-        candidate_x = pos_ref_batch.unsqueeze(0)  # [1, B2*T, D]
-        candidate_Z = ref_batch.unsqueeze(0)  # [1, B2*T, D]
-
-        noised_z = noised_z.reshape(-1, D)  # [B1*T, D]  (Z_tau)
+        noised_z = noised_z.reshape(-1, D)  # [B1*T, D]
         beta_tau = torch.exp(-0.5 * eff_times)  # [B1*T, D]
-        sigma_tau = 1. - torch.exp(-eff_times)  # [B1*T, D]
+        sigma2_tau = (1. - torch.exp(-eff_times))  # [B1*T, D]
 
         target_noised_z = noised_z.unsqueeze(1)  # [B1*T, 1, D]
         target_beta_tau = beta_tau.unsqueeze(1)  # [B1*T, 1, D]
-        target_sigma_tau = sigma_tau.unsqueeze(1)  # [B1*T, 1, D]
+        target_sigma2_tau = sigma2_tau.unsqueeze(1)  # [B1*T, 1, D]
 
-        stable_targets_chunks = []
-        stable_targets_masks = []
+        stable_targets_chunks, stable_targets_masks = [], []
+        N = candidate_x.shape[1]
+        device = target_x_exp.device
+        dtype = target_x_exp.dtype
 
         for i in range(0, target_x_exp.shape[0], chunk_size):
             i_end = min(i + chunk_size, target_x_exp.shape[0])
 
-            target_chunk = target_x_exp[i:i_end]  # [chunk, 1, D]
-            noised_z_chunk = target_noised_z[i:i_end]  # [chunk, 1, D]
-            beta_tau_chunk = target_beta_tau[i:i_end]  # [chunk, 1, D]
-            sigma_tau_chunk = target_sigma_tau[i:i_end]  # [chunk, 1, D]
+            target_chunk = target_x_exp[i:i_end]  # [chunk,1,D]
+            nz_chunk = target_noised_z[i:i_end]  # [chunk,1,D]
+            beta_chunk = target_beta_tau[i:i_end]  # [chunk,1,D]
+            sigma2_chunk = target_sigma2_tau[i:i_end]  # [chunk,1,D]
+            chunk_sz = target_chunk.shape[0]
 
-            # ---- distances in X_{t_{j-1}} (conditioning) ----
-            N = candidate_x.shape[1]  # B2*T
-            chunk = target_chunk.shape[0]
+            # --- per-dim bandwidths h_d via k-NN on a subsample of candidates (memory-safe) ---
+            if N > bw_subsample:
+                idx = torch.randint(0, N, (bw_subsample,), device=device)
+                cand_x_bw = candidate_x[:, idx, :]  # [1, nbw, D]
+            else:
+                cand_x_bw = candidate_x  # [1, N, D]
+            diff_bw = (target_chunk - cand_x_bw).abs()  # [chunk, nbw, D]
+            k_eff = min(k_bw, diff_bw.size(1))
+            vals_bw, _ = torch.topk(diff_bw, k_eff, dim=1, largest=False)  # [chunk,k_eff,D]
+            h_d = vals_bw[:, -1, :].clamp_min(1e-12)  # [chunk,D]
+            h_exp = h_d.unsqueeze(1)  # [chunk,1,D]
 
-            diff = (target_chunk - candidate_x)  # [chunk, N, D]
-            abs_diff = diff.abs().sum(dim=-1, keepdims=True)  # [chunk, N, D]
-            k_bw = min(64, abs_diff.size(1))
-            vals_bw, _ = torch.topk(abs_diff, k_bw, dim=1, largest=False)  # [chunk, k_bw, D]
-            h_d = vals_bw[:, -1, :].clamp_min(1e-12)  # [chunk, D]
-            # product Gaussian kernel with per-dim h_d
-            h_exp = h_d.unsqueeze(1)  # [chunk, 1, D]
-            Kx_d = torch.exp(-0.5 * (diff / h_exp) ** 2).sum(dim=-1, keepdim=True)  # [chunk, N, D]
+            # --- streaming over all candidates to avoid OOM ---
+            num = torch.zeros(chunk_sz, D, device=device, dtype=dtype)  # Σ w * Z0
+            den = torch.zeros(chunk_sz, 1, device=device, dtype=dtype)  # Σ w
+            m_global = torch.full((chunk_sz, 1), -float('inf'), device=device, dtype=dtype)  # max logw across blocks
+            sum_w = torch.zeros(chunk_sz, 1, device=device, dtype=dtype)  # for ESS
+            sum_w2 = torch.zeros(chunk_sz, 1, device=device, dtype=dtype)
 
-            # ---- exact Gaussian p(Z_tau | Z0) over ALL candidates ----
-            nz = noised_z_chunk.expand(-1, N, -1)  # [chunk, N, D]
-            cand_Z = candidate_Z.expand(chunk, -1, -1)  # [chunk, N, D]
-            mean_k = beta_tau_chunk.expand_as(nz) * cand_Z  # [chunk, N, D]
-            std_k = torch.sqrt(sigma_tau_chunk.expand_as(nz))  # [chunk, N, D]
+            for j in range(0, N, block):
+                jb = slice(j, min(j + block, N))
+                nb = jb.stop - jb.start
 
-            logw = -0.5 * ((nz - mean_k) / std_k).pow(2) - torch.log(std_k) - 0.5 * math.log(2 * math.pi)
-            logw = logw.sum(dim=-1, keepdim=True)  # [chunk, N, 1]
+                cand_x_b = candidate_x[:, jb, :]  # [1,nb,D]
+                cand_Z_b = candidate_Z[:, jb, :]  # [1,nb,D]
 
-            # numerically-stable weights (row-wise max subtraction), no global quantile
-            m = logw.max(dim=1, keepdim=True).values  # [chunk, 1, 1]
-            weights = torch.exp(logw - m).expand_as(Kx_d) * Kx_d  # [chunk, N, D]
+                # kernel in X with per-dim bandwidths -> scalar kernel
+                diff_b = (target_chunk - cand_x_b) / h_exp  # [chunk,nb,D]
+                dist2_b = (diff_b * diff_b).sum(dim=-1, keepdim=True)  # [chunk,nb,1]
+                logKx_b = -0.5 * dist2_b  # [chunk,nb,1]
 
-            # ---- aggregate E[Z0 | Z_tau, X_{t_{j-1}}] ----
-            num = (weights * cand_Z).sum(dim=1)  # [chunk, D]
-            den = weights.sum(dim=1).clamp_min(1e-12)  # [chunk, 1]
-            stable_targets_chunk = num / den  # [chunk, D]
+                # exact Gaussian log p(Z_tau | Z0) summed over dims
+                nz_b = nz_chunk.expand(-1, nb, -1)  # [chunk,nb,D]
+                mean_b = beta_chunk.expand_as(nz_b) * cand_Z_b  # [chunk,nb,D]
+                std_b = torch.sqrt(sigma2_chunk.expand_as(nz_b))  # [chunk,nb,D]
+                logp_b = -0.5 * ((nz_b - mean_b) / std_b).pow(2) - torch.log(std_b) - 0.5 * math.log(2 * math.pi)
+                logp_b = logp_b.sum(dim=-1, keepdim=True)  # [chunk,nb,1]
+
+                logw_b = logp_b + logKx_b  # [chunk,nb,1]
+                m_b = logw_b.max(dim=1, keepdim=True).values.squeeze(-1)  # [chunk,1]
+
+                # rescale accumulators to common max m_new
+                m_new = torch.maximum(m_global, m_b)  # [chunk,1]
+                scale_old = torch.exp(m_global - m_new)  # [chunk,1]
+                scale_old2 = torch.exp(2 * (m_global - m_new))  # [chunk,1]
+                m_global = m_new
+
+                num *= scale_old
+                den *= scale_old
+                sum_w *= scale_old
+                sum_w2 *= scale_old2
+
+                # add current block in the new scale
+                w_b_scaled = torch.exp(logw_b.squeeze(-1) - m_new)  # [chunk,nb]
+                den += w_b_scaled.sum(dim=1, keepdim=True)  # [chunk,1]
+                sum_w += w_b_scaled.sum(dim=1, keepdim=True)  # [chunk,1]
+                sum_w2 += (torch.exp(2 * (logw_b.squeeze(-1) - m_new))).sum(dim=1, keepdim=True)
+
+                num += (w_b_scaled.unsqueeze(-1) * cand_Z_b.squeeze(0)).sum(dim=1)  # [chunk,D]
+
+            stable_targets_chunk = num / den.clamp_min(1e-12)  # [chunk,D]
             stable_targets_chunks.append(stable_targets_chunk)
 
-            # monitor ESS
-            ess = (weights.sum(dim=1, keepdim=True).pow(2) /
-                   (weights.pow(2).sum(dim=1, keepdim=True) + 1e-12)).squeeze(-1)  # [chunk, 1]
-            stable_targets_masks.append(ess.to("cpu"))
+            ess_chunk = (sum_w.pow(2) / sum_w2.clamp_min(1e-12))  # [chunk,1]
+            stable_targets_masks.append(ess_chunk.to("cpu"))
 
-        stable_targets_masks = torch.cat(stable_targets_masks, dim=0)  # [B1*T, 1]
-        print(
-            f"IQR ESS: {torch.quantile(stable_targets_masks, 0.005).item(), torch.quantile(stable_targets_masks, 0.995).item()}")
+        stable_targets_masks = torch.cat(stable_targets_masks, dim=0)  # [B1*T,1]
+        q005 = torch.quantile(stable_targets_masks, 0.005).item()
+        q995 = torch.quantile(stable_targets_masks, 0.995).item()
+        print(f"IQR ESS: {(q005, q995)}")
 
-        stable_targets = torch.cat(stable_targets_chunks, dim=0)  # [B1*T, D]
+        stable_targets = torch.cat(stable_targets_chunks, dim=0)  # [B1*T,D]
         assert stable_targets.shape == (B1 * T, D)
         return stable_targets.to(self.device_id)
-
     def _run_epoch(self, epoch: int, batch_size: int, chunk_size: int, feat_thresh: float) -> [list, list, list, list]:
         """
         Single epoch run
