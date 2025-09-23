@@ -217,7 +217,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
             diff = (target_chunk - candidate_x)  # [chunk, N, D]
             abs_diff = diff.abs()  # [chunk, N, D]
-            k_bw = min(512, abs_diff.size(1))
+            k_bw = min(64, abs_diff.size(1))
             vals_bw, _ = torch.topk(abs_diff, k_bw, dim=1, largest=False)  # [chunk, k_bw, D]
             h_d = vals_bw[:, -1, :].clamp_min(1e-12)  # [chunk, D]
             # product Gaussian kernel with per-dim h_d
