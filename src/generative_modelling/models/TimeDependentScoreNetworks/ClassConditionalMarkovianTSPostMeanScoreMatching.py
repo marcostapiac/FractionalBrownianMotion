@@ -133,7 +133,7 @@ class HybridStates(nn.Module):
         #    nn.ELU(),
         #    nn.Linear(D, 2*M)
         #)
-        self.gate_logits = nn.Parameter(torch.zeros(2*M))
+        self.gate_mlp = nn.Sequential(nn.Linear(D, 32), nn.ELU(), nn.Linear(32, 2*M))
         self.init_tau = init_tau
         self.final_tau = final_tau
         self.set_tau(self.init_tau)
@@ -141,6 +141,7 @@ class HybridStates(nn.Module):
 
     def set_tau(self, tau):
         self.tau = tau
+
     def forward(self, x):
         scales = torch.exp(self.log_scale).unsqueeze(1)  # [M, 1]
         W_scaled = scales * self.W                       # [M, D]
@@ -148,15 +149,8 @@ class HybridStates(nn.Module):
         fourier = torch.cat([torch.sin(proj), torch.cos(proj)], dim=-1)  # [batch, 2M]
 
         # TRAIN vs EVAL for Gumbel
-        if self.training:
-            print(f"Used temp annealing {self.tau}\n")
-            u = torch.rand_like(self.gate_logits).clamp(1e-6, 1 - 1e-6)
-            gumbel = -torch.log(-torch.log(u))
-            logits = self.gate_logits + gumbel
-            g = torch.sigmoid(logits / self.tau).unsqueeze(0)  # [1, 2M]
-        else:
-            logits = self.gate_logits  # no noise at inference
-            g = torch.sigmoid(logits / self.final_tau).unsqueeze(0)  # [1, 2M]
+        logits = self.gate_mlp(x) if self.training else self.gate_mlp(x).detach()
+        g = torch.sigmoid(logits / self.tau if self.training else logits / self.final_tau).unsqueeze(0)
         gated_fourier = g * fourier                      # [batch, 2M]
         return gated_fourier
 
@@ -197,6 +191,10 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
             dilation_cycle_length: int = 10
     ):
         super().__init__()
+
+        self.calib_scale = nn.Parameter(torch.ones(ts_dims))
+        self.calib_bias = nn.Parameter(torch.zeros(ts_dims))
+
         self.input_projection = nn.Conv1d(
             1, residual_channels, 1
         )
@@ -245,6 +243,8 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
         x = self.skip_projection(x)
         x = F.leaky_relu(x, 0.01)
         x = self.output_projection(x)
+        x = x * self.calib_scale.view(1, 1, -1) + self.calib_bias.view(1, 1, -1)
+
         # For VPSDE only
         beta_tau = torch.exp(-0.5 * eff_times)
         sigma2_tau = (1. - torch.exp(-eff_times))
