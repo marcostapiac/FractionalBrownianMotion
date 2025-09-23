@@ -172,28 +172,25 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         assert T2 == T and D2 == D
         assert B2 > B1
 
-        # dX = feat_thresh
-
         # positions (X) and increments (Z)
-        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # [B2, T, D]
-        pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :]  # [B1, T, D]
+        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # [B2, T, D] -> X_{t_{j-1}}
+        pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :]  # [B1, T, D] -> X_{t_{j-1}}
         assert pos_batch.shape == (B1, T, D)
 
         pos_ref_batch = pos_ref_batch.reshape(-1, D)  # [B2*T, D]
         pos_batch = pos_batch.reshape(-1, D)  # [B1*T, D]
-        ref_batch = ref_batch.reshape(-1, D)  # [B2*T, D]
+        ref_batch = ref_batch.reshape(-1, D)  # [B2*T, D]  (Z0 candidates)
 
         eff_times = eff_times.reshape(-1, eff_times.shape[-1])
         if eff_times.shape[-1] == 1 and D > 1:
             eff_times = eff_times.expand(-1, D)
         assert eff_times.shape == (B1 * T, D)
 
-        target_x = pos_batch  # [B1*T, D]
-        target_x_exp = target_x.unsqueeze(1)  # [B1*T, 1, D]
+        target_x_exp = pos_batch.unsqueeze(1)  # [B1*T, 1, D]
         candidate_x = pos_ref_batch.unsqueeze(0)  # [1, B2*T, D]
         candidate_Z = ref_batch.unsqueeze(0)  # [1, B2*T, D]
 
-        noised_z = noised_z.reshape(-1, D)  # [B1*T, D]
+        noised_z = noised_z.reshape(-1, D)  # [B1*T, D]  (Z_tau)
         beta_tau = torch.exp(-0.5 * eff_times)  # [B1*T, D]
         sigma_tau = 1. - torch.exp(-eff_times)  # [B1*T, D]
 
@@ -212,38 +209,34 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             beta_tau_chunk = target_beta_tau[i:i_end]  # [chunk, 1, D]
             sigma_tau_chunk = target_sigma_tau[i:i_end]  # [chunk, 1, D]
 
-            # ---- kNN in X (dimension-stable) ----
+            # ---- distances in X_{t_{j-1}} (conditioning) ----
             N = candidate_x.shape[1]  # B2*T
             chunk = target_chunk.shape[0]
             dists = torch.cdist(target_chunk.squeeze(1),  # [chunk, D]
                                 candidate_x.squeeze(0))  # [N, D] -> [chunk, N]
             dists = dists / math.sqrt(D)
 
-            k = N#min(512, N)
-            vals, idx = torch.topk(dists, k, dim=1, largest=False)  # [chunk, k]
-            idx_exp = idx.unsqueeze(-1).expand(-1, -1, D)  # [chunk, k, D]
+            # bandwidth via k-NN in X, but sum over ALL N
+            k_bw = min(64, N)
+            vals_bw, _ = torch.topk(dists, k_bw, dim=1, largest=False)  # [chunk, k_bw]
+            h = vals_bw[:, -1:].clamp_min(1e-12)  # [chunk, 1]
+            Kx = torch.exp(-0.5 * (dists / h) ** 2).unsqueeze(-1)  # [chunk, N, 1]
 
-            cand_x_k = candidate_x.expand(chunk, -1, -1).gather(1, idx_exp)  # [chunk, k, D]
-            cand_Z_k = candidate_Z.expand(chunk, -1, -1).gather(1, idx_exp)  # [chunk, k, D]
-
-            # ---- soft kernel in X with adaptive bandwidth (k-th NN) ----
-            h = vals[:, -1:].clamp_min(1e-12)  # [chunk, 1]
-            Kx = torch.exp(-0.5 * (vals / h) ** 2).unsqueeze(-1)  # [chunk, k, 1]
-
-            # ---- exact Gaussian p(Z_tau | Z0) ----
-            nz = noised_z_chunk.expand(-1, k, -1)  # [chunk, k, D]
-            mean_k = beta_tau_chunk.expand_as(nz) * cand_Z_k  # [chunk, k, D]
-            std_k = torch.sqrt(sigma_tau_chunk.expand_as(nz))  # [chunk, k, D]
+            # ---- exact Gaussian p(Z_tau | Z0) over ALL candidates ----
+            nz = noised_z_chunk.expand(-1, N, -1)  # [chunk, N, D]
+            cand_Z = candidate_Z.expand(chunk, -1, -1)  # [chunk, N, D]
+            mean_k = beta_tau_chunk.expand_as(nz) * cand_Z  # [chunk, N, D]
+            std_k = torch.sqrt(sigma_tau_chunk.expand_as(nz))  # [chunk, N, D]
 
             logw = -0.5 * ((nz - mean_k) / std_k).pow(2) - torch.log(std_k) - 0.5 * math.log(2 * math.pi)
-            logw = logw.sum(dim=-1, keepdim=True)  # [chunk, k, 1]
+            logw = logw.sum(dim=-1, keepdim=True)  # [chunk, N, 1]
 
-            # finite-sample guard against spikes
-            q = torch.quantile(logw.detach(), 0.995).max()
-            weights = torch.exp(torch.clamp(logw, max=q)) * Kx  # [chunk, k, 1]
+            # numerically-stable weights (row-wise max subtraction), no global quantile
+            m = logw.max(dim=1, keepdim=True).values  # [chunk, 1, 1]
+            weights = torch.exp(logw - m) * Kx  # [chunk, N, 1]
 
-            # ---- aggregate (NW mean; swap for LLR if desired) ----
-            num = (weights * cand_Z_k).sum(dim=1)  # [chunk, D]
+            # ---- aggregate E[Z0 | Z_tau, X_{t_{j-1}}] ----
+            num = (weights * cand_Z).sum(dim=1)  # [chunk, D]
             den = weights.sum(dim=1).clamp_min(1e-12)  # [chunk, 1]
             stable_targets_chunk = num / den  # [chunk, D]
             stable_targets_chunks.append(stable_targets_chunk)
