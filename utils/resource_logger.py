@@ -9,12 +9,12 @@ import time
 from typing import List, Callable, Any, Optional
 
 # ---- Global (no NVML init at import) ----
-"""try:
+try:
     import pynvml  # type: ignore
     _PYNVML_AVAILABLE = True
 except Exception:
     _PYNVML_AVAILABLE = False
-"""
+
 
 
 class ResourceLogger:
