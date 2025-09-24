@@ -11,11 +11,7 @@ from configs.RecursiveVPSDE.Markovian_fBiPotDDims.recursive_Markovian_PostMeanSc
     get_config
 from src.classes.ClassFractionalBiPotential import FractionalBiPotential
 from utils.drift_evaluation_functions import process_IID_bandwidth
-from utils.resource_logger import ResourceLogger
-<<<<<<< Updated upstream
-
-=======
->>>>>>> Stashed changes
+from utils.resource_logger import ResourceLogger, set_runtime_global
 
 def true_drift(prev, num_paths, config):
     assert (prev.shape == (num_paths, config.ndims))
@@ -97,6 +93,7 @@ if __name__ == "__main__":
         # Euler-Maruyama Scheme for Tracking Errors
         shape = prevPath_observations.shape
         for bw_idx in tqdm(range(11,bws.shape[0])):
+            set_runtime_global(idx=bw_idx)
             bw = bws[bw_idx, :]
             inv_H = np.diag(np.power(bw, -2))
             norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))

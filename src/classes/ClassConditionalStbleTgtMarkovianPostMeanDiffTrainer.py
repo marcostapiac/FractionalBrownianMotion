@@ -23,6 +23,7 @@ from tqdm import tqdm
 
 from utils.drift_evaluation_functions import MLP_1D_drifts, multivar_score_based_MLP_drift_OOS, \
     drifttrack_cummse, driftevalexp_mse_ignore_nans, MLP_fBiPotDDims_drifts, drifttrack_mse
+from utils.resource_logger import set_runtime_global
 
 
 # Link for DDP vs DataParallelism: https://www.run.ai/guides/multi-gpu/pytorch-multi-gpu-4-techniques-explained
@@ -829,6 +830,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         var_robust = (iqr.to(self.device_id) / 1.349) ** 2  # [D]
         self.register_buffer("w_dim", (1.0 / var_robust).float())
         for epoch in range(self.epochs_run, end_epoch):
+            set_runtime_global(epoch=epoch)
             t0 = time.time()
             # Temperature annealing for gumbel softmax
             if epoch % 20 == 0:

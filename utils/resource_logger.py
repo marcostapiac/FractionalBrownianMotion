@@ -6,26 +6,40 @@ import psutil
 import signal
 import threading
 import time
-from typing import List, Callable, Any, Optional
+import weakref
+from typing import Callable, Optional, Any, Dict, List
 
-# ---- Global (no NVML init at import) ----
+# ---- Optional NVML import ----
 try:
     import pynvml  # type: ignore
     _PYNVML_AVAILABLE = True
 except Exception:
     _PYNVML_AVAILABLE = False
 
+# ---- Global registry for no-instance runtime updates ----
+_ACTIVE_LOGGERS: "weakref.WeakSet[ResourceLogger]"  # type: ignore[name-defined]
+_ACTIVE_LOGGERS = weakref.WeakSet()
+
+def set_runtime_global(**kv: Any) -> None:
+    """Update runtime vars on all active ResourceLogger instances."""
+    for rl in list(_ACTIVE_LOGGERS):
+        try:
+            rl.set_runtime(**kv)
+        except Exception:
+            pass
 
 
 class ResourceLogger:
     """
-    Signal-safe resource logger:
-      - instant wake on SIGINT/SIGTERM
-      - autosaves partial logs every `flush_every` seconds
-      - atomic writes (<outfile>.tmp -> <outfile>)
-      - creates parent dirs for <path>/<file>.json
-      - multi-GPU autodetect (no args)
-      - NVML hardened: timeouts + auto-fallback to CPU-only
+    Single-GPU resource logger.
+      - SIGINT/SIGTERM aware
+      - Atomic writes (<outfile>.tmp -> <outfile>)
+      - Auto-create parent dirs
+      - Single-GPU via NVML (device index configurable)
+      - Runtime vars without passing instance:
+          * set_runtime_global(epoch=...), or
+          * runtime_probe() -> dict, or
+          * runtime_watch_path (JSON or key=value)
     """
 
     def __init__(
@@ -33,35 +47,46 @@ class ResourceLogger:
         interval: float = 120,
         outfile: str = "experiment_log.json",
         job_type: str = "unspecified",
-        metadata: dict | None = None,
+        metadata: Optional[Dict[str, Any]] = None,
         flush_every: float = 60,
-        # advanced: override per-call NVML timeout (seconds)
-        nvml_timeout_s: float = 0.25,
+        gpu_index: int = 0,
+        nvml_enable: bool = True,
+        runtime_probe: Optional[Callable[[], Optional[Dict[str, Any]]]] = None,
+        runtime_watch_path: Optional[str] = None,
     ):
         self.interval = float(interval)
         self.flush_every = float(flush_every)
         self.outfile = outfile
         self.job_type = job_type
         self.metadata = metadata or {}
-        self.nvml_timeout_s = float(nvml_timeout_s)
 
+        # runtime vars (initial/current)
+        self._runtime_initial: Dict[str, Any] = {}
+        self._runtime_current: Dict[str, Any] = {}
+        self.runtime_probe = runtime_probe
+        self.runtime_watch_path = runtime_watch_path
+
+        # thread state
         self._stop = threading.Event()
         self._lock = threading.Lock()
         self._last_flush = 0.0
         self._finalized = False
 
+        # CPU/RAM samples
         self.cpu: List[float] = []
         self.ram: List[float] = []
 
-        # GPU state (lazy NVML init)
-        self._nvml_ok = False
-        self._gpu_disabled = os.environ.get("RESOURCE_LOGGER_DISABLE_GPU", "") == "1"
-        self.gpu_indices: List[int] = []
-        self._gpu_meta: dict[int, dict] = {}
-        self.gpu_util: dict[int, List[float]] = {}
-        self.gpu_mem: dict[int, List[float]] = {}
+        # Single-GPU state
+        self._gpu_enabled = bool(nvml_enable) and (_PYNVML_AVAILABLE) and (os.environ.get("RESOURCE_LOGGER_DISABLE_GPU", "") != "1")
+        self._gpu_index = int(os.environ.get("RESOURCE_LOGGER_GPU_INDEX", gpu_index))
+        self._nvml_inited = False
+        self._gpu_handle = None
+        self._gpu_name: Optional[str] = None
+        self._gpu_mem_total_mb: Optional[float] = None
+        self._gpu_util: List[float] = []
+        self._gpu_mem_used_mb: List[float] = []
 
-        # Best-effort signal hooks (no heavy work inside handler)
+        # Signals
         for sig_name in ("SIGINT", "SIGTERM", "SIGUSR1", "SIGUSR2"):
             sig = getattr(signal, sig_name, None)
             if sig is None:
@@ -77,6 +102,7 @@ class ResourceLogger:
         self.start_time = time.time()
         print(f"ResourceLogger → {os.path.abspath(self.outfile)}", flush=True)
         atexit.register(self._write_log)
+        _ACTIVE_LOGGERS.add(self)
         self.thread = threading.Thread(target=self._loop, name="ResourceLogger", daemon=True)
         self.thread.start()
         return self
@@ -89,80 +115,123 @@ class ResourceLogger:
             self.thread.join(timeout=self.interval + 2.0)
         self._write_log()
         self._finalized = True
-        if self._nvml_ok:
+        try:
+            _ACTIVE_LOGGERS.discard(self)
+        except Exception:
+            pass
+        if self._nvml_inited:
             try:
-                # Don't block here; ignore errors
-                self._nvml_call(pynvml.nvmlShutdown, default=None, timeout=self.nvml_timeout_s)
+                pynvml.nvmlShutdown()
             except Exception:
                 pass
 
-    # ---------- signal handling (no locks, no I/O) ----------
+    # ---------- signals ----------
 
     def _handle_signal(self, signum, frame):
         print(f"\nReceived signal {signum}, stopping ResourceLogger...", flush=True)
         self._stop.set()
-        # Let thread exit; atexit/__exit__ does the write.
         try:
             if getattr(self, "thread", None) and self.thread.is_alive():
                 self.thread.join(timeout=2.0)
         finally:
             raise SystemExit(128 + int(signum))
 
-    # ---------- NVML hardening ----------
-
-    def _with_timeout(self, fn: Callable[[], Any], default: Any, timeout: float) -> Any:
-        """Run fn() in a daemon thread; return default on timeout/error."""
-        box = {"res": default, "err": None}
-        def run():
-            try:
-                box["res"] = fn()
-            except BaseException as e:
-                box["err"] = e
-        t = threading.Thread(target=run, daemon=True)
-        t.start()
-        t.join(timeout)
-        if t.is_alive() or box["err"] is not None:
-            return default
-        return box["res"]
-
-    def _nvml_call(self, f: Callable, *args, default: Any = None, timeout: Optional[float] = None):
-        if not self._nvml_ok:
-            return default
-        return self._with_timeout(lambda: f(*args), default, self.nvml_timeout_s if timeout is None else timeout)
+    # ---------- NVML (single GPU) ----------
 
     def _ensure_nvml(self):
-        if self._gpu_disabled or self._nvml_ok or not _PYNVML_AVAILABLE:
+        if not self._gpu_enabled or self._nvml_inited:
             return
-        ok = self._with_timeout(lambda: (pynvml.nvmlInit() or True), False, self.nvml_timeout_s)
-        if not ok:
-            self._gpu_disabled = True
-            return
-        # minimal discovery: indices 0..count-1; avoid UUID/PCI lookups
-        count = self._with_timeout(lambda: pynvml.nvmlDeviceGetCount(), 0, self.nvml_timeout_s)
-        if not count:
-            self._gpu_disabled = True
-            self._with_timeout(lambda: pynvml.nvmlShutdown(), None, 0.1)
-            return
-        self.gpu_indices = list(range(int(count)))
-        for i in self.gpu_indices:
-            self.gpu_util[i] = []
-            self.gpu_mem[i] = []
-        # metadata is best-effort; time-boxed
-        for i in self.gpu_indices:
-            name = self._nvml_call(lambda: pynvml.nvmlDeviceGetName(pynvml.nvmlDeviceGetHandleByIndex(i)),
-                                   default=None)
+        try:
+            pynvml.nvmlInit()
+            self._gpu_handle = pynvml.nvmlDeviceGetHandleByIndex(self._gpu_index)
+            # metadata
+            name = pynvml.nvmlDeviceGetName(self._gpu_handle)
             if isinstance(name, bytes):
                 name = name.decode("utf-8", "replace")
-            total = self._nvml_call(lambda: pynvml.nvmlDeviceGetMemoryInfo(pynvml.nvmlDeviceGetHandleByIndex(i)).total / 1e6,
-                                    default=None)
-            self._gpu_meta[i] = {"name": name, "mem_total_MB": total}
-        self._nvml_ok = True
+            self._gpu_name = str(name)
+            mem = pynvml.nvmlDeviceGetMemoryInfo(self._gpu_handle)
+            self._gpu_mem_total_mb = float(mem.total) / 1e6
+            self._nvml_inited = True
+        except Exception:
+            # Permanently disable GPU sampling for this run
+            self._gpu_enabled = False
+            self._nvml_inited = False
+            self._gpu_handle = None
+
+    # ---------- runtime polling ----------
+
+    def _coerce_scalar(self, s: str) -> Any:
+        s = s.strip()
+        if not s:
+            return s
+        if s.lower() in {"true", "false"}:
+            return s.lower() == "true"
+        try:
+            if "." in s:
+                return float(s)
+            return int(s)
+        except Exception:
+            return s
+
+    def _read_runtime_watch_path(self) -> Dict[str, Any]:
+        path = self.runtime_watch_path
+        if not path or not os.path.exists(path):
+            return {}
+        try:
+            raw = open(path, "r").read().strip()
+        except Exception:
+            return {}
+        # JSON dict or scalar
+        try:
+            obj = json.loads(raw)
+            if isinstance(obj, dict):
+                return obj
+            return {"value": obj}
+        except Exception:
+            pass
+        # key=value lines
+        updates: Dict[str, Any] = {}
+        for line in raw.splitlines():
+            if "=" in line:
+                k, v = line.split("=", 1)
+                updates[k.strip()] = self._coerce_scalar(v)
+        if updates:
+            return updates
+        if raw:
+            return {"value": self._coerce_scalar(raw)}
+        return {}
+
+    def _poll_runtime(self) -> None:
+        updates: Dict[str, Any] = {}
+        if self.runtime_probe is not None:
+            try:
+                probed = self.runtime_probe()
+                if isinstance(probed, dict):
+                    updates.update(probed)
+            except Exception:
+                pass
+        if self.runtime_watch_path is not None:
+            updates.update(self._read_runtime_watch_path())
+        if updates:
+            self.set_runtime(**updates)
+
+    # ---------- public API ----------
+
+    def set_runtime(self, **kv: Any) -> None:
+        """First value per key frozen in `initial`; latest in `current`."""
+        with self._lock:
+            for k, v in kv.items():
+                if k not in self._runtime_initial:
+                    self._runtime_initial[k] = v
+                self._runtime_current[k] = v
+
+    def flush(self):
+        self._write_log()
 
     # ---------- sampling & writing ----------
 
     def _loop(self):
         self._last_flush = time.time()
-        # Lazy NVML init inside the worker thread
         self._ensure_nvml()
         while not self._stop.is_set():
             self._sample_once()
@@ -170,10 +239,12 @@ class ResourceLogger:
                 self._write_log()
                 self._last_flush = time.time()
             self._stop.wait(self.interval)
-        # last sample
         self._sample_once()
 
     def _sample_once(self):
+        # runtime polling (no need to pass the instance)
+        self._poll_runtime()
+
         # CPU / RAM
         cpu = psutil.cpu_percent(interval=None)
         ram = psutil.virtual_memory().used / 1e6
@@ -182,44 +253,33 @@ class ResourceLogger:
             self.ram.append(ram)
 
         # GPU
-        if not self._nvml_ok or self._gpu_disabled or not self.gpu_indices:
+        if not self._gpu_enabled or not self._nvml_inited or self._gpu_handle is None:
             return
+        try:
+            util = pynvml.nvmlDeviceGetUtilizationRates(self._gpu_handle).gpu
+            mem = pynvml.nvmlDeviceGetMemoryInfo(self._gpu_handle).used / 1e6
+            with self._lock:
+                self._gpu_util.append(float(util))
+                self._gpu_mem_used_mb.append(float(mem))
+        except Exception:
+            # On any failure, disable GPU collection for remainder
+            self._gpu_enabled = False
 
-        # time-box each device query; if any timeout occurs, disable GPU sampling
-        for i in self.gpu_indices:
-            try:
-                handle = self._nvml_call(pynvml.nvmlDeviceGetHandleByIndex, i, default=None)
-                if handle is None:
-                    self._gpu_disabled = True
-                    break
-                util = self._nvml_call(lambda: pynvml.nvmlDeviceGetUtilizationRates(handle).gpu,
-                                       default=None)
-                mem_used = self._nvml_call(lambda: pynvml.nvmlDeviceGetMemoryInfo(handle).used / 1e6,
-                                           default=None)
-                if util is None or mem_used is None:
-                    self._gpu_disabled = True
-                    break
-                with self._lock:
-                    self.gpu_util[i].append(util)
-                    self.gpu_mem[i].append(mem_used)
-            except Exception:
-                self._gpu_disabled = True
-                break
-
-    def _stats(self):
-        # non-blocking lock to avoid deadlocks during shutdown
+    def _stats(self) -> Dict[str, Any]:
+        # non-blocking lock
         if not self._lock.acquire(timeout=0.2):
-            # best-effort snapshot without lock; avoids freeze
-            cpu = list(self.cpu)
-            ram = list(self.ram)
-            gu = {k: list(v) for k, v in self.gpu_util.items()}
-            gm = {k: list(v) for k, v in self.gpu_mem.items()}
+            cpu = list(self.cpu); ram = list(self.ram)
+            gpu_util = list(self._gpu_util)
+            gpu_mem_used = list(self._gpu_mem_used_mb)
+            runtime_initial = dict(self._runtime_initial)
+            runtime_current = dict(self._runtime_current)
         else:
             try:
-                cpu = list(self.cpu)
-                ram = list(self.ram)
-                gu = {k: list(v) for k, v in self.gpu_util.items()}
-                gm = {k: list(v) for k, v in self.gpu_mem.items()}
+                cpu = list(self.cpu); ram = list(self.ram)
+                gpu_util = list(self._gpu_util)
+                gpu_mem_used = list(self._gpu_mem_used_mb)
+                runtime_initial = dict(self._runtime_initial)
+                runtime_current = dict(self._runtime_current)
             finally:
                 self._lock.release()
 
@@ -228,27 +288,6 @@ class ResourceLogger:
 
         now = time.time()
         start = getattr(self, "start_time", now)
-
-        gpu_devices = {}
-        if self._nvml_ok and not self._gpu_disabled and self.gpu_indices:
-            for idx in self.gpu_indices:
-                u = gu.get(idx, [])
-                m = gm.get(idx, [])
-                meta = self._gpu_meta.get(idx, {})
-                gpu_devices[str(idx)] = {
-                    "name": meta.get("name"),
-                    "mem_total_MB": meta.get("mem_total_MB"),
-                    "util_avg": avg(u),
-                    "util_peak": peak(u),
-                    "mem_used_MB_avg": avg(m),
-                    "mem_used_MB_peak": peak(m),
-                    "samples": len(u) or len(m) or 0,
-                }
-
-        util_avgs = [d["util_avg"] for d in gpu_devices.values() if d.get("util_avg") is not None]
-        util_peaks = [d["util_peak"] for d in gpu_devices.values() if d.get("util_peak") is not None]
-        mem_avgs = [d["mem_used_MB_avg"] for d in gpu_devices.values() if d.get("mem_used_MB_avg") is not None]
-        mem_peaks = [d["mem_used_MB_peak"] for d in gpu_devices.values() if d.get("mem_used_MB_peak") is not None]
 
         return {
             "job_type": self.job_type,
@@ -259,21 +298,23 @@ class ResourceLogger:
             "cpu_percent_peak": peak(cpu),
             "ram_used_MB_avg": avg(ram),
             "ram_used_MB_peak": peak(ram),
-            # overall GPU summaries (None if disabled/unavailable)
-            "gpu_util_avg": (sum(util_avgs) / len(util_avgs)) if util_avgs else None,
-            "gpu_util_peak": (max(util_peaks) if util_peaks else None),
-            "gpu_mem_MB_avg": (sum(mem_avgs) / len(mem_avgs)) if mem_avgs else None,
-            "gpu_mem_MB_peak": (max(mem_peaks) if mem_peaks else None),
+            "gpu_util_avg": avg(gpu_util) if self._gpu_enabled else None,
+            "gpu_util_peak": peak(gpu_util) if self._gpu_enabled else None,
+            "gpu_mem_MB_avg": avg(gpu_mem_used) if self._gpu_enabled else None,
+            "gpu_mem_MB_peak": peak(gpu_mem_used) if self._gpu_enabled else None,
             "gpu": {
-                "enabled": bool(self._nvml_ok and not self._gpu_disabled and self.gpu_indices),
-                "indices": self.gpu_indices,
-                "devices": gpu_devices,
-                "disabled_reason": (
-                    "env/timeout/error" if (not self._nvml_ok or self._gpu_disabled) else None
-                ),
+                "enabled": bool(self._gpu_enabled and self._nvml_inited and self._gpu_handle is not None),
+                "index": self._gpu_index if self._gpu_enabled else None,
+                "name": self._gpu_name if self._gpu_enabled else None,
+                "mem_total_MB": self._gpu_mem_total_mb if self._gpu_enabled else None,
+                "samples": len(gpu_util) if self._gpu_enabled else 0,
             },
             "samples": len(cpu),
             "interval_sec": self.interval,
+            "runtime": {
+                "initial": runtime_initial or None,
+                "current": runtime_current or None,
+            },
             "metadata": self.metadata,
         }
 
@@ -295,5 +336,5 @@ class ResourceLogger:
         os.replace(tmp, self.outfile)
         print(f"Resource log written to {self.outfile}", flush=True)
 
-    def flush(self):
-        self._write_log()
+
+__all__ = ["ResourceLogger", "set_runtime_global"]

@@ -11,7 +11,7 @@ from configs.RecursiveVPSDE.Markovian_8DLorenz.recursive_Markovian_PostMeanScore
     get_config
 from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
 from utils.drift_evaluation_functions import process_IID_bandwidth
-from utils.resource_logger import ResourceLogger
+from utils.resource_logger import ResourceLogger, set_runtime_global
 
 
 def true_drift(prev, num_paths, config):
@@ -94,6 +94,7 @@ if __name__ == "__main__":
         # Euler-Maruyama Scheme for Tracking Errors
         shape = prevPath_observations.shape
         for bw_idx in tqdm(range(27,bws.shape[0])):
+            set_runtime_global(idx=bw_idx)
             bw = bws[bw_idx, :]
             inv_H = np.diag(np.power(bw, -2))
             norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
