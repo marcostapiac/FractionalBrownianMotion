@@ -1,3 +1,5 @@
+
+
 import multiprocessing as mp
 from multiprocessing import shared_memory
 
@@ -10,7 +12,10 @@ from configs.RecursiveVPSDE.Markovian_fBiPotDDims.recursive_Markovian_PostMeanSc
 from src.classes.ClassFractionalBiPotential import FractionalBiPotential
 from utils.drift_evaluation_functions import process_IID_bandwidth
 from utils.resource_logger import ResourceLogger
+<<<<<<< Updated upstream
 
+=======
+>>>>>>> Stashed changes
 
 def true_drift(prev, num_paths, config):
     assert (prev.shape == (num_paths, config.ndims))
@@ -91,7 +96,7 @@ if __name__ == "__main__":
 
         # Euler-Maruyama Scheme for Tracking Errors
         shape = prevPath_observations.shape
-        for bw_idx in tqdm(range(bws.shape[0])):
+        for bw_idx in tqdm(range(11,bws.shape[0])):
             bw = bws[bw_idx, :]
             inv_H = np.diag(np.power(bw, -2))
             norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
