@@ -9,6 +9,7 @@ from configs.RecursiveVPSDE.Markovian_fBiPotDDims.recursive_Markovian_PostMeanSc
     get_config
 from src.classes.ClassFractionalBiPotential import FractionalBiPotential
 from utils.drift_evaluation_functions import process_IID_bandwidth
+from utils.resource_logger import ResourceLogger
 
 
 def true_drift(prev, num_paths, config):
