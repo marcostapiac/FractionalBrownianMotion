@@ -338,3 +338,74 @@ class ResourceLogger:
 
 
 __all__ = ["ResourceLogger", "set_runtime_global"]
+# Wall-clock per epoch/idx from a ResourceLogger JSON (GPU or CPU).
+# Use this to build your LaTeX table. No “throughput” — it’s hardware/loader-specific.
+
+import json
+
+# Wall-clock per epoch/idx + CPU/RAM/GPU details from a ResourceLogger JSON (GPU or CPU).
+
+def _load(run):
+    if isinstance(run, dict): return run
+    with open(run, "r") as f: return json.load(f)
+
+def _to_gib(mb):
+    return (float(mb) / 1024.0) if (mb is not None) else None
+
+def wallclock_and_system_metrics(run_json_or_path, inclusive=False):
+    r = _load(run_json_or_path)
+
+    # total wall-clock [h]
+    wall_s = r.get("wall_clock_sec") or (float(r["end_time"]) - float(r["start_time"]))
+    wall_h = wall_s / 3600.0
+
+    # choose unit: epoch preferred, else idx
+    rt = r.get("runtime") or {}
+    ini, cur = rt.get("initial") or {}, rt.get("current") or {}
+    if ("epoch" in ini) or ("epoch" in cur):
+        name, a, b = "epoch", ini.get("epoch"), cur.get("epoch")
+    else:
+        name, a, b = "idx", ini.get("idx"), cur.get("idx")
+
+    span = None
+    if (a is not None) and (b is not None):
+        span = float(b) - float(a)
+        if inclusive:
+            span += 1.0
+        if span <= 0:
+            span = None
+
+    # per-unit wall-clock
+    per_h = (wall_h / span) if span else None
+    per_min = (per_h * 60.0) if per_h else None
+
+    # CPU
+    cpu_avg = r.get("cpu_percent_avg")
+    cpu_peak = r.get("cpu_percent_peak")
+
+    # RAM [GiB]
+    ram_avg_gib  = _to_gib(r.get("ram_used_MB_avg"))
+    ram_peak_gib = _to_gib(r.get("ram_used_MB_peak"))
+
+    # GPU (None for CPU jobs)
+    gpu_util_avg   = r.get("gpu_util_avg")
+    gpu_util_peak  = r.get("gpu_util_peak")
+    gpu_mem_avg_gib  = _to_gib(r.get("gpu_mem_MB_avg"))
+    gpu_mem_peak_gib = _to_gib(r.get("gpu_mem_MB_peak"))
+
+    return {
+        "progress_name": name,                  # "epoch" or "idx"
+        "span_units": span,                     # number of epochs/idx covered
+        "wall_clock_h_total": wall_h,           # total hours
+        "wall_clock_per_unit_h": per_min/60.,     # minutes per epoch/idx
+        "cpu_avg_pct": cpu_avg,                 # CPU average [%]
+        "cpu_peak_pct": cpu_peak,               # CPU peak [%]
+        "ram_avg_gib": ram_avg_gib,             # RAM average [GiB]
+        "ram_peak_gib": ram_peak_gib,           # RAM peak [GiB]
+        "gpu_util_avg_pct": gpu_util_avg,       # GPU average util [%] (GPU jobs)
+        "gpu_util_peak_pct": gpu_util_peak,     # GPU peak util [%] (GPU jobs)
+        "gpu_mem_avg_gib": gpu_mem_avg_gib,     # GPU used mem avg [GiB] (GPU jobs)
+        "gpu_mem_peak_gib": gpu_mem_peak_gib,   # GPU used mem peak [GiB] (GPU jobs)
+    }
+
+# Example:
