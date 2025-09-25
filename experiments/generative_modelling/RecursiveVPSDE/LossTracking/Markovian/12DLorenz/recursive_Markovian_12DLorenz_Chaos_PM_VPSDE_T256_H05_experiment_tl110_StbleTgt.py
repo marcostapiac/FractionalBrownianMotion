@@ -45,6 +45,7 @@ if __name__ == "__main__":
                             config.ts_length - 1)), 10240)))
             training_size -= (training_size % config.ref_batch_size)
             print(training_size)
+            training_size = 10240
             try:
                 data = np.load(config.data_path, allow_pickle=True)
                 assert (data.shape[0] >= training_size)
