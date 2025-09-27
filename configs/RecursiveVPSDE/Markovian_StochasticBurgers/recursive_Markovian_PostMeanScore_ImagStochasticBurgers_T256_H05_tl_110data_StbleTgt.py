@@ -19,6 +19,7 @@ def get_config():
     config.nu = 0.1
     config.num_fourier_modes = 8
     config.num_dims = config.num_fourier_modes
+    config.ndims = config.num_dims
     config.alpha = 2
     config.real = False
     config.initState = np.zeros(config.num_fourier_modes, dtype=complex)

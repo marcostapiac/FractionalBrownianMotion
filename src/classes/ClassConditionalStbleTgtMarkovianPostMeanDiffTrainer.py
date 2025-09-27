@@ -22,7 +22,7 @@ from configs import project_config
 from tqdm import tqdm
 
 from utils.drift_evaluation_functions import MLP_1D_drifts, multivar_score_based_MLP_drift_OOS, \
-    drifttrack_cummse, driftevalexp_mse_ignore_nans, MLP_fBiPotDDims_drifts, drifttrack_mse
+    drifttrack_cummse, driftevalexp_mse_ignore_nans, MLP_fBiPotDDims_drifts, drifttrack_mse, stochastic_burgers_drift
 from utils.resource_logger import set_runtime_global
 
 
@@ -660,7 +660,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     1 + config.log_space_scale * np.abs(prev)) / config.sin_space_scale
                 return drift_X[:, np.newaxis, :]
             elif "SBurgers" in config.data_path:
-                driftX =
+                drift_X = stochastic_burgers_drift(config=config, a=prev, num_paths=prev.shape[0])
                 return drift_X[:, np.newaxis, :]
             elif "Lnz" in config.data_path and config.ndims == 3:
                 drift_X = np.zeros((num_paths, config.ndims))

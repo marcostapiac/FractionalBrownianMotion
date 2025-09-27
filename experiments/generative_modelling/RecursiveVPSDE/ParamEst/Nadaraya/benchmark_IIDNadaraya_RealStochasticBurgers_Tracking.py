@@ -11,7 +11,8 @@ from tqdm import tqdm
 from configs import project_config
 from configs.RecursiveVPSDE.Markovian_StochasticBurgers.recursive_Markovian_PostMeanScore_RealStochasticBurgers_T256_H05_tl_110data_StbleTgt import \
     get_config
-from utils.drift_evaluation_functions import process_IID_bandwidth, stochastic_burgers_drift
+from utils.drift_evaluation_functions import process_IID_bandwidth, stochastic_burgers_drift, \
+    process_IID_SBurgers_bandwidth
 from utils.resource_logger import ResourceLogger, set_runtime_global
 
 
@@ -35,9 +36,9 @@ if __name__ == "__main__":
         is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :, :,:]
         is_path_observations = is_path_observations[:, :, :, 0] if config.real else is_path_observations[:, :, :, 1]
         is_path_observations = np.concatenate(
-            [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0),
+            [np.repeat(np.array(config.initState).reshape((1, 1, config.num_dims)), is_path_observations.shape[0], axis=0),
              is_path_observations], axis=1)
-        assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
+        assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.num_dims)
         is_idxs = np.arange(is_path_observations.shape[0])
         path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False), :]
         # We note that we DO NOT evaluate the drift at time t_{0}=0
@@ -52,8 +53,8 @@ if __name__ == "__main__":
         assert (path_observations.shape[1] == prevPath_observations.shape[1] + 2)
         assert (prevPath_observations.shape[1] * deltaT == (t1 - t0))
         grid_1d = np.logspace(-3.55, -0.05, 30)
-        bws = np.stack([grid_1d for m in range(config.ndims)], axis=-1)
-        assert (bws.shape == (30, config.ndims))
+        bws = np.stack([grid_1d for m in range(config.num_dims)], axis=-1)
+        assert (bws.shape == (30, config.num_dims))
 
         prevPath_shm = shared_memory.SharedMemory(create=True, size=prevPath_observations.nbytes)
         path_incs_shm = shared_memory.SharedMemory(create=True, size=path_incs.nbytes)
@@ -80,7 +81,7 @@ if __name__ == "__main__":
             set_runtime_global(idx=bw_idx)
             bw = bws[bw_idx, :]
             inv_H = np.diag(np.power(bw, -2))
-            norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
+            norm_const = 1 / np.sqrt((2. * np.pi) ** config.num_dims * (1. / np.linalg.det(inv_H)))
 
             print(f"Considering bandwidth grid number {bw_idx}\n")
             with mp.Pool(processes=rmse_quantile_nums) as pool:
@@ -90,7 +91,7 @@ if __name__ == "__main__":
                          range(rmse_quantile_nums)]
 
                 # Run the tasks in parallel
-                results = pool.starmap(process_IID_bandwidth, tasks)
+                results = pool.starmap(process_IID_SBurgers_bandwidth, tasks)
             results = {k: v for d in results for k, v in d.items()}
             all_true_states = np.concatenate([v[0][np.newaxis, :] for v in results.values()], axis=0)
             all_local_states = np.concatenate([v[2][np.newaxis, :] for v in results.values()], axis=0)
@@ -98,7 +99,7 @@ if __name__ == "__main__":
             assert (all_true_states.shape == all_global_states.shape == all_local_states.shape)
 
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_SBurgers_{config.ndims}DDims_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.nu}nu_{config.alpha}alph").replace(
+                    project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_SBurgers_{config.num_dims}DDims_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.nu}nu_{config.alpha}alph").replace(
                 ".", "")
             print(f"Save path {save_path}\n")
             np.save(save_path + "_true_states.npy", all_true_states)
