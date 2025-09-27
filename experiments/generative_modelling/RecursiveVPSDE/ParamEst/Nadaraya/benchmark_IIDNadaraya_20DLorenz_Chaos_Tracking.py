@@ -1,5 +1,10 @@
 
 
+
+
+
+
+
 import multiprocessing as mp
 from multiprocessing import shared_memory
 
@@ -94,7 +99,7 @@ if __name__ == "__main__":
 
         # Euler-Maruyama Scheme for Tracking Errors
         shape = prevPath_observations.shape
-        for bw_idx in tqdm(range(20,bws.shape[0])):
+        for bw_idx in tqdm(range(25,bws.shape[0])):
             set_runtime_global(idx=bw_idx)
             bw = bws[bw_idx, :]
             inv_H = np.diag(np.power(bw, -2))
