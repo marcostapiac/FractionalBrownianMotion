@@ -8,24 +8,19 @@ from numpy.fft import rfft, irfft, rfftfreq
 
 class StochasticBurgers:
 
-    def __init__(self, num_dims:int, const: float, quartic_coeff: float, quad_coeff: float, diff: float, X0,
+    def __init__(self, num_dims:int,  diff: float, nu, num_modes, alpha, X0,
                  rng: np.random.Generator = np.random.default_rng()):
         assert (num_dims >= 1)
         self.ndims = num_dims
-
-        if self.ndims == 1:
-            self.const = const
-            self.quartic_coeff = quartic_coeff
-            self.quad_coeff = quad_coeff
-            self.initialVol = X0
-        else:
-            self.const = np.array(const)
-            self.quartic_coeff = np.array(quartic_coeff)
-            self.quad_coeff = np.array(quad_coeff)
-            self.initialVol = np.array(X0)
+        self.nu = nu
+        self.num_fourier_modes = num_modes
+        self.alpha = alpha
+        self.L = 2 * np.pi
+        self.kappa = 2.0 * np.pi / self.L
         self.diff = diff
-        self.rng = rng
         self.gaussIncs = None
+        self.initialVol = X0
+        self.rng = np.random.default_rng()
 
     def get_initial_state(self):
         return self.initialVol
@@ -44,164 +39,85 @@ class StochasticBurgers:
     def inverse_lamperti(self, Z: np.ndarray):
         return None  # self.initialVol * np.exp(self.volVol * Z)
 
-    @staticmethod
-    def build_spectrum(k, spectrum="powerlaw", sigma_tot=0.2, ell=0.5, alpha=1.0, kc_ratio=0.3, zero_mean=True):
+
+    def build_q_nonneg(self, m):
         """
-        Return per-mode variances q_k (nonnegative k for rFFT) with sum(q_k) = sigma_tot^2.
-        Monotone decreasing with |k| for powerlaw/gaussian; trace-class by construction.
-
-        Args:
-          k : array of nonnegative wavenumbers (shape Nf = Nx//2+1)
-          spectrum : 'powerlaw' | 'gaussian' | 'band'
-          sigma_tot : sqrt of the total variance (Σ q_k) injected per time step (spectral)
-          ell : correlation length parameter (controls decay rate vs k)
-          alpha : powerlaw smoothness (must be > 0.5 in 1D for trace-class in the continuum)
-          kc_ratio : for 'band', cutoff as fraction of Nyquist (0..1]
-          zero_mean : if True, set q_0 = 0
-
-        Returns:
-          q : array of shape like k with Σ q = sigma_tot^2
+        Build per-mode variances q_m for m=0..K (nonnegative), with sum(q_m)=sigma_tot^2.
+        Monotone decreasing in |k| for powerlaw/gaussian.
         """
-        if spectrum == "powerlaw":
-            shape = (1.0 + (ell * k) ** 2) ** (-alpha)
-        elif spectrum == "gaussian":
-            shape = np.exp(-(ell * k) ** 2)
-        elif spectrum == "band":
-            kmax = k.max()
-            shape = (k <= kc_ratio * kmax).astype(float)
-        else:
-            raise ValueError("Unknown spectrum: choose 'powerlaw', 'gaussian', or 'band'.")
-
-        if zero_mean:
-            shape[0] = 0.0
-
-        # Normalise to desired trace (sum of q_k)
-        s = np.sum(shape)
-        if s <= 0:
-            raise ValueError(
-                "Spectrum shape sums to zero; adjust parameters (e.g., increase kc_ratio or reduce zero_mean).")
-        q = (sigma_tot ** 2) * shape / s
+        k = self.kappa * m.astype(float)
+        q = np.zeros_like(k, dtype=float)
+        if q.shape[0] > 1:
+            q[1:] = 2 * self.nu * 5 * (np.abs(k[1:]) ** (-self.alpha))
         return q
 
-    def simulate_burgers_1d_once(self, deltaT:float,
-            L=2 * np.pi, Nx=20, T=1.0, Nt=256,
-            nu=0.05,
-            spectrum="powerlaw", sigma_tot=0.2, ell=0.5, alpha=1.0, kc_ratio=0.3, zero_mean=True,
-            rng=None
-    ):
+    # ---------------------------- convolution helper -------------------------- #
+    def nonlinear_term_convolution(self, a_nonneg):
         """
-            Single increment. Returns (U) with shape U: (1, Nx)
+        Compute Nh for nonnegative modes using explicit convolution on truncated band.
+        a_nonneg: complex array length M = K+1 for m = 0..K (nonnegative).
+        Returns Nh_nonneg: complex array length M corresponding to modes m = 0..K.
         """
-        # grids
-        dx = L / Nx
-        x = np.linspace(0.0, L, Nx, endpoint=False)
-        # spectral objects (nonnegative frequencies for rFFT)
-        k = 2 * np.pi * rfftfreq(Nx, d=dx)  # shape Nf = Nx//2+1
-        K2 = k * k
-        k_max = k.max()
+        K = self.num_fourier_modes - 1
+        # Build full symmetric spectrum a_full for m=-K..K (index shift by +K)
+        a_full = np.empty(2 * K + 1, dtype=complex)
+        a_full[K] = a_nonneg[0]  # m=0 at index K
+        for m in range(1, K + 1):
+            a_full[K + m] = a_nonneg[m]  # +m
+            a_full[K - m] = np.conj(a_nonneg[m])  # -m (conjugate)
+        # Convolution: (u^2)_m = sum_{p+q=m} a_p a_q with |p|,|q|≤K
+        Nh_nonneg = np.zeros(self.num_fourier_modes, dtype=complex)
+        for m in range(0, K + 1):  # target mode m ≥ 0
+            if m == 0:
+                Nh_nonneg[m] = 0.0  # derivative kills mean
+                continue
+            ik = 1j * self.kappa * m
+            s = 0.0 + 0.0j
+            for p in range(-K, K + 1):
+                q = m - p
+                if -K <= q <= K:
+                    ap = a_full[K + p]
+                    aq = a_full[K + q]
+                    s += ap * aq
+            Nh_nonneg[m] = -0.5 * ik * s
+        return Nh_nonneg
 
-        # 2/3 de-aliasing mask for quadratic nonlinearity
-        kmask = (k <= (2.0 / 3.0) * k_max).astype(float)
+    def increment_state(self, prev: np.ndarray, deltaT, k_phys, q):
 
-        # trace-class spatial covariance (per-mode variances q_k)
-        qk = self.build_spectrum(k, spectrum=spectrum, sigma_tot=sigma_tot, ell=ell, alpha=alpha, kc_ratio=kc_ratio,
-                                 zero_mean=zero_mean)
+        Nh_now = self.nonlinear_term_convolution(prev)  # complex (M,)
 
-        # initial condition (smooth)
-        uh = rfft(prev)
+        # Spectral noise with E|eta_m|^2 = q_m (real at m=0, complex for m>=1)
+        eta = np.zeros(self.num_fourier_modes, dtype=complex)
+        eta[0] = np.sqrt(q[0]) * self.rng.standard_normal()
+        if self.num_fourier_modes > 1:
+            re = self.rng.standard_normal(self.num_fourier_modes - 1)
+            im = self.rng.standard_normal(self.num_fourier_modes - 1)
+            eta[1:] = np.sqrt(q[1:] / 2.0) * (re + 1j * im)
 
-        # implicit diffusion denominator (per mode)
-        denom = 1.0 + nu * K2 * deltaT
+        # Exponential Euler update:
+        # a_{n+1} = E * a_n + B * N(a_n) + F * eta   (elementwise over modes)
+        denom = 1.0 + self.nu * (k_phys ** 2) * deltaT
 
-        # storage
-        U = np.empty((1, Nx), dtype=float)
-        t = np.linspace(0.0, T, Nt + 1)
+        prev = (prev + deltaT * Nh_now + np.sqrt(deltaT) * eta) / denom
 
-        # time stepping
-        for n in range(Nt):
-        # Nonlinear term: -1/2 * ∂x(u^2)
-        u = irfft(uh, n=Nx)
-        qh = rfft(u * u)
-        qh *= kmask  # de-alias after product
-        Nh = -0.5j * k * qh
+        return prev
 
-        # Spectral noise: complex Gaussian with per-mode variance qk
-        nf = len(k)
-        zeta = rng.standard_normal(nf) + 1j * rng.standard_normal(nf)
-        # endpoints real for rFFT representation
-        zeta[0] = rng.standard_normal()
-        if Nx % 2 == 0:
-            zeta[-1] = rng.standard_normal()
-
-        etah = np.sqrt(qk) * zeta  # per-step spectral kick (variance qk)
-        # Euler–Maruyama with implicit L
-        uh = (uh + deltaT * Nh + np.sqrt(deltaT) * etah) / denom
-
-        return irfft(uh, n=Nx)
-
-    def increment_state(self, prev: np.ndarray, deltaT: float, M: int):
-        # !/usr/bin/env python3
-        """
-        Stochastic Burgers 1D — I i.i.d. paths with trace-class spatial covariance.
-
-        PDE: u_t + 1/2 (u^2)_x = nu u_xx + ξ(x,t),  periodic x in [0, L)
-
-        Time:  [0, T] with Nt steps (Euler–Maruyama in time)
-        Space: Nx grid points (pseudospectral: rFFT/irFFT, 2/3 de-aliasing)
-
-        Noise model (white in time, colored in space):
-          ξ(x,t) = sum_k sqrt(q_k) e^{ikx} dβ_k/dt,
-        where q_k = spectrum(k) with Σ_k q_k = σ_tot^2 (trace-class). We provide:
-          - powerlaw: q_k ∝ (1 + (ℓ|k|)^2)^(-α), α > 1/2 in 1D
-          - gaussian: q_k ∝ exp(-(ℓ|k|)^2)
-          - band:     q_k = const for |k| ≤ k_c, 0 otherwise
-        We zero the mean mode by default (q_0 = 0) to avoid drifting the spatial average.
-
-        Usage examples:
-          python burgers_spde_1d_tracecov.py --I 10 --Nx 20 --Nt 256 --spectrum powerlaw --alpha 1.0 --ell 0.5 --sigma_tot 0.2
-          python burgers_spde_1d_tracecov.py --I 5  --Nx 32 --spectrum gaussian --ell 1.0 --sigma_tot 0.3
-          python burgers_spde_1d_tracecov.py --I 20 --Nx 64 --spectrum band --kc_ratio 0.3 --sigma_tot 0.2
-        """
-        u = irfft(uh, n=Nx)
-        qh = rfft(u * u)
-        qh *= kmask  # de-alias after product
-        Nh = -0.5j * k * qh
-
-        # Spectral noise: complex Gaussian with per-mode variance qk
-        nf = len(k)
-        zeta = rng.standard_normal(nf) + 1j * rng.standard_normal(nf)
-        # endpoints real for rFFT representation
-        zeta[0] = rng.standard_normal()
-        if Nx % 2 == 0:
-            zeta[-1] = rng.standard_normal()
-
-        etah = np.sqrt(qk) * zeta  # per-step spectral kick (variance qk)
-        # Euler–Maruyama with implicit L
-        uh = (uh + dt * Nh + np.sqrt(dt) * etah) / denom
-        return uh
-
-    def euler_simulation(self, H: float, N: int, isUnitInterval: bool, t0: float, t1: float, deltaT: float,
-                         X0 = None, Ms: np.ndarray = None,
-                         gaussRvs: np.ndarray = None):
+    def euler_simulation(self, N: int, isUnitInterval: bool, t0: float, t1: float, deltaT: float,
+                         X0 = None):
         time_ax = np.arange(start=t0, stop=t1 + deltaT, step=deltaT)
         if t1==1: assert (isUnitInterval == True)
         assert (time_ax[-1] == t1 and time_ax[0] == t0)
-        if X0 is None:
-            Zs = [self.initialVol]  # [self.lamperti(self.initialVol)]
-        else:
-            Zs = [X0]  # [self.lamperti(X0)]
-        if gaussRvs is None:
-            if H != 0.5:
-                self.gaussIncs = self.rng.normal(size=2 * N)
-            else:
-                self.gaussIncs = self.rng.normal(size=N)
-        else:
-            self.gaussIncs = gaussRvs
-        if Ms is None:
-            if H != 0.5:
-                Ms = self.sample_increments(H=H, N=N, gaussRvs=self.gaussIncs, isUnitInterval=isUnitInterval)
-            else:
-                Ms = self.gaussIncs * np.sqrt(deltaT)
-        for i in (range(1, N + 1)):
-            Zs.append(self.increment_state(prev=Zs[i - 1], deltaT=deltaT, M=Ms[i - 1]))
-        return np.array(Zs)
+        Reals = [self.initialVol.real]  # [self.lamperti(self.initialVol)]
+        Imags = [self.initialVol.imag]  # [self.lamperti(self.initialVol)]
+        m = np.arange(self.num_fourier_modes, dtype=int)  # 0..K
+        k_phys = self.kappa * m.astype(float)
+        q = self.build_q_nonneg(m)
+        prev = self.initialVol
+        for _ in (range(1, N + 1)):
+            new = self.increment_state(prev=prev, q=q, deltaT=deltaT, k_phys=k_phys)
+            Reals.append(prev.real)
+            Imags.append(prev.imag)
+            prev = new
+        Reals = np.concatenate(Reals, axis=0).reshape((N+1, self.num_fourier_modes, 1))
+        Imags = np.concatenate(Imags, axis=0).reshape((N+1, self.num_fourier_modes, 1))
+        return np.concatenate([Reals, Imags], axis=-1).reshape((N+1, self.num_fourier_modes, 2))

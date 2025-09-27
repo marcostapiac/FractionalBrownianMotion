@@ -10,6 +10,60 @@ from torch.nn.utils.rnn import pad_sequence
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 
 
+def stochastic_burgers_drift(
+    a: np.ndarray,
+    config,
+) -> np.ndarray:
+    """
+    IMEX drift for Burgers in Fourier space:
+      f_IMEX(a) = [ N(a) - ν k^2 ⊙ a ] / [ 1 + ν k^2 dt ]
+
+    Inputs:
+      a       : (M,) float array containing ONLY the specified component.
+      config  : dict/obj with keys/attrs: num_fourier_modes (M), nu, kappa, deltaT.
+      a_input : "real" or "imag" indicating which component `a` represents.
+
+    Returns:
+      (M,) float array for the SAME component as `a_input`.
+    """
+    M   = config.num_fourier_modes
+    nu  = config.nu
+    kap = 1.
+    dt  = config.deltaT
+
+
+    # Nonlinear term N(a)
+    def nonlinear_term_convolution(a_nonneg: np.ndarray) -> np.ndarray:
+        K = M - 1
+        a_full = np.empty(2 * K + 1, dtype=np.complex128)
+        a_full[K] = a_nonneg[0]
+        for mm in range(1, K + 1):
+            a_full[K + mm] = a_nonneg[mm]
+            a_full[K - mm] = np.conj(a_nonneg[mm])
+        Nh = np.zeros(M, dtype=np.complex128)
+        for mm in range(1, K + 1):  # m=0 stays 0
+            ik = 1j * kap * mm
+            s = 0.0 + 0.0j
+            for p in range(-K, K + 1):
+                q = mm - p
+                if -K <= q <= K:
+                    s += a_full[K + p] * a_full[K + q]
+            Nh[mm] = -0.5 * ik * s
+        return Nh
+    a = np.asarray(a, dtype=np.float64)
+    a_c = (a.astype(np.complex128)
+           if config.real
+           else (1j * a).astype(np.complex128))
+    Nh  = nonlinear_term_convolution(a_c)
+    m   = np.arange(M, dtype=np.float64)
+    k2  = (kap * m) ** 2
+    den = 1.0 + nu * k2 * dt
+
+    out_c = (Nh - nu * k2 * a_c) / den
+
+    return (out_c.real.astype(np.float64)
+            if config.real
+            else out_c.imag.astype(np.float64))
 def LSTM_1D_drifts(config, PM):
     print("Beta Min : ", config.beta_min)
     if config.has_cuda:

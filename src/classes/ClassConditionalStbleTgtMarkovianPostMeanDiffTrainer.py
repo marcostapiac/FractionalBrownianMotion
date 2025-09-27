@@ -618,10 +618,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fSinLog_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.log_space_scale}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
-        elif "MullerBrown" in config.data_path:
-            save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fMullerBrown_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
-                ".", "")
         print(f"Save path:{save_path}\n")
         np.save(save_path + "_muhats.npy", final_vec_mu_hats)
         self.score_network.module.train()
@@ -663,21 +659,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 drift_X = -np.sin(config.sin_space_scale * prev) * np.log(
                     1 + config.log_space_scale * np.abs(prev)) / config.sin_space_scale
                 return drift_X[:, np.newaxis, :]
-            elif "MullerBrown" in config.data_path:
-                Aks = np.array(config.Aks)[np.newaxis, :]
-                aks = np.array(config.aks)[np.newaxis, :]
-                bks = np.array(config.bks)[np.newaxis, :]
-                cks = np.array(config.cks)[np.newaxis, :]
-                X0s = np.array(config.X0s)[np.newaxis, :]
-                Y0s = np.array(config.Y0s)[np.newaxis, :]
-                common = Aks * np.exp(aks * np.power(prev[:, [0]] - X0s, 2) \
-                                      + bks * (prev[:, [0]] - X0s) * (prev[:, [1]] - Y0s)
-                                      + cks * np.power(prev[:, [1]] - Y0s, 2))
-                assert (common.shape == (num_paths, 4))
-                drift_X = np.zeros((num_paths, config.ndims))
-                drift_X[:, 0] = -np.sum(common * (2. * aks * (prev[:, [0]] - X0s) + bks * (prev[:, [1]] - Y0s)), axis=1)
-                drift_X[:, 1] = -np.sum(common * (2. * cks * (prev[:, [1]] - Y0s) + bks * (prev[:, [0]] - X0s)), axis=1)
-
+            elif "SBurgers" in config.data_path:
+                driftX =
                 return drift_X[:, np.newaxis, :]
             elif "Lnz" in config.data_path and config.ndims == 3:
                 drift_X = np.zeros((num_paths, config.ndims))
