@@ -22,8 +22,7 @@ from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
 from src.classes.ClassFractionalMullerBrown import FractionalMullerBrown
 from src.classes.ClassFractionalQuadSin import FractionalQuadSin
 from src.classes.ClassFractionalSinLog import FractionalSinLog
-
-
+from src.classes.ClassStochasticBurgers import StochasticBurgers
 
 
 def logsumexp(w: np.ndarray, x: np.ndarray, h: callable, axis: int = 0, isLog: bool = False):
@@ -257,7 +256,30 @@ def generate_fBiPotNonSep(H: float, T: int, S: int, scale:float,config, isUnitIn
     assert (sample_paths.shape == (S, T + 1, ndims))
     return sample_paths[:, 1:, :]
 
-
+def generate_StochasticBurgers(H: float, T: int, S: int,  config, isUnitInterval: bool,alpha:float, nu: float, num_fourier_modes: int,
+                    initial_state: float, diff: float, ndims: int):
+    assert (H == 0.5 and len(initial_state) == ndims)
+    try:
+        deltaT = config.deltaT
+        t0 = config.t0
+        t1 = config.t1
+    except AttributeError:
+        if isUnitInterval:
+            deltaT = 1. / T
+            t0 = 0.
+            t1 = 1.
+        else:
+            deltaT = 1.
+            t0 = 0.
+            t1 = T
+    sburgers = StochasticBurgers(num_dims=ndims,  diff=diff, nu=nu, num_modes=num_fourier_modes,alpha=alpha,
+                                   X0=initial_state)
+    sample_paths = np.array(
+        [sburgers.euler_simulation(N=T, deltaT=deltaT, isUnitInterval=isUnitInterval, X0=None,
+                                 t0=t0, t1=t1).reshape(-1, 1) for _ in range(S)]).reshape(
+        (S, T + 1, ndims, 2))
+    assert (sample_paths.shape == (S, T + 1, ndims, 2))
+    return sample_paths[:, 1:, :]
 def generate_MullerBrown(H: float, T: int, S: int, config, isUnitInterval: bool):
     assert (H == 0.5 and config.ndims == 2)
     #assert (config.diffusion == 1.)

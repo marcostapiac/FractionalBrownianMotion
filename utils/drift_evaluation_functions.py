@@ -10,6 +10,144 @@ from torch.nn.utils.rnn import pad_sequence
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 
 
+def stochastic_burgers_drift(
+    a: np.ndarray,
+    num_paths,
+    config,
+) -> np.ndarray:
+    """
+    IMEX drift for Burgers in Fourier space (vectorized over leading batch dims).
+
+      f_IMEX(a) = [ N(a) - ν k^2 ⊙ a ] / [ 1 + ν k^2 dt ]
+
+    Inputs:
+      a       : (..., M) float array containing ONLY the specified component (real or imag).
+                Supports single state (M,), time-batches (T, M), or multi-path batches (I, T, M), etc.
+      config  : object with attrs: num_fourier_modes (M), nu, deltaT, and optionally kappa, real (bool).
+                If config.real is True, `a` is treated as the real part; otherwise as the imaginary part.
+
+    Returns:
+      (..., M) float array for the SAME component as input (real if config.real else imag).
+    """
+    M   = int(config.num_fourier_modes)
+    nu  = float(config.nu)
+    dt  = float(config.deltaT)
+    kap = float(getattr(config, "kappa", 1.0))
+    real_input = config.real
+
+    # Validate and flatten batch
+    a = np.asarray(a, dtype=np.float64)
+    if a.shape[-1] != M:
+        raise ValueError(f"Last dimension of a must be M={M}, got {a.shape[-1]}")
+    batch_shape = a.shape[:-1]
+    B = int(np.prod(batch_shape)) if batch_shape else 1
+    a_flat = a.reshape(B, M)
+
+    # Build complex spectrum with missing component = 0
+    a_c = (a_flat.astype(np.complex128)
+           if real_input
+           else (1j * a_flat).astype(np.complex128))
+
+    K = M - 1
+    m = np.arange(M, dtype=np.float64)
+    k2 = (kap * m) ** 2
+    den = (1.0 + nu * k2 * dt).reshape(1, M)
+
+    # Nonlinear term N(a) for each batch row
+    Nh = np.zeros((B, M), dtype=np.complex128)
+    for b in range(B):
+        a_nonneg = a_c[b]
+        # build symmetric spectrum a_full for indices -K..K
+        a_full = np.empty(2 * K + 1, dtype=np.complex128)
+        a_full[K] = a_nonneg[0]
+        for mm in range(1, K + 1):
+            a_full[K + mm] = a_nonneg[mm]
+            a_full[K - mm] = np.conj(a_nonneg[mm])
+        nh = np.zeros(M, dtype=np.complex128)
+        for mm in range(1, K + 1):  # m=0 remains 0
+            ik = 1j * kap * mm
+            s = 0.0 + 0.0j
+            for p in range(-K, K + 1):
+                q_idx = mm - p
+                if -K <= q_idx <= K:
+                    s += a_full[K + p] * a_full[K + q_idx]
+            nh[mm] = -0.5 * ik * s
+        Nh[b] = nh
+
+    out_c = (Nh - nu * k2.reshape(1, M) * a_c) / den
+    out = out_c.real if real_input else out_c.imag
+    return out.reshape(*batch_shape, M).astype(np.float64)
+
+def build_q_nonneg(config):
+    """
+    Build per-mode variances q_m for m=0..K (nonnegative), with sum(q_m)=sigma_tot^2.
+    Monotone decreasing in |k| for powerlaw/gaussian.
+    """
+    m = np.arange(config.num_fourier_modes, dtype=int)  # 0..K
+    k_phys = m.astype(float)
+    q = np.zeros_like(m, dtype=float)
+    if q.shape[0] > 1:
+        q[1:] = 2 * config.nu * 5 * (np.abs(m[1:]) ** (-config.alpha))
+    return q
+def process_IID_SBurgers_bandwidth(quant_idx, shape, inv_H, norm_const, true_drift, config, num_time_steps, num_state_paths,
+                          deltaT, prevPath_name, path_incs_name, seed_seq):
+
+    m = np.arange(config.num_fourier_modes, dtype=int)  # 0..K
+    k_phys = m.astype(float)
+    q = build_q_nonneg(config=config)
+    rng = np.random.default_rng(seed_seq)  # This RNG can generate all needed arrays
+    dtype =  np.float64#np.complex128
+
+    # Attach to the shared memory blocks by name.
+    shm_prev = shared_memory.SharedMemory(name=prevPath_name)
+    shm_incs = shared_memory.SharedMemory(name=path_incs_name)
+
+    # Create numpy array views from the shared memory (no copying happens here)
+    prevPath_observations = np.ndarray(shape, dtype=dtype, buffer=shm_prev.buf)
+    path_incs = np.ndarray(shape, dtype=dtype, buffer=shm_incs.buf)
+    true_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims),dtype=dtype)
+    global_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims),dtype=dtype)
+    local_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims),dtype=dtype)
+    # Initialise the "true paths"
+    true_states[:, [0], :] = config.initState.real if config.real else config.initState.imag
+    global_states[:, [0], :] = config.initState.real if config.real else config.initState.imag
+    local_states[:, [0], :] = config.initState.real if config.real else config.initState.imag
+    for i in range(1, num_time_steps + 1):
+        eps = np.zeros((num_state_paths, 1, config.num_fourier_modes), dtype=dtype)
+        if config.real:
+            # m=0 real noise
+            eps[:, :, 0] = np.sqrt(q[0] * deltaT) * rng.standard_normal((num_state_paths, 1))
+            if config.num_fourier_modes > 1:
+                re = rng.standard_normal((num_state_paths, 1, config.num_fourier_modes - 1))
+                # for m>=1: Re(eta_m) ~ N(0, q_m/2)
+                eps[:, :, 1:] = np.sqrt((q[1:] * deltaT) / 2.0)[None, None, :] * re
+        else:
+            # imaginary component: no m=0 noise; only Im(eta_m)
+            # eps[:, :, 0] stays 0
+            if config.num_fourier_modes > 1:
+                im = rng.standard_normal((num_state_paths, 1, config.num_fourier_modes - 1))
+                # for m>=1: Im(eta_m) ~ N(0, q_m/2)
+                eps[:, :, 1:] = np.sqrt((q[1:] * deltaT) / 2.0)[None, None, :] * im
+
+        # Exponential Euler update:
+        # a_{n+1} = E * a_n + B * N(a_n) + F * eta   (elementwise over modes)
+        denom = 1.0 + config.nu * (k_phys ** 2) * deltaT
+
+        true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_state_paths, config=config)[:, np.newaxis, :]
+        global_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, inv_H=inv_H, norm_const=norm_const,
+                                               x=global_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
+                                               t0=config.t0, truncate=True)[:, np.newaxis, :]
+        local_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, inv_H=inv_H,
+                                               norm_const=norm_const,
+                                               x=true_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
+                                               t0=config.t0, truncate=True)[:, np.newaxis, :]
+        print(true_mean.shape)
+        true_states[:, [i], :] = (true_states[:, [i - 1], :] + true_mean * deltaT + eps) / denom
+        global_states[:, [i], :] = (global_states[:, [i - 1], :] + global_mean * deltaT + eps)/denom
+        local_states[:, [i], :] = (true_states[:, [i - 1], :] + local_mean * deltaT + eps)/denom
+    return {quant_idx: (true_states, global_states, local_states)}
+
+
 def LSTM_1D_drifts(config, PM):
     print("Beta Min : ", config.beta_min)
     if config.has_cuda:
@@ -790,19 +928,18 @@ def IID_NW_multivar_estimator(prevPath_observations, path_incs, inv_H, norm_cons
         estimator[denominator[:, 0] <= m / 2., :] = 0.
     return estimator
 
-
 def process_IID_bandwidth(quant_idx, shape, inv_H, norm_const, true_drift, config, num_time_steps, num_state_paths,
                           deltaT, prevPath_name, path_incs_name, seed_seq):
     rng = np.random.default_rng(seed_seq)  # This RNG can generate all needed arrays
+    dtype = np.complex128 if "Burgers" in config.data_path else np.float64
 
     # Attach to the shared memory blocks by name.
     shm_prev = shared_memory.SharedMemory(name=prevPath_name)
     shm_incs = shared_memory.SharedMemory(name=path_incs_name)
 
     # Create numpy array views from the shared memory (no copying happens here)
-    prevPath_observations = np.ndarray(shape, dtype=np.float64, buffer=shm_prev.buf)
-    path_incs = np.ndarray(shape, dtype=np.float64, buffer=shm_incs.buf)
-
+    prevPath_observations = np.ndarray(shape, dtype=dtype, buffer=shm_prev.buf)
+    path_incs = np.ndarray(shape, dtype=dtype, buffer=shm_incs.buf)
     true_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
     global_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
     local_states = np.zeros(shape=(num_state_paths, 1 + num_time_steps, config.ndims))
@@ -822,6 +959,7 @@ def process_IID_bandwidth(quant_idx, shape, inv_H, norm_const, true_drift, confi
                                                norm_const=norm_const,
                                                x=true_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
                                                t0=config.t0, truncate=True)[:, np.newaxis, :]
+        print(true_mean.shape)
         true_states[:, [i], :] = true_states[:, [i - 1], :] + true_mean * deltaT + eps
         global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
         local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
