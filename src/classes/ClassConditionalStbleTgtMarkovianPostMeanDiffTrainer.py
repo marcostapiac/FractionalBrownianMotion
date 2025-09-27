@@ -705,7 +705,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             # Euler-Maruyama Scheme for Tracking Errors
             for i in range(1, num_time_steps + 1):
                 eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT)*config.diffusion
-                if "Burgers" in config.num_paths:
+                if "Burgers" in config.data_path:
                     q = build_q_nonneg(config=config)
                     eps = np.zeros((num_paths, 1, config.num_fourier_modes), dtype=np.float64)
                     if config.real:
