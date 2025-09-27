@@ -78,21 +78,23 @@ def stochastic_burgers_drift(
     out = out_c.real if real_input else out_c.imag
     return out.reshape(*batch_shape, M).astype(np.float64)
 
+def build_q_nonneg(config):
+    """
+    Build per-mode variances q_m for m=0..K (nonnegative), with sum(q_m)=sigma_tot^2.
+    Monotone decreasing in |k| for powerlaw/gaussian.
+    """
+    m = np.arange(config.num_fourier_modes, dtype=int)  # 0..K
+    k_phys = m.astype(float)
+    q = np.zeros_like(m, dtype=float)
+    if q.shape[0] > 1:
+        q[1:] = 2 * config.nu * 5 * (np.abs(m[1:]) ** (-config.alpha))
+    return q
 def process_IID_SBurgers_bandwidth(quant_idx, shape, inv_H, norm_const, true_drift, config, num_time_steps, num_state_paths,
                           deltaT, prevPath_name, path_incs_name, seed_seq):
-    def build_q_nonneg(m, config):
-        """
-        Build per-mode variances q_m for m=0..K (nonnegative), with sum(q_m)=sigma_tot^2.
-        Monotone decreasing in |k| for powerlaw/gaussian.
-        """
-        q = np.zeros_like(m, dtype=float)
-        if q.shape[0] > 1:
-            q[1:] = 2 * config.nu * 5 * (np.abs(m[1:]) ** (-config.alpha))
-        return q
 
     m = np.arange(config.num_fourier_modes, dtype=int)  # 0..K
     k_phys = m.astype(float)
-    q = build_q_nonneg(m=k_phys, config=config)
+    q = build_q_nonneg(config=config)
     rng = np.random.default_rng(seed_seq)  # This RNG can generate all needed arrays
     dtype =  np.float64#np.complex128
 

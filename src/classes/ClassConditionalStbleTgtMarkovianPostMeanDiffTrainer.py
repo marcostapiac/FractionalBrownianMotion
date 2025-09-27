@@ -22,7 +22,8 @@ from configs import project_config
 from tqdm import tqdm
 
 from utils.drift_evaluation_functions import MLP_1D_drifts, multivar_score_based_MLP_drift_OOS, \
-    drifttrack_cummse, driftevalexp_mse_ignore_nans, MLP_fBiPotDDims_drifts, drifttrack_mse, stochastic_burgers_drift
+    drifttrack_cummse, driftevalexp_mse_ignore_nans, MLP_fBiPotDDims_drifts, drifttrack_mse, stochastic_burgers_drift, \
+    build_q_nonneg
 from utils.resource_logger import set_runtime_global
 
 
@@ -704,8 +705,26 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             # Euler-Maruyama Scheme for Tracking Errors
             for i in range(1, num_time_steps + 1):
                 eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT)*config.diffusion
+                if "Burgers" in config.num_paths:
+                    q = build_q_nonneg(config=config)
+                    eps = np.zeros((num_paths, 1, config.num_fourier_modes), dtype=np.float64)
+                    if config.real:
+                        # m=0 real noise
+                        eps[:, :, 0] = np.sqrt(q[0] * deltaT) * np.random.randn((num_paths, 1))
+                        if config.num_fourier_modes > 1:
+                            re = np.random.randn((num_paths, 1, config.num_fourier_modes - 1))
+                            # for m>=1: Re(eta_m) ~ N(0, q_m/2)
+                            eps[:, :, 1:] = np.sqrt((q[1:] * deltaT) / 2.0)[None, None, :] * re
+                    else:
+                        # imaginary component: no m=0 noise; only Im(eta_m)
+                        # eps[:, :, 0] stays 0
+                        if config.num_fourier_modes > 1:
+                            im = np.random.randn((num_paths, 1, config.num_fourier_modes - 1))
+                            # for m>=1: Im(eta_m) ~ N(0, q_m/2)
+                            eps[:, :, 1:] = np.sqrt((q[1:] * deltaT) / 2.0)[None, None, :] * im
+
                 assert (eps.shape == (num_paths, 1, config.ndims))
-                true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config)
+                true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config)[:,np.newaxis, :]
 
                 true_states[:, [i], :] = true_states[:, [i - 1], :] \
                                          + true_mean * deltaT \
@@ -755,9 +774,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fSinLog_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.log_space_scale}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
-        elif "MullerBrown" in config.data_path:
+        elif "Burgers" in config.data_path:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fMullerBrown_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBurgers_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
         elif "Lnz" in config.data_path:
             save_path = (
