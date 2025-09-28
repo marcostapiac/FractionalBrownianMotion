@@ -724,13 +724,13 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                             eps[:, :, 1:] = np.sqrt((q[1:] * deltaT) / 2.0)[None, None, :] * im
 
                     assert (eps.shape == (num_paths, 1, config.ndims))
-                    true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config)[:,np.newaxis, :]
+                    true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config)
+                    denom = 1.0 + config.nu * (np.arange(config.num_fourier_modes, dtype=float) ** 2) * deltaT
+                    denom = denom[np.newaxis, np.newaxis, :]
                 else:
                     assert (eps.shape == (num_paths, 1, config.ndims))
                     true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config)
-                true_states[:, [i], :] = true_states[:, [i - 1], :] \
-                                         + true_mean * deltaT \
-                                         + eps
+                    denom = 1.
                 local_mean = multivar_score_based_MLP_drift_OOS(
                     score_model=self.score_network.module,
                    num_diff_times=num_diff_times,
@@ -748,8 +748,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                                                                       device=self.device_id,
                                                                                       prev=global_states[:, i - 1, :])
 
-                local_states[:, [i], :] = true_states[:, [i - 1], :] + local_mean * deltaT + eps
-                global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps
+                true_states[:, [i], :] = (true_states[:, [i - 1], :] \
+                                         + true_mean * deltaT \
+                                         + eps)/denom
+                local_states[:, [i], :] = (true_states[:, [i - 1], :] + local_mean * deltaT + eps)/denom
+                global_states[:, [i], :] = (global_states[:, [i - 1], :] + global_mean * deltaT + eps)/denom
 
             all_true_states[quant_idx, :, :, :] = true_states
             all_local_states[quant_idx, :, :, :] = local_states
