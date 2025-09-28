@@ -723,9 +723,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                             # for m>=1: Im(eta_m) ~ N(0, q_m/2)
                             eps[:, :, 1:] = np.sqrt((q[1:] * deltaT) / 2.0)[None, None, :] * im
 
-                assert (eps.shape == (num_paths, 1, config.ndims))
-                true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config)[:,np.newaxis, :]
-
+                    assert (eps.shape == (num_paths, 1, config.ndims))
+                    true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config)[:,np.newaxis, :]
+                else:
+                    assert (eps.shape == (num_paths, 1, config.ndims))
+                    true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config)
                 true_states[:, [i], :] = true_states[:, [i - 1], :] \
                                          + true_mean * deltaT \
                                          + eps
