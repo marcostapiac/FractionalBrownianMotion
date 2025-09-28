@@ -163,7 +163,7 @@ maxx = -minx
 
 # In[9]:
 
-for R in [4, 5, 6, 7, 8, 9, 10, 11, 12]:
+for R in [2,3, 4, 5, 6, 7, 8, 9, 10, 11, 12]:
     print(f"Starting R={R}\n")
     basis = hermite_basis(R=R, paths=paths)
     coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None))
