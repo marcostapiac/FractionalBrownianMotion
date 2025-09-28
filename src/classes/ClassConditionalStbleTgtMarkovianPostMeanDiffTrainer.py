@@ -710,9 +710,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     eps = np.zeros((num_paths, 1, config.num_fourier_modes), dtype=np.float64)
                     if config.real:
                         # m=0 real noise
-                        eps[:, :, 0] = np.sqrt(q[0] * deltaT) * np.random.randn((num_paths, 1))
+                        eps[:, :, 0] = np.sqrt(q[0] * deltaT) * np.random.randn(num_paths, 1)
                         if config.num_fourier_modes > 1:
-                            re = np.random.randn((num_paths, 1, config.num_fourier_modes - 1))
+                            re = np.random.randn(num_paths, 1, config.num_fourier_modes - 1)
                             # for m>=1: Re(eta_m) ~ N(0, q_m/2)
                             eps[:, :, 1:] = np.sqrt((q[1:] * deltaT) / 2.0)[None, None, :] * re
                     else:
