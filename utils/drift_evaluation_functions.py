@@ -85,9 +85,9 @@ def build_q_nonneg(config):
     """
     m = np.arange(config.num_fourier_modes, dtype=int)  # 0..K
     k_phys = m.astype(float)
-    q = np.zeros_like(m, dtype=float)
+    q = np.zeros_like(k_phys, dtype=float)
     if q.shape[0] > 1:
-        q[1:] = 2 * config.nu * 5 * (np.abs(m[1:]) ** (-config.alpha))
+        q[1:] = 2 * config.nu * 5 * (np.abs(k_phys[1:]) ** (-config.alpha))
     return q
 def process_IID_SBurgers_bandwidth(quant_idx, shape, inv_H, norm_const, true_drift, config, num_time_steps, num_state_paths,
                           deltaT, prevPath_name, path_incs_name, seed_seq):
