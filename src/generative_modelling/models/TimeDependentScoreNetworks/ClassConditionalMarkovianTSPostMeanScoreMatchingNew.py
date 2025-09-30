@@ -57,10 +57,8 @@ def get_timestep_embedding(timesteps: torch.Tensor, embedding_dim: int):
 class ResidualBlock(nn.Module):
     def __init__(self, channels: int, dilation: int):
         super().__init__()
-        self.dilated_conv = nn.Conv1d(
-            channels, 2 * channels, kernel_size=3,
-            padding=dilation, dilation=dilation, padding_mode='circular'
-        )
+        self.dilated_conv = nn.Conv1d(channels, 2*channels, kernel_size=1, padding=0) # This was changed
+
         self.conditioner_projection = nn.Conv1d(1, 2 * channels, kernel_size=1)
         self.output_projection      = nn.Conv1d(channels, 2 * channels, kernel_size=1)
         nn.init.kaiming_normal_(self.output_projection.weight)
@@ -111,18 +109,31 @@ class HybridStates(nn.Module):
         g = 1.0 + alpha * torch.tanh(self.gate_mlp(x) / temp)             # [B,2M]
         return g * fourier
 
-class TokenMixMLP(nn.Module):
-    def __init__(self, D: int, r: int = 64):
+class TokenISAB(nn.Module):
+    """
+    Induced Self-Attention Block over tokens (dims):
+      H = MHA(Z, X, X)       # Z: m learnable inducing tokens
+      Y = MHA(X, H, H)
+    Shapes: X:[B,C,D] -> [B,C,D]
+    """
+    def __init__(self, C: int, m: int = 64, heads: int = 4, p: float = 0.0):
         super().__init__()
-        self.ln  = nn.LayerNorm(D)
-        self.fc1 = nn.Linear(D, r, bias=False)
-        self.fc2 = nn.Linear(r, D, bias=False)
-    def forward(self, x):                     # x: [B,C,D]
-        B, C, D = x.shape
-        y = x.reshape(B*C, D)
-        y = self.fc2(F.gelu(self.fc1(self.ln(y))))
-        y = y.view(B, C, D)
-        return x + y
+        self.m = m
+        self.Z = nn.Parameter(torch.randn(m, C))
+        self.ln1 = nn.LayerNorm(C)
+        self.ln2 = nn.LayerNorm(C)
+        self.mha1 = nn.MultiheadAttention(embed_dim=C, num_heads=heads, batch_first=True, dropout=p)
+        self.mha2 = nn.MultiheadAttention(embed_dim=C, num_heads=heads, batch_first=True, dropout=p)
+        self.ffn  = nn.Sequential(nn.Linear(C, 4*C), nn.GELU(), nn.Linear(4*C, C))
+
+    def forward(self, x):                      # x: [B,C,D]
+        y = x.transpose(1, 2)                  # [B,D,C]
+        z = self.Z.unsqueeze(0).expand(y.size(0), -1, -1)              # [B,m,C]
+        h, _ = self.mha1(self.ln1(z), y, y, need_weights=False)        # [B,m,C]
+        y2, _ = self.mha2(self.ln2(y), h, h, need_weights=False)       # [B,D,C]
+        y = y + y2                                                     # resid
+        y = y + self.ffn(y)                                            # MLP resid
+        return y.transpose(1, 2)
 class MLPStateMapper(nn.Module):
     def __init__(self, ts_input_dim: int, hidden_dim: int, target_dims: int):
         super().__init__()
@@ -187,8 +198,8 @@ class ConditionalMarkovianTSPostMeanScoreMatchingNew(nn.Module):
 
         dils = coprime_dilations(ts_dims, residual_layers)
         self.residual_layers = nn.ModuleList([ResidualBlock(C, d) for d in dils])
-        self.token_mixers = nn.ModuleList([TokenMixMLP(D=ts_dims, r=64) for _ in self.residual_layers])
-
+        C = residual_channels
+        self.token_mixers = nn.ModuleList([TokenISAB(C=C, m=64, heads=4, p=0.0) for _ in self.residual_layers])
 
         self.skip_projection   = nn.Conv1d(C, C, kernel_size=1)
         self.output_projection = nn.Conv1d(C, 1, kernel_size=1)
