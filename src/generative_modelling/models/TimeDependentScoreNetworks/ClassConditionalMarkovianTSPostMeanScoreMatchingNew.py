@@ -233,11 +233,11 @@ class ConditionalMarkovianTSPostMeanScoreMatchingNew(nn.Module):
 
         # residual stack
         skip = []
-        for layer, mix in zip(self.residual_layers, self.token_mixers):
-            x, skip_connection = layer(x, conditioner=cond_up, time_bias=time_bias)
-            x = mix(x)
+        for i in range(len(self.residual_layers)):
+            x, s = self.residual_layers[i](x, conditioner=cond_up, time_bias=time_bias)  # always runs
+            x = self.token_mixers[i](x)  # always runs
             x = F.silu(x)
-            skip.append(skip_connection)
+            skip.append(s)
 
         x = torch.sum(torch.stack(skip), dim=0) / math.sqrt(len(self.residual_layers))
         x = self.skip_projection(x); x = F.silu(x)
