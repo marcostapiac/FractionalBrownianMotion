@@ -239,8 +239,9 @@ class ConditionalMarkovianTSPostMeanScoreMatchingNew(nn.Module):
             x = F.silu(x)
             skip.append(s)
 
-        x = torch.sum(torch.stack(skip), dim=0) / math.sqrt(len(self.residual_layers))
-        x = self.skip_projection(x); x = F.silu(x)
+        x = torch.sum(torch.stack(skip + [x]), dim=0) / math.sqrt(len(skip) + 1)  # include final mixer
+        x = self.skip_projection(x)
+        x = F.silu(x)
         x = self.output_projection(x)
 
         # per-dim calibration
