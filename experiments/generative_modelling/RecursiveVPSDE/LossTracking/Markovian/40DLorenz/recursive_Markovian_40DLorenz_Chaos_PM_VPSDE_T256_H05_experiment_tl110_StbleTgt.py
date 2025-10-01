@@ -14,7 +14,7 @@ from utils.resource_logger import ResourceLogger
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.Markovian_20DLorenz.recursive_Markovian_PostMeanScore_20DLorenz_Stable_T256_H05_tl_110data_StbleTgt import \
+    from configs.RecursiveVPSDE.Markovian_40DLorenz.recursive_Markovian_PostMeanScore_40DLorenz_Chaos_T256_H05_tl_110data_StbleTgt import \
         get_config
 
     config = get_config()
@@ -27,7 +27,7 @@ if __name__ == "__main__":
         assert (config.early_stop_idx == 0)
         assert (config.tdata_mult == 110)
         assert (config.forcing_const == 1.25)
-        assert (config.ndims == 20)
+        assert (config.ndims == 40)
         print(config.scoreNet_trained_path, config.dataSize)
         rng = np.random.default_rng()
         scoreModel = ConditionalMarkovianTSPostMeanScoreMatching(
@@ -56,6 +56,7 @@ if __name__ == "__main__":
                                          forcing_const=config.forcing_const,
                                          diff=config.diffusion, ndims=config.ndims)
                 np.save(config.data_path, data)
+                raise RuntimeError
             data = np.concatenate([data[:, [0], :] - np.array(config.initState).reshape((1, 1, config.ndims)), np.diff(data, axis=1)], axis=1)
             data = np.atleast_3d(data[:training_size, :,:])
             assert (data.shape == (training_size, config.ts_length, config.ts_dims))
