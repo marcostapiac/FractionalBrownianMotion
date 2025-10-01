@@ -64,14 +64,30 @@ class ResidualBlock(nn.Module):
         nn.init.kaiming_normal_(self.output_projection.weight)
 
     def forward(self, x, conditioner, time_bias):  # x:[B,C,D], conditioner:[B,1,D], time_bias:[B,C,1]
-        # add per-channel time bias (broadcast across D)
-        y = x + time_bias
-        y = self.dilated_conv(y) + self.conditioner_projection(conditioner)
-        gate, filt = torch.chunk(y, 2, dim=1)
-        y = torch.sigmoid(gate) * torch.tanh(filt)
-        y = self.output_projection(y)
-        residual, skip = torch.chunk(y, 2, dim=1)
-        return (x + residual) / math.sqrt(2.0), skip
+        # time bias
+        y = x + time_bias  # [B,C,D]
+
+        # channel-only conv produces gating + filter features
+        y = self.dilated_conv(y)  # [B,2C,D]
+        gate, filt = torch.chunk(y, 2, dim=1)  # [B,C,D] each
+
+        # FiLM from conditioner: per-(channel, position) scale/shift
+        gb = self.conditioner_projection(conditioner)  # [B,2C,D]
+        gamma, beta = torch.chunk(gb, 2, dim=1)  # [B,C,D], [B,C,D]
+        # stabilize FiLM: scales near 1, shifts near 0
+        gamma = 1.0 + 0.1 * torch.tanh(gamma)
+        beta = 0.1 * torch.tanh(beta)
+
+        # gated activation with FiLM modulation
+        f = torch.tanh(filt)  # [B,C,D]
+        g = torch.sigmoid(gate)  # [B,C,D]
+        y = g * (gamma * f + beta)  # [B,C,D]
+
+        # project to residual + skip
+        y = self.output_projection(y)  # [B,2C,D]
+        residual, skip = torch.chunk(y, 2, dim=1)  # [B,C,D] each
+        out = (x + residual) / math.sqrt(2.0)  # [B,C,D]
+        return out, skip
 
 class CondUpsampler(nn.Module):
     def __init__(self, cond_length, target_dim):
@@ -234,12 +250,12 @@ class ConditionalMarkovianTSPostMeanScoreMatchingNew(nn.Module):
         # residual stack
         skip = []
         for i in range(len(self.residual_layers)):
-            x, s = self.residual_layers[i](x, conditioner=cond_up, time_bias=time_bias)  # always runs
-            x = self.token_mixers[i](x)  # always runs
+            x = self.token_mixers[i](x)  # <-- mix first
+            x, s = self.residual_layers[i](x, conditioner=cond_up, time_bias=time_bias)  # skip now post-mix
             x = F.silu(x)
             skip.append(s)
 
-        x = torch.sum(torch.stack(skip + [x]), dim=0) / math.sqrt(len(skip) + 1)  # include final mixer
+        x = torch.sum(torch.stack(skip), dim=0) / math.sqrt(len(skip))  # include final mixer
         x = self.skip_projection(x)
         x = F.silu(x)
         x = self.output_projection(x)
