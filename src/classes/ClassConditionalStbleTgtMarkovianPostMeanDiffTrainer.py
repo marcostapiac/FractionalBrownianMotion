@@ -336,7 +336,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 stable_targets = self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=ref_x0s,
                                                           eff_times=eff_times, chunk_size=chunk_size,
                                                           feat_thresh=feat_thresh)
-
+            print(stable_targets.requires_grad)
             batch_loss, batch_base_loss, batch_var_loss, batch_mean_loss = self._run_batch(xts=xts, features=features,
                                                                           stable_targets=stable_targets,
                                                                           diff_times=diff_times,
