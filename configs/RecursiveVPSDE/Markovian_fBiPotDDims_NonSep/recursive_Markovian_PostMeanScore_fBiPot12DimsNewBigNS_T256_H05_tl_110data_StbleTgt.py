@@ -30,14 +30,14 @@ def get_config():
 
 
     # Training hyperparameters
-    config.max_diff_steps = 10000
+    config.max_diff_steps = 100000
     config.train_eps = 1./config.max_diff_steps  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 2
     config.lr = 1e-3
     config.max_epochs = [3000]
-    config.ref_batch_size = 1024
-    config.batch_size = 128
+    config.ref_batch_size = 2048
+    config.batch_size = 1024
     config.chunk_size = 256
     config.feat_thresh = 1/100.
     config.isfBm = True
@@ -47,30 +47,22 @@ def get_config():
     config.tdata_mult = 110
     config.ts_dims = config.ndims
     config.loss_factor = 2
-    config.enforce_fourier_mean_reg = True
+    config.enforce_fourier_mean_reg = False
 
     # Diffusion hyperparameters
-    config.beta_max = 20.
+    config.beta_max = 40.
     config.beta_min = 0.  # 0.0001
 
     # Universal Architecture Parameters
     config.temb_dim = 64
     config.residual_layers = 10
-    config.residual_channels = 16
+    config.residual_channels = 32
     config.diff_hidden_size = 64
     config.dialation_length = 10
 
     # MLP Architecture parameters
-    config.mlp_hidden_dims = 16
-    config.condupsampler_length = 20
-
-    # TSM Architecture parameters
-    config.lstm_hiddendim = 20
-    config.lstm_numlay = 1
-    config.lstm_inputdim = config.ts_dims
-    config.lstm_dropout = 0.
-    assert ((config.lstm_dropout == 0. and config.lstm_numlay == 1) or (
-            config.lstm_dropout > 0 and config.lstm_numlay > 1))
+    config.mlp_hidden_dims = 32
+    config.condupsampler_length = 64
 
     # Model filepath
     mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_ST_{:.3f}FTh_PM_MLP_{}LFac_fBiPot_{}DDimsNewNS_VPSDE_T{}_Ndiff{}_Tdiff{:.3e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_{}a_{}b_{}c_MLP_H{}_CUp{}_tl{}".format(

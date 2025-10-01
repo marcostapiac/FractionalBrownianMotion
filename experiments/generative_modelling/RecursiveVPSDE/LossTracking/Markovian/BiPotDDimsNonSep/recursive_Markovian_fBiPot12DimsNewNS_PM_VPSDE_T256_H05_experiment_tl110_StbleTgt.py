@@ -7,15 +7,15 @@ from src.classes.ClassConditionalStbleTgtMarkovianPostMeanDiffTrainer import \
     ConditionalStbleTgtMarkovianPostMeanDiffTrainer
 from src.generative_modelling.data_processing import train_and_save_recursive_diffusion_model
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatchingNew import \
-    ConditionalMarkovianTSPostMeanScoreMatchingNew
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatchingNewBig import \
+    ConditionalMarkovianTSPostMeanScoreMatchingNewBig
 from utils.data_processing import init_experiment, cleanup_experiment
 from utils.math_functions import generate_fBiPot, generate_fBiPotNonSep
 from utils.resource_logger import ResourceLogger
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.Markovian_fBiPotDDims_NonSep.recursive_Markovian_PostMeanScore_fBiPot12DimsNewNS_T256_H05_tl_110data_StbleTgt import \
+    from configs.RecursiveVPSDE.Markovian_fBiPotDDims_NonSep.recursive_Markovian_PostMeanScore_fBiPot12DimsNewBigNS_T256_H05_tl_110data_StbleTgt import \
         get_config
 
     config = get_config()
@@ -30,7 +30,7 @@ if __name__ == "__main__":
         assert (config.tdata_mult == 110)
         print(config.scoreNet_trained_path, config.dataSize)
         rng = np.random.default_rng()
-        scoreModel = ConditionalMarkovianTSPostMeanScoreMatchingNew(*config.model_parameters)
+        scoreModel = ConditionalMarkovianTSPostMeanScoreMatchingNewBig(*config.model_parameters)
         diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
         print(
             config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad) / (config.ts_length - 1))
@@ -45,7 +45,7 @@ if __name__ == "__main__":
                         config.ts_length - 1)), 1200000)))
             training_size -= (training_size % config.ref_batch_size)
             training_size = 10240
-            print(training_size)
+            print("Num Params, NumTrainingSamples", sum(p.numel() for p in scoreModel.parameters() if p.requires_grad), training_size*256)
             try:
                 data = np.load(config.data_path, allow_pickle=True)
                 assert (data.shape[0] >= training_size)
