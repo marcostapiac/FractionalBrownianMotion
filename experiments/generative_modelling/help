@@ -12,3 +12,7 @@
     }
   ]
 }
+
+{
+  "python.envFile": "${workspaceFolder}/.env"
+}
