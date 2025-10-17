@@ -20,3 +20,11 @@
 # from the repo root
 ./.venv/bin/python -m pip install --upgrade pip ipykernel
 ./.venv/bin/python -m ipykernel install --user --name namerepo-venv --display-name "Python (namerepo-venv)"
+
+import site, pathlib, subprocess
+repo_root = subprocess.check_output(
+    ["git", "rev-parse", "--show-toplevel"], text=True
+).strip()
+pth_dir = pathlib.Path(site.getsitepackages()[0])
+(pth_dir / "namerepo_root.pth").write_text(repo_root + "\n")
+print("Wrote", pth_dir / "namerepo_root.pth")
