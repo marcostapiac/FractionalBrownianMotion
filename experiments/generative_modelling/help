@@ -16,3 +16,7 @@
 {
   "python.envFile": "${workspaceFolder}/.env"
 }
+
+# from the repo root
+./.venv/bin/python -m pip install --upgrade pip ipykernel
+./.venv/bin/python -m ipykernel install --user --name namerepo-venv --display-name "Python (namerepo-venv)"
