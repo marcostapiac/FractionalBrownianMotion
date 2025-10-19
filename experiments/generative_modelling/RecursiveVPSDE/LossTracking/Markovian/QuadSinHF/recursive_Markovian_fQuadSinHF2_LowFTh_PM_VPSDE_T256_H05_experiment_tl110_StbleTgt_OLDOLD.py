@@ -31,7 +31,7 @@ if __name__ == "__main__":
         assert (config.feat_thresh == 1./500.)
         print(config.scoreNet_trained_path, config.dataSize)
         rng = np.random.default_rng()
-        scoreModel = ConditionalMarkovianTSPostMeanScoreMatching(
+        scoreModel = ConditionalMarkovianTSPostMeanScoreMatchingOld(
             *config.model_parameters)
         diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
         print(
