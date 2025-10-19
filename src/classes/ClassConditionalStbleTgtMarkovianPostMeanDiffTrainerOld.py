@@ -257,13 +257,15 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainerOld(nn.Module):
             # ---- sample M proposals per target from q (SNIS) ----
             M = min(prop_per_target, k)
             J_rel = torch.multinomial(pi, num_samples=M, replacement=False)  # [chunk, M]
-            J_rel_expD = J_rel.unsqueeze(-1).expand(-1, -1, D)  # [chunk, M, D]
-            idx_expD = idx.unsqueeze(-1).expand(-1, -1, D)  # [chunk, k, D]
+            # Absolute indices for the sampled proposals
+            idx_sel = idx.gather(1, J_rel)  # [chunk, M]
+            idx_sel_expD = idx_sel.unsqueeze(-1).expand(-1, -1, D)  # [chunk, M, D]
 
-            # gather X0 for sampled proposals
-            cand_Z_k = candidate_Z.expand(chunk, -1, -1).gather(1, idx_expD)  # [chunk, k, D]
-            cand_Z_M = cand_Z_k.gather(1, J_rel_expD)  # [chunk, M, D]
+            # Gather directly from the global pool
+            cand_Z_M = candidate_Z.expand(chunk, -1, -1).gather(1, idx_sel_expD)  # [chunk, M, D]
 
+            # sanity
+            assert cand_Z_M.shape[:2] == (chunk, M)
             # ---- likelihood p(noised_z | X0) on sampled proposals ----
             nz_M = noised_z_chunk.expand(-1, M, -1)  # [chunk, M, D]
             mean_M = beta_tau_chunk.expand_as(nz_M) * cand_Z_M
@@ -276,10 +278,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainerOld(nn.Module):
             w = torch.exp(logp - m)  # [chunk, M, 1]
 
             # estimator
-            den = w.sum(dim=1)  # [chunk, 1, 1]
-            print(w.shape, cand_Z_M.unsqueeze(-1).shape)
-            num = (w * cand_Z_M.unsqueeze(-1)).sum(dim=1)  # [chunk, D, 1]
-            stable_targets_chunk = num.squeeze(-1) / den.squeeze(-1).clamp_min(1e-12)  # [chunk, D]
+            num = (w * cand_Z_M.unsqueeze(-1)).sum(dim=1)  # <-- shape bug
+            den = w.sum(dim=1).clamp_min(1e-12)
+            stable_targets_chunk = num.squeeze(-1) / den.squeeze(-1)
             stable_targets_chunks.append(stable_targets_chunk)
 
             # ESS (self-normalized)
