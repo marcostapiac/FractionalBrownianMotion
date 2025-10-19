@@ -286,7 +286,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainerOld(nn.Module):
             stable_targets_chunks.append(stable_targets_chunk)
 
             # ESS (self-normalized)
-            ess = den.squeeze(-1).pow(2) / (w.squeeze(-1).pow(2).sum(dim=1).clamp_min(1e-12))  # [chunk, 1]
+            ess = den.pow(2) / (w.pow(2).sum(dim=1).clamp_min(1e-12))  # [chunk, 1]
             print(ess.shape)
             raise RuntimeError
             stable_targets_masks.append(ess.to("cpu"))
