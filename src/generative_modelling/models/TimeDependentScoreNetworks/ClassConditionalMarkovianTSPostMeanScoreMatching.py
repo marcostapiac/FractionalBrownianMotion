@@ -23,8 +23,10 @@ class DiffusionEmbedding(nn.Module):
             x = self.embedding[diffusion_step]
         else:
             x = self._lerp_embedding(diffusion_step)
-        x = self.projection1(x); x = silu(x)
-        x = self.projection2(x); x = silu(x)
+        x = self.projection1(x)
+        x = silu(x)
+        x = self.projection2(x)
+        x = silu(x)
         return x
 
     def _lerp_embedding(self, t):
@@ -83,9 +85,12 @@ class CondUpsampler(nn.Module):
         self.linear3 = nn.Linear(int(2 * target_dim), target_dim, bias=False)
 
     def forward(self, x):
-        x = self.linear1(x); x = F.silu(x)
-        x = self.linear2(x); x = F.silu(x)
-        x = self.linear3(x); x = F.silu(x)
+        x = self.linear1(x)
+        x = F.leaky_relu(x, 0.4)#F.silu(x)
+        x = self.linear2(x)
+        x = F.leaky_relu(x, 0.4)#F.silu(x)
+        x = self.linear3(x)
+        x = F.leaky_relu(x, 0.4)#F.silu(x)
         return x
 
 class HybridStates(nn.Module):
@@ -195,7 +200,7 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
         # x: [B,1,D] -> [B,C,D]
         x = self.input_projection(inputs)
         x = self.ln_in(x)
-        x = F.silu(x)
+        x = F.leaky_relu(x, 0.5)#F.silu(x)
 
         # build per-sample time bias [B,C,1]
         B = inputs.size(0)
@@ -218,11 +223,12 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
         skip = []
         for layer in self.residual_layers:
             x, skip_connection = layer(x, conditioner=cond_up, time_bias=time_bias)
-            x = F.silu(x)
+            x =F.leaky_relu(x, 0.5) #F.silu(x)
             skip.append(skip_connection)
 
         x = torch.sum(torch.stack(skip), dim=0) / math.sqrt(len(self.residual_layers))
-        x = self.skip_projection(x); x = F.silu(x)
+        x = self.skip_projection(x)
+        x = F.leaky_relu(x, 0.5) #F.silu(x)
         x = self.output_projection(x)
 
         # per-dim calibration
