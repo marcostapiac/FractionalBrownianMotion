@@ -147,8 +147,8 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
         self.ts_dims = ts_dims
         C = residual_channels
 
-        self.ln_in   = nn.LayerNorm(ts_dims, eps=1e-6)
-        self.ln_cond = nn.LayerNorm(ts_dims, eps=1e-6)
+        #self.ln_in   = nn.LayerNorm(ts_dims, eps=1e-6)
+        #self.ln_cond = nn.LayerNorm(ts_dims, eps=1e-6)
 
         self.calib_scale = nn.Parameter(torch.ones(ts_dims))
         self.calib_bias  = nn.Parameter(torch.zeros(ts_dims))
@@ -185,7 +185,7 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
     def forward(self, inputs, times, conditioner, eff_times):
         # x: [B,1,D] -> [B,C,D]
         x = self.input_projection(inputs)
-        x = self.ln_in(x)
+        #x = self.ln_in(x)
         x = F.silu(x)
 
         # build per-sample time bias [B,C,1]
@@ -197,7 +197,7 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
         # conditioner: [B,1,D] -> upsampled [B,1,D]
         cond = self.mlp_state_mapper(conditioner)
         cond_up = self.cond_upsampler(cond)
-        cond_up = self.ln_cond(cond_up)
+        #cond_up = self.ln_cond(cond_up)
 
         # sanity checks
         C = self.input_projection.out_channels
