@@ -277,6 +277,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainerOld(nn.Module):
 
             # estimator
             den = w.sum(dim=1)  # [chunk, 1, 1]
+            print(w.shape, cand_Z_M.unsqueeze(-1).shape)
             num = (w * cand_Z_M.unsqueeze(-1)).sum(dim=1)  # [chunk, D, 1]
             stable_targets_chunk = num.squeeze(-1) / den.squeeze(-1).clamp_min(1e-12)  # [chunk, D]
             stable_targets_chunks.append(stable_targets_chunk)
