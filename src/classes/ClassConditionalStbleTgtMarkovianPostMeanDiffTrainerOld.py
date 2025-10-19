@@ -287,6 +287,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainerOld(nn.Module):
 
             # ESS (self-normalized)
             ess = den.squeeze(-1).pow(2) / (w.squeeze(-1).pow(2).sum(dim=1).clamp_min(1e-12))  # [chunk, 1]
+            print(ess.shape)
+            raise RuntimeError
             stable_targets_masks.append(ess.to("cpu"))
         stable_targets_masks = (torch.cat(stable_targets_masks, dim=0))
         assert stable_targets_masks.shape == (B1 * T, 1)
