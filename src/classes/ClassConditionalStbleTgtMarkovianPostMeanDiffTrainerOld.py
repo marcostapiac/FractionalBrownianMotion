@@ -177,13 +177,15 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainerOld(nn.Module):
         assert T2 == T and D2 == D and B2 > B1
 
         # X (positions) at t_{j-1} and Z0 (increments)
-        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # [B2,T,D]
         pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :]  # [B1,T,D]
         assert pos_batch.shape == (B1, T, D)
-
-        candidate_x = pos_ref_batch.reshape(-1, D).unsqueeze(0)  # [1, N, D], N=B2*T
         target_x_exp = pos_batch.reshape(-1, D).unsqueeze(1)  # [B1*T, 1, D]
         candidate_Z = ref_batch.reshape(-1, D).unsqueeze(0)  # [1, N, D]
+        N = candidate_Z.shape[1]
+
+        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # [B2,T,D]
+        candidate_x = pos_ref_batch.reshape(-1, D).unsqueeze(0)  # [1, N, D], N=B2*T
+        N = candidate_x.shape[1]
 
         eff_times = eff_times.reshape(-1, eff_times.shape[-1])
         if eff_times.shape[-1] == 1 and D > 1:
@@ -199,7 +201,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainerOld(nn.Module):
         target_sigma2_tau = sigma2_tau.unsqueeze(1)  # [B1*T, 1, D]
 
         stable_targets_chunks, stable_targets_masks = [], []
-        N = candidate_x.shape[1]
         device = target_x_exp.device
         dtype = target_x_exp.dtype
 
@@ -306,10 +307,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainerOld(nn.Module):
                                        steps=self.max_diff_steps)
         for batch_idx, x0s in enumerate(self.train_loader):
             ref_x0s = x0s[0].to(self.device_id)
-            indices = torch.randperm(ref_x0s.shape[0])#[:batch_size]
-            # x0s is the subsampled set of increments from the larger reference batch
-
-            x0s = ref_x0s[indices, :, :]
+            perm = torch.randperm(ref_x0s.shape[0], device=self.device_id)
+            x0s = ref_x0s[perm[:batch_size], :, :]  # generator pool G (produces xts)
+            prop_pool = ref_x0s[perm[batch_size:], :, :]  # proposal pool P (SNIS candidates; G∩P=∅)
 
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
             features = self.create_feature_vectors_from_position(x0s)
@@ -333,9 +333,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainerOld(nn.Module):
             # So target score should be size (NumBatches, Time Series Length, 1)
             # And xts should be size (NumBatches, TimeSeriesLength, NumDimensions)
             with torch.no_grad():
-                stable_targets = x0s #self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=ref_x0s,
-                                 #                         eff_times=eff_times, chunk_size=chunk_size,
-                                 #                         feat_thresh=feat_thresh)
+                stable_targets = self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=prop_pool,
+                                                          eff_times=eff_times, chunk_size=chunk_size,
+                                                          feat_thresh=feat_thresh)
             print(stable_targets.requires_grad)
             batch_loss, batch_base_loss, batch_var_loss, batch_mean_loss = self._run_batch(xts=xts, features=features,
                                                                           stable_targets=stable_targets,
