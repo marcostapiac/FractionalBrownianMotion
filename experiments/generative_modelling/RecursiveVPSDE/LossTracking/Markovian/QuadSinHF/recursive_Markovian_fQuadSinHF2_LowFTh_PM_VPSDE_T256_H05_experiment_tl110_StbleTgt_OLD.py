@@ -7,8 +7,6 @@ from src.classes.ClassConditionalStbleTgtMarkovianPostMeanDiffTrainer import \
     ConditionalStbleTgtMarkovianPostMeanDiffTrainer
 from src.generative_modelling.data_processing import train_and_save_recursive_diffusion_model
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
-    ConditionalMarkovianTSPostMeanScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatchingOld import \
     ConditionalMarkovianTSPostMeanScoreMatchingOld
 from utils.data_processing import init_experiment, cleanup_experiment
