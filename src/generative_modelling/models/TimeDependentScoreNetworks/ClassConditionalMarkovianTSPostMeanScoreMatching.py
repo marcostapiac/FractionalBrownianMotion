@@ -23,10 +23,8 @@ class DiffusionEmbedding(nn.Module):
             x = self.embedding[diffusion_step]
         else:
             x = self._lerp_embedding(diffusion_step)
-        x = self.projection1(x)
-        x = silu(x)
-        x = self.projection2(x)
-        x = silu(x)
+        x = self.projection1(x); x = silu(x)
+        x = self.projection2(x); x = silu(x)
         return x
 
     def _lerp_embedding(self, t):
@@ -85,12 +83,9 @@ class CondUpsampler(nn.Module):
         self.linear3 = nn.Linear(int(2 * target_dim), target_dim, bias=False)
 
     def forward(self, x):
-        x = self.linear1(x)
-        x = F.leaky_relu(x, 0.4)#F.silu(x)
-        x = self.linear2(x)
-        x = F.leaky_relu(x, 0.4)#F.silu(x)
-        x = self.linear3(x)
-        x = F.leaky_relu(x, 0.4)#F.silu(x)
+        x = self.linear1(x); x = F.silu(x)
+        x = self.linear2(x); x = F.silu(x)
+        x = self.linear3(x); x = F.silu(x)
         return x
 
 class HybridStates(nn.Module):
@@ -100,9 +95,7 @@ class HybridStates(nn.Module):
         self.b = nn.Parameter(2 * torch.pi * torch.rand(M))
         mu, sigma = math.log(10.), 2.0
         self.log_scale = nn.Parameter(torch.randn(M) * sigma + mu)
-        #self.gate_mlp  = nn.Sequential(nn.Linear(D, 32), nn.ELU(), nn.Linear(32, 2*M))
-        self.gate_logits = nn.Parameter(torch.zeros(2*M))
-
+        self.gate_mlp  = nn.Sequential(nn.Linear(D, 32), nn.ELU(), nn.Linear(32, 2*M))
         self.init_tau, self.final_tau = init_tau, final_tau
         self.tau = init_tau
 
@@ -113,16 +106,9 @@ class HybridStates(nn.Module):
         W_scaled = scales * self.W                         # [M,D]
         proj     = x @ W_scaled.T + self.b                 # [B,M]
         fourier  = torch.cat([torch.sin(proj), torch.cos(proj)], dim=-1)  # [B,2M]
-        if self.training:
-            print(f"Used temp annealing {self.tau}\n")
-            u = torch.rand_like(self.gate_logits).clamp(1e-6, 1 - 1e-6)
-            gumbel = -torch.log(-torch.log(u))
-            logits = self.gate_logits + gumbel
-            g = torch.sigmoid(logits / self.tau).unsqueeze(0)  # [1, 2M]
-        else:
-            logits = self.gate_logits  # no noise at inference
-            g = torch.sigmoid(logits / self.final_tau).unsqueeze(0)  # [1, 2M]             # [B,2M]
-
+        temp  = self.tau if self.training else self.final_tau
+        alpha = 0.1
+        g = 1.0 + alpha * torch.tanh(self.gate_mlp(x) / temp)             # [B,2M]
         return g * fourier
 
 class MLPStateMapper(nn.Module):
@@ -200,7 +186,7 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
         # x: [B,1,D] -> [B,C,D]
         x = self.input_projection(inputs)
         x = self.ln_in(x)
-        x = F.leaky_relu(x, 0.5)#F.silu(x)
+        x = F.silu(x)
 
         # build per-sample time bias [B,C,1]
         B = inputs.size(0)
@@ -223,12 +209,11 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
         skip = []
         for layer in self.residual_layers:
             x, skip_connection = layer(x, conditioner=cond_up, time_bias=time_bias)
-            x =F.leaky_relu(x, 0.5) #F.silu(x)
+            x = F.silu(x)
             skip.append(skip_connection)
 
         x = torch.sum(torch.stack(skip), dim=0) / math.sqrt(len(self.residual_layers))
-        x = self.skip_projection(x)
-        x = F.leaky_relu(x, 0.5) #F.silu(x)
+        x = self.skip_projection(x); x = F.silu(x)
         x = self.output_projection(x)
 
         # per-dim calibration

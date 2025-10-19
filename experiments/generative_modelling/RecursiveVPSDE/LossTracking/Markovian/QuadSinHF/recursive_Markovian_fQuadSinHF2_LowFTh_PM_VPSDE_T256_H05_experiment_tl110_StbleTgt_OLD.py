@@ -7,6 +7,8 @@ from src.classes.ClassConditionalStbleTgtMarkovianPostMeanDiffTrainer import \
     ConditionalStbleTgtMarkovianPostMeanDiffTrainer
 from src.generative_modelling.data_processing import train_and_save_recursive_diffusion_model
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
+    ConditionalMarkovianTSPostMeanScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatchingOld import \
     ConditionalMarkovianTSPostMeanScoreMatchingOld
 from utils.data_processing import init_experiment, cleanup_experiment
@@ -29,7 +31,7 @@ if __name__ == "__main__":
         assert (config.feat_thresh == 1./500.)
         print(config.scoreNet_trained_path, config.dataSize)
         rng = np.random.default_rng()
-        scoreModel = ConditionalMarkovianTSPostMeanScoreMatchingOld(
+        scoreModel = ConditionalMarkovianTSPostMeanScoreMatching(
             *config.model_parameters)
         diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
         print(
