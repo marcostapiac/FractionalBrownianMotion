@@ -310,7 +310,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainerOld(nn.Module):
             perm = torch.randperm(ref_x0s.shape[0], device=self.device_id)
             x0s = ref_x0s[perm[:batch_size], :, :]  # generator pool G (produces xts)
             prop_pool = ref_x0s[perm[batch_size:], :, :]  # proposal pool P (SNIS candidates; G∩P=∅)
-            print(x0s.shape, prop_pool.shape)
+            print(x0s.shape, prop_pool.shape, ref_x0s.shape)
+            raise RuntimeError
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
             features = self.create_feature_vectors_from_position(x0s)
             if self.is_hybrid:
