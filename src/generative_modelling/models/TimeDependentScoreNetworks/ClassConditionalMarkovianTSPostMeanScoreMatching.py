@@ -95,7 +95,9 @@ class HybridStates(nn.Module):
         self.b = nn.Parameter(2 * torch.pi * torch.rand(M))
         mu, sigma = math.log(10.), 2.0
         self.log_scale = nn.Parameter(torch.randn(M) * sigma + mu)
-        self.gate_mlp  = nn.Sequential(nn.Linear(D, 32), nn.ELU(), nn.Linear(32, 2*M))
+        #self.gate_mlp  = nn.Sequential(nn.Linear(D, 32), nn.ELU(), nn.Linear(32, 2*M))
+        self.gate_logits = nn.Parameter(torch.zeros(2*M))
+
         self.init_tau, self.final_tau = init_tau, final_tau
         self.tau = init_tau
 
@@ -106,9 +108,16 @@ class HybridStates(nn.Module):
         W_scaled = scales * self.W                         # [M,D]
         proj     = x @ W_scaled.T + self.b                 # [B,M]
         fourier  = torch.cat([torch.sin(proj), torch.cos(proj)], dim=-1)  # [B,2M]
-        temp  = self.tau if self.training else self.final_tau
-        alpha = 0.1
-        g = 1.0 + alpha * torch.tanh(self.gate_mlp(x) / temp)             # [B,2M]
+        if self.training:
+            print(f"Used temp annealing {self.tau}\n")
+            u = torch.rand_like(self.gate_logits).clamp(1e-6, 1 - 1e-6)
+            gumbel = -torch.log(-torch.log(u))
+            logits = self.gate_logits + gumbel
+            g = torch.sigmoid(logits / self.tau).unsqueeze(0)  # [1, 2M]
+        else:
+            logits = self.gate_logits  # no noise at inference
+            g = torch.sigmoid(logits / self.final_tau).unsqueeze(0)  # [1, 2M]             # [B,2M]
+
         return g * fourier
 
 class MLPStateMapper(nn.Module):
@@ -150,8 +159,8 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
         self.ln_in   = nn.LayerNorm(ts_dims, eps=1e-6)
         self.ln_cond = nn.LayerNorm(ts_dims, eps=1e-6)
 
-        #self.calib_scale = nn.Parameter(torch.ones(ts_dims))
-        #self.calib_bias  = nn.Parameter(torch.zeros(ts_dims))
+        self.calib_scale = nn.Parameter(torch.ones(ts_dims))
+        self.calib_bias  = nn.Parameter(torch.zeros(ts_dims))
 
         self.input_projection  = nn.Conv1d(1, C, kernel_size=1)
         self.diffusion_embedding = DiffusionEmbedding(
@@ -217,7 +226,7 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
         x = self.output_projection(x)
 
         # per-dim calibration
-        #x = x * self.calib_scale.view(1, 1, -1) + self.calib_bias.view(1, 1, -1)
+        x = x * self.calib_scale.view(1, 1, -1) + self.calib_bias.view(1, 1, -1)
 
         # VPSDE mapping to score
         beta_tau   = torch.exp(-0.5 * eff_times)
