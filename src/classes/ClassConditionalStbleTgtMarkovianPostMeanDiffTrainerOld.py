@@ -278,9 +278,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainerOld(nn.Module):
             w = torch.exp(logp - m)  # [chunk, M, 1]
 
             # estimator
-            num = (w * cand_Z_M).sum(dim=1)  # <-- shape bug
-            den = w.sum(dim=1).clamp_min(1e-12)
-            stable_targets_chunk = num.squeeze(-1) / den.squeeze(-1)
+            num = (w * cand_Z_M).sum(dim=1)  # [chunk, D]
+            den = w.sum(dim=1).squeeze(-1).clamp_min(1e-12)  # [chunk, 1]
+            stable_targets_chunk = num / den  # [chunk, D]
+            # sanity
+            assert w.shape[:2] == cand_Z_M.shape[:2] == (chunk, M)
             stable_targets_chunks.append(stable_targets_chunk)
 
             # ESS (self-normalized)
