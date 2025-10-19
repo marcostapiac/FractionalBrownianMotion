@@ -149,7 +149,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times, eff_times=eff_times)
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         # For times larger than tau0, use inverse_weighting
-        sigma_tau = 1. - torch.exp(-eff_times)  # This is sigma2
+        sigma2_tau = 1. - torch.exp(-eff_times)  # This is sigma2
         beta_tau = torch.exp(-0.5 * eff_times)
         if self.loss_factor == 0:  # PM
             weights = torch.ones_like(outputs)
@@ -159,9 +159,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             weights = torch.ones_like(outputs) / torch.sqrt(self.deltaT)
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         # Now implement the stable target field
-        outputs = (outputs + xts / sigma_tau) * (sigma_tau / beta_tau)  # This gives us the network D_theta
+        outputs = (outputs + xts / sigma2_tau) * (sigma2_tau / beta_tau)  # This gives us the network D_theta
         assert (outputs.shape == stable_targets.shape)
-        w_dim = self.w_dim.view(1, 1, -1)  # [1,1,D]
+        w_dim = 1.+0*self.w_dim.view(1, 1, -1)  # [1,1,D]
         print(f"WDIM {w_dim}\n\n\n\n")
         return self._batch_loss_compute(outputs=outputs, targets=stable_targets, w_dim=w_dim, w_tau=weights.pow(2), epoch=epoch,
                                         batch_idx=batch_idx, num_batches=num_batches)
