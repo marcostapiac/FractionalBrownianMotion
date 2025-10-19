@@ -281,15 +281,14 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainerOld(nn.Module):
             num = (w * cand_Z_M).sum(dim=1)  # [chunk, D]
             den = w.sum(dim=1).squeeze(-1).clamp_min(1e-12)  # [chunk, 1]
             stable_targets_chunk = num / den  # [chunk, D]
-            # sanity
-            assert w.shape[:2] == cand_Z_M.shape[:2] == (chunk, M)
             stable_targets_chunks.append(stable_targets_chunk)
 
-            # ESS (self-normalized)
-            ess = den.pow(2) / (w.pow(2).sum(dim=1).clamp_min(1e-12))  # [chunk, 1]
+            # ESS (self-normalized) -> keep shape [chunk, 1]
+            w2s = w.squeeze(-1).pow(2).sum(dim=1, keepdim=True).clamp_min(1e-12)  # [chunk, 1]
+            ess = den.pow(2) / w2s  # [chunk, 1]
             print(ess.shape)
-            raise RuntimeError
             stable_targets_masks.append(ess.to("cpu"))
+            raise RuntimeError
         stable_targets_masks = (torch.cat(stable_targets_masks, dim=0))
         assert stable_targets_masks.shape == (B1 * T, 1)
         print(
