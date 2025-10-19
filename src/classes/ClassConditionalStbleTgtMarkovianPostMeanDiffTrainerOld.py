@@ -277,18 +277,23 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainerOld(nn.Module):
             m = logp.max(dim=1, keepdim=True).values  # [chunk, 1, 1]
             w = torch.exp(logp - m)  # [chunk, M, 1]
 
-            # estimator
-            num = (w * cand_Z_M).sum(dim=1)  # [chunk, D]
-            den = w.sum(dim=1).squeeze(-1).clamp_min(1e-12)  # [chunk, 1]
+            w_flat = w.squeeze(-1)  # [chunk, M]
+
+            # 2) Aggregate numerator/denominator
+            num = (w_flat.unsqueeze(-1) * cand_Z_M).sum(dim=1)  # [chunk, D]
+            den = w_flat.sum(dim=1, keepdim=True).clamp_min(1e-12)  # [chunk, 1]
             stable_targets_chunk = num / den  # [chunk, D]
             stable_targets_chunks.append(stable_targets_chunk)
 
-            # ESS (self-normalized) -> keep shape [chunk, 1]
-            w2s = w.squeeze(-1).pow(2).sum(dim=1, keepdim=True).clamp_min(1e-12)  # [chunk, 1]
+            # 3) ESS with the correct shape [chunk, 1]
+            w2s = (w_flat.pow(2)).sum(dim=1, keepdim=True).clamp_min(1e-12)  # [chunk, 1]
             ess = den.pow(2) / w2s  # [chunk, 1]
-            print(ess.shape)
             stable_targets_masks.append(ess.to("cpu"))
-            raise RuntimeError
+
+            # Optional sanity checks
+            assert w_flat.shape == (cand_Z_M.shape[0], cand_Z_M.shape[1])  # (chunk, M)
+            assert stable_targets_chunk.shape == (chunk, cand_Z_M.shape[2])  # (chunk, D)
+            assert ess.shape == (chunk, 1)
         stable_targets_masks = (torch.cat(stable_targets_masks, dim=0))
         assert stable_targets_masks.shape == (B1 * T, 1)
         print(
