@@ -168,8 +168,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
     def _compute_stable_targets(self, batch: torch.Tensor, noised_z: torch.Tensor, eff_times: torch.Tensor,
                                 ref_batch: torch.Tensor, chunk_size: int, feat_thresh: float,
-                                k_bw: int = 64, bw_subsample: int = 16384, block: int = 8192,
-                                prop_per_target: int = 1024, k_topk: int = 2048):
+                                prop_per_target: int = 2048, k_topk: int = 8192):
         import time
         t0 = time.time()
         B1, T, D = batch.shape
