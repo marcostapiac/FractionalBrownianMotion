@@ -14,8 +14,6 @@ from src.classes.ClassConditionalMarkovianPostMeanDiffTrainer import Conditional
 from src.classes.ClassConditionalSDESampler import ConditionalSDESampler
 from src.classes.ClassConditionalStbleTgtMarkovianPostMeanDiffTrainer import \
     ConditionalStbleTgtMarkovianPostMeanDiffTrainer
-from src.classes.ClassConditionalStbleTgtMarkovianPostMeanDiffTrainer import \
-    ConditionalStbleTgtMarkovianPostMeanDiffTrainerOld
 from src.classes.ClassCorrector import VESDECorrector, VPSDECorrector
 from src.classes.ClassPredictor import AncestralSamplingPredictor, \
     ConditionalAncestralSamplingPredictor, ConditionalReverseDiffusionSamplingPredictor, \
@@ -300,7 +298,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
         device = torch.device("cpu")
 
     # Preprocess data
-    if isinstance(trainClass, type) and (issubclass(trainClass, ConditionalStbleTgtMarkovianPostMeanDiffTrainer) or issubclass(trainClass, ConditionalStbleTgtMarkovianPostMeanDiffTrainerOld)):
+    if isinstance(trainClass, type) and (issubclass(trainClass, ConditionalStbleTgtMarkovianPostMeanDiffTrainer)):
         trainLoader = prepare_recursive_scoreModel_data(data=data, batch_size=config.ref_batch_size, config=config)
     else:
         trainLoader = prepare_recursive_scoreModel_data(data=data, batch_size=config.batch_size, config=config)
@@ -340,19 +338,5 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
 
         # Start training
         trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path, batch_size=config.batch_size, config=config)
-    elif isinstance(trainClass, type) and issubclass(trainClass, ConditionalStbleTgtMarkovianPostMeanDiffTrainerOld):
-        trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
-                             checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
-                             loss_aggregator=MeanMetric,
-                             snapshot_path=config.scoreNet_snapshot_path, device=device,
-                             train_eps=train_eps,
-                             end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
-                             to_weight=config.weightings,
-                             hybrid_training=config.hybrid, loss_factor=config.loss_factor,
-                             init_state=init_state, deltaT=config.deltaT)
-
-        # Start training
-        trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path, batch_size=config.batch_size, config=config)
-
     else:
         raise RuntimeError("Invalid Diffusion Training Class\n")
