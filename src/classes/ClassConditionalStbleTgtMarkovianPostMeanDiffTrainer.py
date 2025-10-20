@@ -303,7 +303,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         del pos_batch, pos_ref_batch, stable_targets_chunks, target_noised_z, target_beta_tau, target_sigma_tau
         # ref_batch, batch, eff_times = ref_batch.to(self.device_id), batch.to(self.device_id), eff_times.to(self.device_id)
         return stable_targets.to(self.device_id)
-    def _run_epoch(self, epoch: int, batch_size: int, chunk_size: int, feat_thresh: float) -> [list, list, list, list]:
+    def _run_epoch(self, epoch: int, batch_size: int, chunk_size: int, feat_thresh: float, config) -> [list, list, list, list]:
         """
         Single epoch run
             :param epoch: Epoch index
@@ -324,6 +324,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         for batch_idx, x0s in enumerate(self.train_loader):
             ref_x0s = x0s[0].to(self.device_id)
             perm = torch.randperm(ref_x0s.shape[0], device=self.device_id)
+            if not config.stable_target: batch_size = ref_x0s.shape[0]
             x0s = ref_x0s[perm[:batch_size], :, :]  # generator pool G (produces xts)
             prop_pool = ref_x0s[perm[batch_size:], :, :]  # proposal pool P (SNIS candidates; G∩P=∅)
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
@@ -348,9 +349,12 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             # So target score should be size (NumBatches, Time Series Length, 1)
             # And xts should be size (NumBatches, TimeSeriesLength, NumDimensions)
             with torch.no_grad():
-                stable_targets = self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=prop_pool,
-                                                          eff_times=eff_times, chunk_size=chunk_size,
-                                                          feat_thresh=feat_thresh)
+                if config.stable_target:
+                    stable_targets = self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=prop_pool,
+                                                              eff_times=eff_times, chunk_size=chunk_size,
+                                                              feat_thresh=feat_thresh)
+                else:
+                    stable_targets = x0s
             print(stable_targets.requires_grad)
             batch_loss, batch_base_loss, batch_var_loss, batch_mean_loss = self._run_batch(xts=xts, features=features,
                                                                           stable_targets=stable_targets,
@@ -613,7 +617,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         type = "PM"
         assert (type in config.scoreNet_trained_path)
         assert ("_ST_" in config.scoreNet_trained_path)
-        enforce_fourier_reg = "NFMReg_" if not config.enforce_fourier_mean_reg else ""
+        enforce_fourier_reg = "NSTgt" if not config.stable_target else ""
+        enforce_fourier_reg += "NFMReg_" if not config.enforce_fourier_mean_reg else ""
         enforce_fourier_reg += "New_" if "New" in config.scoreNet_trained_path else ""
         if "BiPot" in config.data_path and config.ndims == 1:
             save_path = (
@@ -774,7 +779,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             all_true_states[quant_idx, :, :, :] = true_states
             all_local_states[quant_idx, :, :, :] = local_states
             all_global_states[quant_idx, :, :, :] = global_states
-        enforce_fourier_reg = "NFMReg_" if not config.enforce_fourier_mean_reg else ""
+        enforce_fourier_reg = "NSTgt" if not config.stable_target else ""
+        enforce_fourier_reg += "NFMReg_" if not config.enforce_fourier_mean_reg else ""
         enforce_fourier_reg += "New_" if "New" in config.scoreNet_trained_path else ""
         if "BiPot" in config.data_path and config.ndims == 1:
             save_path = (
@@ -864,7 +870,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             device_epoch_losses, device_epoch_base_losses, device_epoch_var_losses,device_epoch_mean_losses  = self._run_epoch(epoch=epoch,
                                                                                                      batch_size=batch_size,
                                                                                                      chunk_size=config.chunk_size,
-                                                                                                     feat_thresh=config.feat_thresh)
+                                                                                                     feat_thresh=config.feat_thresh, config=config)
             # Average epoch loss for each device over batches
             epoch_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_losses)).item())
             epoch_base_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_base_losses)).item())
