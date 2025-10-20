@@ -169,7 +169,7 @@ class MLPStateMapper(nn.Module):
             nn.Linear(ts_input_dim, hidden_dim),
             nn.ELU()
         )
-        self.linear2 = nn.Linear(ts_input_dim + hidden_dim + 2 * M, hidden_dim)
+        self.linear2 = nn.Linear(3*ts_input_dim + hidden_dim + 2 * M, hidden_dim)
         self.linear3 = nn.Linear(hidden_dim, target_dims)
 
     def forward(self, x):
@@ -178,12 +178,12 @@ class MLPStateMapper(nn.Module):
 
         x_raw = self.preprocess(x)            # [batch, hidden_dim]
         x_fourier = self.hybrid(x)            # [batch, 2M]
-        x_combined = torch.cat([x, x_raw, x_fourier], dim=-1)  # [batch, D+hidden_dim + 2M]
+        x_combined = torch.cat([x, x**2, x**3, x_raw, x_fourier], dim=-1)  # [batch, D+hidden_dim + 2M]
         x = F.elu(self.linear2(x_combined))   # [batch, hidden_dim]
         x = self.linear3(x)                   # [batch, target_dims]
         return x.unsqueeze(1)                 # [batch, 1, target_dims]
 
-class ConditionalMarkovianTSPostMeanScoreMatchingOld(nn.Module):
+class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
     def __init__(
             self,
             max_diff_steps: int,
@@ -228,7 +228,7 @@ class ConditionalMarkovianTSPostMeanScoreMatchingOld(nn.Module):
     def forward(self, inputs, times, conditioner, eff_times):
         # inputs = inputs.unsqueeze(1)
         x = self.input_projection(inputs)
-        x = F.leaky_relu(x, 0.01)
+        x = F.leaky_relu(x, 0.4)
 
         diffusion_step = self.diffusion_embedding(times)
         conditioner = self.mlp_state_mapper(conditioner)
@@ -238,12 +238,12 @@ class ConditionalMarkovianTSPostMeanScoreMatchingOld(nn.Module):
             if cond_up.shape[1] != 1:
                 cond_up = cond_up.reshape(cond_up.shape[0]*cond_up.shape[1], 1, -1)
             x, skip_connection = layer(x, conditioner=cond_up, diffusion_step=diffusion_step)
-            x = F.leaky_relu(x, 0.01)
+            x = F.leaky_relu(x, 0.4)
             skip.append(skip_connection)
 
         x = torch.sum(torch.stack(skip), dim=0) / math.sqrt(len(self.residual_layers))
         x = self.skip_projection(x)
-        x = F.leaky_relu(x, 0.01)
+        x = F.leaky_relu(x, 0.4)
         x = self.output_projection(x)
         # For VPSDE only
         beta_tau = torch.exp(-0.5 * eff_times)
