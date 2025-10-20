@@ -24,7 +24,7 @@ def get_config():
     config.save_freq = 50
     config.lr = 1e-3
     config.max_epochs = [3000]config.max_epochs = 1000
-    config.batch_size = 128
+    config.batch_size = 256
     config.hybrid = True
     config.weightings = True
 

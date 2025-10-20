@@ -36,7 +36,7 @@ def get_config():
     config.max_epochs = [3000]
     config.max_epochs = [60, 100, 150, 300, 872, 960, 1440, 1920, 2920, 6920, 7190, 8190, 12920, 18920]
     config.ref_batch_size = 2048
-    config.batch_size = 128
+    config.batch_size = 256
     config.chunk_size = 512
     config.feat_thresh = 1/500.#1 / 50.
     config.isfBm = True
