@@ -54,7 +54,7 @@ def get_config():
     config.residual_channels = 8
     config.diff_hidden_size = 64
     config.dialation_length = 10
-    config.enforce_fourier_mean_reg = True
+    config.enforce_fourier_mean_reg = False
     config.reg_label = "NFMReg_" if not config.enforce_fourier_mean_reg else ""
 
 
