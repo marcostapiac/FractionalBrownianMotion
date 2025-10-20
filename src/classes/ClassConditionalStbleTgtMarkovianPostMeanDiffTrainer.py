@@ -348,13 +348,12 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             # For each timeseries "b", at time "t", we want the score p(timeseries_b_attime_t_diffusedTo_efftime|time_series_b_attime_t)
             # So target score should be size (NumBatches, Time Series Length, 1)
             # And xts should be size (NumBatches, TimeSeriesLength, NumDimensions)
-            with torch.no_grad():
-                if config.stable_target:
-                    stable_targets = self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=prop_pool,
-                                                              eff_times=eff_times, chunk_size=chunk_size,
-                                                              feat_thresh=feat_thresh)
-                else:
-                    stable_targets = x0s
+            if config.stable_target:
+                stable_targets = self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=prop_pool,
+                                                          eff_times=eff_times, chunk_size=chunk_size,
+                                                          feat_thresh=feat_thresh)
+            else:
+                stable_targets = x0s
             print(stable_targets.requires_grad)
             batch_loss, batch_base_loss, batch_var_loss, batch_mean_loss = self._run_batch(xts=xts, features=features,
                                                                           stable_targets=stable_targets,
