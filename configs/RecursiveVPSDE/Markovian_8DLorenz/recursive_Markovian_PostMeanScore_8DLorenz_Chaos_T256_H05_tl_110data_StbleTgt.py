@@ -59,7 +59,7 @@ def get_config():
 
 
     # MLP Architecture parameters 
-    config.mlp_hidden_dims = 4
+    config.mlp_hidden_dims = 16
     config.condupsampler_length = 20
 
     # TSM Architecture parameters

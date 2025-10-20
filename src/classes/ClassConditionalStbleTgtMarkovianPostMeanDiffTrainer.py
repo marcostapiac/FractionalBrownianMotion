@@ -168,123 +168,141 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
     def _compute_stable_targets(self, batch: torch.Tensor, noised_z: torch.Tensor, eff_times: torch.Tensor,
                                 ref_batch: torch.Tensor, chunk_size: int, feat_thresh: float,
-                                k_bw: int = 64, bw_subsample: int = 16384, block: int = 8192):
-        import math, time
+                                k_bw: int = 64, bw_subsample: int = 16384, block: int = 8192,
+                                prop_per_target: int = 1024, k_topk: int = 2048):
+        import time
         t0 = time.time()
-
         B1, T, D = batch.shape
-        B2, T2, D2 = ref_batch.shape
-        assert T2 == T and D2 == D and B2 > B1
-
-        # X (positions) at t_{j-1} and Z0 (increments)
-        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # [B2,T,D]
-        pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :]  # [B1,T,D]
+        B2, T, D = ref_batch.shape
+        print(B2, B1)
+        assert (B2 > B1)
+        dX = feat_thresh
+        # ref_batch, batch, eff_times = ref_batch.to("cpu"), batch.to("cpu"), eff_times.to("cpu")
+        pos_ref_batch = self._from_incs_to_positions(batch=ref_batch)[:, :-1, :]  # shape: [B2, T, D]
+        pos_batch = self._from_incs_to_positions(batch=batch)[:, :-1, :]  # shape: [B1, T, D]
+        assert pos_batch.shape == batch.shape, "pos_batch must match batch shape"
         assert pos_batch.shape == (B1, T, D)
-
-        candidate_x = pos_ref_batch.reshape(-1, D).unsqueeze(0)  # [1, N, D], N=B2*T
-        target_x_exp = pos_batch.reshape(-1, D).unsqueeze(1)  # [B1*T, 1, D]
-        candidate_Z = ref_batch.reshape(-1, D).unsqueeze(0)  # [1, N, D]
-
+        assert pos_ref_batch.shape == (B2, T, D)
+        pos_ref_batch = pos_ref_batch.reshape(-1, pos_ref_batch.shape[-1])
+        assert pos_ref_batch.shape == (B2 * T, D)
+        pos_batch = pos_batch.reshape(-1, pos_batch.shape[-1])
+        assert pos_batch.shape == (B1 * T, D)
+        ref_batch = ref_batch.reshape(-1, ref_batch.shape[-1])
+        assert ref_batch.shape == pos_ref_batch.shape
+        batch = batch.reshape(-1, batch.shape[-1])
+        assert batch.shape == pos_batch.shape
         eff_times = eff_times.reshape(-1, eff_times.shape[-1])
         if eff_times.shape[-1] == 1 and D > 1:
             eff_times = eff_times.expand(-1, D)
-        assert eff_times.shape == (B1 * T, D)
+        assert eff_times.shape == (B1 * T, D)  # Because the ref batch is only for the purposes of importance sampling
 
-        noised_z = noised_z.reshape(-1, D)  # [B1*T, D]
-        beta_tau = torch.exp(-0.5 * eff_times)  # [B1*T, D]
-        sigma2_tau = (1. - torch.exp(-eff_times))  # [B1*T, D]
+        target_x = pos_batch  # [B1*T, D]
+        target_x_exp = target_x.unsqueeze(1)  # [B1*T, 1, D]
+        assert target_x_exp.shape == (B1 * T, 1, D)
+        # candidate -> potential positions which are close to our "X" feature
+        candidate_x = pos_ref_batch.unsqueeze(0)  # [1, B2*T, D]
+        assert candidate_x.shape == (1, B2 * T, D)
+        # candidate_Z -> potential next increments whose previous position is close to our "X"
+        candidate_Z = ref_batch.unsqueeze(0)  # [1, B2*T, D]
+        assert candidate_Z.shape == (1, B2 * T, D)
+
+        # batch, eff_times = batch.to(self.device_id), eff_times.to(self.device_id)
+        noised_z = noised_z.reshape(-1, noised_z.shape[-1])
+        assert (noised_z.shape == (B1 * T, D))
+        # batch, eff_times = batch.to("cpu"), eff_times.to("cpu")
+        beta_tau = torch.exp(-0.5 * eff_times)
+        assert beta_tau.shape == (B1 * T, D)
+        sigma_tau = 1. - torch.exp(-eff_times)
+        assert sigma_tau.shape == beta_tau.shape
+        # noised_z, beta_tau, sigma_tau = noised_z.to("cpu"), beta_tau.to("cpu"), sigma_tau.to("cpu")
 
         target_noised_z = noised_z.unsqueeze(1)  # [B1*T, 1, D]
         target_beta_tau = beta_tau.unsqueeze(1)  # [B1*T, 1, D]
-        target_sigma2_tau = sigma2_tau.unsqueeze(1)  # [B1*T, 1, D]
-
-        stable_targets_chunks, stable_targets_masks = [], []
-        N = candidate_x.shape[1]
-        device = target_x_exp.device
-        dtype = target_x_exp.dtype
-
+        target_sigma_tau = sigma_tau.unsqueeze(1)  # [B1*T, 1, D]
+        assert target_noised_z.shape == target_beta_tau.shape == target_sigma_tau.shape == (B1 * T, 1, D)
+        # We will iterate over all targets in our sub-sampled batch
+        stable_targets_chunks = []
+        stable_targets_masks = []
+        # Loop over the target tensors in chunks
         for i in range(0, target_x_exp.shape[0], chunk_size):
             i_end = min(i + chunk_size, target_x_exp.shape[0])
 
-            target_chunk = target_x_exp[i:i_end]  # [chunk,1,D]
-            nz_chunk = target_noised_z[i:i_end]  # [chunk,1,D]
-            beta_chunk = target_beta_tau[i:i_end]  # [chunk,1,D]
-            sigma2_chunk = target_sigma2_tau[i:i_end]  # [chunk,1,D]
-            chunk_sz = target_chunk.shape[0]
+            # Extract the current chunk of target tensors.
+            target_chunk = target_x_exp[i:i_end]  # [chunk, 1, D]
+            noised_z_chunk = target_noised_z[i:i_end]  # [chunk, 1, D]
+            beta_tau_chunk = target_beta_tau[i:i_end]  # [chunk, 1, D]
+            sigma_tau_chunk = target_sigma_tau[i:i_end]  # [chunk, 1, D]
 
-            # --- per-dim bandwidths h_d via k-NN on a subsample of candidates (memory-safe) ---
-            if N > bw_subsample:
-                idx = torch.randint(0, N, (bw_subsample,), device=device)
-                cand_x_bw = candidate_x[:, idx, :]  # [1, nbw, D]
-            else:
-                cand_x_bw = candidate_x  # [1, N, D]
-            diff_bw = (target_chunk - cand_x_bw).abs()  # [chunk, nbw, D]
-            k_eff = min(k_bw, diff_bw.size(1))
-            vals_bw, _ = torch.topk(diff_bw, k_eff, dim=1, largest=False)  # [chunk,k_eff,D]
-            h_d = vals_bw[:, -1, :].clamp_min(1e-12)  # [chunk,D]
-            h_exp = h_d.unsqueeze(1)  # [chunk,1,D]
+            # --- Compute the mask ---
+            # For each target point, we want candidate positions within +/- dX.
+            # Broadcasting: candidate_x is [1, B2*T, D] and target_chunk is [chunk, 1, D].
+            # candidate_x, target_chunk = candidate_x.to(self.device_id), target_chunk.to(self.device_id)
+            N = candidate_x.shape[1]  # total candidates
+            chunk = target_chunk.shape[0]
+            # distances in Y-space
+            dists = torch.cdist(target_chunk.squeeze(1),  # [chunk, D]
+                                candidate_x.squeeze(0))  # -> [chunk, N]
+            dists = dists / np.sqrt(D)
 
-            # --- streaming over all candidates to avoid OOM ---
-            num = torch.zeros(chunk_sz, D, device=device, dtype=dtype)  # Σ w * Z0
-            den = torch.zeros(chunk_sz, 1, device=device, dtype=dtype)  # Σ w
-            m_global = torch.full((chunk_sz, 1), -float('inf'), device=device, dtype=dtype)  # max logw across blocks
-            sum_w = torch.zeros(chunk_sz, 1, device=device, dtype=dtype)  # for ESS
-            sum_w2 = torch.zeros(chunk_sz, 1, device=device, dtype=dtype)
+            k = min(k_topk, N)
+            vals, idx = torch.topk(dists, k, dim=1, largest=False)  # [chunk, k]
+            # adaptive bandwidth: kth-NN distance; clamp to avoid degenerate kernels
+            h = vals[:, -1:].clamp_min(1e-6)  # [chunk, 1]
 
-            for j in range(0, N, block):
-                jb = slice(j, min(j + block, N))
-                nb = jb.stop - jb.start
+            # ---- kernel PROPOSAL q(i|y) over top-k (normalized) ----
+            logits = -0.5 * (vals / h).pow(2)  # [chunk, k]
+            logits = logits - logits.max(dim=1, keepdim=True).values  # stabilize
+            pi = torch.softmax(logits, dim=1)  # [chunk, k]
 
-                cand_x_b = candidate_x[:, jb, :]  # [1,nb,D]
-                cand_Z_b = candidate_Z[:, jb, :]  # [1,nb,D]
+            # ---- sample M proposals per target from q (SNIS) ----
+            M = min(prop_per_target, k)
+            J_rel = torch.multinomial(pi, num_samples=M, replacement=False)  # [chunk, M]
+            # Absolute indices for the sampled proposals
+            idx_sel = idx.gather(1, J_rel)  # [chunk, M]
+            idx_sel_expD = idx_sel.unsqueeze(-1).expand(-1, -1, D)  # [chunk, M, D]
 
-                # kernel in X with per-dim bandwidths -> scalar kernel
-                diff_b = (target_chunk - cand_x_b) / h_exp  # [chunk,nb,D]
-                dist2_b = (diff_b * diff_b).sum(dim=-1, keepdim=True)  # [chunk,nb,1]
-                logKx_b = -0.5 * dist2_b  # [chunk,nb,1]
+            # Gather directly from the global pool
+            cand_Z_M = candidate_Z.expand(chunk, -1, -1).gather(1, idx_sel_expD)  # [chunk, M, D]
 
-                # exact Gaussian log p(Z_tau | Z0) summed over dims
-                nz_b = nz_chunk.expand(-1, nb, -1)  # [chunk,nb,D]
-                mean_b = beta_chunk.expand_as(nz_b) * cand_Z_b  # [chunk,nb,D]
-                std_b = torch.sqrt(sigma2_chunk.expand_as(nz_b))  # [chunk,nb,D]
-                logp_b = -0.5 * ((nz_b - mean_b) / std_b).pow(2) - torch.log(std_b) - 0.5 * math.log(2 * math.pi)
-                logp_b = logp_b.sum(dim=-1, keepdim=True)  # [chunk,nb,1]
+            # sanity
+            assert cand_Z_M.shape[:2] == (chunk, M)
+            # ---- likelihood p(noised_z | X0) on sampled proposals ----
+            nz_M = noised_z_chunk.expand(-1, M, -1)  # [chunk, M, D]
+            mean_M = beta_tau_chunk.expand_as(nz_M) * cand_Z_M
+            std_M = torch.sqrt(sigma_tau_chunk.clamp_min(1e-12)).expand_as(nz_M)  # clamp for stability
+            logp = -0.5 * ((nz_M - mean_M) / std_M).pow(2) - torch.log(std_M) - 0.5 * np.log(2 * np.pi)
+            logp = logp.sum(dim=-1, keepdim=True)  # [chunk, M, 1]
 
-                logw_b = logp_b + logKx_b  # [chunk,nb,1]
-                m_b = logw_b.max(dim=1, keepdim=True).values.squeeze(-1)  # [chunk,1]
+            # ---- SNIS weights under kernel proposal: NO kernel multiplier ----
+            m = logp.max(dim=1, keepdim=True).values  # [chunk, 1, 1]
+            w = torch.exp(logp - m)  # [chunk, M, 1]
 
-                # rescale accumulators to common max m_new
-                m_new = torch.maximum(m_global, m_b)  # [chunk,1]
-                scale_old = torch.exp(m_global - m_new)  # [chunk,1]
-                scale_old2 = torch.exp(2 * (m_global - m_new))  # [chunk,1]
-                m_global = m_new
+            w_flat = w.squeeze(-1)  # [chunk, M]
 
-                num *= scale_old
-                den *= scale_old
-                sum_w *= scale_old
-                sum_w2 *= scale_old2
-
-                # add current block in the new scale
-                w_b_scaled = torch.exp(logw_b.squeeze(-1) - m_new)  # [chunk,nb]
-                den += w_b_scaled.sum(dim=1, keepdim=True)  # [chunk,1]
-                sum_w += w_b_scaled.sum(dim=1, keepdim=True)  # [chunk,1]
-                sum_w2 += (torch.exp(2 * (logw_b.squeeze(-1) - m_new))).sum(dim=1, keepdim=True)
-
-                num += (w_b_scaled.unsqueeze(-1) * cand_Z_b.squeeze(0)).sum(dim=1)  # [chunk,D]
-
-            stable_targets_chunk = num / den.clamp_min(1e-12)  # [chunk,D]
+            # 2) Aggregate numerator/denominator
+            num = (w_flat.unsqueeze(-1) * cand_Z_M).sum(dim=1)  # [chunk, D]
+            den = w_flat.sum(dim=1, keepdim=True).clamp_min(1e-12)  # [chunk, 1]
+            stable_targets_chunk = num / den  # [chunk, D]
             stable_targets_chunks.append(stable_targets_chunk)
 
-            ess_chunk = (sum_w.pow(2) / sum_w2.clamp_min(1e-12))  # [chunk,1]
-            stable_targets_masks.append(ess_chunk.to("cpu"))
+            # 3) ESS with the correct shape [chunk, 1]
+            w2s = (w_flat.pow(2)).sum(dim=1, keepdim=True).clamp_min(1e-12)  # [chunk, 1]
+            ess = den.pow(2) / w2s  # [chunk, 1]
+            stable_targets_masks.append(ess.to("cpu"))
 
-        stable_targets_masks = torch.cat(stable_targets_masks, dim=0)  # [B1*T,1]
-        q005 = torch.quantile(stable_targets_masks, 0.005).item()
-        q995 = torch.quantile(stable_targets_masks, 0.995).item()
-        print(f"IQR ESS: {(q005, q995)}")
-
-        stable_targets = torch.cat(stable_targets_chunks, dim=0)  # [B1*T,D]
-        assert stable_targets.shape == (B1 * T, D)
+            # Optional sanity checks
+            assert w_flat.shape == (cand_Z_M.shape[0], cand_Z_M.shape[1])  # (chunk, M)
+            assert stable_targets_chunk.shape == (chunk, cand_Z_M.shape[2])  # (chunk, D)
+            assert ess.shape == (chunk, 1)
+        stable_targets_masks = (torch.cat(stable_targets_masks, dim=0))
+        assert stable_targets_masks.shape == (B1 * T, 1)
+        print(
+            f"IQR ESS: {torch.quantile(stable_targets_masks, q=0.005, dim=0).item(), torch.quantile(stable_targets_masks, q=0.995, dim=0).item()}\n")
+        # Concatenate all chunks to form the full result.
+        stable_targets = torch.cat(stable_targets_chunks, dim=0)  # [B1*T, D]
+        assert (stable_targets.shape == (B1 * T, D))
+        del pos_batch, pos_ref_batch, stable_targets_chunks, target_noised_z, target_beta_tau, target_sigma_tau
+        # ref_batch, batch, eff_times = ref_batch.to(self.device_id), batch.to(self.device_id), eff_times.to(self.device_id)
         return stable_targets.to(self.device_id)
     def _run_epoch(self, epoch: int, batch_size: int, chunk_size: int, feat_thresh: float) -> [list, list, list, list]:
         """
@@ -307,10 +325,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         for batch_idx, x0s in enumerate(self.train_loader):
             ref_x0s = x0s[0].to(self.device_id)
             perm = torch.randperm(ref_x0s.shape[0], device=self.device_id)
-            batch_size = ref_x0s.shape[0]
             x0s = ref_x0s[perm[:batch_size], :, :]  # generator pool G (produces xts)
             prop_pool = ref_x0s[perm[batch_size:], :, :]  # proposal pool P (SNIS candidates; G∩P=∅)
-
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
             features = self.create_feature_vectors_from_position(x0s)
             if self.is_hybrid:
@@ -333,9 +349,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             # So target score should be size (NumBatches, Time Series Length, 1)
             # And xts should be size (NumBatches, TimeSeriesLength, NumDimensions)
             with torch.no_grad():
-                stable_targets = x0s#self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=prop_pool,
-                                 #                         eff_times=eff_times, chunk_size=chunk_size,
-                                 #                         feat_thresh=feat_thresh)
+                stable_targets = self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=prop_pool,
+                                                          eff_times=eff_times, chunk_size=chunk_size,
+                                                          feat_thresh=feat_thresh)
             print(stable_targets.requires_grad)
             batch_loss, batch_base_loss, batch_var_loss, batch_mean_loss = self._run_batch(xts=xts, features=features,
                                                                           stable_targets=stable_targets,
@@ -884,7 +900,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             # Obtain epoch loss averaged over devices
             average_loss_per_epoch = torch.mean(torch.stack(all_gpus_losses), dim=0)
             all_losses_per_epoch.append(float(average_loss_per_epoch.cpu().numpy()))
-            if "New" not in config.scoreNet_trained_path:
+            if config.enforce_fourier_mean_reg:
                 average_base_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_base_losses), dim=0).cpu().numpy())
                 average_var_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_var_losses), dim=0).cpu().numpy())
                 average_mean_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_mean_losses), dim=0).cpu().numpy())
@@ -898,9 +914,14 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     self.mean_loss_reg = 0.
                 print(
                 f"Calibrating Regulatisation: Base {average_base_loss_per_epoch}, Var {average_var_loss_per_epoch}, Mean {average_mean_loss_per_epoch}\n")
-            if True:
+            else:
                 self.mean_loss_reg = 0.
-                self.var_loss_reg = 0.
+                average_base_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_base_losses), dim=0).cpu().numpy())
+                average_var_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_var_losses), dim=0).cpu().numpy())
+                average_mean_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_mean_losses), dim=0).cpu().numpy())
+                ratio = (.99 * average_base_loss_per_epoch) / (average_var_loss_per_epoch + 1e-12)
+                self.var_loss_reg = min(ratio, 0.01)
+
             # NOTE: .compute() cannot be called on only one process since it will wait for other processes
             # see  https://github.com/Lightning-AI/torchmetrics/issues/626
             print("Device {} :: Percent Completed {:0.4f} :: Train {:0.4f} :: Time for One Epoch {:0.4f}\n".format(

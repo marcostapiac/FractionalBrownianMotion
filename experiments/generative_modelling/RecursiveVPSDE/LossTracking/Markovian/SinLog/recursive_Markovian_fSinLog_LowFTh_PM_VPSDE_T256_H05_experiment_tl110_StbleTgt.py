@@ -45,7 +45,7 @@ if __name__ == "__main__":
             training_size = int(
                 max(1000, min(int(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad) / (
                             config.ts_length - 1)), 10240)))
-            training_size -= (training_size % config.ref_batch_size)
+            training_size = 10240
             print(training_size)
             training_size = 10240
 
