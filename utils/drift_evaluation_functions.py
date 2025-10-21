@@ -198,8 +198,17 @@ def LSTM_1D_drifts(config, PM):
             num_taus * tot_num_feats,
             1, -1)
         with torch.no_grad():
-            vec_predicted_score = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
-                                             eff_times=vec_eff_times)
+            PM_output = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
+                                            eff_times=vec_eff_times)
+        # assert np.allclose((scores- predicted_score).detach(), 0)
+        beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
+        sigma2_taus = (1. - torch.pow(beta_taus, 2)).to(device)
+        sigma_taus = torch.pow(sigma2_taus, 0.5).to(device)
+
+        if "PM" in config.scoreNet_trained_path:
+            vec_predicted_score = -vec_Z_taus / sigma_taus + (beta_taus / sigma2_taus) * PM_output
+        else:
+            vec_predicted_score = PM_output
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
                                                                                            predicted_score=vec_predicted_score,
                                                                                            diff_index=torch.Tensor(
@@ -207,14 +216,21 @@ def LSTM_1D_drifts(config, PM):
                                                                                                        num_diff_times - 1 - difftime_idx))]).to(
                                                                                                device),
                                                                                            max_diff_steps=Ndiff_discretisation)
-        # assert np.allclose((scores- predicted_score).detach(), 0)
-        beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
-        sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
-        final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
-                                                                        (torch.pow(sigma_taus, 2) + (
-                                                                                torch.pow(beta_taus * config.diffusion,
+
+        if "PM" in config.scoreNet_trained_path:
+            final_mu_hats = (vec_Z_taus / (ts_step * sigma2_taus)) + ((
+                                                                              (torch.pow(sigma_taus, 2) + (
+                                                                                      torch.pow(
+                                                                                          beta_taus * config.diffusion,
                                                                                           2) * ts_step)) / (
-                                                                                ts_step * beta_taus)) * vec_scores)
+                                                                                      ts_step * sigma2_taus)) * PM_output)
+        else:
+            final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
+                                                                            (torch.pow(sigma_taus, 2) + (
+                                                                                    torch.pow(
+                                                                                        beta_taus * config.diffusion,
+                                                                                        2) * ts_step)) / (
+                                                                                    ts_step * beta_taus)) * vec_scores)
 
         assert (final_mu_hats.shape == (num_taus * tot_num_feats, 1, config.ts_dims))
         A = final_mu_hats.reshape((num_taus, tot_num_feats, config.ts_dims))
@@ -274,8 +290,17 @@ def MLP_1D_drifts(config, PM):
             num_taus * Xshape,
             1, -1)
         with torch.no_grad():
-            vec_predicted_score = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
-                                             eff_times=vec_eff_times)
+            PM_output = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
+                                            eff_times=vec_eff_times)
+        # assert np.allclose((scores- predicted_score).detach(), 0)
+        beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
+        sigma2_taus = (1. - torch.pow(beta_taus, 2)).to(device)
+        sigma_taus = torch.pow(sigma2_taus, 0.5).to(device)
+
+        if "PM" in config.scoreNet_trained_path:
+            vec_predicted_score = -vec_Z_taus / sigma_taus + (beta_taus / sigma2_taus) * PM_output
+        else:
+            vec_predicted_score = PM_output
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
                                                                                            predicted_score=vec_predicted_score,
                                                                                            diff_index=torch.Tensor(
@@ -283,14 +308,21 @@ def MLP_1D_drifts(config, PM):
                                                                                                        num_diff_times - 1 - difftime_idx))]).to(
                                                                                                device),
                                                                                            max_diff_steps=Ndiff_discretisation)
-        # assert np.allclose((scores- predicted_score).detach(), 0)
-        beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
-        sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
-        final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
-                                                                        (torch.pow(sigma_taus, 2) + (
-                                                                                torch.pow(beta_taus * config.diffusion,
+
+        if "PM" in config.scoreNet_trained_path:
+            final_mu_hats = (vec_Z_taus / (ts_step * sigma2_taus)) + ((
+                                                                              (torch.pow(sigma_taus, 2) + (
+                                                                                      torch.pow(
+                                                                                          beta_taus * config.diffusion,
                                                                                           2) * ts_step)) / (
-                                                                                ts_step * beta_taus)) * vec_scores)
+                                                                                      ts_step * sigma2_taus)) * PM_output)
+        else:
+            final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
+                                                                            (torch.pow(sigma_taus, 2) + (
+                                                                                    torch.pow(
+                                                                                        beta_taus * config.diffusion,
+                                                                                        2) * ts_step)) / (
+                                                                                    ts_step * beta_taus)) * vec_scores)
 
         assert (final_mu_hats.shape == (num_taus * Xshape, 1, config.ts_dims))
 
@@ -360,8 +392,17 @@ def LSTM_2D_drifts(PM, config):
             1, -1)
 
         with torch.no_grad():
-            vec_predicted_score = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
-                                             eff_times=vec_eff_times)
+            PM_output = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
+                                            eff_times=vec_eff_times)
+        # assert np.allclose((scores- predicted_score).detach(), 0)
+        beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
+        sigma2_taus = (1. - torch.pow(beta_taus, 2)).to(device)
+        sigma_taus = torch.pow(sigma2_taus, 0.5).to(device)
+
+        if "PM" in config.scoreNet_trained_path:
+            vec_predicted_score = -vec_Z_taus / sigma_taus + (beta_taus / sigma2_taus) * PM_output
+        else:
+            vec_predicted_score = PM_output
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
                                                                                            predicted_score=vec_predicted_score,
                                                                                            diff_index=torch.Tensor(
@@ -369,14 +410,21 @@ def LSTM_2D_drifts(PM, config):
                                                                                                        num_diff_times - 1 - difftime_idx))]).to(
                                                                                                device),
                                                                                            max_diff_steps=Ndiff_discretisation)
-        # assert np.allclose((scores- predicted_score).detach(), 0)
-        beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
-        sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
-        final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
-                                                                        (torch.pow(sigma_taus, 2) + (
-                                                                                torch.pow(beta_taus * config.diffusion,
+
+        if "PM" in config.scoreNet_trained_path:
+            final_mu_hats = (vec_Z_taus / (ts_step * sigma2_taus)) + ((
+                                                                              (torch.pow(sigma_taus, 2) + (
+                                                                                      torch.pow(
+                                                                                          beta_taus * config.diffusion,
                                                                                           2) * ts_step)) / (
-                                                                                ts_step * beta_taus)) * vec_scores)
+                                                                                      ts_step * sigma2_taus)) * PM_output)
+        else:
+            final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
+                                                                            (torch.pow(sigma_taus, 2) + (
+                                                                                    torch.pow(
+                                                                                        beta_taus * config.diffusion,
+                                                                                        2) * ts_step)) / (
+                                                                                    ts_step * beta_taus)) * vec_scores)
 
         assert (final_mu_hats.shape == (num_taus * tot_num_feats, 1, config.ts_dims))
         A = final_mu_hats.reshape((num_taus, tot_num_feats, config.ts_dims))
@@ -446,8 +494,17 @@ def MLP_fBiPotDDims_drifts(config, PM):
             num_taus * Xshape,
             1, -1)
         with torch.no_grad():
-            vec_predicted_score = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
+            PM_output = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
                                              eff_times=vec_eff_times)
+        # assert np.allclose((scores- predicted_score).detach(), 0)
+        beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
+        sigma2_taus = (1. - torch.pow(beta_taus, 2)).to(device)
+        sigma_taus = torch.pow(sigma2_taus, 0.5).to(device)
+
+        if "PM" in config.scoreNet_trained_path:
+            vec_predicted_score = -vec_Z_taus/sigma_taus + (beta_taus/sigma2_taus)*PM_output
+        else:
+            vec_predicted_score = PM_output
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
                                                                                            predicted_score=vec_predicted_score,
                                                                                            diff_index=torch.Tensor(
@@ -455,14 +512,19 @@ def MLP_fBiPotDDims_drifts(config, PM):
                                                                                                        num_diff_times - 1 - difftime_idx))]).to(
                                                                                                device),
                                                                                            max_diff_steps=Ndiff_discretisation)
-        # assert np.allclose((scores- predicted_score).detach(), 0)
-        beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
-        sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
-        final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
-                                                                        (torch.pow(sigma_taus, 2) + (
-                                                                                torch.pow(beta_taus * config.diffusion,
-                                                                                          2) * ts_step)) / (
-                                                                                ts_step * beta_taus)) * vec_scores)
+
+        if "PM" in config.scoreNet_trained_path:
+            final_mu_hats = (vec_Z_taus / (ts_step * sigma2_taus)) + ((
+                                                                            (torch.pow(sigma_taus, 2) + (
+                                                                                    torch.pow(beta_taus * config.diffusion,
+                                                                                              2) * ts_step)) / (
+                                                                                    ts_step * sigma2_taus)) * PM_output)
+        else:
+            final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
+                                                                            (torch.pow(sigma_taus, 2) + (
+                                                                                    torch.pow(beta_taus * config.diffusion,
+                                                                                              2) * ts_step)) / (
+                                                                                    ts_step * beta_taus)) * vec_scores)
 
         assert (final_mu_hats.shape == (num_taus * Xshape, 1, config.ts_dims))
 
@@ -508,8 +570,17 @@ def multivar_score_based_LSTM_drift(score_model, num_diff_times, diffusion, num_
             1, -1)
         score_model.eval()
         with torch.no_grad():
-            vec_predicted_score = score_model.forward(times=vec_diff_times, eff_times=vec_eff_times,
-                                                      conditioner=vec_conditioner, inputs=vec_Z_taus)
+            PM_output = score_model.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
+                                   eff_times=vec_eff_times)
+        # assert np.allclose((scores- predicted_score).detach(), 0)
+        beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
+        sigma2_taus = (1. - torch.pow(beta_taus, 2)).to(device)
+        sigma_taus = torch.pow(sigma2_taus, 0.5).to(device)
+
+        if "PM" in config.scoreNet_trained_path:
+            vec_predicted_score = -vec_Z_taus / sigma_taus + (beta_taus / sigma2_taus) * PM_output
+        else:
+            vec_predicted_score = PM_output
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
                                                                                            predicted_score=vec_predicted_score,
                                                                                            diff_index=torch.Tensor(
@@ -517,14 +588,21 @@ def multivar_score_based_LSTM_drift(score_model, num_diff_times, diffusion, num_
                                                                                                        num_diff_times - 1 - difftime_idx))]).to(
                                                                                                device),
                                                                                            max_diff_steps=Ndiff_discretisation)
-        # assert np.allclose((scores- predicted_score).detach(), 0)
-        beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
-        sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
-        final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
-                                                                        (torch.pow(sigma_taus, 2) + (
-                                                                                torch.pow(beta_taus * config.diffusion,
+
+        if "PM" in config.scoreNet_trained_path:
+            final_mu_hats = (vec_Z_taus / (ts_step * sigma2_taus)) + ((
+                                                                              (torch.pow(sigma_taus, 2) + (
+                                                                                      torch.pow(
+                                                                                          beta_taus * config.diffusion,
                                                                                           2) * ts_step)) / (
-                                                                                ts_step * beta_taus)) * vec_scores)
+                                                                                      ts_step * sigma2_taus)) * PM_output)
+        else:
+            final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
+                                                                            (torch.pow(sigma_taus, 2) + (
+                                                                                    torch.pow(
+                                                                                        beta_taus * config.diffusion,
+                                                                                        2) * ts_step)) / (
+                                                                                    ts_step * beta_taus)) * vec_scores)
 
         assert (final_mu_hats.shape == (num_taus * tot_num_feats, 1, config.ts_dims))
         A = final_mu_hats.reshape((num_taus, tot_num_feats, config.ts_dims))
@@ -565,8 +643,17 @@ def multivar_score_based_MLP_drift(score_model, num_diff_times, diffusion, num_p
             1, -1)
         score_model.eval()
         with torch.no_grad():
-            vec_predicted_score = score_model.forward(times=vec_diff_times, eff_times=vec_eff_times,
-                                                      conditioner=vec_conditioner, inputs=vec_Z_taus)
+            PM_output = score_model.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
+                                            eff_times=vec_eff_times)
+        # assert np.allclose((scores- predicted_score).detach(), 0)
+        beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
+        sigma2_taus = (1. - torch.pow(beta_taus, 2)).to(device)
+        sigma_taus = torch.pow(sigma2_taus, 0.5).to(device)
+
+        if "PM" in config.scoreNet_trained_path:
+            vec_predicted_score = -vec_Z_taus / sigma_taus + (beta_taus / sigma2_taus) * PM_output
+        else:
+            vec_predicted_score = PM_output
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
                                                                                            predicted_score=vec_predicted_score,
                                                                                            diff_index=torch.Tensor(
@@ -574,14 +661,21 @@ def multivar_score_based_MLP_drift(score_model, num_diff_times, diffusion, num_p
                                                                                                        num_diff_times - 1 - difftime_idx))]).to(
                                                                                                device),
                                                                                            max_diff_steps=Ndiff_discretisation)
-        # assert np.allclose((scores- predicted_score).detach(), 0)
-        beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
-        sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
-        final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
-                                                                        (torch.pow(sigma_taus, 2) + (
-                                                                                torch.pow(beta_taus * config.diffusion,
+
+        if "PM" in config.scoreNet_trained_path:
+            final_mu_hats = (vec_Z_taus / (ts_step * sigma2_taus)) + ((
+                                                                              (torch.pow(sigma_taus, 2) + (
+                                                                                      torch.pow(
+                                                                                          beta_taus * config.diffusion,
                                                                                           2) * ts_step)) / (
-                                                                                ts_step * beta_taus)) * vec_scores)
+                                                                                      ts_step * sigma2_taus)) * PM_output)
+        else:
+            final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
+                                                                            (torch.pow(sigma_taus, 2) + (
+                                                                                    torch.pow(
+                                                                                        beta_taus * config.diffusion,
+                                                                                        2) * ts_step)) / (
+                                                                                    ts_step * beta_taus)) * vec_scores)
 
         assert (final_mu_hats.shape == (num_taus * num_paths, 1, config.ts_dims))
         means = final_mu_hats.reshape((num_taus, num_paths, config.ts_dims))
@@ -636,8 +730,17 @@ def multivar_score_based_LSTM_drift_OOS(score_model, time_idx, h, c, num_diff_ti
             1, -1)
         score_model.eval()
         with torch.no_grad():
-            vec_predicted_score = score_model.forward(times=vec_diff_times, eff_times=vec_eff_times,
-                                                      conditioner=vec_conditioner, inputs=vec_Z_taus)
+            PM_output = score_model.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
+                                            eff_times=vec_eff_times)
+        # assert np.allclose((scores- predicted_score).detach(), 0)
+        beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
+        sigma2_taus = (1. - torch.pow(beta_taus, 2)).to(device)
+        sigma_taus = torch.pow(sigma2_taus, 0.5).to(device)
+
+        if "PM" in config.scoreNet_trained_path:
+            vec_predicted_score = -vec_Z_taus / sigma_taus + (beta_taus / sigma2_taus) * PM_output
+        else:
+            vec_predicted_score = PM_output
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
                                                                                            predicted_score=vec_predicted_score,
                                                                                            diff_index=torch.Tensor(
@@ -645,14 +748,21 @@ def multivar_score_based_LSTM_drift_OOS(score_model, time_idx, h, c, num_diff_ti
                                                                                                        num_diff_times - 1 - difftime_idx))]).to(
                                                                                                device),
                                                                                            max_diff_steps=Ndiff_discretisation)
-        # assert np.allclose((scores- predicted_score).detach(), 0)
-        beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
-        sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
-        final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
-                                                                        (torch.pow(sigma_taus, 2) + (
-                                                                                torch.pow(beta_taus * config.diffusion,
+
+        if "PM" in config.scoreNet_trained_path:
+            final_mu_hats = (vec_Z_taus / (ts_step * sigma2_taus)) + ((
+                                                                              (torch.pow(sigma_taus, 2) + (
+                                                                                      torch.pow(
+                                                                                          beta_taus * config.diffusion,
                                                                                           2) * ts_step)) / (
-                                                                                ts_step * beta_taus)) * vec_scores)
+                                                                                      ts_step * sigma2_taus)) * PM_output)
+        else:
+            final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
+                                                                            (torch.pow(sigma_taus, 2) + (
+                                                                                    torch.pow(
+                                                                                        beta_taus * config.diffusion,
+                                                                                        2) * ts_step)) / (
+                                                                                    ts_step * beta_taus)) * vec_scores)
 
         assert (final_mu_hats.shape == (num_taus * tot_num_feats, 1, config.ts_dims))
         A = final_mu_hats.reshape((num_taus, tot_num_feats, config.ts_dims))
@@ -722,8 +832,17 @@ def multivar_score_based_MLP_drift_OOS(score_model, num_diff_times, diffusion, n
             1, -1)
         score_model.eval()
         with torch.no_grad():
-            vec_predicted_score = score_model.forward(times=vec_diff_times, eff_times=vec_eff_times,
-                                                      conditioner=vec_conditioner, inputs=vec_Z_taus)
+            PM_output = score_model.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
+                                            eff_times=vec_eff_times)
+        # assert np.allclose((scores- predicted_score).detach(), 0)
+        beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
+        sigma2_taus = (1. - torch.pow(beta_taus, 2)).to(device)
+        sigma_taus = torch.pow(sigma2_taus, 0.5).to(device)
+
+        if "PM" in config.scoreNet_trained_path:
+            vec_predicted_score = -vec_Z_taus / sigma_taus + (beta_taus / sigma2_taus) * PM_output
+        else:
+            vec_predicted_score = PM_output
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
                                                                                            predicted_score=vec_predicted_score,
                                                                                            diff_index=torch.Tensor(
@@ -731,14 +850,21 @@ def multivar_score_based_MLP_drift_OOS(score_model, num_diff_times, diffusion, n
                                                                                                        num_diff_times - 1 - difftime_idx))]).to(
                                                                                                device),
                                                                                            max_diff_steps=Ndiff_discretisation)
-        # assert np.allclose((scores- predicted_score).detach(), 0)
-        beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
-        sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
-        final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
-                                                                        (torch.pow(sigma_taus, 2) + (
-                                                                                torch.pow(beta_taus * config.diffusion,
+
+        if "PM" in config.scoreNet_trained_path:
+            final_mu_hats = (vec_Z_taus / (ts_step * sigma2_taus)) + ((
+                                                                              (torch.pow(sigma_taus, 2) + (
+                                                                                      torch.pow(
+                                                                                          beta_taus * config.diffusion,
                                                                                           2) * ts_step)) / (
-                                                                                ts_step * beta_taus)) * vec_scores)
+                                                                                      ts_step * sigma2_taus)) * PM_output)
+        else:
+            final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
+                                                                            (torch.pow(sigma_taus, 2) + (
+                                                                                    torch.pow(
+                                                                                        beta_taus * config.diffusion,
+                                                                                        2) * ts_step)) / (
+                                                                                    ts_step * beta_taus)) * vec_scores)
 
         assert (final_mu_hats.shape == (num_taus * num_paths, 1, config.ts_dims))
         means = final_mu_hats.reshape((num_taus, num_paths, config.ts_dims))

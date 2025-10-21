@@ -137,7 +137,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     "counts": c.detach(),
                     "ema": 0.95
                 }
-    def _batch_update(self, loss, base_loss: float, var_loss: float, mean_loss:float) -> [float, float, float, float]:
+
+    def _batch_update(self, loss, base_loss: float, var_loss: float, mean_loss: float) -> [float, float, float, float]:
         """
             Backward pass and optimiser update step
                 :param loss: loss tensor / function output
@@ -148,7 +149,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.loss_aggregator.update(loss.detach().item())
         return loss.detach().item(), base_loss, var_loss, mean_loss
 
-    def _batch_loss_compute(self, outputs: torch.Tensor, targets: torch.Tensor, w_dim, w_tau, epoch: int, batch_idx: int,
+    def _batch_loss_compute(self, outputs: torch.Tensor, targets: torch.Tensor, w_dim, w_tau, epoch: int,
+                            batch_idx: int,
                             num_batches: int) -> [float, float, float, float]:
         """
         Computes loss and calls helper function to compute backward pass
@@ -156,20 +158,23 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             :param targets: Target values to compare against outputs
             :return: Batch Loss
         """
-        base_loss = ((outputs - targets).pow(2) * w_dim * w_tau).sum(dim=-1).mean() # Penalise for higher dimensions
+        base_loss = ((outputs - targets).pow(2) * w_dim * w_tau).sum(dim=-1).mean()  # Penalise for higher dimensions
         print(f"Loss, {base_loss}\n")
-        var_loss = ((self.score_network.module.mlp_state_mapper.hybrid.log_scale - self.score_network.module.mlp_state_mapper.hybrid.log_scale.mean()) ** 2).mean()
-        mean_loss = (torch.mean((self.score_network.module.mlp_state_mapper.hybrid.log_scale - 0.)**2))
+        var_loss = ((
+                                self.score_network.module.mlp_state_mapper.hybrid.log_scale - self.score_network.module.mlp_state_mapper.hybrid.log_scale.mean()) ** 2).mean()
+        mean_loss = (torch.mean((self.score_network.module.mlp_state_mapper.hybrid.log_scale - 0.) ** 2))
         reg_var_loss = self.var_loss_reg * var_loss
         reg_mean_loss = self.mean_loss_reg * mean_loss
         loss = base_loss + reg_var_loss + reg_mean_loss
         print(f"VarReg, VarLoss, RegVarLoss, {self.var_loss_reg, var_loss, reg_var_loss}\n")
         print(f"MeanReg, MeanLoss, RegMeanLoss, {self.mean_loss_reg, mean_loss, reg_mean_loss}\n")
-        return self._batch_update(loss, base_loss=base_loss.detach().item(), var_loss=var_loss.detach().item(), mean_loss=mean_loss.detach().item())
+        return self._batch_update(loss, base_loss=base_loss.detach().item(), var_loss=var_loss.detach().item(),
+                                  mean_loss=mean_loss.detach().item())
 
     def _run_batch(self, xts: torch.Tensor, features: torch.Tensor, stable_targets: torch.Tensor,
-                   diff_times: torch.Tensor, y_weights:torch.Tensor,
-                   eff_times: torch.Tensor, epoch: int, batch_idx: int, num_batches: int) -> [float, float, float, float]:
+                   diff_times: torch.Tensor, y_weights: torch.Tensor,
+                   eff_times: torch.Tensor, epoch: int, batch_idx: int, num_batches: int) -> [float, float, float,
+                                                                                              float]:
         """
         Compute batch output and loss
             :param xts: Diffused samples
@@ -194,10 +199,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         diff_times = diff_times.reshape(B * T)
         eff_times = torch.cat([eff_times] * D, dim=2).reshape(stable_targets.shape)
         outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times, eff_times=eff_times)
-        # Outputs should be (NumBatches, TimeSeriesLength, 1)
-        # For times larger than tau0, use inverse_weighting
-        sigma2_tau = (1. - torch.exp(-eff_times)).clamp_min(1e-12)  # This is sigma2
-        beta_tau = torch.exp(-0.5 * eff_times)
+
+        # sigma2_tau = (1. - torch.exp(-eff_times)).clamp_min(1e-12)  # This is sigma2
+        # beta_tau = torch.exp(-0.5 * eff_times)
 
         if self.loss_factor == 0:  # plain
             w_tau = torch.ones_like(outputs)
@@ -209,14 +213,15 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             w_tau = torch.ones_like(outputs)
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         # Now implement the stable target field
-        outputs = (outputs + xts / sigma2_tau) * (sigma2_tau / beta_tau)  # This gives us the network D_theta
+        # outputs = (outputs + xts / sigma2_tau) * (sigma2_tau / beta_tau)  # This gives us the network D_theta
         assert (outputs.shape == stable_targets.shape)
-        w_dim = 1.+0*self.w_dim.view(1, 1, -1)  # [1,1,D]
+        w_dim = 1. + 0 * self.w_dim.view(1, 1, -1)  # [1,1,D]
         print(f"WDIM {w_dim}\n\n\n\n")
         yW = y_weights.view(B * T, 1, 1).expand_as(outputs)
         weights = (w_tau * yW).detach()
         weights = weights / (weights.mean().clamp_min(1e-12))
-        return self._batch_loss_compute(outputs=outputs, targets=stable_targets, w_dim=w_dim, w_tau=weights.pow(2), epoch=epoch,
+        return self._batch_loss_compute(outputs=outputs, targets=stable_targets, w_dim=w_dim, w_tau=weights.pow(2),
+                                        epoch=epoch,
                                         batch_idx=batch_idx, num_batches=num_batches)
 
     def _compute_stable_targets(self, batch: torch.Tensor, noised_z: torch.Tensor, eff_times: torch.Tensor,
@@ -356,7 +361,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         del pos_batch, pos_ref_batch, stable_targets_chunks, target_noised_z, target_beta_tau, target_sigma_tau
         # ref_batch, batch, eff_times = ref_batch.to(self.device_id), batch.to(self.device_id), eff_times.to(self.device_id)
         return stable_targets.to(self.device_id)
-    def _run_epoch(self, epoch: int, batch_size: int, chunk_size: int, feat_thresh: float, config) -> [list, list, list, list]:
+
+    def _run_epoch(self, epoch: int, batch_size: int, chunk_size: int, feat_thresh: float, config) -> [list, list, list,
+                                                                                                       list]:
         """
         Single epoch run
             :param epoch: Epoch index
@@ -383,7 +390,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             perm = torch.randperm(ref_x0s.shape[0], device=self.device_id)
             if not config.stable_target: batch_size = ref_x0s.shape[0]
             x0s = ref_x0s[perm[:batch_size], :, :]  # generator pool G (produces xts)
-            prop_pool = ref_x0s#[perm[batch_size:], :, :]  # proposal pool P (SNIS candidates G∩P=∅)
+            prop_pool = ref_x0s  # [perm[batch_size:], :, :]  # proposal pool P (SNIS candidates G∩P=∅)
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
             features = self.create_feature_vectors_from_position(x0s)
             # --- scalar PCA y-weights from frozen edges + EMA counts ---
@@ -429,9 +436,10 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
             if self.is_hybrid:
                 # We select diffusion time uniformly at random for each sample at each time (i.e., size (NumBatches, TimeSeries Sequence))
-                diff_times = timesteps[torch.randint(low=self.max_diff_steps//2, high=self.max_diff_steps, dtype=torch.int32,
-                                                     size=x0s.shape[0:2]).long()].view(x0s.shape[0], x0s.shape[1],
-                                                                                       *([1] * len(x0s.shape[2:]))).to(
+                diff_times = timesteps[
+                    torch.randint(low=self.max_diff_steps // 2, high=self.max_diff_steps, dtype=torch.int32,
+                                  size=x0s.shape[0:2]).long()].view(x0s.shape[0], x0s.shape[1],
+                                                                    *([1] * len(x0s.shape[2:]))).to(
                     self.device_id)
             else:
                 diff_times = ((self.train_eps - self.end_diff_time) * torch.rand(
@@ -448,17 +456,20 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             # And xts should be size (NumBatches, TimeSeriesLength, NumDimensions)
             if config.stable_target:
                 stable_targets = self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=prop_pool,
-                                                          eff_times=eff_times, chunk_size=chunk_size,
-                                                          feat_thresh=feat_thresh)
+                                                              eff_times=eff_times, chunk_size=chunk_size,
+                                                              feat_thresh=feat_thresh)
             else:
                 stable_targets = x0s
             print(stable_targets.requires_grad)
             batch_loss, batch_base_loss, batch_var_loss, batch_mean_loss = self._run_batch(xts=xts, features=features,
-                                                                          stable_targets=stable_targets,
-                                                                          diff_times=diff_times,
-                                                                          eff_times=eff_times, epoch=epoch,
-                                                                          batch_idx=batch_idx,y_weights=y_weights,
-                                                                          num_batches=len(self.train_loader))
+                                                                                           stable_targets=stable_targets,
+                                                                                           diff_times=diff_times,
+                                                                                           eff_times=eff_times,
+                                                                                           epoch=epoch,
+                                                                                           batch_idx=batch_idx,
+                                                                                           y_weights=y_weights,
+                                                                                           num_batches=len(
+                                                                                               self.train_loader))
             device_epoch_losses.append(batch_loss)
             device_epoch_base_losses.append(batch_base_loss)
             device_epoch_var_losses.append(batch_var_loss)
@@ -508,7 +519,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 print(e)
                 pass
             try:
-               self.curr_best_track_mse = snapshot["TRACK_MSE"]
+                self.curr_best_track_mse = snapshot["TRACK_MSE"]
             except KeyError as e:
                 print(e)
                 pass
@@ -558,10 +569,13 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         """
         try:
             snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(),
-                        "SCHEDULER_STATE": self.scheduler.state_dict(), "EWMA_LOSS": self.ewma_loss, "VAR_REG": self.var_loss_reg, "MEAN_REG": self.mean_loss_reg, "TRACK_MSE": self.curr_best_track_mse, "EVALEXP_MSE":self.curr_best_evalexp_mse}
+                        "SCHEDULER_STATE": self.scheduler.state_dict(), "EWMA_LOSS": self.ewma_loss,
+                        "VAR_REG": self.var_loss_reg, "MEAN_REG": self.mean_loss_reg,
+                        "TRACK_MSE": self.curr_best_track_mse, "EVALEXP_MSE": self.curr_best_evalexp_mse}
         except AttributeError as e:
             print(e)
-            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(), "EWMA_LOSS": self.ewma_loss, "VAR_REG": self.var_loss_reg, "MEAN_REG": self.mean_loss_reg}
+            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(), "EWMA_LOSS": self.ewma_loss,
+                        "VAR_REG": self.var_loss_reg, "MEAN_REG": self.mean_loss_reg}
 
         # self.score_network now points to DDP wrapped object, so we need to access parameters via ".module"
         if type(self.device_id) == int:
@@ -660,7 +674,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         return l, learning_rates
 
     def _domain_rmse(self, epoch, config):
-        #assert (config.ndims <= 2)
+        # assert (config.ndims <= 2)
         if config.ndims > 1 and "BiPot" in config.data_path:
             final_vec_mu_hats = MLP_fBiPotDDims_drifts(PM=self.score_network.module, config=config)
         else:
@@ -672,19 +686,28 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         elif "BiPot" in config.data_path and config.ndims > 1:
             Xshape = 256
             if config.ndims == 12:
-                Xs = np.concatenate([np.linspace(-5, 5, num=Xshape).reshape(-1,1), np.linspace(-4.7, 4.7, num=Xshape).reshape(-1,1), \
-                                     np.linspace(-4.4, 4.4, num=Xshape).reshape(-1,1), np.linspace(-4.2, 4.2, num=Xshape).reshape(-1,1), \
-                                     np.linspace(-4.05, 4.05, num=Xshape).reshape(-1,1), np.linspace(-3.9, 3.9, num=Xshape).reshape(-1,1), \
-                                     np.linspace(-3.7, 3.7, num=Xshape).reshape(-1,1), np.linspace(-3.6, 3.6, num=Xshape).reshape(-1,1), \
-                                     np.linspace(-3.55, 3.55, num=Xshape).reshape(-1,1),
-                                     np.linspace(-3.48, 3.48, num=Xshape).reshape(-1,1), \
-                                     np.linspace(-3.4, 3.4, num=Xshape).reshape(-1,1), np.linspace(-3.4, 3.4, num=Xshape).reshape(-1,1)],
-                                    axis=1)
+                Xs = np.concatenate(
+                    [np.linspace(-5, 5, num=Xshape).reshape(-1, 1), np.linspace(-4.7, 4.7, num=Xshape).reshape(-1, 1), \
+                     np.linspace(-4.4, 4.4, num=Xshape).reshape(-1, 1),
+                     np.linspace(-4.2, 4.2, num=Xshape).reshape(-1, 1), \
+                     np.linspace(-4.05, 4.05, num=Xshape).reshape(-1, 1),
+                     np.linspace(-3.9, 3.9, num=Xshape).reshape(-1, 1), \
+                     np.linspace(-3.7, 3.7, num=Xshape).reshape(-1, 1),
+                     np.linspace(-3.6, 3.6, num=Xshape).reshape(-1, 1), \
+                     np.linspace(-3.55, 3.55, num=Xshape).reshape(-1, 1),
+                     np.linspace(-3.48, 3.48, num=Xshape).reshape(-1, 1), \
+                     np.linspace(-3.4, 3.4, num=Xshape).reshape(-1, 1),
+                     np.linspace(-3.4, 3.4, num=Xshape).reshape(-1, 1)],
+                    axis=1)
             elif config.ndims == 8:
-                Xs = np.concatenate([np.linspace(-4.9, 4.9, num=Xshape).reshape(-1, 1), np.linspace(-4.4, 4.4, num=Xshape).reshape(-1,1), \
-                                     np.linspace(-4.05, 4.05, num=Xshape).reshape(-1,1), np.linspace(-3.9, 3.9, num=Xshape).reshape(-1,1), \
-                                     np.linspace(-3.7, 3.7, num=Xshape).reshape(-1,1), np.linspace(-3.6, 3.6, num=Xshape).reshape(-1,1), \
-                                     np.linspace(-3.5, 3.5, num=Xshape).reshape(-1,1), np.linspace(-3.4, 3.4, num=Xshape).reshape(-1,1)],
+                Xs = np.concatenate([np.linspace(-4.9, 4.9, num=Xshape).reshape(-1, 1),
+                                     np.linspace(-4.4, 4.4, num=Xshape).reshape(-1, 1), \
+                                     np.linspace(-4.05, 4.05, num=Xshape).reshape(-1, 1),
+                                     np.linspace(-3.9, 3.9, num=Xshape).reshape(-1, 1), \
+                                     np.linspace(-3.7, 3.7, num=Xshape).reshape(-1, 1),
+                                     np.linspace(-3.6, 3.6, num=Xshape).reshape(-1, 1), \
+                                     np.linspace(-3.5, 3.5, num=Xshape).reshape(-1, 1),
+                                     np.linspace(-3.4, 3.4, num=Xshape).reshape(-1, 1)],
                                     axis=1)
             if "coup" in config.data_path:
                 true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
@@ -701,7 +724,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 assert true_drifts.shape == Xs.shape
             else:
                 true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
-                                                                           3) + 2. * np.array(
+                                                                               3) + 2. * np.array(
                     config.quad_coeff) * Xs + np.array(config.const))
         elif "QuadSin" in config.data_path:
             Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
@@ -742,26 +765,31 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
         if len(true_drifts.shape) == 1:
-            true_drifts = true_drifts.reshape(-1,1)
-        mse = driftevalexp_mse_ignore_nans(true=true_drifts, pred=final_vec_mu_hats[:, -1, :,:].reshape(final_vec_mu_hats.shape[0], final_vec_mu_hats.shape[2], final_vec_mu_hats.shape[-1]*1).mean(axis=1))
+            true_drifts = true_drifts.reshape(-1, 1)
+        mse = driftevalexp_mse_ignore_nans(true=true_drifts,
+                                           pred=final_vec_mu_hats[:, -1, :, :].reshape(final_vec_mu_hats.shape[0],
+                                                                                       final_vec_mu_hats.shape[2],
+                                                                                       final_vec_mu_hats.shape[
+                                                                                           -1] * 1).mean(axis=1))
         print(f"Current vs Best MSE {mse}, {self.curr_best_evalexp_mse} at Epoch {epoch}\n")
         return mse
-
 
     def _tracking_errors(self, epoch, config):
         def true_drift(prev, num_paths, config):
             assert (prev.shape == (num_paths, config.ndims))
-            if "BiPot" in config.data_path and config.ndims==1:
+            if "BiPot" in config.data_path and config.ndims == 1:
                 drift_X = -(4. * config.quartic_coeff * np.power(prev,
                                                                  3) + 2. * config.quad_coeff * prev + config.const)
                 return drift_X[:, np.newaxis, :]
-            elif "BiPot" in config.data_path and config.ndims>1 and "coup" not in config.data_path:
+            elif "BiPot" in config.data_path and config.ndims > 1 and "coup" not in config.data_path:
                 drift_X = -(4. * np.array(config.quartic_coeff) * np.power(prev,
-                                                                 3) + 2. * np.array(config.quad_coeff) * prev + np.array(config.const))
+                                                                           3) + 2. * np.array(
+                    config.quad_coeff) * prev + np.array(config.const))
                 return drift_X[:, np.newaxis, :]
-            elif "BiPot" in config.data_path and config.ndims>1 and "coup" in config.data_path:
+            elif "BiPot" in config.data_path and config.ndims > 1 and "coup" in config.data_path:
                 drift_X = -(4. * np.array(config.quartic_coeff) * np.power(prev,
-                                                                 3) + 2. * np.array(config.quad_coeff) * prev + np.array(config.const))
+                                                                           3) + 2. * np.array(
+                    config.quad_coeff) * prev + np.array(config.const))
                 xstar = np.sqrt(
                     np.maximum(1e-12, -np.array(config.quad_coeff) / (2.0 * np.array(config.quartic_coeff))))
                 s2 = (config.scale * xstar) ** 2 + 1e-12  # (D,) or (K,1,D)
@@ -819,11 +847,12 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             true_states[:, [0], :] = initial_state + 0.00001 * np.random.randn(*initial_state.shape)
             # Initialise the "global score-based drift paths"
             global_states[:, [0], :] = true_states[:, [0], :]
-            local_states[:, [0], :] = true_states[:, [0], :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
+            local_states[:, [0], :] = true_states[:, [0],
+                                      :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
 
             # Euler-Maruyama Scheme for Tracking Errors
             for i in range(1, num_time_steps + 1):
-                eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT)*config.diffusion
+                eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT) * config.diffusion
                 if "Burgers" in config.data_path:
                     q = build_q_nonneg(config=config)
                     eps = np.zeros((num_paths, 1, config.num_fourier_modes), dtype=np.float64)
@@ -852,7 +881,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     denom = 1.
                 local_mean = multivar_score_based_MLP_drift_OOS(
                     score_model=self.score_network.module,
-                   num_diff_times=num_diff_times,
+                    num_diff_times=num_diff_times,
                     diffusion=diffusion,
                     num_paths=num_paths, ts_step=deltaT,
                     config=config,
@@ -860,18 +889,18 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     prev=true_states[:, i - 1, :])
 
                 global_mean = multivar_score_based_MLP_drift_OOS(score_model=self.score_network.module,
-                                                                                      num_diff_times=num_diff_times,
-                                                                                      diffusion=diffusion,
-                                                                                      num_paths=num_paths,
-                                                                                      ts_step=deltaT, config=config,
-                                                                                      device=self.device_id,
-                                                                                      prev=global_states[:, i - 1, :])
+                                                                 num_diff_times=num_diff_times,
+                                                                 diffusion=diffusion,
+                                                                 num_paths=num_paths,
+                                                                 ts_step=deltaT, config=config,
+                                                                 device=self.device_id,
+                                                                 prev=global_states[:, i - 1, :])
 
                 true_states[:, [i], :] = (true_states[:, [i - 1], :] \
-                                         + true_mean * deltaT \
-                                         + eps)/denom
-                local_states[:, [i], :] = (true_states[:, [i - 1], :] + local_mean * deltaT + eps)/denom
-                global_states[:, [i], :] = (global_states[:, [i - 1], :] + global_mean * deltaT + eps)/denom
+                                          + true_mean * deltaT \
+                                          + eps) / denom
+                local_states[:, [i], :] = (true_states[:, [i - 1], :] + local_mean * deltaT + eps) / denom
+                global_states[:, [i], :] = (global_states[:, [i - 1], :] + global_mean * deltaT + eps) / denom
 
             all_true_states[quant_idx, :, :, :] = true_states
             all_local_states[quant_idx, :, :, :] = local_states
@@ -905,15 +934,15 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 ".", "")
         elif "Lnz" in config.data_path:
             save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}{config.ndims}DLnz_OOSDriftTrack_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}_{round(config.forcing_const, 3)}FConst").replace(
-                    ".", "")
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}{config.ndims}DLnz_OOSDriftTrack_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}_{round(config.forcing_const, 3)}FConst").replace(
+                ".", "")
         print(f"Save path for OOS DriftTrack:{save_path}\n")
         np.save(save_path + "_true_states.npy", all_true_states)
         np.save(save_path + "_global_states.npy", all_global_states)
         np.save(save_path + "_local_states.npy", all_local_states)
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
-        #mse = drifttrack_cummse(true=all_true_states, local=all_local_states, deltaT=config.deltaT)
+        # mse = drifttrack_cummse(true=all_true_states, local=all_local_states, deltaT=config.deltaT)
         mse = drifttrack_mse(true=all_true_states, local=all_global_states, deltaT=config.deltaT)
         print(f"Current vs Best MSE {mse}, {self.curr_best_track_mse} at Epoch {epoch}\n")
         return mse
@@ -936,7 +965,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             model_filename)  # This will contain synchronised losses
         end_epoch = max(max_epochs)
         self.ewma_loss = 0.  # Force recomputation of EWMA losses each time
-        #self.curr_best_track_mse = np.inf # Force recomputation once
+
+        # self.curr_best_track_mse = np.inf # Force recomputation once
         def collect_all_increments(loader, D, limit=None):
             chunks, seen = [], 0
             for x0s in loader:  # x0s: [B,T,D] increments Z0
@@ -964,10 +994,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 tau = max(self.score_network.module.mlp_state_mapper.hybrid.final_tau,
                           self.score_network.module.mlp_state_mapper.hybrid.init_tau * (0.9 ** (epoch // 20)))
                 self.score_network.module.mlp_state_mapper.hybrid.set_tau(tau)
-            device_epoch_losses, device_epoch_base_losses, device_epoch_var_losses,device_epoch_mean_losses  = self._run_epoch(epoch=epoch,
-                                                                                                     batch_size=batch_size,
-                                                                                                     chunk_size=config.chunk_size,
-                                                                                                     feat_thresh=config.feat_thresh, config=config)
+            device_epoch_losses, device_epoch_base_losses, device_epoch_var_losses, device_epoch_mean_losses = self._run_epoch(
+                epoch=epoch,
+                batch_size=batch_size,
+                chunk_size=config.chunk_size,
+                feat_thresh=config.feat_thresh, config=config)
             # Average epoch loss for each device over batches
             epoch_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_losses)).item())
             epoch_base_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_base_losses)).item())
@@ -991,7 +1022,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
                 epoch_mean_losses_tensor = epoch_mean_losses_tensor.cuda()
                 all_gpus_mean_losses = [torch.zeros_like(epoch_mean_losses_tensor) for _ in
-                                       range(torch.cuda.device_count())]
+                                        range(torch.cuda.device_count())]
                 torch.distributed.all_gather(all_gpus_mean_losses, epoch_mean_losses_tensor)
             else:
                 all_gpus_losses = [epoch_losses_tensor]
@@ -1011,11 +1042,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
                 if config.enforce_fourier_mean_reg:
                     ratio = (.75 * average_base_loss_per_epoch) / (average_mean_loss_per_epoch + 1e-12)
-                    self.mean_loss_reg = min(ratio, 0.01/config.ts_dims) # vs 0.01
+                    self.mean_loss_reg = min(ratio, 0.01 / config.ts_dims)  # vs 0.01
                 else:
                     self.mean_loss_reg = 0.
                 print(
-                f"Calibrating Regulatisation: Base {average_base_loss_per_epoch}, Var {average_var_loss_per_epoch}, Mean {average_mean_loss_per_epoch}\n")
+                    f"Calibrating Regulatisation: Base {average_base_loss_per_epoch}, Var {average_var_loss_per_epoch}, Mean {average_mean_loss_per_epoch}\n")
             else:
                 self.mean_loss_reg = 0.
                 average_base_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_base_losses), dim=0).cpu().numpy())
@@ -1062,12 +1093,12 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                         if evalexp_mse < self.curr_best_evalexp_mse and (epoch + 1) >= 1:
                             self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="EE")
                             self.curr_best_evalexp_mse = evalexp_mse
-                    if ((epoch+1)>300 and (epoch + 1) % 5 == 0)or epoch == 0:
+                    if ((epoch + 1) > 300 and (epoch + 1) % 5 == 0) or epoch == 0:
                         track_mse = self._tracking_errors(epoch=epoch + 1, config=config)
                         if track_mse < self.curr_best_track_mse and (epoch + 1) >= 1:
                             self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="Trk")
                             self.curr_best_track_mse = track_mse
-                    elif ((epoch+1)<300 and (epoch + 1) % 25 == 0):
+                    elif ((epoch + 1) < 300 and (epoch + 1) % 25 == 0):
                         track_mse = self._tracking_errors(epoch=epoch + 1, config=config)
                         if track_mse < self.curr_best_track_mse and (epoch + 1) >= 1:
                             self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="Trk")
@@ -1077,4 +1108,3 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 self._save_snapshot(epoch=epoch)
             if type(self.device_id) == int: dist.barrier()
             print(f"TrackMSE, EvalExpMSE: {self.curr_best_track_mse, self.curr_best_evalexp_mse}\n")
-

@@ -50,7 +50,7 @@ def get_config():
 
     # Diffusion hyperparameters
     config.beta_max = 20.
-    config.beta_min = 0.  # 0.0001
+    config.beta_min = 0.  # 0.000 1
 
     # Universal Architecture Parameters
     config.temb_dim = 64
