@@ -33,7 +33,7 @@ def get_config():
     config.train_eps = 1./config.max_diff_steps  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 2
-    config.lr = 1e-5
+    config.lr = 5e-5
     config.max_epochs = [3000]
     config.max_epochs = [60, 100, 150, 300, 960, 1440, 1920, 2920, 3000]
     config.ref_batch_size = 2048
