@@ -435,6 +435,7 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
             # So target score should be size (NumBatches, Time Series Length, 1)
             # And xts should be size (NumBatches, TimeSeriesLength, NumDimensions)
             if config.stable_target:
+                print(x0s.shape, xts.shape, prop_pool.shape)
                 stable_targets = self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=prop_pool,
                                                           eff_times=eff_times, chunk_size=chunk_size,
                                                           feat_thresh=feat_thresh)
