@@ -473,7 +473,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         """
         # Snapshot should be python dict
         for param_group in self.opt.param_groups:
-            param_group['lr'] = 1e-3
+            param_group['lr'] = config.lr
         print(
             f"Before loading snapshot Epochs Run, EWMA Loss, LR: {self.epochs_run, self.ewma_loss, self.opt.param_groups[0]['lr']}\n")
 
