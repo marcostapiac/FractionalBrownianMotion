@@ -1055,7 +1055,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     float(torch.mean(torch.tensor(all_losses_per_epoch[self.epochs_run:])).cpu().numpy()), float(
                         self.loss_aggregator.compute().item())))
                 print(f"Current Loss {curr_loss}\n")
-                self.save_every = 1
+                self.save_every = 10
                 if ((epoch + 1) % self.save_every == 0) or epoch == 0:
                     if config.ndims <= 2 or ("BiPot" in config.data_path and config.ndims > 1):
                         evalexp_mse = self._domain_rmse(config=config, epoch=epoch + 1)
