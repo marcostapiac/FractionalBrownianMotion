@@ -299,7 +299,7 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
         device = torch.device("cpu")
 
     # Preprocess data
-    if isinstance(trainClass, type) and (issubclass(trainClass, ConditionalStbleTgtMarkovianPostMeanDiffTrainer)):
+    if isinstance(trainClass, type) and (issubclass(trainClass, ConditionalStbleTgtMarkovianPostMeanDiffTrainer)or issubclass(trainClass, ConditionalStbleTgtMarkovianScoreDiffTrainer)):
         trainLoader = prepare_recursive_scoreModel_data(data=data, batch_size=config.ref_batch_size, config=config)
     else:
         trainLoader = prepare_recursive_scoreModel_data(data=data, batch_size=config.batch_size, config=config)
