@@ -524,10 +524,10 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 factor=0.5,  # Reduce learning rate by 50% (more conservative than 90%).
                 patience=50,  # Wait for 50 epochs of no sufficient improvement.
                 verbose=True,  # Print a message when the LR is reduced.
-                threshold=1e-4,  # Set the threshold for what counts as improvement.
+                threshold=1e-3,  # Set the threshold for what counts as improvement.
                 threshold_mode='rel',  # Relative change compared to the best value so far.
-                cooldown=200,  # Optionally, add cooldown epochs after a reduction.
-                min_lr=1e-5
+                cooldown=20,  # Optionally, add cooldown epochs after a reduction.
+                min_lr=1e-6
             )
             try:
                 self.scheduler.load_state_dict(snapshot["SCHEDULER_STATE"])
@@ -542,10 +542,10 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 factor=0.5,  # Reduce learning rate by 50% (more conservative than 90%).
                 patience=50,  # Wait for 50 epochs of no sufficient improvement.
                 verbose=True,  # Print a message when the LR is reduced.
-                threshold=1e-4,  # Set the threshold for what counts as improvement.
+                threshold=1e-3,  # Set the threshold for what counts as improvement.
                 threshold_mode='rel',  # Relative change compared to the best value so far.
-                cooldown=200,  # Optionally, add cooldown epochs after a reduction.
-                min_lr=1e-5
+                cooldown=20,  # Optionally, add cooldown epochs after a reduction.
+                min_lr=1e-6
             )
         print(
             f"After loading snapshot Epochs Run, EWMA Loss, LR: {self.epochs_run, self.ewma_loss, self.opt.param_groups[0]['lr']}\n")
@@ -1037,9 +1037,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             else:
                 if self.ewma_loss == 0.:  # Issue with saving ewma_loss
                     for i in range(1, len(all_losses_per_epoch)):
-                        self.ewma_loss = (1. - 0.95) * all_losses_per_epoch[i] + 0.95 * self.ewma_loss
+                        self.ewma_loss = (1. - 0.92) * all_losses_per_epoch[i] + 0.92 * self.ewma_loss
                     assert (self.ewma_loss != 0.)
-                self.ewma_loss = (1. - 0.95) * curr_loss + 0.95 * self.ewma_loss
+                self.ewma_loss = (1. - 0.92) * curr_loss + 0.92 * self.ewma_loss
             if isinstance(self.scheduler, torch.optim.lr_scheduler.LambdaLR):
                 print("Using LambdaLR")
                 self.scheduler.step()

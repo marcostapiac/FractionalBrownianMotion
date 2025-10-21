@@ -1026,9 +1026,9 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
             else:
                 if self.ewma_loss == 0.:  # Issue with saving ewma_loss
                     for i in range(1, len(all_losses_per_epoch)):
-                        self.ewma_loss = (1. - 0.95) * all_losses_per_epoch[i] + 0.95 * self.ewma_loss
+                        self.ewma_loss = (1. - 0.92) * all_losses_per_epoch[i] + 0.92 * self.ewma_loss
                     assert (self.ewma_loss != 0.)
-                self.ewma_loss = (1. - 0.95) * curr_loss + 0.95 * self.ewma_loss
+                self.ewma_loss = (1. - 0.92) * curr_loss + 0.92 * self.ewma_loss
             if isinstance(self.scheduler, torch.optim.lr_scheduler.LambdaLR):
                 print("Using LambdaLR")
                 self.scheduler.step()
