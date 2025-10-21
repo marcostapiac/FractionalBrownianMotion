@@ -90,6 +90,53 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.snapshot_path = snapshot_path
         print("!!Setup Done!!\n")
 
+    def _init_rarity(self, ref_x0s, k: int = 10):
+        """
+        Build fixed histogram edges on a reference pool and initialize global counts.
+        D=1: univariate quantile edges; D>1: 2D PCA projection + quantile grid.
+        All tensors saved as contiguous to avoid searchsorted/bucketize warnings.
+        """
+        with torch.no_grad():
+            Y_ref = self.create_feature_vectors_from_position(ref_x0s)  # [B2, T, D]
+            mu = Y_ref.mean(dim=(0, 1), keepdim=True)
+            sd = Y_ref.std(dim=(0, 1), keepdim=True).clamp_min(1e-6)
+            D = Y_ref.shape[-1]
+
+            if D == 1:
+                Yr = ((Y_ref - mu) / sd).reshape(-1).contiguous()  # [B2*T]
+                qs = torch.linspace(0, 1, k + 1, device=Yr.device)
+                e0 = torch.quantile(Yr, qs).contiguous()  # edges
+                b = torch.bucketize(Yr, e0).clamp(1, k) - 1
+                c = torch.bincount(b, minlength=k).float().contiguous()
+                self._rare = {
+                    "D": 1, "k": k,
+                    "mu": mu.detach().contiguous(),
+                    "sd": sd.detach().contiguous(),
+                    "edges": (e0.detach(),),  # tuple for uniform access
+                    "counts": c.detach(),
+                    "ema": 0.95
+                }
+            else:
+                Yr = ((Y_ref - mu) / sd).reshape(-1, D).contiguous()  # [B2*T, D]
+                U, S, Vt = torch.pca_lowrank(Yr, q=min(2, D))
+                Vt2 = Vt[:, :2].contiguous()  # [D,2]
+                Z = (Yr @ Vt2).contiguous()  # [B2*T,2]
+                qs = torch.linspace(0, 1, k + 1, device=Yr.device)
+                e0 = torch.quantile(Z[:, 0].contiguous(), qs).contiguous()
+                e1 = torch.quantile(Z[:, 1].contiguous(), qs).contiguous()
+                i = torch.bucketize(Z[:, 0].contiguous(), e0).clamp(1, k) - 1
+                j = torch.bucketize(Z[:, 1].contiguous(), e1).clamp(1, k) - 1
+                bins = (i * k + j)
+                c = torch.bincount(bins, minlength=k * k).float().contiguous()
+                self._rare = {
+                    "D": D, "k": k,
+                    "mu": mu.detach().contiguous(),
+                    "sd": sd.detach().contiguous(),
+                    "Vt": Vt2.detach(),
+                    "edges": (e0.detach(), e1.detach()),
+                    "counts": c.detach(),
+                    "ema": 0.95
+                }
     def _batch_update(self, loss, base_loss: float, var_loss: float, mean_loss:float) -> [float, float, float, float]:
         """
             Backward pass and optimiser update step
@@ -251,7 +298,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
             k = min(k_topk, N)
             vals, idx = torch.topk(dists, k, dim=1, largest=False)  # [chunk, k]
-            # adaptive bandwidth: kth-NN distance; clamp to avoid degenerate kernels
+            # adaptive bandwidth: kth-NN distance clamp to avoid degenerate kernels
             h = vals[:, -1:].clamp_min(1e-6)  # [chunk, 1]
 
             # ---- kernel PROPOSAL q(i|y) over top-k (normalized) ----
@@ -327,67 +374,57 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         if self.is_hybrid:
             timesteps = torch.linspace(self.train_eps, end=self.end_diff_time,
                                        steps=self.max_diff_steps)
+
+        if not hasattr(self, "_rare") or getattr(self, "rebuild_hist_each_epoch", False):
+            ref_for_hist = next(iter(self.train_loader))[0].to(self.device_id)
+            self._init_rarity(ref_for_hist, k=10)
         for batch_idx, x0s in enumerate(self.train_loader):
             ref_x0s = x0s[0].to(self.device_id)
             perm = torch.randperm(ref_x0s.shape[0], device=self.device_id)
             if not config.stable_target: batch_size = ref_x0s.shape[0]
             x0s = ref_x0s[perm[:batch_size], :, :]  # generator pool G (produces xts)
-            prop_pool = ref_x0s#[perm[batch_size:], :, :]  # proposal pool P (SNIS candidates; G∩P=∅)
+            prop_pool = ref_x0s#[perm[batch_size:], :, :]  # proposal pool P (SNIS candidates G∩P=∅)
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
             features = self.create_feature_vectors_from_position(x0s)
+            # --- scalar PCA y-weights from frozen edges + EMA counts ---
             with torch.no_grad():
-                k_bins = 10
-                if not hasattr(self, "_y_hist"):
-                    Y_ref = self.create_feature_vectors_from_position(ref_x0s)  # [B2, T, D]
-                    mu = Y_ref.mean(dim=(0, 1), keepdim=True)
-                    sd = Y_ref.std(dim=(0, 1), keepdim=True).clamp_min(1e-6)
-                    Df = Y_ref.shape[-1]
-                    Yr = ((Y_ref - mu) / sd).reshape(-1, Df)
-
-                    if Df == 1:
-                        qs = torch.linspace(0, 1, k_bins + 1, device=Yr.device)
-                        e0 = torch.quantile(Yr.reshape(-1), qs)
-                        b = torch.bucketize(Yr.reshape(-1), e0).clamp(1, k_bins) - 1
-                        c = torch.bincount(b, minlength=k_bins).float()
-                        self._y_hist = {"D": 1, "mu": mu.detach(), "sd": sd.detach(),
-                                        "edges": (e0.detach(),), "counts": c.detach(), "k": k_bins}
-                    else:
-                        U, S, Vt = torch.pca_lowrank(Yr, q=min(2, Df))
-                        Z = Yr @ Vt[:, :2]
-                        qs = torch.linspace(0, 1, k_bins + 1, device=Yr.device)
-                        e0 = torch.quantile(Z[:, 0], qs);
-                        e1 = torch.quantile(Z[:, 1], qs)
-                        i = torch.bucketize(Z[:, 0], e0).clamp(1, k_bins) - 1
-                        j = torch.bucketize(Z[:, 1], e1).clamp(1, k_bins) - 1
-                        bins = i * k_bins + j
-                        c = torch.bincount(bins, minlength=k_bins * k_bins).float()
-                        self._y_hist = {"D": Df, "mu": mu.detach(), "sd": sd.detach(),
-                                        "Vt": Vt[:, :2].detach(), "edges": (e0.detach(), e1.detach()),
-                                        "counts": c.detach(), "k": k_bins}
-
-                H = self._y_hist
+                H = self._rare
                 mu, sd, k = H["mu"], H["sd"], H["k"]
-                Yb = ((features - mu) / sd)  # [B, T, D]
+                B, T, D = features.shape
+                Yb_std = ((features - mu) / sd)  # [B, T, D]
+
                 if H["D"] == 1:
-                    e0 = H["edges"][0];
+                    e0 = H["edges"][0].contiguous()
                     c = H["counts"]
-                    b = torch.bucketize(Yb.reshape(-1), e0).clamp(1, k) - 1
-                    c_mean = c[c > 0].mean();
+                    vals = Yb_std.reshape(-1).contiguous()
+                    b = torch.bucketize(vals, e0).clamp(1, k) - 1  # [B*T]
+                    c_mean = c[c > 0].mean()
                     alpha, beta, wmax = 0.7, 20.0, 8.0
-                    wd = torch.minimum(torch.full_like(c, wmax), ((c + beta) / (c_mean + beta)).pow(-alpha))
-                    y_weights = wd[b]  # [B*T]
+                    wd_bins = torch.minimum(torch.full_like(c, wmax),
+                                            ((c + beta) / (c_mean + beta)).pow(-alpha))
+                    y_weights = wd_bins[b]  # [B*T]
+                    if H.get("ema", None) is not None:
+                        ema = H["ema"]
+                        batch_counts = torch.bincount(b, minlength=k).float().to(c.device)
+                        H["counts"] = (ema * c + (1 - ema) * batch_counts).contiguous()
                 else:
-                    Vt2 = H["Vt"];
-                    e0, e1 = H["edges"];
+                    Vt2 = H["Vt"]
+                    e0, e1 = H["edges"]
+                    Zb = (Yb_std.reshape(-1, D).contiguous() @ Vt2).contiguous()  # [B*T,2]
+                    i = torch.bucketize(Zb[:, 0].contiguous(), e0.contiguous()).clamp(1, k) - 1
+                    j = torch.bucketize(Zb[:, 1].contiguous(), e1.contiguous()).clamp(1, k) - 1
+                    bins = (i * k + j)
                     c = H["counts"]
-                    Zb = (Yb.reshape(-1, Yb.shape[-1]) @ Vt2)
-                    i = torch.bucketize(Zb[:, 0], e0).clamp(1, k) - 1
-                    j = torch.bucketize(Zb[:, 1], e1).clamp(1, k) - 1
-                    bins = i * k + j
-                    c_mean = c[c > 0].mean();
+                    c_mean = c[c > 0].mean()
                     alpha, beta, wmax = 0.7, 20.0, 8.0
-                    wd = torch.minimum(torch.full_like(c, wmax), ((c + beta) / (c_mean + beta)).pow(-alpha))
-                    y_weights = wd[bins]  # [B*T]
+                    wd_bins = torch.minimum(torch.full_like(c, wmax),
+                                            ((c + beta) / (c_mean + beta)).pow(-alpha))
+                    y_weights = wd_bins[bins]  # [B*T]
+                    if H.get("ema", None) is not None:
+                        ema = H["ema"]
+                        batch_counts = torch.bincount(bins, minlength=k * k).float().to(c.device)
+                        H["counts"] = (ema * c + (1 - ema) * batch_counts).contiguous()
+
                 y_weights = y_weights / (y_weights.mean().clamp_min(1e-12))
 
             if self.is_hybrid:
@@ -798,7 +835,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                             # for m>=1: Re(eta_m) ~ N(0, q_m/2)
                             eps[:, :, 1:] = np.sqrt((q[1:] * deltaT) / 2.0)[None, None, :] * re
                     else:
-                        # imaginary component: no m=0 noise; only Im(eta_m)
+                        # imaginary component: no m=0 noise only Im(eta_m)
                         # eps[:, :, 0] stays 0
                         if config.num_fourier_modes > 1:
                             im = np.random.randn((num_paths, 1, config.num_fourier_modes - 1))
