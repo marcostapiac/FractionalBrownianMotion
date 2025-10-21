@@ -249,4 +249,4 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
         beta_tau = torch.exp(-0.5 * eff_times)
         sigma2_tau = (1. - torch.exp(-eff_times))
         # Network tries to learn the posterior mean
-        return -inputs / sigma2_tau + (beta_tau / sigma2_tau) * x, x
+        return x#-inputs / sigma2_tau + (beta_tau / sigma2_tau) * x, x
