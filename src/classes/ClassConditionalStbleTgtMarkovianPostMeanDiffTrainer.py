@@ -121,7 +121,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         return self._batch_update(loss, base_loss=base_loss.detach().item(), var_loss=var_loss.detach().item(), mean_loss=mean_loss.detach().item())
 
     def _run_batch(self, xts: torch.Tensor, features: torch.Tensor, stable_targets: torch.Tensor,
-                   diff_times: torch.Tensor,
+                   diff_times: torch.Tensor, y_weights:torch.Tensor,
                    eff_times: torch.Tensor, epoch: int, batch_idx: int, num_batches: int) -> [float, float, float, float]:
         """
         Compute batch output and loss
@@ -149,20 +149,26 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times, eff_times=eff_times)
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         # For times larger than tau0, use inverse_weighting
-        sigma2_tau = 1. - torch.exp(-eff_times)  # This is sigma2
+        sigma2_tau = (1. - torch.exp(-eff_times)).clamp_min(1e-12)  # This is sigma2
         beta_tau = torch.exp(-0.5 * eff_times)
-        if self.loss_factor == 0:  # PM
-            weights = torch.ones_like(outputs)
-        elif self.loss_factor == 1:  # PMScaled (meaning not scaled)
-            weights = self.diffusion.get_loss_weighting(eff_times=outputs)
-        elif self.loss_factor == 2 or self.loss_factor == 21:  # PM with deltaT scaling
-            weights = torch.ones_like(outputs) / torch.sqrt(self.deltaT)
+
+        if self.loss_factor == 0:  # plain
+            w_tau = torch.ones_like(outputs)
+        elif self.loss_factor == 1:  # schedule-weighted
+            w_tau = self.diffusion.get_loss_weighting(eff_times=eff_times.detach())
+        elif self.loss_factor == 2 or self.loss_factor == 21:  # deltaT scaling
+            w_tau = torch.ones_like(outputs) / torch.sqrt(self.deltaT)
+        else:
+            w_tau = torch.ones_like(outputs)
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         # Now implement the stable target field
         outputs = (outputs + xts / sigma2_tau) * (sigma2_tau / beta_tau)  # This gives us the network D_theta
         assert (outputs.shape == stable_targets.shape)
         w_dim = 1.+0*self.w_dim.view(1, 1, -1)  # [1,1,D]
         print(f"WDIM {w_dim}\n\n\n\n")
+        yW = y_weights.view(B * T, 1, 1).expand_as(outputs)
+        weights = (w_tau * yW).detach()
+        weights = weights / (weights.mean().clamp_min(1e-12))
         return self._batch_loss_compute(outputs=outputs, targets=stable_targets, w_dim=w_dim, w_tau=weights.pow(2), epoch=epoch,
                                         batch_idx=batch_idx, num_batches=num_batches)
 
@@ -329,6 +335,61 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             prop_pool = ref_x0s#[perm[batch_size:], :, :]  # proposal pool P (SNIS candidates; G∩P=∅)
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
             features = self.create_feature_vectors_from_position(x0s)
+            with torch.no_grad():
+                k_bins = 10
+                if not hasattr(self, "_y_hist"):
+                    Y_ref = self.create_feature_vectors_from_position(ref_x0s)  # [B2, T, D]
+                    mu = Y_ref.mean(dim=(0, 1), keepdim=True)
+                    sd = Y_ref.std(dim=(0, 1), keepdim=True).clamp_min(1e-6)
+                    Df = Y_ref.shape[-1]
+                    Yr = ((Y_ref - mu) / sd).reshape(-1, Df)
+
+                    if Df == 1:
+                        qs = torch.linspace(0, 1, k_bins + 1, device=Yr.device)
+                        e0 = torch.quantile(Yr.reshape(-1), qs)
+                        b = torch.bucketize(Yr.reshape(-1), e0).clamp(1, k_bins) - 1
+                        c = torch.bincount(b, minlength=k_bins).float()
+                        self._y_hist = {"D": 1, "mu": mu.detach(), "sd": sd.detach(),
+                                        "edges": (e0.detach(),), "counts": c.detach(), "k": k_bins}
+                    else:
+                        U, S, Vt = torch.pca_lowrank(Yr, q=min(2, Df))
+                        Z = Yr @ Vt[:, :2]
+                        qs = torch.linspace(0, 1, k_bins + 1, device=Yr.device)
+                        e0 = torch.quantile(Z[:, 0], qs);
+                        e1 = torch.quantile(Z[:, 1], qs)
+                        i = torch.bucketize(Z[:, 0], e0).clamp(1, k_bins) - 1
+                        j = torch.bucketize(Z[:, 1], e1).clamp(1, k_bins) - 1
+                        bins = i * k_bins + j
+                        c = torch.bincount(bins, minlength=k_bins * k_bins).float()
+                        self._y_hist = {"D": Df, "mu": mu.detach(), "sd": sd.detach(),
+                                        "Vt": Vt[:, :2].detach(), "edges": (e0.detach(), e1.detach()),
+                                        "counts": c.detach(), "k": k_bins}
+
+                H = self._y_hist
+                mu, sd, k = H["mu"], H["sd"], H["k"]
+                Yb = ((features - mu) / sd)  # [B, T, D]
+                if H["D"] == 1:
+                    e0 = H["edges"][0];
+                    c = H["counts"]
+                    b = torch.bucketize(Yb.reshape(-1), e0).clamp(1, k) - 1
+                    c_mean = c[c > 0].mean();
+                    alpha, beta, wmax = 0.7, 20.0, 8.0
+                    wd = torch.minimum(torch.full_like(c, wmax), ((c + beta) / (c_mean + beta)).pow(-alpha))
+                    y_weights = wd[b]  # [B*T]
+                else:
+                    Vt2 = H["Vt"];
+                    e0, e1 = H["edges"];
+                    c = H["counts"]
+                    Zb = (Yb.reshape(-1, Yb.shape[-1]) @ Vt2)
+                    i = torch.bucketize(Zb[:, 0], e0).clamp(1, k) - 1
+                    j = torch.bucketize(Zb[:, 1], e1).clamp(1, k) - 1
+                    bins = i * k + j
+                    c_mean = c[c > 0].mean();
+                    alpha, beta, wmax = 0.7, 20.0, 8.0
+                    wd = torch.minimum(torch.full_like(c, wmax), ((c + beta) / (c_mean + beta)).pow(-alpha))
+                    y_weights = wd[bins]  # [B*T]
+                y_weights = y_weights / (y_weights.mean().clamp_min(1e-12))
+
             if self.is_hybrid:
                 # We select diffusion time uniformly at random for each sample at each time (i.e., size (NumBatches, TimeSeries Sequence))
                 diff_times = timesteps[torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,
@@ -359,7 +420,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                                                           stable_targets=stable_targets,
                                                                           diff_times=diff_times,
                                                                           eff_times=eff_times, epoch=epoch,
-                                                                          batch_idx=batch_idx,
+                                                                          batch_idx=batch_idx,y_weights=y_weights,
                                                                           num_batches=len(self.train_loader))
             device_epoch_losses.append(batch_loss)
             device_epoch_base_losses.append(batch_base_loss)
