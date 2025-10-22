@@ -220,6 +220,7 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
         )
         self.skip_projection = nn.Conv1d(residual_channels, residual_channels, 1)
         self.output_projection = nn.Conv1d(residual_channels, 1, 1)
+        self.learnable_scale = nn.Parameter(torch.tensor(1.0))  # learns Δ
 
         nn.init.kaiming_normal_(self.input_projection.weight)
         nn.init.kaiming_normal_(self.skip_projection.weight)
@@ -249,4 +250,4 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
         #beta_tau = torch.exp(-0.5 * eff_times)
         #sigma2_tau = (1. - torch.exp(-eff_times))
         # Network tries to learn the posterior mean
-        return x#-inputs / sigma2_tau + (beta_tau / sigma2_tau) * x, x
+        return self.learnable_scale*x#-inputs / sigma2_tau + (beta_tau / sigma2_tau) * x, x

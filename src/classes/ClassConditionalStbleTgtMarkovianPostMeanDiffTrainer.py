@@ -381,7 +381,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         elif self.loss_factor == 1:  # schedule-weighted
             w_tau = self.diffusion.get_loss_weighting(eff_times=eff_times.detach())
         elif self.loss_factor == 2 or self.loss_factor == 21:  # deltaT scaling
-            w_tau = torch.ones_like(outputs) / torch.sqrt(self.deltaT)
+            w_tau = torch.ones_like(outputs) #/ torch.sqrt(self.deltaT)
         else:
             w_tau = torch.ones_like(outputs)
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
