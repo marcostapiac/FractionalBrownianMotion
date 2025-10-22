@@ -1036,7 +1036,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         # Load snapshot if available
         if os.path.exists(self.snapshot_path):
             print("Device {} :: Loading snapshot\n".format(self.device_id))
-            #self._load_snapshot(self.snapshot_path, config=config)
+            self._load_snapshot(self.snapshot_path, config=config)
         max_epochs = sorted(max_epochs)
         self.score_network.train()
         all_losses_per_epoch, learning_rates = self._load_loss_tracker(
@@ -1072,7 +1072,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             t0 = time.time()
             # Temperature annealing for gumbel softmax
             if epoch % 20 == 0:
-                continue
                 tau = max(self.score_network.module.mlp_state_mapper.hybrid.final_tau,
                           self.score_network.module.mlp_state_mapper.hybrid.init_tau * (0.9 ** (epoch // 20)))
                 self.score_network.module.mlp_state_mapper.hybrid.set_tau(tau)
