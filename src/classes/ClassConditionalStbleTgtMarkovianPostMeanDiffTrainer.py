@@ -515,7 +515,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             if self.is_hybrid:
                 # We select diffusion time uniformly at random for each sample at each time (i.e., size (NumBatches, TimeSeries Sequence))
                 diff_times = timesteps[
-                    torch.randint(low=self.max_diff_steps - 2, high=self.max_diff_steps, dtype=torch.int32,
+                    torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,
                                   size=x0s.shape[0:2]).long()].view(x0s.shape[0], x0s.shape[1],
                                                                     *([1] * len(x0s.shape[2:]))).to(
                     self.device_id)
