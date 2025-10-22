@@ -63,6 +63,7 @@ def get_config():
     config.stable_target = False
     config.stable_target_label = "NSTgt" if not config.stable_target else ""
 
+
     # MLP Architecture parameters
     config.mlp_hidden_dims = 4
     config.condupsampler_length = 20

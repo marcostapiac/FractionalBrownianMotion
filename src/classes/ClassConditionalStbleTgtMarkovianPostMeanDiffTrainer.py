@@ -218,8 +218,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         w_dim = 1. + 0 * self.w_dim.view(1, 1, -1)  # [1,1,D]
         print(f"WDIM {w_dim}\n\n\n\n")
         yW = y_weights.view(B * T, 1, 1).expand_as(outputs)
-        weights = (w_tau * yW).detach()
-        weights = weights / (weights.mean().clamp_min(1e-12))
+        weights = w_tau#(w_tau * yW).detach()
+        #weights = weights / (weights.mean().clamp_min(1e-12))
         return self._batch_loss_compute(outputs=outputs, targets=stable_targets, w_dim=w_dim, w_tau=weights.pow(2),
                                         epoch=epoch,
                                         batch_idx=batch_idx, num_batches=num_batches)

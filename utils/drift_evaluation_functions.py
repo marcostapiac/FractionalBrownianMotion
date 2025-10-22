@@ -218,7 +218,7 @@ def LSTM_1D_drifts(config, PM):
                                                                                            max_diff_steps=Ndiff_discretisation)
 
         if "PM" in config.scoreNet_trained_path:
-            final_mu_hats = (vec_Z_taus / (ts_step * sigma2_taus)) + ((
+            final_mu_hats = (-beta_taus*vec_Z_taus / (sigma2_taus)) + ((
                                                                               (torch.pow(sigma_taus, 2) + (
                                                                                       torch.pow(
                                                                                           beta_taus * config.diffusion,
@@ -310,7 +310,7 @@ def MLP_1D_drifts(config, PM):
                                                                                            max_diff_steps=Ndiff_discretisation)
 
         if "PM" in config.scoreNet_trained_path:
-            final_mu_hats = (vec_Z_taus / (ts_step * sigma2_taus)) + ((
+            final_mu_hats = (-beta_taus*vec_Z_taus / (sigma2_taus)) + ((
                                                                               (torch.pow(sigma_taus, 2) + (
                                                                                       torch.pow(
                                                                                           beta_taus * config.diffusion,
@@ -412,7 +412,7 @@ def LSTM_2D_drifts(PM, config):
                                                                                            max_diff_steps=Ndiff_discretisation)
 
         if "PM" in config.scoreNet_trained_path:
-            final_mu_hats = (vec_Z_taus / (ts_step * sigma2_taus)) + ((
+            final_mu_hats = (-beta_taus*vec_Z_taus / (sigma2_taus)) + ((
                                                                               (torch.pow(sigma_taus, 2) + (
                                                                                       torch.pow(
                                                                                           beta_taus * config.diffusion,
@@ -514,7 +514,7 @@ def MLP_fBiPotDDims_drifts(config, PM):
                                                                                            max_diff_steps=Ndiff_discretisation)
 
         if "PM" in config.scoreNet_trained_path:
-            final_mu_hats = (vec_Z_taus / (ts_step * sigma2_taus)) + ((
+            final_mu_hats = (-beta_taus*vec_Z_taus / (sigma2_taus)) + ((
                                                                             (torch.pow(sigma_taus, 2) + (
                                                                                     torch.pow(beta_taus * config.diffusion,
                                                                                               2) * ts_step)) / (
@@ -590,7 +590,7 @@ def multivar_score_based_LSTM_drift(score_model, num_diff_times, diffusion, num_
                                                                                            max_diff_steps=Ndiff_discretisation)
 
         if "PM" in config.scoreNet_trained_path:
-            final_mu_hats = (vec_Z_taus / (ts_step * sigma2_taus)) + ((
+            final_mu_hats = (-beta_taus*vec_Z_taus / (sigma2_taus)) + ((
                                                                               (torch.pow(sigma_taus, 2) + (
                                                                                       torch.pow(
                                                                                           beta_taus * config.diffusion,
@@ -663,7 +663,7 @@ def multivar_score_based_MLP_drift(score_model, num_diff_times, diffusion, num_p
                                                                                            max_diff_steps=Ndiff_discretisation)
 
         if "PM" in config.scoreNet_trained_path:
-            final_mu_hats = (vec_Z_taus / (ts_step * sigma2_taus)) + ((
+            final_mu_hats = (-beta_taus*vec_Z_taus / (sigma2_taus)) + ((
                                                                               (torch.pow(sigma_taus, 2) + (
                                                                                       torch.pow(
                                                                                           beta_taus * config.diffusion,
@@ -750,7 +750,7 @@ def multivar_score_based_LSTM_drift_OOS(score_model, time_idx, h, c, num_diff_ti
                                                                                            max_diff_steps=Ndiff_discretisation)
 
         if "PM" in config.scoreNet_trained_path:
-            final_mu_hats = (vec_Z_taus / (ts_step * sigma2_taus)) + ((
+            final_mu_hats = (-beta_taus*vec_Z_taus / (sigma2_taus)) + ((
                                                                               (torch.pow(sigma_taus, 2) + (
                                                                                       torch.pow(
                                                                                           beta_taus * config.diffusion,
@@ -852,7 +852,7 @@ def multivar_score_based_MLP_drift_OOS(score_model, num_diff_times, diffusion, n
                                                                                            max_diff_steps=Ndiff_discretisation)
 
         if "PM" in config.scoreNet_trained_path:
-            final_mu_hats = (vec_Z_taus / (ts_step * sigma2_taus)) + ((
+            final_mu_hats = (-beta_taus*vec_Z_taus / (sigma2_taus)) + ((
                                                                               (torch.pow(sigma_taus, 2) + (
                                                                                       torch.pow(
                                                                                           beta_taus * config.diffusion,
