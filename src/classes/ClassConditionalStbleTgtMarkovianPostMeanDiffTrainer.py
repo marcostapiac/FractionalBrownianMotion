@@ -112,7 +112,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
     @torch.no_grad()
     def _select_point_indices(self, tail_mask_bt: torch.Tensor,
-                              target_points: int, p_tail: float = 0.1) -> torch.Tensor:
+                              target_points: int, p_tail: float = 0.025) -> torch.Tensor:
         # Stratify over points: choose ≈ p_tail fraction from tails among B*T points
         B, T = tail_mask_bt.shape
         N = B * T
@@ -353,7 +353,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         tail_bt = self._tail_mask_bt(features)  # [B,T] bool
         N_all = B * T
         N_sel = getattr(self, "point_batch", N_all)  # optional: set self.point_batch; default use all
-        p_tail = getattr(self, "p_tail_points", 0.1)
+        p_tail = getattr(self, "p_tail_points", 0.025)
 
         idx_sel = self._select_point_indices(tail_bt, target_points=N_sel, p_tail=p_tail)  # [N_sel]
 
