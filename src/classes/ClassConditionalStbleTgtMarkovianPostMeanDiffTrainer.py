@@ -91,7 +91,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         print("!!Setup Done!!\n")
 
     @torch.no_grad()
-    def _init_rarity(self, k: int = 16, wmax: float = 8.0, eps: float = 1e-6):
+    def _init_rarity(self, k: int = 16, wmax: float = 20.0, eps: float = 1e-6):
         """
         Build EQUAL-WIDTH histogram edges on the FULL training set and freeze global weights.
         - Standardize per feature using global mean/std over [B, T].
@@ -150,8 +150,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 c += torch.bincount(b, minlength=k).float()
 
             c_mean = c[c > 0].mean() if (c > 0).any() else torch.tensor(1.0, device=device)
-            wd_bins = (c_mean / (c + eps)).clamp(max=wmax)
-            wd_bins = wd_bins / wd_bins.mean().clamp_min(eps)
+            w_raw = c_mean / (c + eps)  # rarer -> larger
+            wd_bins = torch.clamp(w_raw, min=1.0, max=wmax)  # never down-weight
 
             self._rare = {
                 "D": 1,
@@ -217,8 +217,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             c += torch.bincount(bins, minlength=k * k).float()
 
         c_mean = c[c > 0].mean() if (c > 0).any() else torch.tensor(1.0, device=device)
-        wd_bins = (c_mean / (c + eps)).clamp(max=wmax)
-        wd_bins = wd_bins / wd_bins.mean().clamp_min(eps)
+        w_raw = c_mean / (c + eps)
+        wd_bins = torch.clamp(w_raw, min=1.0, max=wmax)
 
         self._rare = {
             "D": D,
