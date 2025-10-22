@@ -91,7 +91,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         print("!!Setup Done!!\n")
 
     @torch.no_grad()
-    def _init_rarity(self, k: int = 16, wmax: float = 20.0, eps: float = 1e-6):
+    def _init_rarity(self, k: int = 16, wmax: float = 4.0, eps: float = 1e-6):
         """
         Build EQUAL-WIDTH histogram edges on the FULL training set and freeze global weights.
         - Standardize per feature using global mean/std over [B, T].
@@ -1064,7 +1064,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         var_robust = (iqr.to(self.device_id) / 1.349) ** 2  # [D]
         self.register_buffer("w_dim", (1.0 / var_robust).float())
         if not hasattr(self, "_rare") or getattr(self, "rebuild_hist_each_epoch", False):
-            self._init_rarity(k=16, wmax=8.0, eps=1e-6)
+            self._init_rarity(k=16, wmax=4.0, eps=1e-6)
 
         for epoch in range(self.epochs_run, end_epoch):
             set_runtime_global(epoch=epoch)
