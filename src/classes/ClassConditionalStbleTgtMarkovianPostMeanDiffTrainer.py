@@ -91,6 +91,47 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         print("!!Setup Done!!\n")
 
     @torch.no_grad()
+    def _is_tail_batch(self, features: torch.Tensor) -> torch.Tensor:
+        # features: [B,T,D] -> returns [B] bool (sequence is tail if ANY timestep is tail)
+        H = self._rare
+        k = H["k"]
+        B, T, D = features.shape
+        Z = ((features - H["mu"]) / H["sd"]).reshape(-1, D).contiguous()
+        if H["D"] == 1:
+            e0 = H["edges"][0]
+            b = torch.bucketize(Z.reshape(-1).contiguous(), e0).clamp(1, k) - 1  # [B*T]
+            tail_bt = ((b == 0) | (b == k - 1)).view(B, T)
+            return tail_bt.any(dim=1)
+        else:
+            Vt2 = H["Vt"]
+            e0, e1 = H["edges"]
+            P = (Z @ Vt2).contiguous()  # [B*T,2]
+            i = torch.bucketize(P[:, 0].contiguous(), e0).clamp(1, k) - 1
+            j = torch.bucketize(P[:, 1].contiguous(), e1).clamp(1, k) - 1
+            tail_bt = ((i == 0) | (i == k - 1) | (j == 0) | (j == k - 1)).view(B, T)
+            return tail_bt.any(dim=1)
+
+    @torch.no_grad()
+    def _stratified_select(self, ref_x0s: torch.Tensor, batch_size: int, p_tail: float = 0.5) -> torch.Tensor:
+        # pick ~p_tail fraction from tails each batch fallback to random if pool is insufficient
+        feats_ref = self.create_feature_vectors_from_position(ref_x0s)  # [B2,T,D]
+        is_tail = self._is_tail_batch(feats_ref)  # [B2]
+        idx_all = torch.arange(ref_x0s.size(0), device=ref_x0s.device)
+        tail_idx = idx_all[is_tail]
+        non_idx = idx_all[~is_tail]
+
+        if tail_idx.numel() == 0 or non_idx.numel() == 0:
+            perm = torch.randperm(ref_x0s.size(0), device=ref_x0s.device)
+            return ref_x0s[perm[:batch_size]]
+
+        m_tail = min(int(round(p_tail * batch_size)), tail_idx.numel())
+        m_non = batch_size - m_tail
+        sel_tail = tail_idx[torch.randint(tail_idx.numel(), (m_tail,), device=ref_x0s.device)]
+        sel_non = non_idx[torch.randint(non_idx.numel(), (m_non,), device=ref_x0s.device)]
+        sel = torch.cat([sel_tail, sel_non], 0)
+        sel = sel[torch.randperm(sel.numel(), device=ref_x0s.device)]
+        return ref_x0s[sel]
+    @torch.no_grad()
     def _init_rarity(self, k: int = 16, wmax: float = 4.0, eps: float = 1e-6):
         """
         Build EQUAL-WIDTH histogram edges on the FULL training set and freeze global weights.
@@ -505,13 +546,10 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
         for batch_idx, x0s in enumerate(self.train_loader):
             ref_x0s = x0s[0].to(self.device_id)
-            perm = torch.randperm(ref_x0s.shape[0], device=self.device_id)
-            if not config.stable_target: batch_size = ref_x0s.shape[0]
-            x0s = ref_x0s[perm[:batch_size], :, :]  # generator pool G (produces xts)
-            prop_pool = ref_x0s  # [perm[batch_size:], :, :]  # proposal pool P (SNIS candidates G∩P=∅)
-            # Generate history vector for each time t for a sample in (batch_id, t, numdims)
+            x0s = self._stratified_select(ref_x0s, batch_size, p_tail=getattr(config, "p_tail", 0.5))
+            prop_pool = ref_x0s
             features = self.create_feature_vectors_from_position(x0s)
-            y_weights = self.rarity_weights(features)  # [B*T]
+            y_weights = torch.ones(x0s.shape[0] * x0s.shape[1], device=self.device_id)#self.rarity_weights(features)  # [B*T]
             if self.is_hybrid:
                 # We select diffusion time uniformly at random for each sample at each time (i.e., size (NumBatches, TimeSeries Sequence))
                 diff_times = timesteps[
