@@ -32,7 +32,7 @@ def get_config():
     config.train_eps = 1./config.max_diff_steps  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 2
-    config.lr = 1e-3
+    config.lr = 7.5e-5
     config.max_epochs = [3000]
     config.ref_batch_size = 2048
     config.batch_size = 256
@@ -47,7 +47,7 @@ def get_config():
     config.loss_factor = 2
     config.enforce_fourier_mean_reg = False
     config.reg_label = "NFMReg_" if not config.enforce_fourier_mean_reg else ""
-    config.stable_target = True
+    config.stable_target = False
     config.stable_target_label = "NSTgt" if not config.stable_target else ""
 
     # Diffusion hyperparameters
