@@ -91,46 +91,42 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         print("!!Setup Done!!\n")
 
     @torch.no_grad()
-    def _is_tail_batch(self, features: torch.Tensor) -> torch.Tensor:
-        # features: [B,T,D] -> returns [B] bool (sequence is tail if ANY timestep is tail)
-        H = self._rare
-        k = H["k"]
+    def _tail_mask_bt(self, features: torch.Tensor) -> torch.Tensor:
+        # features: [B,T,D] -> returns [B,T] bool (tail per (b,t))
+        H = self._rare;
+        k = H["k"];
         B, T, D = features.shape
         Z = ((features - H["mu"]) / H["sd"]).reshape(-1, D).contiguous()
         if H["D"] == 1:
             e0 = H["edges"][0]
-            b = torch.bucketize(Z.reshape(-1).contiguous(), e0).clamp(1, k) - 1  # [B*T]
-            tail_bt = ((b == 0) | (b == k - 1)).view(B, T)
-            return tail_bt.any(dim=1)
+            b = torch.bucketize(Z.reshape(-1).contiguous(), e0).clamp(1, k) - 1
+            tail_flat = (b == 0) | (b == k - 1)
         else:
-            Vt2 = H["Vt"]
+            Vt2 = H["Vt"];
             e0, e1 = H["edges"]
             P = (Z @ Vt2).contiguous()  # [B*T,2]
             i = torch.bucketize(P[:, 0].contiguous(), e0).clamp(1, k) - 1
             j = torch.bucketize(P[:, 1].contiguous(), e1).clamp(1, k) - 1
-            tail_bt = ((i == 0) | (i == k - 1) | (j == 0) | (j == k - 1)).view(B, T)
-            return tail_bt.any(dim=1)
+            tail_flat = (i == 0) | (i == k - 1) | (j == 0) | (j == k - 1)
+        return tail_flat.view(B, T)
 
     @torch.no_grad()
-    def _stratified_select(self, ref_x0s: torch.Tensor, batch_size: int, p_tail: float = 0.5) -> torch.Tensor:
-        # pick ~p_tail fraction from tails each batch fallback to random if pool is insufficient
-        feats_ref = self.create_feature_vectors_from_position(ref_x0s)  # [B2,T,D]
-        is_tail = self._is_tail_batch(feats_ref)  # [B2]
-        idx_all = torch.arange(ref_x0s.size(0), device=ref_x0s.device)
-        tail_idx = idx_all[is_tail]
-        non_idx = idx_all[~is_tail]
-
-        if tail_idx.numel() == 0 or non_idx.numel() == 0:
-            perm = torch.randperm(ref_x0s.size(0), device=ref_x0s.device)
-            return ref_x0s[perm[:batch_size]]
-
-        m_tail = min(int(round(p_tail * batch_size)), tail_idx.numel())
-        m_non = batch_size - m_tail
-        sel_tail = tail_idx[torch.randint(tail_idx.numel(), (m_tail,), device=ref_x0s.device)]
-        sel_non = non_idx[torch.randint(non_idx.numel(), (m_non,), device=ref_x0s.device)]
+    def _select_point_indices(self, tail_mask_bt: torch.Tensor,
+                              target_points: int, p_tail: float = 0.1) -> torch.Tensor:
+        # Stratify over points: choose ≈ p_tail fraction from tails among B*T points
+        B, T = tail_mask_bt.shape
+        N = B * T
+        idx_all = torch.arange(N, device=tail_mask_bt.device)
+        tail_idx = idx_all[tail_mask_bt.reshape(-1)]
+        non_idx = idx_all[~tail_mask_bt.reshape(-1)]
+        n_tail = min(int(round(p_tail * target_points)), tail_idx.numel())
+        n_non = target_points - n_tail
+        if n_tail == 0 or n_non < 0 or non_idx.numel() == 0:
+            return torch.randperm(N, device=tail_mask_bt.device)[:target_points]
+        sel_tail = tail_idx[torch.randint(tail_idx.numel(), (n_tail,), device=tail_idx.device)]
+        sel_non = non_idx[torch.randint(non_idx.numel(), (n_non,), device=non_idx.device)]
         sel = torch.cat([sel_tail, sel_non], 0)
-        sel = sel[torch.randperm(sel.numel(), device=ref_x0s.device)]
-        return ref_x0s[sel]
+        return sel[torch.randperm(sel.numel(), device=sel.device)]
     @torch.no_grad()
     def _init_rarity(self, k: int = 16, wmax: float = 4.0, eps: float = 1e-6):
         """
@@ -350,20 +346,33 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.opt.zero_grad()
         B, T, D = xts.shape
         assert (features.shape[:2] == (B, T) and features.shape[-1] == D)
-        # Reshaping concatenates vectors in dim=1
-        xts = xts.reshape(B * T, 1, D)
-        # Features is originally shaped (NumTimeSeries, TimeSeriesLength, LookBackWindow, TimeSeriesDim)
-        # Reshape so that we have (NumTimeSeries*TimeSeriesLength, 1, LookBackWindow, TimeSeriesDim)
-        ##features = features.reshape(B * T, 1, 1, D)
-        # Now reshape again into (NumTimeSeries*TimeSeriesLength, 1, LookBackWindow*TimeSeriesDim)
-        # Note this is for the simplest implementation of CondUpsampler which is simply an MLP
-        ##features = features.reshape(B * T, 1, 1 * D, 1).permute((0, 1, 3, 2)).squeeze(2)
-        features = features.reshape(B * T, 1, D)
-        stable_targets = stable_targets.reshape(B * T, 1, -1)
-        diff_times = diff_times.reshape(B * T)
-        eff_times = torch.cat([eff_times] * D, dim=2).reshape(stable_targets.shape)
-        outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times, eff_times=eff_times)
 
+        assert features.shape[:2] == (B, T) and features.shape[-1] == D
+
+        # ---- point-level tail selection ----
+        tail_bt = self._tail_mask_bt(features)  # [B,T] bool
+        N_all = B * T
+        N_sel = getattr(self, "point_batch", N_all)  # optional: set self.point_batch; default use all
+        p_tail = getattr(self, "p_tail_points", 0.1)
+
+        idx_sel = self._select_point_indices(tail_bt, target_points=N_sel, p_tail=p_tail)  # [N_sel]
+
+        # flatten then gather rows
+        xts_flat = xts.reshape(N_all, D)
+        feats_flat = features.reshape(N_all, D)
+        targets_flat = stable_targets.reshape(N_all, -1)  # last dim == D
+        times_flat = diff_times.reshape(N_all)  # [N_all]
+        eff_full = torch.cat([eff_times] * D, dim=2)  # [B,T,D]
+        eff_flat = eff_full.reshape(N_all, D)
+
+        xts_sel = xts_flat[idx_sel].unsqueeze(1)  # [N_sel,1,D]
+        feats_sel = feats_flat[idx_sel].unsqueeze(1)  # [N_sel,1,D]
+        targets_sel = targets_flat[idx_sel].unsqueeze(1)  # [N_sel,1,D]
+        times_sel = times_flat[idx_sel]  # [N_sel]
+        eff_sel = eff_flat[idx_sel].unsqueeze(1)  # [N_sel,1,D]
+
+        outputs = self.score_network.forward(inputs=xts_sel, conditioner=feats_sel,
+                                             times=times_sel, eff_times=eff_sel)
         # sigma2_tau = (1. - torch.exp(-eff_times)).clamp_min(1e-12)  # This is sigma2
         # beta_tau = torch.exp(-0.5 * eff_times)
 
@@ -378,13 +387,12 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
         # Now implement the stable target field
         # outputs = (outputs + xts / sigma2_tau) * (sigma2_tau / beta_tau)  # This gives us the network D_theta
-        assert (outputs.shape == stable_targets.shape)
+        assert (outputs.shape == targets_sel.shape)
         w_dim = 1. + 0 * self.w_dim.view(1, 1, -1)  # [1,1,D]
-        print(f"WDIM {w_dim}\n\n\n\n")
         yW = y_weights.view(B * T, 1, 1).expand_as(outputs)
         weights = (w_tau * yW).detach()
         #weights = weights / (weights.mean().clamp_min(1e-12))
-        return self._batch_loss_compute(outputs=outputs, targets=stable_targets, w_dim=w_dim, w_tau=weights.pow(2),
+        return self._batch_loss_compute(outputs=outputs, targets=targets_sel, w_dim=w_dim, w_tau=weights.pow(2),
                                         epoch=epoch,
                                         batch_idx=batch_idx, num_batches=num_batches)
 
@@ -546,7 +554,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
         for batch_idx, x0s in enumerate(self.train_loader):
             ref_x0s = x0s[0].to(self.device_id)
-            x0s = self._stratified_select(ref_x0s, batch_size, p_tail=getattr(config, "p_tail", 0.5))
+            if not config.stable_targets:
+                batch_size = ref_x0s.shape[0]
+            x0s = self._stratified_select(ref_x0s, batch_size, p_tail=getattr(config, "p_tail", 0.1))
             prop_pool = ref_x0s
             features = self.create_feature_vectors_from_position(x0s)
             y_weights = torch.ones(x0s.shape[0] * x0s.shape[1], device=self.device_id)#self.rarity_weights(features)  # [B*T]
