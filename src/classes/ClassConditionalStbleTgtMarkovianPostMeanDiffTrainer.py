@@ -90,53 +90,176 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.snapshot_path = snapshot_path
         print("!!Setup Done!!\n")
 
-    def _init_rarity(self, ref_x0s, k: int = 10):
+    @torch.no_grad()
+    def _init_rarity(self, k: int = 16, wmax: float = 8.0, eps: float = 1e-6):
         """
-        Build fixed histogram edges on a reference pool and initialize global counts.
-        D=1: univariate quantile edges; D>1: 2D PCA projection + quantile grid.
-        All tensors saved as contiguous to avoid searchsorted/bucketize warnings.
+        Build EQUAL-WIDTH histogram edges on the FULL training set and freeze global weights.
+        - Standardize per feature using global mean/std over [B, T].
+        - D == 1: 1D equal-width z-bins in [-zmax, zmax] with zmax from data (at least 3.0, at most 8.0).
+        - D > 1: compute 2D PCA on standardized features via covariance build equal-width grid
+                  for the top-2 components using symmetric ranges count on FULL dataset.
+        - Weights: wd_bins = clamp(mean(c) / (c + eps), max=wmax), then one global normalization to mean=1.
+        - No EMA. Edges, counts, and wd_bins are frozen and reused during training.
         """
-        with torch.no_grad():
-            Y_ref = self.create_feature_vectors_from_position(ref_x0s)  # [B2, T, D]
-            mu = Y_ref.mean(dim=(0, 1), keepdim=True)
-            sd = Y_ref.std(dim=(0, 1), keepdim=True).clamp_min(1e-6)
-            D = Y_ref.shape[-1]
+        device = self.device_id
 
-            if D == 1:
-                Yr = ((Y_ref - mu) / sd).reshape(-1).contiguous()  # [B2*T]
-                qs = torch.linspace(0, 1, k + 1, device=Yr.device)
-                e0 = torch.quantile(Yr, qs).contiguous()  # edges
-                b = torch.bucketize(Yr, e0).clamp(1, k) - 1
-                c = torch.bincount(b, minlength=k).float().contiguous()
-                self._rare = {
-                    "D": 1, "k": k,
-                    "mu": mu.detach().contiguous(),
-                    "sd": sd.detach().contiguous(),
-                    "edges": (e0.detach(),),  # tuple for uniform access
-                    "counts": c.detach(),
-                    "ema": 0.95
-                }
-            else:
-                Yr = ((Y_ref - mu) / sd).reshape(-1, D).contiguous()  # [B2*T, D]
-                U, S, Vt = torch.pca_lowrank(Yr, q=min(2, D))
-                Vt2 = Vt[:, :2].contiguous()  # [D,2]
-                Z = (Yr @ Vt2).contiguous()  # [B2*T,2]
-                qs = torch.linspace(0, 1, k + 1, device=Yr.device)
-                e0 = torch.quantile(Z[:, 0].contiguous(), qs).contiguous()
-                e1 = torch.quantile(Z[:, 1].contiguous(), qs).contiguous()
-                i = torch.bucketize(Z[:, 0].contiguous(), e0).clamp(1, k) - 1
-                j = torch.bucketize(Z[:, 1].contiguous(), e1).clamp(1, k) - 1
-                bins = (i * k + j)
-                c = torch.bincount(bins, minlength=k * k).float().contiguous()
-                self._rare = {
-                    "D": D, "k": k,
-                    "mu": mu.detach().contiguous(),
-                    "sd": sd.detach().contiguous(),
-                    "Vt": Vt2.detach(),
-                    "edges": (e0.detach(), e1.detach()),
-                    "counts": c.detach(),
-                    "ema": 0.95
-                }
+        # -------- PASS 0: infer D from a single batch and set up accumulators --------
+        x0s0 = next(iter(self.train_loader))[0].to(device)
+        feat0 = self.create_feature_vectors_from_position(x0s0)  # [B0, T, D]
+        D = feat0.shape[-1]
+
+        # -------- PASS 1: global mean/std over FULL dataset --------
+        n_total = 0
+        sum_vec = torch.zeros(D, device=device)
+        sumsq_vec = torch.zeros(D, device=device)
+
+        for x in self.train_loader:
+            x0s = x[0].to(device)
+            F = self.create_feature_vectors_from_position(x0s)  # [B, T, D]
+            sum_vec += F.sum(dim=(0, 1))
+            sumsq_vec += (F * F).sum(dim=(0, 1))
+            n_total += F.shape[0] * F.shape[1]
+
+        mu_vec = (sum_vec / max(1, n_total))  # [D]
+        var_vec = (sumsq_vec / max(1, n_total)) - mu_vec * mu_vec
+        sd_vec = torch.sqrt(var_vec.clamp_min(eps))  # [D]
+
+        mu = mu_vec.view(1, 1, D)
+        sd = sd_vec.view(1, 1, D)
+
+        if D == 1:
+            # -------- PASS 2 (1D): determine symmetric range for equal-width bins --------
+            zabs_max = torch.tensor(0.0, device=device)
+            for x in self.train_loader:
+                x0s = x[0].to(device)
+                F = self.create_feature_vectors_from_position(x0s)
+                z = ((F - mu) / sd).abs()  # [B,T,1]
+                zabs_max = torch.maximum(zabs_max, z.max())
+            zmax = zabs_max.item()
+            zmax = float(max(3.0, min(zmax, 8.0)))  # keep at least ±3σ cap extreme outliers
+
+            e0 = torch.linspace(-zmax, zmax, steps=k + 1, device=device).contiguous()
+
+            # -------- PASS 3 (1D): counts on FULL dataset --------
+            c = torch.zeros(k, device=device)
+            for x in self.train_loader:
+                x0s = x[0].to(device)
+                F = self.create_feature_vectors_from_position(x0s)
+                vals = ((F - mu) / sd).reshape(-1).contiguous()  # [B*T]
+                b = torch.bucketize(vals, e0).clamp(1, k) - 1
+                c += torch.bincount(b, minlength=k).float()
+
+            c_mean = c[c > 0].mean() if (c > 0).any() else torch.tensor(1.0, device=device)
+            wd_bins = (c_mean / (c + eps)).clamp(max=wmax)
+            wd_bins = wd_bins / wd_bins.mean().clamp_min(eps)
+
+            self._rare = {
+                "D": 1,
+                "k": k,
+                "mu": mu.detach().contiguous(),
+                "sd": sd.detach().contiguous(),
+                "edges": (e0.detach().contiguous(),),
+                "counts": c.detach().contiguous(),
+                "wd_bins": wd_bins.detach().contiguous(),
+                "ema": None,
+            }
+            return
+
+        # -------- D > 1 --------
+        # -------- PASS 2: covariance of standardized features (for PCA) --------
+        sum_zz = torch.zeros(D, D, device=device)
+        for x in self.train_loader:
+            x0s = x[0].to(device)
+            F = self.create_feature_vectors_from_position(x0s)  # [B,T,D]
+            Z = ((F - mu) / sd).reshape(-1, D).contiguous()  # [N,D]
+            sum_zz += Z.t() @ (Z)
+        cov = sum_zz / max(1, n_total)
+
+        # top-2 eigenvectors (columns) for PCA projection
+        evals, evecs = torch.linalg.eigh(cov)  # ascending
+        Vt2 = evecs[:, -2:].contiguous()  # [D,2]
+
+        # -------- PASS 3a: determine symmetric ranges in PCA space --------
+        z0_min = torch.tensor(float("inf"), device=device)
+        z0_max = torch.tensor(float("-inf"), device=device)
+        z1_min = torch.tensor(float("inf"), device=device)
+        z1_max = torch.tensor(float("-inf"), device=device)
+
+        for x in self.train_loader:
+            x0s = x[0].to(device)
+            F = self.create_feature_vectors_from_position(x0s)
+            Z = ((F - mu) / sd).reshape(-1, D).contiguous()  # [N,D]
+            P = (Z @ Vt2).contiguous()  # [N,2]
+            z0 = P[:, 0]
+            z1 = P[:, 1]
+            z0_min = torch.minimum(z0_min, z0.min())
+            z0_max = torch.maximum(z0_max, z0.max())
+            z1_min = torch.minimum(z1_min, z1.min())
+            z1_max = torch.maximum(z1_max, z1.max())
+
+        # symmetric ranges enforce at least ±3 and cap at ±8 to avoid extreme tails dominating
+        s0 = float(max(3.0, min(max(abs(z0_min.item()), abs(z0_max.item())), 8.0)))
+        s1 = float(max(3.0, min(max(abs(z1_min.item()), abs(z1_max.item())), 8.0)))
+
+        e0 = torch.linspace(-s0, s0, steps=k + 1, device=device).contiguous()
+        e1 = torch.linspace(-s1, s1, steps=k + 1, device=device).contiguous()
+
+        # -------- PASS 3b: 2D counts on FULL dataset --------
+        c = torch.zeros(k * k, device=device)
+        for x in self.train_loader:
+            x0s = x[0].to(device)
+            F = self.create_feature_vectors_from_position(x0s)
+            Z = ((F - mu) / sd).reshape(-1, D).contiguous()
+            P = (Z @ Vt2).contiguous()  # [N,2]
+            i = torch.bucketize(P[:, 0].contiguous(), e0).clamp(1, k) - 1
+            j = torch.bucketize(P[:, 1].contiguous(), e1).clamp(1, k) - 1
+            bins = (i * k + j)
+            c += torch.bincount(bins, minlength=k * k).float()
+
+        c_mean = c[c > 0].mean() if (c > 0).any() else torch.tensor(1.0, device=device)
+        wd_bins = (c_mean / (c + eps)).clamp(max=wmax)
+        wd_bins = wd_bins / wd_bins.mean().clamp_min(eps)
+
+        self._rare = {
+            "D": D,
+            "k": k,
+            "mu": mu.detach().contiguous(),
+            "sd": sd.detach().contiguous(),
+            "Vt": Vt2.detach().contiguous(),
+            "edges": (e0.detach().contiguous(), e1.detach().contiguous()),
+            "counts": c.detach().contiguous(),
+            "wd_bins": wd_bins.detach().contiguous(),
+            "ema": None,
+        }
+
+    @torch.no_grad()
+    def rarity_weights(self, features: torch.Tensor) -> torch.Tensor:
+        """
+        Compute per-element rarity weights for a features tensor [B, T, D]
+        using precomputed _rare.
+        Returns flat weights of shape [B*T] (or reshape as needed by caller).
+        """
+        H = self._rare
+        mu, sd, k = H["mu"], H["sd"], H["k"]
+        B, T, D = features.shape
+        Yb_std = ((features - mu) / sd)
+
+        if H["D"] == 1:
+            e0 = H["edges"][0]
+            vals = Yb_std.reshape(-1).contiguous()
+            b = torch.bucketize(vals, e0).clamp(1, k) - 1
+            y = H["wd_bins"][b]
+            return y  # [B*T]
+
+        Vt2 = H["Vt"]
+        e0, e1 = H["edges"]
+        Zb = (Yb_std.reshape(-1, D).contiguous() @ Vt2).contiguous()  # [B*T,2]
+        i = torch.bucketize(Zb[:, 0].contiguous(), e0).clamp(1, k) - 1
+        j = torch.bucketize(Zb[:, 1].contiguous(), e1).clamp(1, k) - 1
+        bins = (i * k + j)
+        y = H["wd_bins"][bins]
+        return y  # [B*T]
+
 
     def _batch_update(self, loss, base_loss: float, var_loss: float, mean_loss: float) -> [float, float, float, float]:
         """
@@ -227,8 +350,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
     def _compute_stable_targets(self, batch: torch.Tensor, noised_z: torch.Tensor, eff_times: torch.Tensor,
                                 ref_batch: torch.Tensor, chunk_size: int, feat_thresh: float,
                                 prop_per_target: int = 2048, k_topk: int = 8192):
-        import time
-        t0 = time.time()
         B1, T, D = batch.shape
         B2, T, D = ref_batch.shape
         print(B2, B1)
@@ -382,9 +503,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             timesteps = torch.linspace(self.train_eps, end=self.end_diff_time,
                                        steps=self.max_diff_steps)
 
-        if not hasattr(self, "_rare") or getattr(self, "rebuild_hist_each_epoch", False):
-            ref_for_hist = next(iter(self.train_loader))[0].to(self.device_id)
-            self._init_rarity(ref_for_hist, k=10)
         for batch_idx, x0s in enumerate(self.train_loader):
             ref_x0s = x0s[0].to(self.device_id)
             perm = torch.randperm(ref_x0s.shape[0], device=self.device_id)
@@ -393,47 +511,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             prop_pool = ref_x0s  # [perm[batch_size:], :, :]  # proposal pool P (SNIS candidates G∩P=∅)
             # Generate history vector for each time t for a sample in (batch_id, t, numdims)
             features = self.create_feature_vectors_from_position(x0s)
-            # --- scalar PCA y-weights from frozen edges + EMA counts ---
-            with torch.no_grad():
-                H = self._rare
-                mu, sd, k = H["mu"], H["sd"], H["k"]
-                B, T, D = features.shape
-                Yb_std = ((features - mu) / sd)  # [B, T, D]
-
-                if H["D"] == 1:
-                    e0 = H["edges"][0].contiguous()
-                    c = H["counts"]
-                    vals = Yb_std.reshape(-1).contiguous()
-                    b = torch.bucketize(vals, e0).clamp(1, k) - 1  # [B*T]
-                    c_mean = c[c > 0].mean()
-                    alpha, beta, wmax = 0.7, 20.0, 8.0
-                    wd_bins = torch.minimum(torch.full_like(c, wmax),
-                                            ((c + beta) / (c_mean + beta)).pow(-alpha))
-                    y_weights = wd_bins[b]  # [B*T]
-                    if H.get("ema", None) is not None:
-                        ema = H["ema"]
-                        batch_counts = torch.bincount(b, minlength=k).float().to(c.device)
-                        H["counts"] = (ema * c + (1 - ema) * batch_counts).contiguous()
-                else:
-                    Vt2 = H["Vt"]
-                    e0, e1 = H["edges"]
-                    Zb = (Yb_std.reshape(-1, D).contiguous() @ Vt2).contiguous()  # [B*T,2]
-                    i = torch.bucketize(Zb[:, 0].contiguous(), e0.contiguous()).clamp(1, k) - 1
-                    j = torch.bucketize(Zb[:, 1].contiguous(), e1.contiguous()).clamp(1, k) - 1
-                    bins = (i * k + j)
-                    c = H["counts"]
-                    c_mean = c[c > 0].mean()
-                    alpha, beta, wmax = 0.7, 20.0, 8.0
-                    wd_bins = torch.minimum(torch.full_like(c, wmax),
-                                            ((c + beta) / (c_mean + beta)).pow(-alpha))
-                    y_weights = wd_bins[bins]  # [B*T]
-                    if H.get("ema", None) is not None:
-                        ema = H["ema"]
-                        batch_counts = torch.bincount(bins, minlength=k * k).float().to(c.device)
-                        H["counts"] = (ema * c + (1 - ema) * batch_counts).contiguous()
-
-                y_weights = y_weights / (y_weights.mean().clamp_min(1e-12))
-
+            y_weights = self.rarity_weights(features)  # [B*T]
             if self.is_hybrid:
                 # We select diffusion time uniformly at random for each sample at each time (i.e., size (NumBatches, TimeSeries Sequence))
                 diff_times = timesteps[
@@ -956,9 +1034,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         """
         assert ("_ST_" in config.scoreNet_trained_path)
         # Load snapshot if available
-        # if os.path.exists(self.snapshot_path):
-        print("Device {} :: Loading snapshot\n".format(self.device_id))
-        self._load_snapshot(self.snapshot_path, config=config)
+        if os.path.exists(self.snapshot_path):
+            print("Device {} :: Loading snapshot\n".format(self.device_id))
+            #self._load_snapshot(self.snapshot_path, config=config)
         max_epochs = sorted(max_epochs)
         self.score_network.train()
         all_losses_per_epoch, learning_rates = self._load_loss_tracker(
@@ -986,11 +1064,15 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         iqr = (q75 - q25).clamp_min(1e-9)
         var_robust = (iqr.to(self.device_id) / 1.349) ** 2  # [D]
         self.register_buffer("w_dim", (1.0 / var_robust).float())
+        if not hasattr(self, "_rare") or getattr(self, "rebuild_hist_each_epoch", False):
+            self._init_rarity(k=16, wmax=8.0, eps=1e-6)
+
         for epoch in range(self.epochs_run, end_epoch):
             set_runtime_global(epoch=epoch)
             t0 = time.time()
             # Temperature annealing for gumbel softmax
             if epoch % 20 == 0:
+                continue
                 tau = max(self.score_network.module.mlp_state_mapper.hybrid.final_tau,
                           self.score_network.module.mlp_state_mapper.hybrid.init_tau * (0.9 ** (epoch // 20)))
                 self.score_network.module.mlp_state_mapper.hybrid.set_tau(tau)
