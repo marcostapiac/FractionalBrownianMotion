@@ -1222,12 +1222,12 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                         if evalexp_mse < self.curr_best_evalexp_mse and (epoch + 1) >= 1:
                             self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="EE")
                             self.curr_best_evalexp_mse = evalexp_mse
-                    if ((epoch + 1) > 300 and (epoch + 1) % 5 == 0) or epoch == 0:
+                    if ((epoch + 1) > 200 and (epoch + 1) % 2 == 0) or epoch == 0:
                         track_mse = self._tracking_errors(epoch=epoch + 1, config=config)
                         if track_mse < self.curr_best_track_mse and (epoch + 1) >= 1:
                             self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="Trk")
                             self.curr_best_track_mse = track_mse
-                    elif ((epoch + 1) < 300 and (epoch + 1) % 25 == 0):
+                    elif ((epoch + 1) < 200 and (epoch + 1) % 25 == 0):
                         track_mse = self._tracking_errors(epoch=epoch + 1, config=config)
                         if track_mse < self.curr_best_track_mse and (epoch + 1) >= 1:
                             self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="Trk")
