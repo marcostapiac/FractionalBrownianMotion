@@ -1034,9 +1034,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         """
         assert ("_ST_" in config.scoreNet_trained_path)
         # Load snapshot if available
-        if os.path.exists(self.snapshot_path):
-            print("Device {} :: Loading snapshot\n".format(self.device_id))
-            self._load_snapshot(self.snapshot_path, config=config)
+        print("Device {} :: Loading snapshot\n".format(self.device_id))
+        self._load_snapshot(self.snapshot_path, config=config)
         max_epochs = sorted(max_epochs)
         self.score_network.train()
         all_losses_per_epoch, learning_rates = self._load_loss_tracker(
