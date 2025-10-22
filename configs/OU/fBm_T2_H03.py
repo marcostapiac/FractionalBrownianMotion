@@ -24,7 +24,7 @@ def get_config():
     config.max_diff_steps = 1000 * max(int(np.log2(config.ts_length) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 50
-    config.lr = 7.5e-5
+    config.lr = 1e-4
     config.max_epochs = [3000]config.max_epochs = 1000
     config.batch_size = 256
     config.isfBm = True
