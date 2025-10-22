@@ -554,7 +554,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
         for batch_idx, x0s in enumerate(self.train_loader):
             ref_x0s = x0s[0].to(self.device_id)
-            if not config.stable_targets:
+            if not config.stable_target:
                 batch_size = ref_x0s.shape[0]
             x0s = self._stratified_select(ref_x0s, batch_size, p_tail=getattr(config, "p_tail", 0.1))
             prop_pool = ref_x0s
