@@ -374,7 +374,7 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
         outputs = self.score_network.forward(inputs=xts_sel, conditioner=feats_sel,
                                              times=times_sel, eff_times=eff_sel)
 
-        w_tau = self.diffusion.get_loss_weighting(eff_times=eff_times.detach())
+        w_tau = self.diffusion.get_loss_weighting(eff_times=eff_sel.detach())
         assert (outputs.shape == targets_sel.shape)
         w_dim = 1. + 0 * self.w_dim.view(1, 1, -1)  # [1,1,D]
         yW = y_weights.view(B * T, 1, 1).expand_as(outputs)
