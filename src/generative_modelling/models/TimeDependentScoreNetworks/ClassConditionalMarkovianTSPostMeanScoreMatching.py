@@ -227,6 +227,7 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
 
     def forward(self, inputs, times, conditioner, eff_times):
         # inputs = inputs.unsqueeze(1)
+        inputs /= (1./256)
         x = self.input_projection(inputs)
         x = F.leaky_relu(x, 0.01)
 
