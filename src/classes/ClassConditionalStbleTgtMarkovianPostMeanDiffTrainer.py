@@ -93,8 +93,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
     @torch.no_grad()
     def _tail_mask_bt(self, features: torch.Tensor) -> torch.Tensor:
         # features: [B,T,D] -> returns [B,T] bool (tail per (b,t))
-        H = self._rare;
-        k = H["k"];
+        H = self._rare
+        k = H["k"]
         B, T, D = features.shape
         Z = ((features - H["mu"]) / H["sd"]).reshape(-1, D).contiguous()
         if H["D"] == 1:
@@ -102,7 +102,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             b = torch.bucketize(Z.reshape(-1).contiguous(), e0).clamp(1, k) - 1
             tail_flat = (b == 0) | (b == k - 1)
         else:
-            Vt2 = H["Vt"];
+            Vt2 = H["Vt"]
             e0, e1 = H["edges"]
             P = (Z @ Vt2).contiguous()  # [B*T,2]
             i = torch.bucketize(P[:, 0].contiguous(), e0).clamp(1, k) - 1
@@ -352,11 +352,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         # ---- point-level tail selection ----
         tail_bt = self._tail_mask_bt(features)  # [B,T] bool
         N_all = B * T
-        N_sel = getattr(self, "point_batch", N_all)  # optional: set self.point_batch; default use all
+        N_sel = getattr(self, "point_batch", N_all)  # optional: set self.point_batch default use all
         p_tail = getattr(self, "p_tail_points", 0.025)
 
-        idx_sel = self._select_point_indices(tail_bt, target_points=N_sel, p_tail=p_tail)  # [N_sel]
-
+        idx_sel = torch.arange(0, N_all, 1).to(self.device_id)#self._select_point_indices(tail_bt, target_points=N_sel, p_tail=p_tail)  # [N_sel]
+        N_sel = idx_sel.shape[0]
         # flatten then gather rows
         xts_flat = xts.reshape(N_all, D)
         feats_flat = features.reshape(N_all, D)
