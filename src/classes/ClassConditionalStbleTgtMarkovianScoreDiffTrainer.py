@@ -90,54 +90,215 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
         self.snapshot_path = snapshot_path
         print("!!Setup Done!!\n")
 
-    def _init_rarity(self, ref_x0s, k: int = 10):
-        """
-        Build fixed histogram edges on a reference pool and initialize global counts.
-        D=1: univariate quantile edges; D>1: 2D PCA projection + quantile grid.
-        All tensors saved as contiguous to avoid searchsorted/bucketize warnings.
-        """
-        with torch.no_grad():
-            Y_ref = self.create_feature_vectors_from_position(ref_x0s)  # [B2, T, D]
-            mu = Y_ref.mean(dim=(0, 1), keepdim=True)
-            sd = Y_ref.std(dim=(0, 1), keepdim=True).clamp_min(1e-6)
-            D = Y_ref.shape[-1]
+    @torch.no_grad()
+    def _tail_mask_bt(self, features: torch.Tensor) -> torch.Tensor:
+        # features: [B,T,D] -> returns [B,T] bool (tail per (b,t))
+        H = self._rare
+        k = H["k"]
+        B, T, D = features.shape
+        Z = ((features - H["mu"]) / H["sd"]).reshape(-1, D).contiguous()
+        if H["D"] == 1:
+            e0 = H["edges"][0]
+            b = torch.bucketize(Z.reshape(-1).contiguous(), e0).clamp(1, k) - 1
+            tail_flat = (b == 0) | (b == k - 1)
+        else:
+            Vt2 = H["Vt"]
+            e0, e1 = H["edges"]
+            P = (Z @ Vt2).contiguous()  # [B*T,2]
+            i = torch.bucketize(P[:, 0].contiguous(), e0).clamp(1, k) - 1
+            j = torch.bucketize(P[:, 1].contiguous(), e1).clamp(1, k) - 1
+            tail_flat = (i == 0) | (i == k - 1) | (j == 0) | (j == k - 1)
+        return tail_flat.view(B, T)
 
-            if D == 1:
-                Yr = ((Y_ref - mu) / sd).reshape(-1).contiguous()  # [B2*T]
-                qs = torch.linspace(0, 1, k + 1, device=Yr.device)
-                e0 = torch.quantile(Yr, qs).contiguous()  # edges
-                b = torch.bucketize(Yr, e0).clamp(1, k) - 1
-                c = torch.bincount(b, minlength=k).float().contiguous()
-                self._rare = {
-                    "D": 1, "k": k,
-                    "mu": mu.detach().contiguous(),
-                    "sd": sd.detach().contiguous(),
-                    "edges": (e0.detach(),),  # tuple for uniform access
-                    "counts": c.detach(),
-                    "ema": 0.95
-                }
-            else:
-                Yr = ((Y_ref - mu) / sd).reshape(-1, D).contiguous()  # [B2*T, D]
-                U, S, Vt = torch.pca_lowrank(Yr, q=min(2, D))
-                Vt2 = Vt[:, :2].contiguous()  # [D,2]
-                Z = (Yr @ Vt2).contiguous()  # [B2*T,2]
-                qs = torch.linspace(0, 1, k + 1, device=Yr.device)
-                e0 = torch.quantile(Z[:, 0].contiguous(), qs).contiguous()
-                e1 = torch.quantile(Z[:, 1].contiguous(), qs).contiguous()
-                i = torch.bucketize(Z[:, 0].contiguous(), e0).clamp(1, k) - 1
-                j = torch.bucketize(Z[:, 1].contiguous(), e1).clamp(1, k) - 1
-                bins = (i * k + j)
-                c = torch.bincount(bins, minlength=k * k).float().contiguous()
-                self._rare = {
-                    "D": D, "k": k,
-                    "mu": mu.detach().contiguous(),
-                    "sd": sd.detach().contiguous(),
-                    "Vt": Vt2.detach(),
-                    "edges": (e0.detach(), e1.detach()),
-                    "counts": c.detach(),
-                    "ema": 0.95
-                }
-    def _batch_update(self, loss, base_loss: float, var_loss: float, mean_loss:float) -> [float, float, float, float]:
+    @torch.no_grad()
+    def _select_point_indices(self, tail_mask_bt: torch.Tensor,
+                              target_points: int, p_tail: float = 0.025) -> torch.Tensor:
+        # Stratify over points: choose ≈ p_tail fraction from tails among B*T points
+        B, T = tail_mask_bt.shape
+        N = B * T
+        idx_all = torch.arange(N, device=tail_mask_bt.device)
+        tail_idx = idx_all[tail_mask_bt.reshape(-1)]
+        non_idx = idx_all[~tail_mask_bt.reshape(-1)]
+        n_tail = min(int(round(p_tail * target_points)), tail_idx.numel())
+        n_non = target_points - n_tail
+        if n_tail == 0 or n_non < 0 or non_idx.numel() == 0:
+            return torch.randperm(N, device=tail_mask_bt.device)[:target_points]
+        sel_tail = tail_idx[torch.randint(tail_idx.numel(), (n_tail,), device=tail_idx.device)]
+        sel_non = non_idx[torch.randint(non_idx.numel(), (n_non,), device=non_idx.device)]
+        sel = torch.cat([sel_tail, sel_non], 0)
+        return sel[torch.randperm(sel.numel(), device=sel.device)]
+    @torch.no_grad()
+    def _init_rarity(self, k: int = 16, wmax: float = 4.0, eps: float = 1e-6):
+        """
+        Build EQUAL-WIDTH histogram edges on the FULL training set and freeze global weights.
+        - Standardize per feature using global mean/std over [B, T].
+        - D == 1: 1D equal-width z-bins in [-zmax, zmax] with zmax from data (at least 3.0, at most 8.0).
+        - D > 1: compute 2D PCA on standardized features via covariance build equal-width grid
+                  for the top-2 components using symmetric ranges count on FULL dataset.
+        - Weights: wd_bins = clamp(mean(c) / (c + eps), max=wmax), then one global normalization to mean=1.
+        - No EMA. Edges, counts, and wd_bins are frozen and reused during training.
+        """
+        device = self.device_id
+
+        # -------- PASS 0: infer D from a single batch and set up accumulators --------
+        x0s0 = next(iter(self.train_loader))[0].to(device)
+        feat0 = self.create_feature_vectors_from_position(x0s0)  # [B0, T, D]
+        D = feat0.shape[-1]
+
+        # -------- PASS 1: global mean/std over FULL dataset --------
+        n_total = 0
+        sum_vec = torch.zeros(D, device=device)
+        sumsq_vec = torch.zeros(D, device=device)
+
+        for x in self.train_loader:
+            x0s = x[0].to(device)
+            F = self.create_feature_vectors_from_position(x0s)  # [B, T, D]
+            sum_vec += F.sum(dim=(0, 1))
+            sumsq_vec += (F * F).sum(dim=(0, 1))
+            n_total += F.shape[0] * F.shape[1]
+
+        mu_vec = (sum_vec / max(1, n_total))  # [D]
+        var_vec = (sumsq_vec / max(1, n_total)) - mu_vec * mu_vec
+        sd_vec = torch.sqrt(var_vec.clamp_min(eps))  # [D]
+
+        mu = mu_vec.view(1, 1, D)
+        sd = sd_vec.view(1, 1, D)
+
+        if D == 1:
+            # -------- PASS 2 (1D): determine symmetric range for equal-width bins --------
+            zabs_max = torch.tensor(0.0, device=device)
+            for x in self.train_loader:
+                x0s = x[0].to(device)
+                F = self.create_feature_vectors_from_position(x0s)
+                z = ((F - mu) / sd).abs()  # [B,T,1]
+                zabs_max = torch.maximum(zabs_max, z.max())
+            zmax = zabs_max.item()
+            zmax = float(max(3.0, min(zmax, 8.0)))  # keep at least ±3σ cap extreme outliers
+
+            e0 = torch.linspace(-zmax, zmax, steps=k + 1, device=device).contiguous()
+
+            # -------- PASS 3 (1D): counts on FULL dataset --------
+            c = torch.zeros(k, device=device)
+            for x in self.train_loader:
+                x0s = x[0].to(device)
+                F = self.create_feature_vectors_from_position(x0s)
+                vals = ((F - mu) / sd).reshape(-1).contiguous()  # [B*T]
+                b = torch.bucketize(vals, e0).clamp(1, k) - 1
+                c += torch.bincount(b, minlength=k).float()
+
+            c_mean = c[c > 0].mean() if (c > 0).any() else torch.tensor(1.0, device=device)
+            w_raw = c_mean / (c + eps)  # rarer -> larger
+            wd_bins = torch.clamp(w_raw, min=1.0, max=wmax)  # never down-weight
+
+            self._rare = {
+                "D": 1,
+                "k": k,
+                "mu": mu.detach().contiguous(),
+                "sd": sd.detach().contiguous(),
+                "edges": (e0.detach().contiguous(),),
+                "counts": c.detach().contiguous(),
+                "wd_bins": wd_bins.detach().contiguous(),
+                "ema": None,
+            }
+            return
+
+        # -------- D > 1 --------
+        # -------- PASS 2: covariance of standardized features (for PCA) --------
+        sum_zz = torch.zeros(D, D, device=device)
+        for x in self.train_loader:
+            x0s = x[0].to(device)
+            F = self.create_feature_vectors_from_position(x0s)  # [B,T,D]
+            Z = ((F - mu) / sd).reshape(-1, D).contiguous()  # [N,D]
+            sum_zz += Z.t() @ (Z)
+        cov = sum_zz / max(1, n_total)
+
+        # top-2 eigenvectors (columns) for PCA projection
+        evals, evecs = torch.linalg.eigh(cov)  # ascending
+        Vt2 = evecs[:, -2:].contiguous()  # [D,2]
+
+        # -------- PASS 3a: determine symmetric ranges in PCA space --------
+        z0_min = torch.tensor(float("inf"), device=device)
+        z0_max = torch.tensor(float("-inf"), device=device)
+        z1_min = torch.tensor(float("inf"), device=device)
+        z1_max = torch.tensor(float("-inf"), device=device)
+
+        for x in self.train_loader:
+            x0s = x[0].to(device)
+            F = self.create_feature_vectors_from_position(x0s)
+            Z = ((F - mu) / sd).reshape(-1, D).contiguous()  # [N,D]
+            P = (Z @ Vt2).contiguous()  # [N,2]
+            z0 = P[:, 0]
+            z1 = P[:, 1]
+            z0_min = torch.minimum(z0_min, z0.min())
+            z0_max = torch.maximum(z0_max, z0.max())
+            z1_min = torch.minimum(z1_min, z1.min())
+            z1_max = torch.maximum(z1_max, z1.max())
+
+        # symmetric ranges enforce at least ±3 and cap at ±8 to avoid extreme tails dominating
+        s0 = float(max(3.0, min(max(abs(z0_min.item()), abs(z0_max.item())), 8.0)))
+        s1 = float(max(3.0, min(max(abs(z1_min.item()), abs(z1_max.item())), 8.0)))
+
+        e0 = torch.linspace(-s0, s0, steps=k + 1, device=device).contiguous()
+        e1 = torch.linspace(-s1, s1, steps=k + 1, device=device).contiguous()
+
+        # -------- PASS 3b: 2D counts on FULL dataset --------
+        c = torch.zeros(k * k, device=device)
+        for x in self.train_loader:
+            x0s = x[0].to(device)
+            F = self.create_feature_vectors_from_position(x0s)
+            Z = ((F - mu) / sd).reshape(-1, D).contiguous()
+            P = (Z @ Vt2).contiguous()  # [N,2]
+            i = torch.bucketize(P[:, 0].contiguous(), e0).clamp(1, k) - 1
+            j = torch.bucketize(P[:, 1].contiguous(), e1).clamp(1, k) - 1
+            bins = (i * k + j)
+            c += torch.bincount(bins, minlength=k * k).float()
+
+        c_mean = c[c > 0].mean() if (c > 0).any() else torch.tensor(1.0, device=device)
+        w_raw = c_mean / (c + eps)
+        wd_bins = torch.clamp(w_raw, min=1.0, max=wmax)
+
+        self._rare = {
+            "D": D,
+            "k": k,
+            "mu": mu.detach().contiguous(),
+            "sd": sd.detach().contiguous(),
+            "Vt": Vt2.detach().contiguous(),
+            "edges": (e0.detach().contiguous(), e1.detach().contiguous()),
+            "counts": c.detach().contiguous(),
+            "wd_bins": wd_bins.detach().contiguous(),
+            "ema": None,
+        }
+
+    @torch.no_grad()
+    def rarity_weights(self, features: torch.Tensor) -> torch.Tensor:
+        """
+        Compute per-element rarity weights for a features tensor [B, T, D]
+        using precomputed _rare.
+        Returns flat weights of shape [B*T] (or reshape as needed by caller).
+        """
+        H = self._rare
+        mu, sd, k = H["mu"], H["sd"], H["k"]
+        B, T, D = features.shape
+        Yb_std = ((features - mu) / sd)
+
+        if H["D"] == 1:
+            e0 = H["edges"][0]
+            vals = Yb_std.reshape(-1).contiguous()
+            b = torch.bucketize(vals, e0).clamp(1, k) - 1
+            y = H["wd_bins"][b]
+            return y  # [B*T]
+
+        Vt2 = H["Vt"]
+        e0, e1 = H["edges"]
+        Zb = (Yb_std.reshape(-1, D).contiguous() @ Vt2).contiguous()  # [B*T,2]
+        i = torch.bucketize(Zb[:, 0].contiguous(), e0).clamp(1, k) - 1
+        j = torch.bucketize(Zb[:, 1].contiguous(), e1).clamp(1, k) - 1
+        bins = (i * k + j)
+        y = H["wd_bins"][bins]
+        return y  # [B*T]
+
+
+    def _batch_update(self, loss, base_loss: float, var_loss: float, mean_loss: float) -> [float, float, float, float]:
         """
             Backward pass and optimiser update step
                 :param loss: loss tensor / function output
@@ -148,7 +309,8 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
         self.loss_aggregator.update(loss.detach().item())
         return loss.detach().item(), base_loss, var_loss, mean_loss
 
-    def _batch_loss_compute(self, outputs: torch.Tensor, targets: torch.Tensor, w_dim, w_tau, epoch: int, batch_idx: int,
+    def _batch_loss_compute(self, outputs: torch.Tensor, targets: torch.Tensor, w_dim, w_tau, epoch: int,
+                            batch_idx: int,
                             num_batches: int) -> [float, float, float, float]:
         """
         Computes loss and calls helper function to compute backward pass
@@ -156,20 +318,23 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
             :param targets: Target values to compare against outputs
             :return: Batch Loss
         """
-        base_loss = ((outputs - targets).pow(2) * w_dim * w_tau).sum(dim=-1).mean() # Penalise for higher dimensions
+        base_loss = ((outputs - targets).pow(2) * w_dim * w_tau).sum(dim=-1).mean()  # Penalise for higher dimensions
         print(f"Loss, {base_loss}\n")
-        var_loss = ((self.score_network.module.mlp_state_mapper.hybrid.log_scale - self.score_network.module.mlp_state_mapper.hybrid.log_scale.mean()) ** 2).mean()
-        mean_loss = (torch.mean((self.score_network.module.mlp_state_mapper.hybrid.log_scale - 0.)**2))
+        var_loss = ((
+                                self.score_network.module.mlp_state_mapper.hybrid.log_scale - self.score_network.module.mlp_state_mapper.hybrid.log_scale.mean()) ** 2).mean()
+        mean_loss = (torch.mean((self.score_network.module.mlp_state_mapper.hybrid.log_scale - 0.) ** 2))
         reg_var_loss = self.var_loss_reg * var_loss
         reg_mean_loss = self.mean_loss_reg * mean_loss
         loss = base_loss + reg_var_loss + reg_mean_loss
         print(f"VarReg, VarLoss, RegVarLoss, {self.var_loss_reg, var_loss, reg_var_loss}\n")
         print(f"MeanReg, MeanLoss, RegMeanLoss, {self.mean_loss_reg, mean_loss, reg_mean_loss}\n")
-        return self._batch_update(loss, base_loss=base_loss.detach().item(), var_loss=var_loss.detach().item(), mean_loss=mean_loss.detach().item())
+        return self._batch_update(loss, base_loss=base_loss.detach().item(), var_loss=var_loss.detach().item(),
+                                  mean_loss=mean_loss.detach().item())
 
     def _run_batch(self, xts: torch.Tensor, features: torch.Tensor, stable_targets: torch.Tensor,
-                   diff_times: torch.Tensor, y_weights:torch.Tensor,
-                   eff_times: torch.Tensor, epoch: int, batch_idx: int, num_batches: int) -> [float, float, float, float]:
+                   diff_times: torch.Tensor, y_weights: torch.Tensor,
+                   eff_times: torch.Tensor, epoch: int, batch_idx: int, num_batches: int) -> [float, float, float,
+                                                                                              float]:
         """
         Compute batch output and loss
             :param xts: Diffused samples
@@ -181,29 +346,42 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
         self.opt.zero_grad()
         B, T, D = xts.shape
         assert (features.shape[:2] == (B, T) and features.shape[-1] == D)
-        # Reshaping concatenates vectors in dim=1
-        xts = xts.reshape(B * T, 1, D)
-        # Features is originally shaped (NumTimeSeries, TimeSeriesLength, LookBackWindow, TimeSeriesDim)
-        # Reshape so that we have (NumTimeSeries*TimeSeriesLength, 1, LookBackWindow, TimeSeriesDim)
-        ##features = features.reshape(B * T, 1, 1, D)
-        # Now reshape again into (NumTimeSeries*TimeSeriesLength, 1, LookBackWindow*TimeSeriesDim)
-        # Note this is for the simplest implementation of CondUpsampler which is simply an MLP
-        ##features = features.reshape(B * T, 1, 1 * D, 1).permute((0, 1, 3, 2)).squeeze(2)
-        features = features.reshape(B * T, 1, D)
-        stable_targets = stable_targets.reshape(B * T, 1, -1)
-        diff_times = diff_times.reshape(B * T)
-        eff_times = torch.cat([eff_times] * D, dim=2).reshape(stable_targets.shape)
-        outputs = self.score_network.forward(inputs=xts, conditioner=features, times=diff_times, eff_times=eff_times)
+
+        assert features.shape[:2] == (B, T) and features.shape[-1] == D
+
+        # ---- point-level tail selection ----
+        #tail_bt = self._tail_mask_bt(features)  # [B,T] bool
+        N_all = B * T
+        N_sel = getattr(self, "point_batch", N_all)  # optional: set self.point_batch default use all
+        p_tail = getattr(self, "p_tail_points", 0.025)
+
+        idx_sel = torch.arange(0, N_all, 1).to(self.device_id)
+        #idx_sel = self._select_point_indices(tail_bt, target_points=N_sel, p_tail=p_tail)  # [N_sel]
+        # flatten then gather rows
+        xts_flat = xts.reshape(N_all, D)
+        feats_flat = features.reshape(N_all, D)
+        targets_flat = stable_targets.reshape(N_all, -1)  # last dim == D
+        times_flat = diff_times.reshape(N_all)  # [N_all]
+        eff_full = torch.cat([eff_times] * D, dim=2)  # [B,T,D]
+        eff_flat = eff_full.reshape(N_all, D)
+
+        xts_sel = xts_flat[idx_sel].unsqueeze(1)  # [N_sel,1,D]
+        feats_sel = feats_flat[idx_sel].unsqueeze(1)  # [N_sel,1,D]
+        targets_sel = targets_flat[idx_sel].unsqueeze(1)  # [N_sel,1,D]
+        times_sel = times_flat[idx_sel]  # [N_sel]
+        eff_sel = eff_flat[idx_sel].unsqueeze(1)  # [N_sel,1,D]
+
+        outputs = self.score_network.forward(inputs=xts_sel, conditioner=feats_sel,
+                                             times=times_sel, eff_times=eff_sel)
+
         w_tau = self.diffusion.get_loss_weighting(eff_times=eff_times.detach())
-        # Outputs should be (NumBatches, TimeSeriesLength, 1)
-        # Now implement the stable target field
-        assert (outputs.shape == stable_targets.shape)
-        w_dim = 1.+0*self.w_dim.view(1, 1, -1)  # [1,1,D]
-        print(f"WDIM {w_dim}\n\n\n\n")
+        assert (outputs.shape == targets_sel.shape)
+        w_dim = 1. + 0 * self.w_dim.view(1, 1, -1)  # [1,1,D]
         yW = y_weights.view(B * T, 1, 1).expand_as(outputs)
         weights = (w_tau * yW).detach()
-        weights = weights / (weights.mean().clamp_min(1e-12))
-        return self._batch_loss_compute(outputs=outputs, targets=stable_targets, w_dim=w_dim, w_tau=weights.pow(2), epoch=epoch,
+        #weights = weights / (weights.mean().clamp_min(1e-12))
+        return self._batch_loss_compute(outputs=outputs, targets=targets_sel, w_dim=w_dim, w_tau=weights.pow(2),
+                                        epoch=epoch,
                                         batch_idx=batch_idx, num_batches=num_batches)
 
     def _compute_stable_targets(self, batch: torch.Tensor, noised_z: torch.Tensor, eff_times: torch.Tensor,
@@ -342,7 +520,8 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
         # ref_batch, batch, eff_times = ref_batch.to(self.device_id), batch.to(self.device_id), eff_times.to(self.device_id)
         return stable_targets.to(self.device_id)
 
-    def _run_epoch(self, epoch: int, batch_size: int, chunk_size: int, feat_thresh: float, config) -> [list, list, list, list]:
+    def _run_epoch(self, epoch: int, batch_size: int, chunk_size: int, feat_thresh: float, config) -> [list, list, list,
+                                                                                                       list]:
         """
         Single epoch run
             :param epoch: Epoch index
@@ -361,91 +540,45 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
             timesteps = torch.linspace(self.train_eps, end=self.end_diff_time,
                                        steps=self.max_diff_steps)
 
-        if not hasattr(self, "_rare") or getattr(self, "rebuild_hist_each_epoch", False):
-            ref_for_hist = next(iter(self.train_loader))[0].to(self.device_id)
-            self._init_rarity(ref_for_hist, k=10)
         for batch_idx, x0s in enumerate(self.train_loader):
             ref_x0s = x0s[0].to(self.device_id)
             perm = torch.randperm(ref_x0s.shape[0], device=self.device_id)
-            if not config.stable_target: batch_size = ref_x0s.shape[0]
-            x0s = ref_x0s[perm[:batch_size], :, :]  # generator pool G (produces xts)
-            prop_pool = ref_x0s#[perm[batch_size:], :, :]  # proposal pool P (SNIS candidates G∩P=∅)
-
-            # Generate history vector for each time t for a sample in (batch_id, t, numdims)
+            if not config.stable_target:
+                batch_size = ref_x0s.shape[0]
+            x0s = ref_x0s[perm[:batch_size], :, :]
+            prop_pool = ref_x0s
             features = self.create_feature_vectors_from_position(x0s)
-            # --- scalar PCA y-weights from frozen edges + EMA counts ---
-            with torch.no_grad():
-                H = self._rare
-                mu, sd, k = H["mu"], H["sd"], H["k"]
-                B, T, D = features.shape
-                Yb_std = ((features - mu) / sd)  # [B, T, D]
-
-                if H["D"] == 1:
-                    e0 = H["edges"][0].contiguous()
-                    c = H["counts"]
-                    vals = Yb_std.reshape(-1).contiguous()
-                    b = torch.bucketize(vals, e0).clamp(1, k) - 1  # [B*T]
-                    c_mean = c[c > 0].mean()
-                    alpha, beta, wmax = 0.7, 20.0, 8.0
-                    wd_bins = torch.minimum(torch.full_like(c, wmax),
-                                            ((c + beta) / (c_mean + beta)).pow(-alpha))
-                    y_weights = wd_bins[b]  # [B*T]
-                    if H.get("ema", None) is not None:
-                        ema = H["ema"]
-                        batch_counts = torch.bincount(b, minlength=k).float().to(c.device)
-                        H["counts"] = (ema * c + (1 - ema) * batch_counts).contiguous()
-                else:
-                    Vt2 = H["Vt"]
-                    e0, e1 = H["edges"]
-                    Zb = (Yb_std.reshape(-1, D).contiguous() @ Vt2).contiguous()  # [B*T,2]
-                    i = torch.bucketize(Zb[:, 0].contiguous(), e0.contiguous()).clamp(1, k) - 1
-                    j = torch.bucketize(Zb[:, 1].contiguous(), e1.contiguous()).clamp(1, k) - 1
-                    bins = (i * k + j)
-                    c = H["counts"]
-                    c_mean = c[c > 0].mean()
-                    alpha, beta, wmax = 0.7, 20.0, 8.0
-                    wd_bins = torch.minimum(torch.full_like(c, wmax),
-                                            ((c + beta) / (c_mean + beta)).pow(-alpha))
-                    y_weights = wd_bins[bins]  # [B*T]
-                    if H.get("ema", None) is not None:
-                        ema = H["ema"]
-                        batch_counts = torch.bincount(bins, minlength=k * k).float().to(c.device)
-                        H["counts"] = (ema * c + (1 - ema) * batch_counts).contiguous()
-
-                y_weights = y_weights / (y_weights.mean().clamp_min(1e-12))
-
+            y_weights = torch.ones(x0s.shape[0] * x0s.shape[1], device=self.device_id)#self.rarity_weights(features)  # [B*T]
             if self.is_hybrid:
                 # We select diffusion time uniformly at random for each sample at each time (i.e., size (NumBatches, TimeSeries Sequence))
-                diff_times = timesteps[torch.randint(low=self.max_diff_steps//2, high=self.max_diff_steps, dtype=torch.int32,
-                                                     size=x0s.shape[0:2]).long()].view(x0s.shape[0], x0s.shape[1],
-                                                                                       *([1] * len(x0s.shape[2:]))).to(
+                diff_times = timesteps[
+                    torch.randint(low=0, high=self.max_diff_steps, dtype=torch.int32,
+                                  size=x0s.shape[0:2]).long()].view(x0s.shape[0], x0s.shape[1],
+                                                                    *([1] * len(x0s.shape[2:]))).to(
                     self.device_id)
             else:
                 diff_times = ((self.train_eps - self.end_diff_time) * torch.rand(
                     (x0s.shape[0], 1)) + self.end_diff_time).view(x0s.shape[0], x0s.shape[1],
                                                                   *([1] * len(x0s.shape[2:]))).to(
                     self.device_id)
-            # Diffusion times shape (Batch Size, Time Series Sequence, 1)
-            # so that each (b, t, 1) entry corresponds to the diffusion time for timeseries "b" at time "t"
             eff_times = self.diffusion.get_eff_times(diff_times)
-            # Each eff time entry corresponds to the effective diffusion time for timeseries "b" at time "t"
             xts, scores = self.diffusion.noising_process(x0s, eff_times)
-            # For each timeseries "b", at time "t", we want the score p(timeseries_b_attime_t_diffusedTo_efftime|time_series_b_attime_t)
-            # So target score should be size (NumBatches, Time Series Length, 1)
-            # And xts should be size (NumBatches, TimeSeriesLength, NumDimensions)
             if config.stable_target:
                 stable_targets = self._compute_stable_targets(batch=x0s, noised_z=xts, ref_batch=prop_pool,
-                                                          eff_times=eff_times, chunk_size=chunk_size,
-                                                          feat_thresh=feat_thresh)
+                                                              eff_times=eff_times, chunk_size=chunk_size,
+                                                              feat_thresh=feat_thresh)
             else:
                 stable_targets = scores
             print(stable_targets.requires_grad)
             batch_loss, batch_base_loss, batch_var_loss, batch_mean_loss = self._run_batch(xts=xts, features=features,
-                                                                          stable_targets=stable_targets,
-                                                                          diff_times=diff_times,
-                                                                          eff_times=eff_times, epoch=epoch,
-                                                                          batch_idx=batch_idx,y_weights=y_weights,
-                                                                          num_batches=len(self.train_loader))
+                                                                                           stable_targets=stable_targets,
+                                                                                           diff_times=diff_times,
+                                                                                           eff_times=eff_times,
+                                                                                           epoch=epoch,
+                                                                                           batch_idx=batch_idx,
+                                                                                           y_weights=y_weights,
+                                                                                           num_batches=len(
+                                                                                               self.train_loader))
             device_epoch_losses.append(batch_loss)
             device_epoch_base_losses.append(batch_base_loss)
             device_epoch_var_losses.append(batch_var_loss)
@@ -495,7 +628,7 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
                 print(e)
                 pass
             try:
-               self.curr_best_track_mse = snapshot["TRACK_MSE"]
+                self.curr_best_track_mse = snapshot["TRACK_MSE"]
             except KeyError as e:
                 print(e)
                 pass
@@ -509,12 +642,12 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
                 self.opt,
                 mode='min',  # We're monitoring a loss that should decrease.
                 factor=0.5,  # Reduce learning rate by 50% (more conservative than 90%).
-                patience=50,  # Wait for 50 epochs of no sufficient improvement.
+                patience=30,  # Wait for 50 epochs of no sufficient improvement.
                 verbose=True,  # Print a message when the LR is reduced.
-                threshold=1e-4,  # Set the threshold for what counts as improvement.
+                threshold=1e-3,  # Set the threshold for what counts as improvement.
                 threshold_mode='rel',  # Relative change compared to the best value so far.
-                cooldown=200,  # Optionally, add cooldown epochs after a reduction.
-                min_lr=1e-5
+                cooldown=20,  # Optionally, add cooldown epochs after a reduction.
+                min_lr=1e-6
             )
             try:
                 self.scheduler.load_state_dict(snapshot["SCHEDULER_STATE"])
@@ -527,12 +660,12 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
                 self.opt,
                 mode='min',  # We're monitoring a loss that should decrease.
                 factor=0.5,  # Reduce learning rate by 50% (more conservative than 90%).
-                patience=50,  # Wait for 50 epochs of no sufficient improvement.
+                patience=30,  # Wait for 50 epochs of no sufficient improvement.
                 verbose=True,  # Print a message when the LR is reduced.
-                threshold=1e-4,  # Set the threshold for what counts as improvement.
+                threshold=1e-3,  # Set the threshold for what counts as improvement.
                 threshold_mode='rel',  # Relative change compared to the best value so far.
-                cooldown=200,  # Optionally, add cooldown epochs after a reduction.
-                min_lr=1e-5
+                cooldown=20,  # Optionally, add cooldown epochs after a reduction.
+                min_lr=1e-6
             )
         print(
             f"After loading snapshot Epochs Run, EWMA Loss, LR: {self.epochs_run, self.ewma_loss, self.opt.param_groups[0]['lr']}\n")
@@ -545,10 +678,13 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
         """
         try:
             snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(),
-                        "SCHEDULER_STATE": self.scheduler.state_dict(), "EWMA_LOSS": self.ewma_loss, "VAR_REG": self.var_loss_reg, "MEAN_REG": self.mean_loss_reg, "TRACK_MSE": self.curr_best_track_mse, "EVALEXP_MSE":self.curr_best_evalexp_mse}
+                        "SCHEDULER_STATE": self.scheduler.state_dict(), "EWMA_LOSS": self.ewma_loss,
+                        "VAR_REG": self.var_loss_reg, "MEAN_REG": self.mean_loss_reg,
+                        "TRACK_MSE": self.curr_best_track_mse, "EVALEXP_MSE": self.curr_best_evalexp_mse}
         except AttributeError as e:
             print(e)
-            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(), "EWMA_LOSS": self.ewma_loss, "VAR_REG": self.var_loss_reg, "MEAN_REG": self.mean_loss_reg}
+            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(), "EWMA_LOSS": self.ewma_loss,
+                        "VAR_REG": self.var_loss_reg, "MEAN_REG": self.mean_loss_reg}
 
         # self.score_network now points to DDP wrapped object, so we need to access parameters via ".module"
         if type(self.device_id) == int:
@@ -647,7 +783,7 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
         return l, learning_rates
 
     def _domain_rmse(self, epoch, config):
-        #assert (config.ndims <= 2)
+        # assert (config.ndims <= 2)
         if config.ndims > 1 and "BiPot" in config.data_path:
             final_vec_mu_hats = MLP_fBiPotDDims_drifts(PM=self.score_network.module, config=config)
         else:
@@ -659,19 +795,28 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
         elif "BiPot" in config.data_path and config.ndims > 1:
             Xshape = 256
             if config.ndims == 12:
-                Xs = np.concatenate([np.linspace(-5, 5, num=Xshape).reshape(-1,1), np.linspace(-4.7, 4.7, num=Xshape).reshape(-1,1), \
-                                     np.linspace(-4.4, 4.4, num=Xshape).reshape(-1,1), np.linspace(-4.2, 4.2, num=Xshape).reshape(-1,1), \
-                                     np.linspace(-4.05, 4.05, num=Xshape).reshape(-1,1), np.linspace(-3.9, 3.9, num=Xshape).reshape(-1,1), \
-                                     np.linspace(-3.7, 3.7, num=Xshape).reshape(-1,1), np.linspace(-3.6, 3.6, num=Xshape).reshape(-1,1), \
-                                     np.linspace(-3.55, 3.55, num=Xshape).reshape(-1,1),
-                                     np.linspace(-3.48, 3.48, num=Xshape).reshape(-1,1), \
-                                     np.linspace(-3.4, 3.4, num=Xshape).reshape(-1,1), np.linspace(-3.4, 3.4, num=Xshape).reshape(-1,1)],
-                                    axis=1)
+                Xs = np.concatenate(
+                    [np.linspace(-5, 5, num=Xshape).reshape(-1, 1), np.linspace(-4.7, 4.7, num=Xshape).reshape(-1, 1), \
+                     np.linspace(-4.4, 4.4, num=Xshape).reshape(-1, 1),
+                     np.linspace(-4.2, 4.2, num=Xshape).reshape(-1, 1), \
+                     np.linspace(-4.05, 4.05, num=Xshape).reshape(-1, 1),
+                     np.linspace(-3.9, 3.9, num=Xshape).reshape(-1, 1), \
+                     np.linspace(-3.7, 3.7, num=Xshape).reshape(-1, 1),
+                     np.linspace(-3.6, 3.6, num=Xshape).reshape(-1, 1), \
+                     np.linspace(-3.55, 3.55, num=Xshape).reshape(-1, 1),
+                     np.linspace(-3.48, 3.48, num=Xshape).reshape(-1, 1), \
+                     np.linspace(-3.4, 3.4, num=Xshape).reshape(-1, 1),
+                     np.linspace(-3.4, 3.4, num=Xshape).reshape(-1, 1)],
+                    axis=1)
             elif config.ndims == 8:
-                Xs = np.concatenate([np.linspace(-4.9, 4.9, num=Xshape).reshape(-1, 1), np.linspace(-4.4, 4.4, num=Xshape).reshape(-1,1), \
-                                     np.linspace(-4.05, 4.05, num=Xshape).reshape(-1,1), np.linspace(-3.9, 3.9, num=Xshape).reshape(-1,1), \
-                                     np.linspace(-3.7, 3.7, num=Xshape).reshape(-1,1), np.linspace(-3.6, 3.6, num=Xshape).reshape(-1,1), \
-                                     np.linspace(-3.5, 3.5, num=Xshape).reshape(-1,1), np.linspace(-3.4, 3.4, num=Xshape).reshape(-1,1)],
+                Xs = np.concatenate([np.linspace(-4.9, 4.9, num=Xshape).reshape(-1, 1),
+                                     np.linspace(-4.4, 4.4, num=Xshape).reshape(-1, 1), \
+                                     np.linspace(-4.05, 4.05, num=Xshape).reshape(-1, 1),
+                                     np.linspace(-3.9, 3.9, num=Xshape).reshape(-1, 1), \
+                                     np.linspace(-3.7, 3.7, num=Xshape).reshape(-1, 1),
+                                     np.linspace(-3.6, 3.6, num=Xshape).reshape(-1, 1), \
+                                     np.linspace(-3.5, 3.5, num=Xshape).reshape(-1, 1),
+                                     np.linspace(-3.4, 3.4, num=Xshape).reshape(-1, 1)],
                                     axis=1)
             if "coup" in config.data_path:
                 true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
@@ -688,7 +833,7 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
                 assert true_drifts.shape == Xs.shape
             else:
                 true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
-                                                                           3) + 2. * np.array(
+                                                                               3) + 2. * np.array(
                     config.quad_coeff) * Xs + np.array(config.const))
         elif "QuadSin" in config.data_path:
             Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
@@ -699,56 +844,61 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
             true_drifts = (-np.sin(config.sin_space_scale * Xs) * np.log(
                 1 + config.log_space_scale * np.abs(Xs)) / config.sin_space_scale)
         type = "PM"
-        assert (type not in config.scoreNet_trained_path)
+        assert (type in config.scoreNet_trained_path)
         assert ("_ST_" in config.scoreNet_trained_path)
         enforce_fourier_reg = "NSTgt" if not config.stable_target else ""
         enforce_fourier_reg += "NFMReg_" if not config.enforce_fourier_mean_reg else ""
         enforce_fourier_reg += "New_" if "New" in config.scoreNet_trained_path else ""
         if "BiPot" in config.data_path and config.ndims == 1:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSScore_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TS_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
         elif "BiPot" in config.data_path and config.ndims > 1 and "coup" not in config.data_path:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSScore_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDims_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TS_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDims_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
         elif "BiPot" in config.data_path and "coup" in config.data_path:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSScore_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDimsNS_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TS_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDimsNS_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
         elif "QuadSin" in config.data_path:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSScore_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fQuadSinHF_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TS_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fQuadSinHF_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
         elif "SinLog" in config.data_path:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSScore_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fSinLog_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.log_space_scale}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TS_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fSinLog_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.log_space_scale}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
         print(f"Save path:{save_path}\n")
         np.save(save_path + "_muhats.npy", final_vec_mu_hats)
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
         if len(true_drifts.shape) == 1:
-            true_drifts = true_drifts.reshape(-1,1)
-        mse = driftevalexp_mse_ignore_nans(true=true_drifts, pred=final_vec_mu_hats[:, -1, :,:].reshape(final_vec_mu_hats.shape[0], final_vec_mu_hats.shape[2], final_vec_mu_hats.shape[-1]*1).mean(axis=1))
+            true_drifts = true_drifts.reshape(-1, 1)
+        mse = driftevalexp_mse_ignore_nans(true=true_drifts,
+                                           pred=final_vec_mu_hats[:, -1, :, :].reshape(final_vec_mu_hats.shape[0],
+                                                                                       final_vec_mu_hats.shape[2],
+                                                                                       final_vec_mu_hats.shape[
+                                                                                           -1] * 1).mean(axis=1))
         print(f"Current vs Best MSE {mse}, {self.curr_best_evalexp_mse} at Epoch {epoch}\n")
         return mse
-
 
     def _tracking_errors(self, epoch, config):
         def true_drift(prev, num_paths, config):
             assert (prev.shape == (num_paths, config.ndims))
-            if "BiPot" in config.data_path and config.ndims==1:
+            if "BiPot" in config.data_path and config.ndims == 1:
                 drift_X = -(4. * config.quartic_coeff * np.power(prev,
                                                                  3) + 2. * config.quad_coeff * prev + config.const)
                 return drift_X[:, np.newaxis, :]
-            elif "BiPot" in config.data_path and config.ndims>1 and "coup" not in config.data_path:
+            elif "BiPot" in config.data_path and config.ndims > 1 and "coup" not in config.data_path:
                 drift_X = -(4. * np.array(config.quartic_coeff) * np.power(prev,
-                                                                 3) + 2. * np.array(config.quad_coeff) * prev + np.array(config.const))
+                                                                           3) + 2. * np.array(
+                    config.quad_coeff) * prev + np.array(config.const))
                 return drift_X[:, np.newaxis, :]
-            elif "BiPot" in config.data_path and config.ndims>1 and "coup" in config.data_path:
+            elif "BiPot" in config.data_path and config.ndims > 1 and "coup" in config.data_path:
                 drift_X = -(4. * np.array(config.quartic_coeff) * np.power(prev,
-                                                                 3) + 2. * np.array(config.quad_coeff) * prev + np.array(config.const))
+                                                                           3) + 2. * np.array(
+                    config.quad_coeff) * prev + np.array(config.const))
                 xstar = np.sqrt(
                     np.maximum(1e-12, -np.array(config.quad_coeff) / (2.0 * np.array(config.quartic_coeff))))
                 s2 = (config.scale * xstar) ** 2 + 1e-12  # (D,) or (K,1,D)
@@ -806,11 +956,12 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
             true_states[:, [0], :] = initial_state + 0.00001 * np.random.randn(*initial_state.shape)
             # Initialise the "global score-based drift paths"
             global_states[:, [0], :] = true_states[:, [0], :]
-            local_states[:, [0], :] = true_states[:, [0], :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
+            local_states[:, [0], :] = true_states[:, [0],
+                                      :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
 
             # Euler-Maruyama Scheme for Tracking Errors
             for i in range(1, num_time_steps + 1):
-                eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT)*config.diffusion
+                eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT) * config.diffusion
                 if "Burgers" in config.data_path:
                     q = build_q_nonneg(config=config)
                     eps = np.zeros((num_paths, 1, config.num_fourier_modes), dtype=np.float64)
@@ -839,7 +990,7 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
                     denom = 1.
                 local_mean = multivar_score_based_MLP_drift_OOS(
                     score_model=self.score_network.module,
-                   num_diff_times=num_diff_times,
+                    num_diff_times=num_diff_times,
                     diffusion=diffusion,
                     num_paths=num_paths, ts_step=deltaT,
                     config=config,
@@ -847,18 +998,18 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
                     prev=true_states[:, i - 1, :])
 
                 global_mean = multivar_score_based_MLP_drift_OOS(score_model=self.score_network.module,
-                                                                                      num_diff_times=num_diff_times,
-                                                                                      diffusion=diffusion,
-                                                                                      num_paths=num_paths,
-                                                                                      ts_step=deltaT, config=config,
-                                                                                      device=self.device_id,
-                                                                                      prev=global_states[:, i - 1, :])
+                                                                 num_diff_times=num_diff_times,
+                                                                 diffusion=diffusion,
+                                                                 num_paths=num_paths,
+                                                                 ts_step=deltaT, config=config,
+                                                                 device=self.device_id,
+                                                                 prev=global_states[:, i - 1, :])
 
                 true_states[:, [i], :] = (true_states[:, [i - 1], :] \
-                                         + true_mean * deltaT \
-                                         + eps)/denom
-                local_states[:, [i], :] = (true_states[:, [i - 1], :] + local_mean * deltaT + eps)/denom
-                global_states[:, [i], :] = (global_states[:, [i - 1], :] + global_mean * deltaT + eps)/denom
+                                          + true_mean * deltaT \
+                                          + eps) / denom
+                local_states[:, [i], :] = (true_states[:, [i - 1], :] + local_mean * deltaT + eps) / denom
+                global_states[:, [i], :] = (global_states[:, [i - 1], :] + global_mean * deltaT + eps) / denom
 
             all_true_states[quant_idx, :, :, :] = true_states
             all_local_states[quant_idx, :, :, :] = local_states
@@ -868,39 +1019,39 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
         enforce_fourier_reg += "New_" if "New" in config.scoreNet_trained_path else ""
         if "BiPot" in config.data_path and config.ndims == 1:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSScore_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TS_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
         elif "BiPot" in config.data_path and config.ndims > 1 and "coup" not in config.data_path:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSScore_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDims_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TS_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDims_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
         elif "BiPot" in config.data_path and config.ndims > 1 and "coup" in config.data_path:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSScore_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDimsNS_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TS_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDimsNS_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
         elif "QuadSin" in config.data_path:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSScore_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fQuadSinHF_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TS_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fQuadSinHF_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
         elif "SinLog" in config.data_path:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSScore_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fSinLog_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.log_space_scale}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TS_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fSinLog_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.log_space_scale}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
         elif "Burgers" in config.data_path:
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/TSScore_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBurgers_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                    project_config.ROOT_DIR + f"experiments/results/TS_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBurgers_OOSDriftTrack_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
                 ".", "")
         elif "Lnz" in config.data_path:
             save_path = (
-                        project_config.ROOT_DIR + f"experiments/results/TSScore_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}{config.ndims}DLnz_OOSDriftTrack_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}_{round(config.forcing_const, 3)}FConst").replace(
-                    ".", "")
+                    project_config.ROOT_DIR + f"experiments/results/TS_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}{config.ndims}DLnz_OOSDriftTrack_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}_{round(config.forcing_const, 3)}FConst").replace(
+                ".", "")
         print(f"Save path for OOS DriftTrack:{save_path}\n")
         np.save(save_path + "_true_states.npy", all_true_states)
         np.save(save_path + "_global_states.npy", all_global_states)
         np.save(save_path + "_local_states.npy", all_local_states)
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
-        #mse = drifttrack_cummse(true=all_true_states, local=all_local_states, deltaT=config.deltaT)
+        # mse = drifttrack_cummse(true=all_true_states, local=all_local_states, deltaT=config.deltaT)
         mse = drifttrack_mse(true=all_true_states, local=all_global_states, deltaT=config.deltaT)
         print(f"Current vs Best MSE {mse}, {self.curr_best_track_mse} at Epoch {epoch}\n")
         return mse
@@ -914,7 +1065,6 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
         """
         assert ("_ST_" in config.scoreNet_trained_path)
         # Load snapshot if available
-        # if os.path.exists(self.snapshot_path):
         print("Device {} :: Loading snapshot\n".format(self.device_id))
         self._load_snapshot(self.snapshot_path, config=config)
         max_epochs = sorted(max_epochs)
@@ -923,7 +1073,8 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
             model_filename)  # This will contain synchronised losses
         end_epoch = max(max_epochs)
         self.ewma_loss = 0.  # Force recomputation of EWMA losses each time
-        #self.curr_best_track_mse = np.inf # Force recomputation once
+
+        # self.curr_best_track_mse = np.inf # Force recomputation once
         def collect_all_increments(loader, D, limit=None):
             chunks, seen = [], 0
             for x0s in loader:  # x0s: [B,T,D] increments Z0
@@ -943,6 +1094,9 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
         iqr = (q75 - q25).clamp_min(1e-9)
         var_robust = (iqr.to(self.device_id) / 1.349) ** 2  # [D]
         self.register_buffer("w_dim", (1.0 / var_robust).float())
+        if not hasattr(self, "_rare") or getattr(self, "rebuild_hist_each_epoch", False):
+            self._init_rarity(k=16, wmax=4.0, eps=1e-6)
+
         for epoch in range(self.epochs_run, end_epoch):
             set_runtime_global(epoch=epoch)
             t0 = time.time()
@@ -951,10 +1105,11 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
                 tau = max(self.score_network.module.mlp_state_mapper.hybrid.final_tau,
                           self.score_network.module.mlp_state_mapper.hybrid.init_tau * (0.9 ** (epoch // 20)))
                 self.score_network.module.mlp_state_mapper.hybrid.set_tau(tau)
-            device_epoch_losses, device_epoch_base_losses, device_epoch_var_losses,device_epoch_mean_losses  = self._run_epoch(epoch=epoch,
-                                                                                                     batch_size=batch_size,
-                                                                                                     chunk_size=config.chunk_size,
-                                                                                                     feat_thresh=config.feat_thresh, config=config)
+            device_epoch_losses, device_epoch_base_losses, device_epoch_var_losses, device_epoch_mean_losses = self._run_epoch(
+                epoch=epoch,
+                batch_size=batch_size,
+                chunk_size=config.chunk_size,
+                feat_thresh=config.feat_thresh, config=config)
             # Average epoch loss for each device over batches
             epoch_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_losses)).item())
             epoch_base_losses_tensor = torch.tensor(torch.mean(torch.tensor(device_epoch_base_losses)).item())
@@ -978,7 +1133,7 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
 
                 epoch_mean_losses_tensor = epoch_mean_losses_tensor.cuda()
                 all_gpus_mean_losses = [torch.zeros_like(epoch_mean_losses_tensor) for _ in
-                                       range(torch.cuda.device_count())]
+                                        range(torch.cuda.device_count())]
                 torch.distributed.all_gather(all_gpus_mean_losses, epoch_mean_losses_tensor)
             else:
                 all_gpus_losses = [epoch_losses_tensor]
@@ -998,11 +1153,11 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
 
                 if config.enforce_fourier_mean_reg:
                     ratio = (.75 * average_base_loss_per_epoch) / (average_mean_loss_per_epoch + 1e-12)
-                    self.mean_loss_reg = min(ratio, 0.01/config.ts_dims) # vs 0.01
+                    self.mean_loss_reg = min(ratio, 0.01 / config.ts_dims)  # vs 0.01
                 else:
                     self.mean_loss_reg = 0.
                 print(
-                f"Calibrating Regulatisation: Base {average_base_loss_per_epoch}, Var {average_var_loss_per_epoch}, Mean {average_mean_loss_per_epoch}\n")
+                    f"Calibrating Regulatisation: Base {average_base_loss_per_epoch}, Var {average_var_loss_per_epoch}, Mean {average_mean_loss_per_epoch}\n")
             else:
                 self.mean_loss_reg = 0.
                 average_base_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_base_losses), dim=0).cpu().numpy())
@@ -1049,12 +1204,18 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
                         if evalexp_mse < self.curr_best_evalexp_mse and (epoch + 1) >= 1:
                             self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="EE")
                             self.curr_best_evalexp_mse = evalexp_mse
-                    track_mse = self._tracking_errors(epoch=epoch + 1, config=config)
-                    if track_mse < self.curr_best_track_mse and (epoch + 1) >= 1:
-                        self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="")
-                        self.curr_best_track_mse = track_mse
-                    self._save_loss(losses=all_losses_per_epoch, learning_rates=learning_rates, filepath=model_filename)
-                    self._save_snapshot(epoch=epoch)
+                    if ((epoch + 1) > 2000 and (epoch + 1) % 20 == 0) or epoch == 0:
+                        track_mse = self._tracking_errors(epoch=epoch + 1, config=config)
+                        if track_mse < self.curr_best_track_mse and (epoch + 1) >= 1:
+                            self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="Trk")
+                            self.curr_best_track_mse = track_mse
+                    elif ((epoch + 1) < 2000 and (epoch + 1) % 100 == 0):
+                        track_mse = self._tracking_errors(epoch=epoch + 1, config=config)
+                        if track_mse < self.curr_best_track_mse and (epoch + 1) >= 1:
+                            self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="Trk")
+                            self.curr_best_track_mse = track_mse
+                self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="")
+                self._save_loss(losses=all_losses_per_epoch, learning_rates=learning_rates, filepath=model_filename)
+                self._save_snapshot(epoch=epoch)
             if type(self.device_id) == int: dist.barrier()
             print(f"TrackMSE, EvalExpMSE: {self.curr_best_track_mse, self.curr_best_evalexp_mse}\n")
-
