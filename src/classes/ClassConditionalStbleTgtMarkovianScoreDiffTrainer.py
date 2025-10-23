@@ -843,8 +843,8 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
             Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
             true_drifts = (-np.sin(config.sin_space_scale * Xs) * np.log(
                 1 + config.log_space_scale * np.abs(Xs)) / config.sin_space_scale)
-        type = "PM"
-        assert (type in config.scoreNet_trained_path)
+        type = ""
+        assert ("PM" not in config.scoreNet_trained_path)
         assert ("_ST_" in config.scoreNet_trained_path)
         enforce_fourier_reg = "NSTgt" if not config.stable_target else ""
         enforce_fourier_reg += "NFMReg_" if not config.enforce_fourier_mean_reg else ""
