@@ -31,14 +31,14 @@ def get_config():
 
     # Training hyperparameters
     config.max_diff_steps = 10000
-    config.train_eps = 1./config.max_diff_steps  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
+    config.train_eps = 1e-3  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 2
     config.lr = 1e-4
     config.max_epochs = [3000]
     config.max_epochs = [60, 100, 150, 300, 960, 1440, 1920, 2920, 3000]
-    config.ref_batch_size = 2048 #256
-    config.batch_size = 512 #256
+    config.ref_batch_size = 1024 #256
+    config.batch_size = 256 #256
     config.chunk_size = 512
     config.feat_thresh = 1 / 500.
     config.isfBm = True
@@ -59,7 +59,7 @@ def get_config():
     config.residual_channels = 8
     config.diff_hidden_size = 64
     config.dialation_length = 10
-    config.enforce_fourier_mean_reg = True
+    config.enforce_fourier_mean_reg = False
     config.reg_label = "NFMReg_" if not config.enforce_fourier_mean_reg else ""
     config.stable_target = False
     config.stable_target_label = "NSTgt" if not config.stable_target else ""

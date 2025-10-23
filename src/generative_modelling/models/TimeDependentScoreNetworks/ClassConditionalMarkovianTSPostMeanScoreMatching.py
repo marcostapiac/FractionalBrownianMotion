@@ -3,7 +3,7 @@ import math
 import torch
 import torch.nn.functional as F
 from torch import nn
-
+import numpy as np
 """ NOTE: The model below is an adaptation of the implementation of pytorch-ts """
 
 
@@ -227,7 +227,6 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
 
     def forward(self, inputs, times, conditioner, eff_times):
         # inputs = inputs.unsqueeze(1)
-        inputs /= (1./256)
         x = self.input_projection(inputs)
         x = F.leaky_relu(x, 0.01)
 
@@ -244,6 +243,7 @@ class ConditionalMarkovianTSPostMeanScoreMatching(nn.Module):
 
         x = torch.sum(torch.stack(skip), dim=0) / math.sqrt(len(self.residual_layers))
         x = self.skip_projection(x)
+        x /= (1./256)
         x = F.leaky_relu(x, 0.01)
         x = self.output_projection(x)
         # For VPSDE only

@@ -350,13 +350,13 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         assert features.shape[:2] == (B, T) and features.shape[-1] == D
 
         # ---- point-level tail selection ----
-        tail_bt = self._tail_mask_bt(features)  # [B,T] bool
+        #tail_bt = self._tail_mask_bt(features)  # [B,T] bool
         N_all = B * T
         N_sel = getattr(self, "point_batch", N_all)  # optional: set self.point_batch default use all
         p_tail = getattr(self, "p_tail_points", 0.025)
 
-        idx_sel = torch.arange(0, N_all, 1).to(self.device_id)#self._select_point_indices(tail_bt, target_points=N_sel, p_tail=p_tail)  # [N_sel]
-        N_sel = idx_sel.shape[0]
+        idx_sel = torch.arange(0, N_all, 1).to(self.device_id)
+        #idx_sel = self._select_point_indices(tail_bt, target_points=N_sel, p_tail=p_tail)  # [N_sel]
         # flatten then gather rows
         xts_flat = xts.reshape(N_all, D)
         feats_flat = features.reshape(N_all, D)

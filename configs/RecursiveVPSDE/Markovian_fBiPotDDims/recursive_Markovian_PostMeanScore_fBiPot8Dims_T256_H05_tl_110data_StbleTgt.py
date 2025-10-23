@@ -29,13 +29,13 @@ def get_config():
 
     # Training hyperparameters
     config.max_diff_steps = 10000
-    config.train_eps = 1./config.max_diff_steps  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
+    config.train_eps = 1e-3  # 1000 * max(int(np.log2(config.ts_length) - 1), 1)
     config.end_diff_time = 1.
     config.save_freq = 2
     config.lr = 1e-4
     config.max_epochs = [3000]
-    config.ref_batch_size = 2048 #256
-    config.batch_size = 512 #256
+    config.ref_batch_size = 1024 #256
+    config.batch_size = 256 #256
     config.chunk_size = 512
     config.feat_thresh = 1/100.
     config.isfBm = True

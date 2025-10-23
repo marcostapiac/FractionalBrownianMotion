@@ -36,7 +36,7 @@ def get_config():
     config.save_freq = 2
     config.lr = 1e-4
     config.max_epochs = [3000]
-    config.ref_batch_size = 2048
+    config.ref_batch_size = 1024
     config.batch_size = 256
     config.chunk_size = 512
     config.feat_thresh = 1/100.
@@ -47,7 +47,7 @@ def get_config():
     config.tdata_mult = 110
     config.ts_dims = config.ndims
     config.loss_factor = 2
-    config.enforce_fourier_mean_reg = True
+    config.enforce_fourier_mean_reg = False
 
     # Diffusion hyperparameters
     config.beta_max = 20.
