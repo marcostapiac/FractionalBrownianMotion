@@ -62,9 +62,12 @@ def get_config():
     config.diff_hidden_size = 64
     config.dialation_length = 10
     config.enforce_fourier_mean_reg = False
+    config.reg_label = "NFMReg_" if not config.enforce_fourier_mean_reg else ""
+    config.stable_target = False
+    config.stable_target_label = "NSTgt" if not config.stable_target else ""
 
     # MLP Architecture parameters 
-    config.mlp_hidden_dims = 16
+    config.mlp_hidden_dims = 4
     config.condupsampler_length = 20
 
     # TSM Architecture parameters
@@ -76,14 +79,14 @@ def get_config():
             config.lstm_dropout > 0 and config.lstm_numlay > 1))
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_PM_ST_{:.3f}FTh_MLP_{}LFac_{}DLnz_{:.2e}FConst_VPSDE_T{}_Ndiff{}_Tdiff{:.3e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_MLP_H{}_CUp{}_tl{}".format(
-        config.feat_thresh, config.loss_factor, config.ndims, config.forcing_const,
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_PM_ST_{:.3f}FTh_MLP_{}LFac_{}{}_{}DLnz_{:.2e}FConst_VPSDE_T{}_Ndiff{}_Tdiff{:.3e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_MLP_H{}_CUp{}_tl{}".format(
+        config.feat_thresh, config.loss_factor, config.stable_target_label, config.reg_label, config.ndims, config.forcing_const,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, 
         config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings,
         config.t0, config.deltaT,
-        config.mlp_hidden_dims, config.condupsampler_length, config.tdata_mult, config.tdata_mult).replace(".", "")
+        config.mlp_hidden_dims, config.condupsampler_length, config.tdata_mult).replace(".", "")
 
     config.model_choice = "MLP"
     config.scoreNet_trained_path = mlpFileName

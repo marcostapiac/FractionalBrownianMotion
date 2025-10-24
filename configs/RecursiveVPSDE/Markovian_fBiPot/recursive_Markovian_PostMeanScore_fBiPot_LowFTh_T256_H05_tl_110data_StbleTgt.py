@@ -59,10 +59,13 @@ def get_config():
     config.dialation_length = 10
 
     # MLP Architecture parameters
-    config.mlp_hidden_dims = 16
+    config.mlp_hidden_dims = 4
     config.condupsampler_length = 20
     config.enforce_fourier_mean_reg = False
+
     config.reg_label = "NFMReg_" if not config.enforce_fourier_mean_reg else ""
+    config.stable_target = False
+    config.stable_target_label = "NSTgt" if not config.stable_target else ""
 
     # TSM Architecture parameters
     config.lstm_hiddendim = 20
