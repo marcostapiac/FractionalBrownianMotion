@@ -48,7 +48,7 @@ def get_config():
     config.ts_dims = config.ndims
     config.loss_factor = 2
     config.enforce_fourier_mean_reg = False
-    config.reg_label = "NFMReg_" if not config.enforce_fourier_mean_reg else ""
+    config.reg_label = "NFMReg" if not config.enforce_fourier_mean_reg else ""
     config.stable_target = False
     config.stable_target_label = "NSTgt" if not config.stable_target else ""
 
