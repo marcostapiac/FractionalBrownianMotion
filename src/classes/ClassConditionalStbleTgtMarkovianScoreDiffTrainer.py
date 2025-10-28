@@ -793,7 +793,7 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
             true_drifts = -(4. * config.quartic_coeff * np.power(Xs,
                                                                  3) + 2. * config.quad_coeff * Xs + config.const)
         elif "BiPot" in config.data_path and config.ndims > 1:
-            Xshape = 256
+            Xshape = config.ts_length
             if config.ndims == 12:
                 Xs = np.concatenate(
                     [np.linspace(-5, 5, num=Xshape).reshape(-1, 1), np.linspace(-4.7, 4.7, num=Xshape).reshape(-1, 1), \
@@ -936,14 +936,14 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
         num_diff_times = 1
         rmse_quantile_nums = 2
         num_paths = 100
-        num_time_steps = 256
+        num_time_steps = config.ts_length
         all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         all_global_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         all_local_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
         for quant_idx in tqdm(range(rmse_quantile_nums)):
             self.score_network.module.eval()
             num_paths = 100
-            num_time_steps = 256
+            num_time_steps = config.ts_length
             deltaT = config.deltaT
             initial_state = np.repeat(np.atleast_2d(config.initState)[np.newaxis, :], num_paths, axis=0)
             assert (initial_state.shape == (num_paths, 1, config.ndims))

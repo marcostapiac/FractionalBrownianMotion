@@ -117,7 +117,7 @@ assert (bws.shape == (50, config.ndims))
 # bw = bws[np.argmin(CVs)]
 # print(CVs)
 
-Xshape = 256
+Xshape = config.ts_length
 Xs = np.concatenate([np.linspace(-5, 5, num=Xshape).reshape(-1, 1), np.linspace(-4.7, 4.7, num=Xshape).reshape(-1, 1), \
                      np.linspace(-4.4, 4.4, num=Xshape).reshape(-1, 1),
                      np.linspace(-4.2, 4.2, num=Xshape).reshape(-1, 1), \
