@@ -2,6 +2,10 @@
 
 
 
+
+
+
+
 import multiprocessing as mp
 from multiprocessing import shared_memory
 
@@ -37,7 +41,7 @@ if __name__ == "__main__":
         is_path_observations = is_path_observations[:, :, :, 0] if config.real else is_path_observations[:, :, :, 1]
         is_path_observations = np.concatenate(
             [np.repeat(np.array(config.initState).reshape((1, 1, config.num_dims)), is_path_observations.shape[0], axis=0),
-             is_path_observations], axis=1)
+             is_path_observations], axis=1).astype(np.float64)
         assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.num_dims)
         is_idxs = np.arange(is_path_observations.shape[0])
         path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False), :]
@@ -77,7 +81,7 @@ if __name__ == "__main__":
 
         # Euler-Maruyama Scheme for Tracking Errors
         shape = prevPath_observations.shape
-        for bw_idx in tqdm(range(15,bws.shape[0])):
+        for bw_idx in tqdm(range(22,bws.shape[0])):
             set_runtime_global(idx=bw_idx)
             bw = bws[bw_idx, :]
             inv_H = np.diag(np.power(bw, -2))
