@@ -59,7 +59,6 @@ def track_pipeline(root_score_dir, ts_type, config, root_dir, toSave, label):
     all_errs = np.sqrt(all_global_errors)/np.sqrt(time_steps)
     total_global_errors[np.isinf(total_global_errors)] = 0.
     all_errs[np.isinf(all_errs)] = 0.
-    return total_global_errors[-1]
     total_global_errors_minq, total_global_errors_maxq = np.quantile(all_errs, axis=0,q=[0.005,0.995])
     fig, ax = plt.subplots(figsize=(14,9))
     plt.grid(True)
@@ -95,8 +94,8 @@ def track_pipeline(root_score_dir, ts_type, config, root_dir, toSave, label):
 # In[ ]:
 
 
-toSave = False
-eval_tracks = {t: np.inf for t in ["8DDimsNS", "12DDimsNS", "20DDimsNS", "40DDimsNS"]}
+toSave = True
+eval_tracks = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
 for config in [DDimsNS_8d_config, DDimsNS_12d_config]:
     Xshape = config.ts_length
     root_score_dir = root_dir
