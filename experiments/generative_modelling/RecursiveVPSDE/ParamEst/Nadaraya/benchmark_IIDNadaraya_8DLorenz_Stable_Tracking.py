@@ -93,7 +93,7 @@ if __name__ == "__main__":
 
         # Euler-Maruyama Scheme for Tracking Errors
         shape = prevPath_observations.shape
-        for bw_idx in tqdm(range(27,bws.shape[0])):
+        for bw_idx in tqdm(range(12,bws.shape[0])):
             set_runtime_global(idx=bw_idx)
             bw = bws[bw_idx, :]
             inv_H = np.diag(np.power(bw, -2))
