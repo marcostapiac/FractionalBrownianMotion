@@ -75,8 +75,10 @@ if __name__ == "__main__":
         assert (path_observations.shape[1] == prevPath_observations.shape[1] + 2)
         assert (prevPath_observations.shape[1] * deltaT == (t1 - t0))
         grid_1d = np.logspace(-3.55, -0.05, 30)
+        xadd = np.logspace(-0.05, 1.0, 11)[1:]  # 10 values > -0.05
+        grid_1d = np.concatenate([grid_1d, xadd])
         bws = np.stack([grid_1d for m in range(config.ndims)], axis=-1)
-        assert (bws.shape == (30, config.ndims))
+        assert (bws.shape == (40, config.ndims))
 
         prevPath_shm = shared_memory.SharedMemory(create=True, size=prevPath_observations.nbytes)
         path_incs_shm = shared_memory.SharedMemory(create=True, size=path_incs.nbytes)
@@ -99,7 +101,7 @@ if __name__ == "__main__":
 
         # Euler-Maruyama Scheme for Tracking Errors
         shape = prevPath_observations.shape
-        for bw_idx in tqdm(range(15,bws.shape[0])):
+        for bw_idx in tqdm(range(30,bws.shape[0])):
             set_runtime_global(idx=bw_idx)
             bw = bws[bw_idx, :]
             inv_H = np.diag(np.power(bw, -2))
