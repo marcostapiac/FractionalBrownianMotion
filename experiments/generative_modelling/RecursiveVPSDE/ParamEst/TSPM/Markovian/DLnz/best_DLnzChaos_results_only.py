@@ -101,7 +101,7 @@ def track_pipeline(root_score_dir, ts_type, config, root_dir, toSave, label):
 
 toSave = True
 eval_tracks = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
-for config in [lnz_20d_config]:#,lnz_8d_config, lnz_12d_config, lnz_40d_config]:
+for config in [lnz_8d_config, lnz_12d_config]:#,lnz_20d_config]:# lnz_40d_config]:
     Xshape = config.ts_length
     root_score_dir = root_dir
     label = "$\mu_{5}$"
