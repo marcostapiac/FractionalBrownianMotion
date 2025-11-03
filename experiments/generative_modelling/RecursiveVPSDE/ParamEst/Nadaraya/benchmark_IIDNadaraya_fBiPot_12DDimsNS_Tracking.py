@@ -38,7 +38,7 @@ if __name__ == "__main__":
             outfile=config.nadaraya_resource_logging_path,  # path where log will be written
             job_type="CPU multiprocessing drift evaluation",
     ):
-        num_paths = 10240
+        num_paths = 1024 if config.feat_thresh == 1. else 10240
         t0 = config.t0
         deltaT = config.deltaT
         t1 = deltaT * config.ts_length
