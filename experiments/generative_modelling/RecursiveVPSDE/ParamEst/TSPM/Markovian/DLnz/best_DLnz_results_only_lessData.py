@@ -87,7 +87,7 @@ def track_pipeline(root_score_dir, ts_type, config, root_dir, toSave, label):
         ax.set_ylabel('RMSE', fontsize=38)
     plt.tight_layout()
     if toSave:
-        plt.savefig((root_dir +f"DiffusionModelPresentationImages/TSPM_Markovian/{ts_type}/TSPM_MLP_PM_ST_{config.feat_thresh:.3f}FTh_{ts_type}_DriftTrack_{best_epoch_track}Nep_{round(total_global_errors_minq[-1], 7)}_MinIQR_{round(total_global_errors_maxq[-1], 7)}_MaxIQR").replace(".", "")+".png")
+        plt.savefig((root_dir +f"DiffusionModelPresentationImages/TSPM_Markovian/{ts_type}/LessData/TSPM_MLP_PM_ST_{config.feat_thresh:.3f}FTh_{ts_type}_DriftTrack_{best_epoch_track}Nep_{round(total_global_errors_minq[-1], 7)}_MinIQR_{round(total_global_errors_maxq[-1], 7)}_MaxIQR").replace(".", "")+".png")
     plt.grid(True)
     plt.show()
     plt.close()
@@ -103,18 +103,19 @@ eval_tracks = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
     Xshape = config.ts_length
     root_score_dir = root_dir
+    assert config.feat_thresh == 1.
     label = "$\mu_{5}$"
     if "8DLnz" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/8DLnz/"
+        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/8DLnz/LessData/"
         ts_type = "8DLnz"
     elif "12DLnz" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/12DLnz/"
+        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/12DLnz/LessData/"
         ts_type = "12DLnz"
     elif "20DLnz" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/20DLnz/"
+        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/20DLnz/LessData/"
         ts_type = "20DLnz"
     elif "40DLnz" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/40DLnz/"
+        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/40DLnz/LessData/"
         ts_type = "40DLnz"
     print(f"Starting {ts_type}\n")
     rmse = track_pipeline(root_score_dir=root_score_dir, ts_type=ts_type, config=config, root_dir=root_dir, toSave=toSave, label=label)
