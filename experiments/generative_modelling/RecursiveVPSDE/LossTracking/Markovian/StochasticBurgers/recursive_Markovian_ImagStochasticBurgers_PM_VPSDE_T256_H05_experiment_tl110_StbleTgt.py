@@ -44,8 +44,8 @@ if __name__ == "__main__":
             training_size = int(
                 max(1000, min(int(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad) / (
                             config.ts_length - 1)), 10240)))
-            training_size = 10240
-            training_size = 10240
+            training_size = 1024 if config.feat_thresh == 1. else 10240
+            training_size = 1024 if config.feat_thresh == 1. else 10240
             print(training_size)
             try:
                 data = np.load(config.data_path, allow_pickle=True)
