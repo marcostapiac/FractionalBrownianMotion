@@ -12,6 +12,7 @@ from torchmetrics import MeanMetric
 
 from src.classes.ClassConditionalMarkovianPostMeanDiffTrainer import ConditionalMarkovianPostMeanDiffTrainer
 from src.classes.ClassConditionalSDESampler import ConditionalSDESampler
+from src.classes.ClassConditionalStbleTgtLSTMPostMeanDiffTrainer import ConditionalStbleTgtLSTMPostMeanDiffTrainer
 from src.classes.ClassConditionalStbleTgtMarkovianPostMeanDiffTrainer import \
     ConditionalStbleTgtMarkovianPostMeanDiffTrainer
 from src.classes.ClassConditionalStbleTgtMarkovianScoreDiffTrainer import ConditionalStbleTgtMarkovianScoreDiffTrainer
@@ -23,6 +24,8 @@ from src.classes.ClassSDESampler import SDESampler
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalLSTMTSPostMeanScoreMatching import \
+    ConditionalLSTMTSPostMeanScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
     ConditionalMarkovianTSPostMeanScoreMatching
 
@@ -282,7 +285,7 @@ def prepare_recursive_scoreModel_data(data: Union[np.ndarray, torch.Tensor], bat
 def train_and_save_recursive_diffusion_model(data: np.ndarray,
                                              config: ConfigDict,
                                              diffusion: VPSDEDiffusion,
-                                             scoreModel: Union[ConditionalMarkovianTSPostMeanScoreMatching],
+                                             scoreModel: Union[ConditionalMarkovianTSPostMeanScoreMatching, ConditionalLSTMTSPostMeanScoreMatching],
                                              trainClass: Union[ConditionalStbleTgtMarkovianPostMeanDiffTrainer, ConditionalMarkovianPostMeanDiffTrainer, ConditionalStbleTgtMarkovianPostMeanDiffTrainer]) -> None:
     """
     Helper function to initiate training for recursive diffusion model
@@ -353,6 +356,20 @@ def train_and_save_recursive_diffusion_model(data: np.ndarray,
         # Start training
         trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path,
                       batch_size=config.batch_size, config=config)
+    elif isinstance(trainClass, type) and issubclass(trainClass, ConditionalStbleTgtLSTMPostMeanDiffTrainer):
+        # Post Mean LSTM
+        trainer = trainClass(diffusion=diffusion, score_network=scoreModel, train_data_loader=trainLoader,
+                             checkpoint_freq=checkpoint_freq, optimiser=optimiser, loss_fn=torch.nn.MSELoss,
+                             loss_aggregator=MeanMetric,
+                             snapshot_path=config.scoreNet_snapshot_path, device=device,
+                             train_eps=train_eps,
+                             end_diff_time=end_diff_time, max_diff_steps=max_diff_steps,
+                             to_weight=config.weightings,
+                             hybrid_training=config.hybrid, loss_factor=config.loss_factor,
+                             init_state=init_state, deltaT=config.deltaT)
 
+        # Start training
+        trainer.train(max_epochs=config.max_epochs, model_filename=config.scoreNet_trained_path,
+                      batch_size=config.batch_size, config=config)
     else:
         raise RuntimeError("Invalid Diffusion Training Class\n")

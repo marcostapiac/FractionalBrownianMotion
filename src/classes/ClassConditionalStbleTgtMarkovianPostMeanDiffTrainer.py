@@ -1119,10 +1119,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             set_runtime_global(epoch=epoch)
             t0 = time.time()
             # Temperature annealing for gumbel softmax
-            if epoch % 20 == 0:
-                tau = max(self.score_network.module.mlp_state_mapper.hybrid.final_tau,
-                          self.score_network.module.mlp_state_mapper.hybrid.init_tau * (0.9 ** (epoch // 20)))
-                self.score_network.module.mlp_state_mapper.hybrid.set_tau(tau)
             device_epoch_losses, device_epoch_base_losses, device_epoch_var_losses, device_epoch_mean_losses = self._run_epoch(
                 epoch=epoch,
                 batch_size=batch_size,

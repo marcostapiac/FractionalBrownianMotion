@@ -7,6 +7,7 @@ from torch import nn
 """ NOTE: The model below is an adaptation of the implementation of pytorch-ts """
 
 
+
 @torch.jit.script
 def silu(x):
     return x * torch.sigmoid(x)
@@ -91,7 +92,6 @@ class ResidualBlock(nn.Module):
     def forward(self, x, conditioner, diffusion_step):
         diffusion_step = self.diffusion_projection(diffusion_step).unsqueeze(-1)
         conditioner = self.conditioner_projection(conditioner)
-
         y = x + diffusion_step
         y = self.dilated_conv(y) + conditioner
 
@@ -107,14 +107,18 @@ class ResidualBlock(nn.Module):
 class CondUpsampler(nn.Module):
     def __init__(self, cond_length, target_dim):
         super().__init__()
-        # Note a linear layer expects the input vector to have in_features in the last dimension
-        self.linear1 = nn.Linear(in_features=cond_length, out_features=int(2 * target_dim), bias=False)
-        self.linear2 = nn.Linear(in_features=int(2 * target_dim), out_features=target_dim, bias=False)
+        self.linear1 = nn.Linear(cond_length, 20, bias=False)
+        self.linear2 = nn.Linear(20, int(2 * target_dim), bias=False)
+        self.linear3 = nn.Linear(int(2 * target_dim), target_dim, bias=False)
 
     def forward(self, x):
+        # CondUpSampler applies transformations on a 3D tensor of dimensions [A, B, C] on the "C" dimension, in batch
+        # across [A, B]
         x = self.linear1(x)
         x = F.leaky_relu(x, 0.4)
         x = self.linear2(x)
+        x = F.leaky_relu(x, 0.4)
+        x = self.linear3(x)
         x = F.leaky_relu(x, 0.4)
         return x
 
@@ -125,6 +129,7 @@ class ConditionalLSTMTSPostMeanScoreMatching(nn.Module):
             max_diff_steps: int,
             diff_embed_size: int,
             diff_hidden_size: int,
+            ts_dims: int,
             lstm_hiddendim: int,
             lstm_numlay: int,
             lstm_inputdim: int = 1,
@@ -157,7 +162,7 @@ class ConditionalLSTMTSPostMeanScoreMatching(nn.Module):
         # Cond_length is the dimension of the input vector (N)
         # As a linear layer, it expects input to be a vector, not a matrix
         self.cond_upsampler = CondUpsampler(
-            target_dim=1, cond_length=lstm_hiddendim
+            target_dim=ts_dims, cond_length=lstm_hiddendim
         )
         self.residual_layers = nn.ModuleList(
             [
@@ -192,6 +197,7 @@ class ConditionalLSTMTSPostMeanScoreMatching(nn.Module):
             skip.append(skip_connection)
         x = torch.sum(torch.stack(skip), dim=0) / math.sqrt(len(self.residual_layers))
         x = self.skip_projection(x)
+        x /= (1./256)
         x = F.leaky_relu(x, 0.01)
         x = self.output_projection(x)
         # Network tries to learn the posterior mean
