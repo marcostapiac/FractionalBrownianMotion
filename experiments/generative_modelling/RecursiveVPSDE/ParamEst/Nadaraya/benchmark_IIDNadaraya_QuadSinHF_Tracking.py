@@ -26,7 +26,7 @@ if __name__ == "__main__":
             outfile=config.nadaraya_resource_logging_path,  # path where log will be written
             job_type="CPU multiprocessing drift evaluation",
     ):
-        num_paths = 10240
+        num_paths = 1024 if config.feat_thresh == 1. else 10240
         num_time_steps = config.ts_length
         isUnitInterval = True
         diff = config.diffusion
@@ -90,7 +90,7 @@ if __name__ == "__main__":
 
         # Euler-Maruyama Scheme for Tracking Errors
         shape = prevPath_observations.shape
-        for bw_idx in tqdm(range(bws.shape[0])):
+        for bw_idx in tqdm(range(12, bws.shape[0])):
             bw = np.array([bws[bw_idx]])
             inv_H = np.diag(np.power(bw, -2))
             norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))

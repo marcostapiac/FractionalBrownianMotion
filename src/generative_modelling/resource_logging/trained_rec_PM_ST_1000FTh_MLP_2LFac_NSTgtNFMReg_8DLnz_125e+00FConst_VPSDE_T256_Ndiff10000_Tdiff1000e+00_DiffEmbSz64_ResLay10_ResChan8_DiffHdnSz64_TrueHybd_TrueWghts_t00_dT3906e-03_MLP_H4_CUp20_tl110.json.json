@@ -1,0 +1,32 @@
+{
+  "job_type": "CPU multiprocessing drift evaluation",
+  "start_time": 1762230403.4741635,
+  "end_time": 1762247086.2857585,
+  "wall_clock_sec": 16682.811594963074,
+  "cpu_percent_avg": 1.443571428571428,
+  "cpu_percent_peak": 1.6,
+  "ram_used_MB_avg": 118242.67313737143,
+  "ram_used_MB_peak": 124836.155392,
+  "gpu_util_avg": null,
+  "gpu_util_peak": null,
+  "gpu_mem_MB_avg": null,
+  "gpu_mem_MB_peak": null,
+  "gpu": {
+    "enabled": false,
+    "index": null,
+    "name": null,
+    "mem_total_MB": null,
+    "samples": 0
+  },
+  "samples": 140,
+  "interval_sec": 120.0,
+  "runtime": {
+    "initial": {
+      "idx": 12
+    },
+    "current": {
+      "idx": 24
+    }
+  },
+  "metadata": {}
+}

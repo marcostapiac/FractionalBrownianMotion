@@ -38,7 +38,7 @@ def true_drift(prev, num_paths, config):
 
 if __name__ == "__main__":
     config = get_config()
-    num_paths = 10240
+    num_paths = 1024 if config.feat_thresh == 1. else 10240
     with ResourceLogger(
             interval=120,
             outfile=config.nadaraya_resource_logging_path,  # path where log will be written
@@ -109,7 +109,7 @@ if __name__ == "__main__":
 
         # Euler-Maruyama Scheme for Tracking Errors
         shape = prevPath_observations.shape
-        for bw_idx in tqdm(range(30,bws.shape[0])):
+        for bw_idx in tqdm(range(20,bws.shape[0])):
             set_runtime_global(idx=bw_idx)
             bw = bws[bw_idx, :]
             inv_H = np.diag(np.power(bw, -2))
@@ -129,7 +129,7 @@ if __name__ == "__main__":
             all_local_states = np.concatenate([v[2][np.newaxis, :] for v in results.values()], axis=0)
             all_global_states = np.concatenate([v[1][np.newaxis, :] for v in results.values()], axis=0)
             assert (all_true_states.shape == all_global_states.shape == all_local_states.shape)
-
+            assert num_paths == 1024
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_f{config.ndims}DLnz_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
                 ".", "")

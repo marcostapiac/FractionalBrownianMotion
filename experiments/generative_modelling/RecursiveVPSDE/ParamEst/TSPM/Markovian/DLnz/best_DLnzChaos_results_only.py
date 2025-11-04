@@ -53,7 +53,7 @@ def get_best_track_file(root_score_dir, ts_type, best_epoch_track):
     return true_file, global_file
 
 def track_pipeline(root_score_dir, ts_type, config, root_dir, toSave, label):
-    best_epoch_track = get_best_epoch(type="Trk")
+    best_epoch_track = 1092#get_best_epoch(type="Trk")
     all_true_states, all_global_states = get_best_track_file(root_score_dir=root_score_dir, ts_type=ts_type, best_epoch_track=best_epoch_track)
     print(all_true_states.shape)
     time_steps = np.linspace(config.t0,config.deltaT*all_true_states.shape[2],all_true_states.shape[2])
@@ -87,7 +87,7 @@ def track_pipeline(root_score_dir, ts_type, config, root_dir, toSave, label):
         ax.set_ylabel('RMSE', fontsize=38)
     plt.tight_layout()
     if toSave:
-        plt.savefig((root_dir +f"DiffusionModelPresentationImages/TSPM_Markovian/{ts_type}/TSPM_MLP_PM_ST_{config.feat_thresh:.3f}FTh_{ts_type}_DriftTrack_{best_epoch_track}Nep_{round(total_global_errors_minq[-1], 7)}_MinIQR_{round(total_global_errors_maxq[-1], 7)}_MaxIQR").replace(".", "")+".png")
+        plt.savefig((root_dir +f"DiffusionModelPresentationImages/TSPM_Markovian/{ts_type}Chaos/TSPM_MLP_PM_ST_{config.feat_thresh:.3f}FTh_{ts_type}_DriftTrack_{best_epoch_track}Nep_{round(total_global_errors_minq[-1], 7)}_MinIQR_{round(total_global_errors_maxq[-1], 7)}_MaxIQR").replace(".", "")+".png")
     plt.grid(True)
     plt.show()
     plt.close()
@@ -100,7 +100,7 @@ def track_pipeline(root_score_dir, ts_type, config, root_dir, toSave, label):
 
 toSave = True
 eval_tracks = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
-for config in [lnz_8d_config, lnz_12d_config,lnz_20d_config, lnz_40d_config]:
+for config in [lnz_8d_config, lnz_12d_config,lnz_20d_config,lnz_40d_config]:#
     Xshape = config.ts_length
     root_score_dir = root_dir
     label = "$\mu_{5}$"
