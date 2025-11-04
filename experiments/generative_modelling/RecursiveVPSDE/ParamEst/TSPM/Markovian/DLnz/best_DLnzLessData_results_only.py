@@ -37,13 +37,13 @@ def get_best_epoch(type):
 
 def get_best_track_file(root_score_dir, ts_type, best_epoch_track):
     for file in os.listdir(root_score_dir):
-        if ("_"+str(best_epoch_track)+"Nep") in file and "true" in file and ts_type in file:
+        if ("_"+str(best_epoch_track)+"Nep") in file and "true" in file and ts_type in file and "1000FTh" in file and "075FConst" in file:
             print(f"Starting {file}\n")
             with open(root_score_dir+file, 'rb') as f:
                 buf = io.BytesIO(f.read())  # hydrates once, sequentially
             print(f"Starting {file}\n")
             true_file = np.load(root_score_dir+file, allow_pickle=True)
-        elif ("_"+str(best_epoch_track)+"Nep") in file and "global" in file and ts_type in file:
+        elif ("_"+str(best_epoch_track)+"Nep") in file and "global" in file and ts_type in file and "1000FTh" in file and "075FConst" in file:
             print(f"Starting {file}\n")
             with open(root_score_dir+file, 'rb') as f:
                 buf = io.BytesIO(f.read())  # hydrates once, sequentially
@@ -87,7 +87,7 @@ def track_pipeline(root_score_dir, ts_type, config, root_dir, toSave, label):
         ax.set_ylabel('RMSE', fontsize=38)
     plt.tight_layout()
     if toSave:
-        plt.savefig((root_dir +f"DiffusionModelPresentationImages/TSPM_Markovian/{ts_type}/LessData/TSPM_MLP_PM_ST_{config.feat_thresh:.3f}FTh_{ts_type}_DriftTrack_{best_epoch_track}Nep_{round(total_global_errors_minq[-1], 7)}_MinIQR_{round(total_global_errors_maxq[-1], 7)}_MaxIQR").replace(".", "")+".png")
+        plt.savefig((root_dir +f"DiffusionModelPresentationImages/TSPM_Markovian/{ts_type}LessData/TSPM_MLP_PM_ST_{config.feat_thresh:.3f}FTh_{ts_type}_DriftTrack_{best_epoch_track}Nep_{round(total_global_errors_minq[-1], 7)}_MinIQR_{round(total_global_errors_maxq[-1], 7)}_MaxIQR").replace(".", "")+".png")
     plt.grid(True)
     plt.show()
     plt.close()
@@ -98,24 +98,25 @@ def track_pipeline(root_score_dir, ts_type, config, root_dir, toSave, label):
 # In[ ]:
 
 
-toSave = True
+toSave = False
 eval_tracks = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
+    assert config.feat_thresh == 1.
+    assert config.forcing_const == 0.75
     Xshape = config.ts_length
     root_score_dir = root_dir
-    assert config.feat_thresh == 1.
     label = "$\mu_{5}$"
     if "8DLnz" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/8DLnz/LessData/"
+        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/8DLnzLessData/"
         ts_type = "8DLnz"
     elif "12DLnz" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/12DLnz/LessData/"
+        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/12DLnzLessData/"
         ts_type = "12DLnz"
     elif "20DLnz" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/20DLnz/LessData/"
+        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/20DLnzLessData/"
         ts_type = "20DLnz"
     elif "40DLnz" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/40DLnz/LessData/"
+        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/40DLnzLessData/"
         ts_type = "40DLnz"
     print(f"Starting {ts_type}\n")
     rmse = track_pipeline(root_score_dir=root_score_dir, ts_type=ts_type, config=config, root_dir=root_dir, toSave=toSave, label=label)
