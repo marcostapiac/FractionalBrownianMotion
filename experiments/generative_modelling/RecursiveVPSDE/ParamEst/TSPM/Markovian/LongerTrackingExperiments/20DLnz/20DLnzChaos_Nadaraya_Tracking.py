@@ -81,7 +81,7 @@ if __name__ == "__main__":
     np.copyto(prevPath_shm_array, prevPath_observations)
     np.copyto(path_incs_shm_array, path_incs)
 
-    num_time_steps = int(10*config.ts_length)
+    num_time_steps = int(5*config.ts_length)
     num_state_paths = 100
     rmse_quantile_nums = 2
     # Ensure randomness across starmap calls
