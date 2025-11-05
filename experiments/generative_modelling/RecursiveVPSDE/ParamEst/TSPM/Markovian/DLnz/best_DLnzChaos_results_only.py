@@ -53,7 +53,7 @@ def get_best_track_file(root_score_dir, ts_type, best_epoch_track):
     return true_file, global_file
 
 def track_pipeline(root_score_dir, ts_type, config, root_dir, toSave, label):
-    best_epoch_track = 1092#get_best_epoch(type="Trk")
+    best_epoch_track = get_best_epoch(type="Trk")
     all_true_states, all_global_states = get_best_track_file(root_score_dir=root_score_dir, ts_type=ts_type, best_epoch_track=best_epoch_track)
     print(all_true_states.shape)
     time_steps = np.linspace(config.t0,config.deltaT*all_true_states.shape[2],all_true_states.shape[2])
@@ -68,8 +68,9 @@ def track_pipeline(root_score_dir, ts_type, config, root_dir, toSave, label):
     plt.grid(True)
     ax.scatter(time_steps, total_global_errors)
     plt.fill_between(time_steps,y1=total_global_errors_minq, y2=total_global_errors_maxq, color="blue", alpha=0.4)
-    ax.set_title(f"Pathwise RMSE for Score Estimator for {label}",fontsize=40)
-
+    ax.set_title(
+        rf"Score for $\mu_5$ with $D={config.ts_dims}, F={'1.25' if config.forcing_const == 1.25 else '0.75'}$",
+        fontsize=40)
     ax.set_xlabel("Time Axis", fontsize=38)
     ax.tick_params(labelsize=38)
 
@@ -82,9 +83,9 @@ def track_pipeline(root_score_dir, ts_type, config, root_dir, toSave, label):
 
     # Inject the scale into the y-axis label
     if offset_text:
-        ax.set_ylabel(f'RMSE ({offset_text})', fontsize=38)
+        ax.set_ylabel(f'Time-normalised RMSE ({offset_text})', fontsize=38)
     else:
-        ax.set_ylabel('RMSE', fontsize=38)
+        ax.set_ylabel('Time-normalised RMSE', fontsize=38)
     plt.tight_layout()
     if toSave:
         plt.savefig((root_dir +f"DiffusionModelPresentationImages/TSPM_Markovian/{ts_type}Chaos/TSPM_MLP_PM_ST_{config.feat_thresh:.3f}FTh_{ts_type}_DriftTrack_{best_epoch_track}Nep_{round(total_global_errors_minq[-1], 7)}_MinIQR_{round(total_global_errors_maxq[-1], 7)}_MaxIQR").replace(".", "")+".png")
