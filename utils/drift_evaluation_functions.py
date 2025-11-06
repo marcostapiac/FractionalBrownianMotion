@@ -353,7 +353,7 @@ def experiment_MLP_DDims_drifts(config, Xs, good, onlyGauss=False):
 
             insert_idx -= 1
     # match your original return type
-    return final_vec_mu_hats
+    return final_vec_mu_hats.numpy()
 def MLP_1D_drifts(config, PM):
     print("Beta Min : ", config.beta_min)
     if config.has_cuda:
