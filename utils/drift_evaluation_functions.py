@@ -267,12 +267,7 @@ def experiment_MLP_DDims_drifts(config, Xs, good, onlyGauss=False):
     diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_time, steps=Ndiff_discretisation,
                                      device=device)
 
-    # output – keep off GPU by default to save VRAM
-    if out_device == "cpu":
-        final_vec_mu_hats = torch.empty((Xshape, es, num_taus, config.ts_dims), dtype=dtype, device="cpu")
-    else:
-        final_vec_mu_hats = torch.empty((Xshape, es, num_taus, config.ts_dims), dtype=dtype, device=device)
-
+    final_vec_mu_hats = torch.empty((Xshape, es, num_taus, config.ts_dims), dtype=dtype, device="cpu")
     # If you ever set es>1, we must carry vec_Z_taus across diffusion steps per chunk.
     # We'll implement a generic mechanism that also works for es=1 with minimal overhead.
     n_chunks = math.ceil(Xshape / chunk_size)
@@ -358,7 +353,7 @@ def experiment_MLP_DDims_drifts(config, Xs, good, onlyGauss=False):
 
             insert_idx -= 1
     # match your original return type
-    return final_vec_mu_hats.numpy()
+    return final_vec_mu_hats
 def MLP_1D_drifts(config, PM):
     print("Beta Min : ", config.beta_min)
     if config.has_cuda:
