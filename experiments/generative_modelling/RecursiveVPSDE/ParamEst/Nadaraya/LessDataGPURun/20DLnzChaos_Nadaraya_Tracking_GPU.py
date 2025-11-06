@@ -364,7 +364,7 @@ if __name__ == "__main__":
             assert num_paths == 1024
 
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_f{config.ndims}DLnz_LongerDriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
+                    project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_f{config.ndims}DLnz_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
                 ".", "")
             print(f"Save path for Track {save_path}\n")
             np.save(save_path + "_true_states.npy", all_true_states)
