@@ -259,7 +259,7 @@ class ConditionalMarkovianPostMeanDiffTrainer(nn.Module):
     def _save_loss(self, losses: list, filepath: str):
         """
         Save loss tracker
-            :param losses: Epoch losses averaged over GPU and Batches
+            :param losses: Epoch losses averaged over LongerTimes_GPU and Batches
             :param filepath: Path of file
             :return: None
         """

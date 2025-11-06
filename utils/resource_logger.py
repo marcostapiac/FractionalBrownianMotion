@@ -31,11 +31,11 @@ def set_runtime_global(**kv: Any) -> None:
 
 class ResourceLogger:
     """
-    Single-GPU resource logger.
+    Single-LongerTimes_GPU resource logger.
       - SIGINT/SIGTERM aware
       - Atomic writes (<outfile>.tmp -> <outfile>)
       - Auto-create parent dirs
-      - Single-GPU via NVML (device index configurable)
+      - Single-LongerTimes_GPU via NVML (device index configurable)
       - Runtime vars without passing instance:
           * set_runtime_global(epoch=...), or
           * runtime_probe() -> dict, or
@@ -76,7 +76,7 @@ class ResourceLogger:
         self.cpu: List[float] = []
         self.ram: List[float] = []
 
-        # Single-GPU state
+        # Single-LongerTimes_GPU state
         self._gpu_enabled = bool(nvml_enable) and (_PYNVML_AVAILABLE) and (os.environ.get("RESOURCE_LOGGER_DISABLE_GPU", "") != "1")
         self._gpu_index = int(os.environ.get("RESOURCE_LOGGER_GPU_INDEX", gpu_index))
         self._nvml_inited = False
@@ -136,7 +136,7 @@ class ResourceLogger:
         finally:
             raise SystemExit(128 + int(signum))
 
-    # ---------- NVML (single GPU) ----------
+    # ---------- NVML (single LongerTimes_GPU) ----------
 
     def _ensure_nvml(self):
         if not self._gpu_enabled or self._nvml_inited:
@@ -153,7 +153,7 @@ class ResourceLogger:
             self._gpu_mem_total_mb = float(mem.total) / 1e6
             self._nvml_inited = True
         except Exception:
-            # Permanently disable GPU sampling for this run
+            # Permanently disable LongerTimes_GPU sampling for this run
             self._gpu_enabled = False
             self._nvml_inited = False
             self._gpu_handle = None
@@ -252,7 +252,7 @@ class ResourceLogger:
             self.cpu.append(cpu)
             self.ram.append(ram)
 
-        # GPU
+        # LongerTimes_GPU
         if not self._gpu_enabled or not self._nvml_inited or self._gpu_handle is None:
             return
         try:
@@ -262,7 +262,7 @@ class ResourceLogger:
                 self._gpu_util.append(float(util))
                 self._gpu_mem_used_mb.append(float(mem))
         except Exception:
-            # On any failure, disable GPU collection for remainder
+            # On any failure, disable LongerTimes_GPU collection for remainder
             self._gpu_enabled = False
 
     def _stats(self) -> Dict[str, Any]:
@@ -338,12 +338,12 @@ class ResourceLogger:
 
 
 __all__ = ["ResourceLogger", "set_runtime_global"]
-# Wall-clock per epoch/idx from a ResourceLogger JSON (GPU or CPU).
+# Wall-clock per epoch/idx from a ResourceLogger JSON (LongerTimes_GPU or CPU).
 # Use this to build your LaTeX table. No “throughput” — it’s hardware/loader-specific.
 
 import json
 
-# Wall-clock per epoch/idx + CPU/RAM/GPU details from a ResourceLogger JSON (GPU or CPU).
+# Wall-clock per epoch/idx + CPU/RAM/LongerTimes_GPU details from a ResourceLogger JSON (LongerTimes_GPU or CPU).
 
 def _load(run):
     if isinstance(run, dict): return run
@@ -387,7 +387,7 @@ def wallclock_and_system_metrics(run_json_or_path, inclusive=False):
     ram_avg_gib  = _to_gib(r.get("ram_used_MB_avg"))
     ram_peak_gib = _to_gib(r.get("ram_used_MB_peak"))
 
-    # GPU (None for CPU jobs)
+    # LongerTimes_GPU (None for CPU jobs)
     gpu_util_avg   = r.get("gpu_util_avg")
     gpu_util_peak  = r.get("gpu_util_peak")
     gpu_mem_avg_gib  = _to_gib(r.get("gpu_mem_MB_avg"))
@@ -402,10 +402,10 @@ def wallclock_and_system_metrics(run_json_or_path, inclusive=False):
         "cpu_peak_pct": cpu_peak,               # CPU peak [%]
         "ram_avg_gib": ram_avg_gib,             # RAM average [GiB]
         "ram_peak_gib": ram_peak_gib,           # RAM peak [GiB]
-        "gpu_util_avg_pct": gpu_util_avg,       # GPU average util [%] (GPU jobs)
-        "gpu_util_peak_pct": gpu_util_peak,     # GPU peak util [%] (GPU jobs)
-        "gpu_mem_avg_gib": gpu_mem_avg_gib,     # GPU used mem avg [GiB] (GPU jobs)
-        "gpu_mem_peak_gib": gpu_mem_peak_gib,   # GPU used mem peak [GiB] (GPU jobs)
+        "gpu_util_avg_pct": gpu_util_avg,       # LongerTimes_GPU average util [%] (LongerTimes_GPU jobs)
+        "gpu_util_peak_pct": gpu_util_peak,     # LongerTimes_GPU peak util [%] (LongerTimes_GPU jobs)
+        "gpu_mem_avg_gib": gpu_mem_avg_gib,     # LongerTimes_GPU used mem avg [GiB] (LongerTimes_GPU jobs)
+        "gpu_mem_peak_gib": gpu_mem_peak_gib,   # LongerTimes_GPU used mem peak [GiB] (LongerTimes_GPU jobs)
     }
 
 # Example:

@@ -63,7 +63,7 @@ def reverse_sampling(diffusion: Union[VPSDEDiffusion, VESDEDiffusion, OUSDEDiffu
         :return: Final reverse-time samples
     """
     if config.has_cuda:
-        # Sampling is sequential, so only single-machine, single-GPU/CPU
+        # Sampling is sequential, so only single-machine, single-LongerTimes_GPU/CPU
         device = 0
     else:
         device = torch.device("cpu")
@@ -102,7 +102,7 @@ def recursive_LSTM_reverse_sampling(diffusion: VPSDEDiffusion,
             3. Conditional variances
     """
     if config.has_cuda:
-        # Sampling is sequential, so only single-machine, single-GPU/CPU
+        # Sampling is sequential, so only single-machine, single-LongerTimes_GPU/CPU
         device = 0
     else:
         device = torch.device("cpu")
@@ -184,7 +184,7 @@ def recursive_markovian_reverse_sampling(diffusion: VPSDEDiffusion,
         :return: Final reverse-time samples
     """
     if config.has_cuda:
-        # Sampling is sequential, so only single-machine, single-GPU/CPU
+        # Sampling is sequential, so only single-machine, single-LongerTimes_GPU/CPU
         device = 0
     else:
         device = torch.device("cpu")

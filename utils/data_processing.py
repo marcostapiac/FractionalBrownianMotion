@@ -63,7 +63,7 @@ def generate_sine_dataset(S: int, T: int, rng: np.random.Generator) -> np.ndarra
 def ddp_setup(backend: str) -> None:
     """
     DDP setup to allow processes to discover and communicate with each other with TorchRun
-        :param backend: Gloo vs NCCL for CPU vs GPU, respectively
+        :param backend: Gloo vs NCCL for CPU vs LongerTimes_GPU, respectively
         :return: None
     """
     init_process_group(backend=backend)

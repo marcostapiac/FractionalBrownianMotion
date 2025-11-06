@@ -19,14 +19,14 @@ import numpy as np
 from tqdm import tqdm
 
 from configs import project_config
-from configs.RecursiveVPSDE.Markovian_40DLorenz.recursive_Markovian_PostMeanScore_40DLorenz_Chaos_T256_H05_tl_110data_StbleTgt import \
+from configs.RecursiveVPSDE.Markovian_20DLorenz.recursive_Markovian_PostMeanScore_20DLorenz_Stable_T256_H05_tl_110data_StbleTgt import \
     get_config
 from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
 from utils.drift_evaluation_functions import process_IID_bandwidth
 from utils.resource_logger import ResourceLogger, set_runtime_global
 
 # gpu_refactor.py
-# Drop-in GPU versions of your key functions, with `_gpu` suffixes.
+# Drop-in LongerTimes_GPU versions of your key functions, with `_gpu` suffixes.
 # Requires: torch >= 2.0
 
 import math
@@ -45,7 +45,7 @@ def _get_device(device_str: str | None = None):
 
 
 # -----------------------------------------
-#   Drift (Lorenz96) — vectorized on GPU
+#   Drift (Lorenz96) — vectorized on LongerTimes_GPU
 # -----------------------------------------
 
 @torch.no_grad()
@@ -66,7 +66,7 @@ def true_drift_gpu(prev: torch.Tensor, num_paths: int, config) -> torch.Tensor:
 
 
 # ------------------------------------------------------------
-#   IID Nadaraya–Watson multivariate estimator — GPU & tiled
+#   IID Nadaraya–Watson multivariate estimator — LongerTimes_GPU & tiled
 #   (No (N,n,M,d) materialization; stable; diagonal A fastpath)
 # ------------------------------------------------------------
 
@@ -85,7 +85,7 @@ def IID_NW_multivar_estimator_gpu(
     stable: bool = True,
 ) -> torch.Tensor:
     """
-    Returns: (M,d) float32 CUDA tensor (keeps all heavy ops on GPU).
+    Returns: (M,d) float32 CUDA tensor (keeps all heavy ops on LongerTimes_GPU).
     Matches your scaling:
       denom = sum(w)/(N*n)
       numer = (sum(w * incs)/N) * (t1 - t0)
@@ -181,7 +181,7 @@ def IID_NW_multivar_estimator_gpu(
 
 
 # ---------------------------------------------------------
-#   End-to-end single-quantile simulator — GPU & tiled
+#   End-to-end single-quantile simulator — LongerTimes_GPU & tiled
 # ---------------------------------------------------------
 
 @torch.no_grad()
@@ -203,7 +203,7 @@ def process_IID_bandwidth_gpu(
     stable: bool = True,
 ):
     """
-    Mirrors your original `process_IID_bandwidth`, but fully on GPU, and returns:
+    Mirrors your original `process_IID_bandwidth`, but fully on LongerTimes_GPU, and returns:
       { quant_idx: (true_states, global_states, local_states) }  as numpy arrays
     """
     device = _get_device(device_str)
@@ -221,7 +221,7 @@ def process_IID_bandwidth_gpu(
         inv_H = torch.as_tensor(inv_H_np.astype(np.float32), device=device)
 
     d = config.ndims
-    # States on GPU
+    # States on LongerTimes_GPU
     true_states   = torch.zeros((num_state_paths, 1 + num_time_steps, d), dtype=torch.float32, device=device)
     global_states = torch.zeros_like(true_states)
     local_states  = torch.zeros_like(true_states)
@@ -231,7 +231,7 @@ def process_IID_bandwidth_gpu(
     global_states[:, 0, :] = init
     local_states[:, 0, :]  = init
 
-    # RNG on GPU (deterministic from provided SeedSequence)
+    # RNG on LongerTimes_GPU (deterministic from provided SeedSequence)
     g = torch.Generator(device=device)
     seed = int(seed_seq.generate_state(1, dtype=np.uint64)[0] % (2**63 - 1))
     g.manual_seed(seed)
@@ -240,7 +240,7 @@ def process_IID_bandwidth_gpu(
         eps = torch.randn((num_state_paths, d), generator=g, device=device, dtype=torch.float32)
         eps *= (math.sqrt(deltaT) * float(config.diffusion))
 
-        # True drift (GPU)
+        # True drift (LongerTimes_GPU)
         prev_true = true_states[:, i - 1, :]
         true_mean = true_drift_gpu(prev_true, num_state_paths, config)[:, 0, :]  # (M,d)
 
@@ -276,7 +276,7 @@ def process_IID_bandwidth_gpu(
 
 
 # -----------------------------------------------------------------
-# (Optional) Scalar Gaussian kernel on GPU — for completeness
+# (Optional) Scalar Gaussian kernel on LongerTimes_GPU — for completeness
 # -----------------------------------------------------------------
 
 @torch.no_grad()
@@ -286,7 +286,7 @@ def multivar_gaussian_kernel_gpu(
     norm_const: float,
 ) -> torch.Tensor:
     """
-    Returns exp(-0.5 * (x-mu)^T A (x-mu)) * norm_const on GPU.
+    Returns exp(-0.5 * (x-mu)^T A (x-mu)) * norm_const on LongerTimes_GPU.
     NOTE: For performance in your estimator, prefer IID_NW_multivar_estimator_gpu,
           which avoids building (N,n,M,d) entirely.
     """
@@ -308,6 +308,7 @@ if __name__ == "__main__":
             outfile=config.nadaraya_resource_logging_path.replace(".json.json", "_GPUNADARAYA.json.json"),  # path where log will be written
             job_type="GPU training",
     ):
+        assert num_paths == 10240
         t0 = config.t0
         deltaT = config.deltaT
         t1 = deltaT * config.ts_length
@@ -373,7 +374,7 @@ if __name__ == "__main__":
 
         # Euler-Maruyama Scheme for Tracking Errors
         shape = prevPath_observations.shape
-        for bw_idx in tqdm(range(20,bws.shape[0])):
+        for bw_idx in tqdm(range(10,bws.shape[0])):
             set_runtime_global(idx=bw_idx)
             bw = bws[bw_idx, :]
             inv_H = np.diag(np.power(bw, -2))
@@ -409,7 +410,7 @@ if __name__ == "__main__":
             assert num_paths == 10240
 
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_f{config.ndims}DLnz_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
+                    project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_f{config.ndims}DLnz_LongerDriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
                 ".", "")
             print(f"Save path {save_path}\n")
             np.save(save_path + "_true_states.npy", all_true_states)
