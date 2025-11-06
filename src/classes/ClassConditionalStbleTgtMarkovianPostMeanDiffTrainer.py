@@ -12,6 +12,8 @@ from torch.nn.parallel import DistributedDataParallel as DDP
 from torch.utils.data import DistributedSampler
 from torchmetrics import MeanMetric
 
+from src.classes.ClassFractionalBiPotentialNonSep import FractionalBiPotentialNonSep
+from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
 from src.generative_modelling.models.ClassVESDEDiffusion import VESDEDiffusion
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
@@ -23,7 +25,7 @@ from tqdm import tqdm
 
 from utils.drift_evaluation_functions import MLP_1D_drifts, multivar_score_based_MLP_drift_OOS, \
     drifttrack_cummse, driftevalexp_mse_ignore_nans, MLP_fBiPotDDims_drifts, drifttrack_mse, stochastic_burgers_drift, \
-    build_q_nonneg
+    build_q_nonneg, experiment_MLP_DDims_drifts
 from utils.resource_logger import set_runtime_global
 
 
@@ -802,65 +804,104 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
     def _domain_rmse(self, epoch, config):
         # assert (config.ndims <= 2)
-        if config.ndims > 1 and "BiPot" in config.data_path:
-            final_vec_mu_hats = MLP_fBiPotDDims_drifts(PM=self.score_network.module, config=config)
+        print(config.data_path)
+        if ("DLnz" not in config.data_path) and ("DDimsNS" not in config.data_path):
+            if config.ndims > 1 and "BiPot" in config.data_path:
+                final_vec_mu_hats = MLP_fBiPotDDims_drifts(PM=self.score_network.module, config=config)
+            elif config.ndims == 1:
+                final_vec_mu_hats = MLP_1D_drifts(PM=self.score_network.module, config=config)
+            if "BiPot" in config.data_path and config.ndims == 1:
+                Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
+                true_drifts = -(4. * config.quartic_coeff * np.power(Xs,
+                                                                     3) + 2. * config.quad_coeff * Xs + config.const)
+            elif "BiPot" in config.data_path and config.ndims > 1:
+                Xshape = config.ts_length
+                if config.ndims == 12:
+                    Xs = np.concatenate(
+                        [np.linspace(-5, 5, num=Xshape).reshape(-1, 1), np.linspace(-4.7, 4.7, num=Xshape).reshape(-1, 1), \
+                         np.linspace(-4.4, 4.4, num=Xshape).reshape(-1, 1),
+                         np.linspace(-4.2, 4.2, num=Xshape).reshape(-1, 1), \
+                         np.linspace(-4.05, 4.05, num=Xshape).reshape(-1, 1),
+                         np.linspace(-3.9, 3.9, num=Xshape).reshape(-1, 1), \
+                         np.linspace(-3.7, 3.7, num=Xshape).reshape(-1, 1),
+                         np.linspace(-3.6, 3.6, num=Xshape).reshape(-1, 1), \
+                         np.linspace(-3.55, 3.55, num=Xshape).reshape(-1, 1),
+                         np.linspace(-3.48, 3.48, num=Xshape).reshape(-1, 1), \
+                         np.linspace(-3.4, 3.4, num=Xshape).reshape(-1, 1),
+                         np.linspace(-3.4, 3.4, num=Xshape).reshape(-1, 1)],
+                        axis=1)
+                elif config.ndims == 8:
+                    Xs = np.concatenate([np.linspace(-4.9, 4.9, num=Xshape).reshape(-1, 1),
+                                         np.linspace(-4.4, 4.4, num=Xshape).reshape(-1, 1), \
+                                         np.linspace(-4.05, 4.05, num=Xshape).reshape(-1, 1),
+                                         np.linspace(-3.9, 3.9, num=Xshape).reshape(-1, 1), \
+                                         np.linspace(-3.7, 3.7, num=Xshape).reshape(-1, 1),
+                                         np.linspace(-3.6, 3.6, num=Xshape).reshape(-1, 1), \
+                                         np.linspace(-3.5, 3.5, num=Xshape).reshape(-1, 1),
+                                         np.linspace(-3.4, 3.4, num=Xshape).reshape(-1, 1)],
+                                        axis=1)
+                if "coup" in config.data_path:
+                    true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
+                                                                                   3) + 2. * np.array(
+                        config.quad_coeff) * Xs + np.array(config.const))
+                    xstar = np.sqrt(
+                        np.maximum(1e-12, -np.array(config.quad_coeff) / (2.0 * np.array(config.quartic_coeff))))
+                    s2 = (config.scale * xstar) ** 2 + 1e-12  # (D,) or (K,1,D)
+                    diff = Xs ** 2 - xstar ** 2  # same shape as prev
+                    phi = np.exp(-(diff ** 2) / (2.0 * s2 * xstar ** 2 + 1e-12))
+                    phi_prime = phi * (-2.0 * Xs * diff / ((config.scale ** 2) * (xstar ** 4 + 1e-12)))
+                    nbr = np.roll(phi, 1, axis=-1) + np.roll(phi, -1, axis=-1)  # same shape as phi
+                    true_drifts = true_drifts - 0.5 * config.coupling * phi_prime * nbr
+                    assert true_drifts.shape == Xs.shape
+                else:
+                    true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
+                                                                                   3) + 2. * np.array(
+                        config.quad_coeff) * Xs + np.array(config.const))
+            elif "QuadSin" in config.data_path:
+                Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
+                true_drifts = (-2. * config.quad_coeff * Xs + config.sin_coeff * config.sin_space_scale * np.sin(
+                    config.sin_space_scale * Xs))
+            elif "SinLog" in config.data_path:
+                Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
+                true_drifts = (-np.sin(config.sin_space_scale * Xs) * np.log(
+                    1 + config.log_space_scale * np.abs(Xs)) / config.sin_space_scale)
         else:
-            final_vec_mu_hats = MLP_1D_drifts(PM=self.score_network.module, config=config)
-        if "BiPot" in config.data_path and config.ndims == 1:
-            Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
-            true_drifts = -(4. * config.quartic_coeff * np.power(Xs,
-                                                                 3) + 2. * config.quad_coeff * Xs + config.const)
-        elif "BiPot" in config.data_path and config.ndims > 1:
-            Xshape = config.ts_length
-            if config.ndims == 12:
-                Xs = np.concatenate(
-                    [np.linspace(-5, 5, num=Xshape).reshape(-1, 1), np.linspace(-4.7, 4.7, num=Xshape).reshape(-1, 1), \
-                     np.linspace(-4.4, 4.4, num=Xshape).reshape(-1, 1),
-                     np.linspace(-4.2, 4.2, num=Xshape).reshape(-1, 1), \
-                     np.linspace(-4.05, 4.05, num=Xshape).reshape(-1, 1),
-                     np.linspace(-3.9, 3.9, num=Xshape).reshape(-1, 1), \
-                     np.linspace(-3.7, 3.7, num=Xshape).reshape(-1, 1),
-                     np.linspace(-3.6, 3.6, num=Xshape).reshape(-1, 1), \
-                     np.linspace(-3.55, 3.55, num=Xshape).reshape(-1, 1),
-                     np.linspace(-3.48, 3.48, num=Xshape).reshape(-1, 1), \
-                     np.linspace(-3.4, 3.4, num=Xshape).reshape(-1, 1),
-                     np.linspace(-3.4, 3.4, num=Xshape).reshape(-1, 1)],
-                    axis=1)
-            elif config.ndims == 8:
-                Xs = np.concatenate([np.linspace(-4.9, 4.9, num=Xshape).reshape(-1, 1),
-                                     np.linspace(-4.4, 4.4, num=Xshape).reshape(-1, 1), \
-                                     np.linspace(-4.05, 4.05, num=Xshape).reshape(-1, 1),
-                                     np.linspace(-3.9, 3.9, num=Xshape).reshape(-1, 1), \
-                                     np.linspace(-3.7, 3.7, num=Xshape).reshape(-1, 1),
-                                     np.linspace(-3.6, 3.6, num=Xshape).reshape(-1, 1), \
-                                     np.linspace(-3.5, 3.5, num=Xshape).reshape(-1, 1),
-                                     np.linspace(-3.4, 3.4, num=Xshape).reshape(-1, 1)],
-                                    axis=1)
-            if "coup" in config.data_path:
-                true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
-                                                                               3) + 2. * np.array(
-                    config.quad_coeff) * Xs + np.array(config.const))
+            num_paths = 100
+            if "DLnz" in config.data_path:
+                fLnz = FractionalLorenz96(X0=config.initState, diff=config.diffusion, num_dims=config.ndims,
+                                          forcing_const=config.forcing_const)
+                prev = np.array(
+                    [fLnz.euler_simulation(H=config.hurst, N=config.ts_length, deltaT=config.deltaT, X0=np.array(config.initState), Ms=None,
+                                           gaussRvs=None,
+                                           t0=config.t0, t1=config.t1) for _ in (range(num_paths))]).reshape(
+                    (num_paths, config.ts_length + 1, config.ndims))[:, 1:, :]
+                prev = prev.reshape(-1, config.ndims)
+                true_drifts = np.zeros((prev.shape[0], config.ndims))
+                for i in range(config.ndims):
+                    true_drifts[:, i] = (prev[:, (i + 1) % config.ndims] - prev[:, i - 2]) * prev[:, i - 1] - prev[:,
+                                                                                                          i] * config.forcing_const
+
+            elif "DDimsNS" in config.data_path or "coup" in config.data_path:
+                fBiPotNS = FractionalBiPotentialNonSep(num_dims=config.ndims, scale=config.scale, quartic_coeff=config.quartic_coeff, quad_coeff=config.quad_coeff,
+                                                       const=config.const, diff=config.diffusion, coupling=config.coupling,
+                                                       X0=np.array(config.initState))
+                prev = np.array(
+                    [fBiPotNS.euler_simulation(H=config.hurst, N=config.ts_length, deltaT=config.deltaT, isUnitInterval=True, X0=None, Ms=None,
+                                               t0=config.t0, t1=config.t1).reshape(-1, 1) for _ in range(num_paths)]).reshape(
+                    (num_paths, config.ts_length + 1, config.ndims))[:, 1:, :]
+                prev = prev.reshape(-1, config.ndims)
+                true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(prev,
+                                                                           3) + 2. * np.array(
+                    config.quad_coeff) * prev + np.array(config.const))
                 xstar = np.sqrt(
                     np.maximum(1e-12, -np.array(config.quad_coeff) / (2.0 * np.array(config.quartic_coeff))))
                 s2 = (config.scale * xstar) ** 2 + 1e-12  # (D,) or (K,1,D)
-                diff = Xs ** 2 - xstar ** 2  # same shape as prev
+                diff = prev ** 2 - xstar ** 2  # same shape as prev
                 phi = np.exp(-(diff ** 2) / (2.0 * s2 * xstar ** 2 + 1e-12))
-                phi_prime = phi * (-2.0 * Xs * diff / ((config.scale ** 2) * (xstar ** 4 + 1e-12)))
+                phi_prime = phi * (-2.0 * prev * diff / ((config.scale ** 2) * (xstar ** 4 + 1e-12)))
                 nbr = np.roll(phi, 1, axis=-1) + np.roll(phi, -1, axis=-1)  # same shape as phi
                 true_drifts = true_drifts - 0.5 * config.coupling * phi_prime * nbr
-                assert true_drifts.shape == Xs.shape
-            else:
-                true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
-                                                                               3) + 2. * np.array(
-                    config.quad_coeff) * Xs + np.array(config.const))
-        elif "QuadSin" in config.data_path:
-            Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
-            true_drifts = (-2. * config.quad_coeff * Xs + config.sin_coeff * config.sin_space_scale * np.sin(
-                config.sin_space_scale * Xs))
-        elif "SinLog" in config.data_path:
-            Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
-            true_drifts = (-np.sin(config.sin_space_scale * Xs) * np.log(
-                1 + config.log_space_scale * np.abs(Xs)) / config.sin_space_scale)
+            final_vec_mu_hats = experiment_MLP_DDims_drifts(config=config, Xs=prev, good=self.score_network.module, onlyGauss=False)
         type = "PM"
         assert (type in config.scoreNet_trained_path)
         assert ("_ST_" in config.scoreNet_trained_path)
@@ -886,6 +927,14 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         elif "SinLog" in config.data_path:
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fSinLog_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.log_space_scale}b_{config.sin_space_scale}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                ".", "")
+        elif "BiPot" in config.data_path and config.ndims > 1 and "coup" in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_{config.ndims}DDimsNS_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
+                ".", "")
+        elif "Lnz" in config.data_path:
+            save_path = (
+                    project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}{config.ndims}DLnz_DriftEvalExp_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{1}NDT_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}_{round(config.forcing_const, 3)}FConst").replace(
                 ".", "")
         print(f"Save path:{save_path}\n")
         np.save(save_path + "_muhats.npy", final_vec_mu_hats)
@@ -947,7 +996,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 drift_X = np.zeros((num_paths, config.ndims))
                 for i in range(config.ndims):
                     drift_X[:, i] = (prev[:, (i + 1) % config.ndims] - prev[:, i - 2]) * prev[:, i - 1] - prev[:,
-                                                                                                          i] + config.forcing_const
+                                                                                                          i]*config.forcing_const
                 return drift_X[:, np.newaxis, :]
 
         diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
@@ -1213,11 +1262,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 print(f"Current Loss {curr_loss}\n")
                 self.save_every = 1
                 if ((epoch + 1) % self.save_every == 0) or epoch == 0:
-                    if config.ndims <= 2 or ("BiPot" in config.data_path and config.ndims > 1):
-                        evalexp_mse = self._domain_rmse(config=config, epoch=epoch + 1)
-                        if evalexp_mse < self.curr_best_evalexp_mse and (epoch + 1) >= 1:
-                            self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="EE")
-                            self.curr_best_evalexp_mse = evalexp_mse
+                    #if config.ndims <= 2 or ("BiPot" in config.data_path and config.ndims > 1):
+                    evalexp_mse = self._domain_rmse(config=config, epoch=epoch + 1)
+                    if evalexp_mse < self.curr_best_evalexp_mse and (epoch + 1) >= 1:
+                        self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="EE")
+                        self.curr_best_evalexp_mse = evalexp_mse
                     if ((epoch + 1) % 2 == 0):
                         track_mse = self._tracking_errors(epoch=epoch + 1, config=config)
                         if track_mse < self.curr_best_track_mse and (epoch + 1) >= 1:

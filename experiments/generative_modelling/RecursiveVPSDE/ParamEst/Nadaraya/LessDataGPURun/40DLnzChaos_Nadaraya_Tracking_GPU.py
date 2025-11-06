@@ -5,7 +5,7 @@ import numpy as np
 from tqdm import tqdm
 
 from configs import project_config
-from configs.RecursiveVPSDE.Markovian_8DLorenz.recursive_Markovian_PostMeanScore_8DLorenz_Chaos_T256_H05_tl_110data_StbleTgt import \
+from configs.RecursiveVPSDE.Markovian_40DLorenz.recursive_Markovian_PostMeanScore_40DLorenz_Chaos_T256_H05_tl_110data_StbleTgt import \
     get_config
 from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
 from utils.resource_logger import ResourceLogger, set_runtime_global
@@ -263,7 +263,7 @@ if __name__ == "__main__":
             outfile=config.nadaraya_resource_logging_path.replace(".json.json", "_GPUNADARAYA.json.json"),  # path where log will be written
             job_type="GPU training",
     ):
-        assert num_paths == 10240
+        assert num_paths == 1024
         t0 = config.t0
         deltaT = config.deltaT
         t1 = deltaT * config.ts_length
@@ -319,7 +319,7 @@ if __name__ == "__main__":
         np.copyto(prevPath_shm_array, prevPath_observations)
         np.copyto(path_incs_shm_array, path_incs)
 
-        num_time_steps = int(10*config.ts_length)
+        num_time_steps = int(1*config.ts_length)
         num_state_paths = 200
         rmse_quantile_nums = 1
         # Ensure randomness across starmap calls
@@ -361,7 +361,7 @@ if __name__ == "__main__":
             all_global_states = np.concatenate([v[1][np.newaxis, :] for v in results.values()], axis=0)
             all_local_states = np.concatenate([v[2][np.newaxis, :] for v in results.values()], axis=0)
             assert (all_true_states.shape == all_global_states.shape == all_local_states.shape)
-            assert num_paths == 10240
+            assert num_paths == 1024
 
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_f{config.ndims}DLnz_LongerDriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
@@ -376,7 +376,7 @@ if __name__ == "__main__":
             stable = True
             num_dhats = 1 # No variability given we use same training dataset
             device = _get_device(None)
-            all_true_states = all_true_states[np.random.choice(np.arange(all_true_states.shape[0]), 10), :, :]
+            all_true_states = all_true_states[np.random.choice(np.arange(all_true_states.shape[0]), 100), :, :]
             all_true_states = all_true_states.reshape(-1, config.ts_dims)
             unif_is_drift_hats = np.zeros((all_true_states.shape[0], num_dhats, config.ts_dims))
             Xs = torch.as_tensor(all_true_states, dtype=torch.float32, device=device).contiguous()

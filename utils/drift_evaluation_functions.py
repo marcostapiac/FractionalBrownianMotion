@@ -244,6 +244,88 @@ def LSTM_1D_drifts(config, PM):
     return final_vec_mu_hats[:, -es:, :, :]
 
 
+def experiment_MLP_DDims_drifts(config, Xs, good, onlyGauss=False):
+    if config.has_cuda:
+        device = int(os.environ["LOCAL_RANK"])
+    else:
+        device = torch.device("cpu")
+    Xs = torch.Tensor(Xs).to(device)
+    good = good.to(device)
+    diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
+    ts_step = config.deltaT
+    Xshape = Xs.shape[0]
+    num_taus = 100
+
+    num_diff_times = config.max_diff_steps
+    Ndiff_discretisation = config.max_diff_steps
+    diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_time,
+                                     steps=Ndiff_discretisation).to(device)
+
+    features_tensor = torch.stack([Xs for _ in range(1)], dim=0).reshape(Xshape * 1, 1, -1).to(device)
+    vec_Z_taus = diffusion.prior_sampling(shape=(Xshape * num_taus, 1, config.ts_dims)).to(device)
+
+    # ts = []
+    es = 1
+    final_vec_mu_hats = np.zeros(
+        (Xshape, es, num_taus, config.ts_dims))  # Xvalues, DiffTimes, Ztaus, Ts_Dims
+
+    ts = []
+    # mu_hats_mean = np.zeros((tot_num_feats, num_taus))
+    # mu_hats_std = np.zeros((tot_num_feats, num_taus))
+    good.eval()
+    insert_idx=-1
+    for difftime_idx in (np.arange(num_diff_times - 1, num_diff_times - es - 1, -1)): #difftime_idx >= num_diff_times - es:
+        d = diffusion_times[Ndiff_discretisation - (num_diff_times - 1 - difftime_idx) - 1].to(device)
+        diff_times = torch.stack([d for _ in range(Xshape)]).reshape(Xshape * 1).to(device)
+        eff_times = diffusion.get_eff_times(diff_times=diff_times).unsqueeze(-1).unsqueeze(-1).to(device)
+        vec_diff_times = torch.stack([diff_times for _ in range(num_taus)], dim=0).reshape(num_taus * Xshape)
+        vec_eff_times = torch.stack([eff_times for _ in range(num_taus)], dim=0).reshape(num_taus * Xshape, 1, 1)
+        vec_conditioner = torch.stack([features_tensor for _ in range(num_taus)], dim=0).reshape(
+            num_taus * Xshape,
+            1, -1)
+        with torch.no_grad():
+            if onlyGauss:
+                scoreEval_vec_Z_taus = torch.randn_like(vec_Z_taus).to(device)
+            else:
+                scoreEval_vec_Z_taus = vec_Z_taus
+            vec_predicted_score = good.forward(inputs=scoreEval_vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
+                                             eff_times=vec_eff_times)
+
+        beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
+        sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
+        sigma2_taus=torch.pow(1. - torch.pow(beta_taus, 2), 1.).to(device)
+        predicted_score = -scoreEval_vec_Z_taus/sigma2_taus + (beta_taus/sigma2_taus)*vec_predicted_score
+        vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
+                                                                                           predicted_score=predicted_score,
+                                                                                           diff_index=torch.Tensor(
+                                                                                               [int((
+                                                                                                       num_diff_times - 1 - difftime_idx))]).to(
+                                                                                               device),
+                                                                                           max_diff_steps=Ndiff_discretisation)
+
+        if "PM" in config.scoreNet_trained_path:
+            final_mu_hats = (beta_taus*scoreEval_vec_Z_taus / (sigma2_taus)) + ((
+                                                                            (torch.pow(sigma_taus, 2) + (
+                                                                                    torch.pow(beta_taus * config.diffusion,
+                                                                                            2) * ts_step)) / (
+                                                                                    ts_step * sigma2_taus)) * vec_predicted_score)
+        else:
+            final_mu_hats = (scoreEval_vec_Z_taus / (ts_step * beta_taus)) + ((
+                                                                            (sigma2_taus + (
+                                                                                    torch.pow(beta_taus * config.diffusion,
+                                                                                            2) * ts_step)) / (
+                                                                                    ts_step * beta_taus)) * vec_scores)
+
+        assert (final_mu_hats.shape == (num_taus * Xshape, 1, config.ts_dims))
+        means = final_mu_hats.reshape((num_taus, Xshape, config.ts_dims))
+
+        # print(vec_Z_taus.shape, vec_scores.shape)
+        final_vec_mu_hats[:, insert_idx,:, :] = means.permute((1, 0, 2)).cpu().numpy()
+        vec_z = torch.randn_like(vec_drift).to(device)
+        vec_Z_taus = vec_drift + vec_diffParam * vec_z
+        insert_idx -=1
+    assert (final_vec_mu_hats.shape == (Xshape, es, num_taus, config.ts_dims))
+    return final_vec_mu_hats
 def MLP_1D_drifts(config, PM):
     print("Beta Min : ", config.beta_min)
     if config.has_cuda:

@@ -1,18 +1,4 @@
 
-
-
-
-
-
-
-
-
-
-
-
-
-
-import multiprocessing as mp
 from multiprocessing import shared_memory
 
 import numpy as np
@@ -22,12 +8,7 @@ from configs import project_config
 from configs.RecursiveVPSDE.Markovian_20DLorenz.recursive_Markovian_PostMeanScore_20DLorenz_Stable_T256_H05_tl_110data_StbleTgt import \
     get_config
 from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
-from utils.drift_evaluation_functions import process_IID_bandwidth
 from utils.resource_logger import ResourceLogger, set_runtime_global
-
-# gpu_refactor.py
-# Drop-in LongerTimes_GPU versions of your key functions, with `_gpu` suffixes.
-# Requires: torch >= 2.0
 
 import math
 import numpy as np
@@ -61,7 +42,7 @@ def true_drift_gpu(prev: torch.Tensor, num_paths: int, config) -> torch.Tensor:
     x_ip1 = torch.roll(x, shifts=-1, dims=1)  # x_{i+1}
     x_im1 = torch.roll(x, shifts=1,  dims=1)  # x_{i-1}
     x_im2 = torch.roll(x, shifts=2,  dims=1)  # x_{i-2}
-    drift = (x_ip1 - x_im2) * x_im1 - x + float(config.forcing_const)
+    drift = (x_ip1 - x_im2) * x_im1 - x*float(config.forcing_const)
     return drift[:, None, :]
 
 
@@ -90,7 +71,7 @@ def IID_NW_multivar_estimator_gpu(
       denom = sum(w)/(N*n)
       numer = (sum(w * incs)/N) * (t1 - t0)
     """
-    assert prevPath_observations.is_cuda and path_incs.is_cuda and x.is_cuda
+    #assert prevPath_observations.is_cuda and path_incs.is_cuda and x.is_cuda
     assert prevPath_observations.dtype == torch.float32
     assert path_incs.dtype == torch.float32
     assert x.dtype == torch.float32
@@ -274,32 +255,6 @@ def process_IID_bandwidth_gpu(
         )
     }
 
-
-# -----------------------------------------------------------------
-# (Optional) Scalar Gaussian kernel on LongerTimes_GPU — for completeness
-# -----------------------------------------------------------------
-
-@torch.no_grad()
-def multivar_gaussian_kernel_gpu(
-    x_minus_mu: torch.Tensor,   # (..., d) float32 CUDA
-    inv_H: torch.Tensor,        # (d,) or (d,d) float32 CUDA
-    norm_const: float,
-) -> torch.Tensor:
-    """
-    Returns exp(-0.5 * (x-mu)^T A (x-mu)) * norm_const on LongerTimes_GPU.
-    NOTE: For performance in your estimator, prefer IID_NW_multivar_estimator_gpu,
-          which avoids building (N,n,M,d) entirely.
-    """
-    assert x_minus_mu.is_cuda and x_minus_mu.dtype == torch.float32
-    diag = (inv_H.ndim == 1)
-    if diag:
-        y = x_minus_mu * inv_H
-    else:
-        y = x_minus_mu @ inv_H
-    expo = -0.5 * (x_minus_mu * y).sum(dim=-1)   # (...)
-    return torch.exp(expo) * float(norm_const)
-
-
 if __name__ == "__main__":
     config = get_config()
     num_paths = 1024 if config.feat_thresh == 1. else 10240
@@ -365,8 +320,8 @@ if __name__ == "__main__":
         np.copyto(path_incs_shm_array, path_incs)
 
         num_time_steps = int(10*config.ts_length)
-        num_state_paths = 100
-        rmse_quantile_nums = 2
+        num_state_paths = 200
+        rmse_quantile_nums = 1
         # Ensure randomness across starmap calls
         master_seed = 42
         seed_seq = np.random.SeedSequence(master_seed)
@@ -379,28 +334,27 @@ if __name__ == "__main__":
             bw = bws[bw_idx, :]
             inv_H = np.diag(np.power(bw, -2))
             norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
-
+            quant_idx = 1
             print(f"Considering bandwidth grid number {bw_idx}\n")
             results = {}
-            for quant_idx in range(rmse_quantile_nums):  # e.g. 0,1
-                out = process_IID_bandwidth_gpu(
-                    quant_idx=quant_idx,
-                    shape=prevPath_observations.shape,
-                    inv_H_np=inv_H,  # pass diag matrix or vector
-                    norm_const=norm_const,
-                    config=config,
-                    num_time_steps=num_time_steps,
-                    num_state_paths=num_state_paths,
-                    deltaT=deltaT,
-                    prevPath_np=prevPath_observations,
-                    path_incs_np=path_incs,
-                    seed_seq=child_seeds[quant_idx],
-                    device_str=None,  # or leave None to auto-pick
-                    M_tile=32,  # tune up/down
-                    Nn_tile=512_000,  # tune up/down (or None)
-                    stable=True,
-                )
-                results.update(out)
+            out = process_IID_bandwidth_gpu(
+                quant_idx=quant_idx,
+                shape=prevPath_observations.shape,
+                inv_H_np=inv_H,  # pass diag matrix or vector
+                norm_const=norm_const,
+                config=config,
+                num_time_steps=num_time_steps,
+                num_state_paths=num_state_paths,
+                deltaT=deltaT,
+                prevPath_np=prevPath_observations,
+                path_incs_np=path_incs,
+                seed_seq=child_seeds[quant_idx],
+                device_str=None,  # or leave None to auto-pick
+                M_tile=32,  # tune up/down
+                Nn_tile=512_000,  # tune up/down (or None)
+                stable=True,
+            )
+            results.update(out)
 
             # Then concatenate & save like before
             all_true_states = np.concatenate([v[0][np.newaxis, :] for v in results.values()], axis=0)
@@ -412,9 +366,41 @@ if __name__ == "__main__":
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_f{config.ndims}DLnz_LongerDriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
                 ".", "")
-            print(f"Save path {save_path}\n")
+            print(f"Save path for Track {save_path}\n")
             np.save(save_path + "_true_states.npy", all_true_states)
             np.save(save_path + "_global_states.npy", all_global_states)
             np.save(save_path + "_local_states.npy", all_local_states)
 
-    # In[10]:
+            M_tile = 32
+            Nn_tile = 512000
+            stable = True
+            num_dhats = 1 # No variability given we use same training dataset
+            device = _get_device(None)
+            all_true_states = all_true_states[np.random.choice(np.arange(all_true_states.shape[0]), 10), :, :]
+            all_true_states = all_true_states.reshape(-1, config.ts_dims)
+            unif_is_drift_hats = np.zeros((all_true_states.shape[0], num_dhats, config.ts_dims))
+            Xs = torch.as_tensor(all_true_states, dtype=torch.float32, device=device).contiguous()
+            for k in tqdm(range(num_dhats)):
+                is_ss_path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False),
+                                          :]
+                is_prevPath_observations = is_ss_path_observations[:, 1:-1]
+                is_path_incs = np.diff(is_ss_path_observations, axis=1)[:, 1:]
+                is_prevPath_observations = torch.as_tensor(is_prevPath_observations, dtype=torch.float32,
+                                                           device=device).contiguous()
+                is_path_incs = torch.as_tensor(is_path_incs, dtype=torch.float32, device=device).contiguous()
+                # inv_H: prefer diagonal vector if possible
+                inv_H_np = np.asarray(inv_H)
+                if inv_H_np.ndim == 2 and np.allclose(inv_H_np, np.diag(np.diag(inv_H_np))):
+                    inv_H_vec = np.diag(inv_H_np).astype(np.float32)
+                    inv_H = torch.as_tensor(inv_H_vec, device=device)
+                else:
+                    inv_H = torch.as_tensor(inv_H_np.astype(np.float32), device=device)
+
+                unif_is_drift_hats[:, k, :] = IID_NW_multivar_estimator_gpu(
+                    is_prevPath_observations, is_path_incs, inv_H, float(norm_const),
+                    Xs, float(config.t1), float(config.t0),
+                    truncate=True, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
+                ).numpy()
+            save_path = save_path.replace("DriftTrack", "DriftEvalExp")
+            print(f"Save path for EvalExp {save_path}\n")
+            np.save(save_path + "_muhats.npy", unif_is_drift_hats)

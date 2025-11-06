@@ -24,7 +24,7 @@ def true_drift(prev, num_paths, config):
     drift_X = np.zeros((num_paths, config.ndims))
     for i in range(config.ndims):
         drift_X[:, i] = (prev[:, (i + 1) % config.ndims] - prev[:, i - 2]) * prev[:, i - 1] - prev[:,
-                                                                                              i] + config.forcing_const
+                                                                                              i] *config.forcing_const
     return drift_X[:, np.newaxis, :]
 
 
