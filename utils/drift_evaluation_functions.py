@@ -245,87 +245,120 @@ def LSTM_1D_drifts(config, PM):
 
 
 def experiment_MLP_DDims_drifts(config, Xs, good, onlyGauss=False):
-    if config.has_cuda:
-        device = int(os.environ["LOCAL_RANK"])
-    else:
-        device = torch.device("cpu")
-    Xs = torch.Tensor(Xs).to(device)
-    good = good.to(device)
-    diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
-    ts_step = config.deltaT
-    Xshape = Xs.shape[0]
-    num_taus = 100
+    # device setup
+    device = torch.device(f"cuda:{int(os.environ.get('LOCAL_RANK', 0))}") if getattr(config, "has_cuda",
+                                                                                     False) else torch.device("cpu")
+    good = good.to(device).eval()
 
+    # constants
+    ts_step = config.deltaT
     num_diff_times = config.max_diff_steps
     Ndiff_discretisation = config.max_diff_steps
-    diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_time,
-                                     steps=Ndiff_discretisation).to(device)
+    num_taus = 100  # as in your code
+    es = 1  # as in your code
+    dtype = torch.float32
+    chunk_size = 1024
+    # inputs
+    Xs = torch.as_tensor(Xs, device=device, dtype=dtype)
+    Xshape = Xs.shape[0]
 
-    features_tensor = torch.stack([Xs for _ in range(1)], dim=0).reshape(Xshape * 1, 1, -1).to(device)
-    vec_Z_taus = diffusion.prior_sampling(shape=(Xshape * num_taus, 1, config.ts_dims)).to(device)
+    # diffusion scaffolding (unchanged)
+    diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
+    diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_time, steps=Ndiff_discretisation,
+                                     device=device)
 
-    # ts = []
-    es = 1
-    final_vec_mu_hats = np.zeros(
-        (Xshape, es, num_taus, config.ts_dims))  # Xvalues, DiffTimes, Ztaus, Ts_Dims
+    # output – keep off GPU by default to save VRAM
+    if out_device == "cpu":
+        final_vec_mu_hats = torch.empty((Xshape, es, num_taus, config.ts_dims), dtype=dtype, device="cpu")
+    else:
+        final_vec_mu_hats = torch.empty((Xshape, es, num_taus, config.ts_dims), dtype=dtype, device=device)
 
-    ts = []
-    # mu_hats_mean = np.zeros((tot_num_feats, num_taus))
-    # mu_hats_std = np.zeros((tot_num_feats, num_taus))
-    good.eval()
-    insert_idx=-1
-    for difftime_idx in (np.arange(num_diff_times - 1, num_diff_times - es - 1, -1)): #difftime_idx >= num_diff_times - es:
-        d = diffusion_times[Ndiff_discretisation - (num_diff_times - 1 - difftime_idx) - 1].to(device)
-        diff_times = torch.stack([d for _ in range(Xshape)]).reshape(Xshape * 1).to(device)
-        eff_times = diffusion.get_eff_times(diff_times=diff_times).unsqueeze(-1).unsqueeze(-1).to(device)
-        vec_diff_times = torch.stack([diff_times for _ in range(num_taus)], dim=0).reshape(num_taus * Xshape)
-        vec_eff_times = torch.stack([eff_times for _ in range(num_taus)], dim=0).reshape(num_taus * Xshape, 1, 1)
-        vec_conditioner = torch.stack([features_tensor for _ in range(num_taus)], dim=0).reshape(
-            num_taus * Xshape,
-            1, -1)
-        with torch.no_grad():
-            if onlyGauss:
-                scoreEval_vec_Z_taus = torch.randn_like(vec_Z_taus).to(device)
-            else:
-                scoreEval_vec_Z_taus = vec_Z_taus
-            vec_predicted_score = good.forward(inputs=scoreEval_vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
-                                             eff_times=vec_eff_times)
+    # If you ever set es>1, we must carry vec_Z_taus across diffusion steps per chunk.
+    # We'll implement a generic mechanism that also works for es=1 with minimal overhead.
+    n_chunks = math.ceil(Xshape / chunk_size)
+    prev_states_cpu = [None] * n_chunks  # store per-chunk vec_Z_taus on CPU between steps
 
-        beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
-        sigma_taus = torch.pow(1. - torch.pow(beta_taus, 2), 0.5).to(device)
-        sigma2_taus=torch.pow(1. - torch.pow(beta_taus, 2), 1.).to(device)
-        predicted_score = -scoreEval_vec_Z_taus/sigma2_taus + (beta_taus/sigma2_taus)*vec_predicted_score
-        vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
-                                                                                           predicted_score=predicted_score,
-                                                                                           diff_index=torch.Tensor(
-                                                                                               [int((
-                                                                                                       num_diff_times - 1 - difftime_idx))]).to(
-                                                                                               device),
-                                                                                           max_diff_steps=Ndiff_discretisation)
+    insert_idx = -1
+    with torch.inference_mode():
+        for step_i, difftime_idx in enumerate(range(num_diff_times - 1, num_diff_times - es - 1, -1)):
+            # scalar time for this step
+            d = diffusion_times[Ndiff_discretisation - (num_diff_times - 1 - difftime_idx) - 1]
+            for chunk_id in range(n_chunks):
+                start = chunk_id * chunk_size
+                end = min(start + chunk_size, Xshape)
+                n = end - start
+                if n <= 0:
+                    continue
 
-        if "PM" in config.scoreNet_trained_path:
-            final_mu_hats = (beta_taus*scoreEval_vec_Z_taus / (sigma2_taus)) + ((
-                                                                            (torch.pow(sigma_taus, 2) + (
-                                                                                    torch.pow(beta_taus * config.diffusion,
-                                                                                            2) * ts_step)) / (
-                                                                                    ts_step * sigma2_taus)) * vec_predicted_score)
-        else:
-            final_mu_hats = (scoreEval_vec_Z_taus / (ts_step * beta_taus)) + ((
-                                                                            (sigma2_taus + (
-                                                                                    torch.pow(beta_taus * config.diffusion,
-                                                                                            2) * ts_step)) / (
-                                                                                    ts_step * beta_taus)) * vec_scores)
+                # features for this chunk: (n, 1, F)
+                feats = Xs[start:end].view(n, 1, -1)
 
-        assert (final_mu_hats.shape == (num_taus * Xshape, 1, config.ts_dims))
-        means = final_mu_hats.reshape((num_taus, Xshape, config.ts_dims))
+                # latent state for this chunk at current step
+                if step_i == 0:  # first step => prior sample
+                    vec_Z_taus = diffusion.prior_sampling(shape=(n * num_taus, 1, config.ts_dims)).to(device=device,
+                                                                                                      dtype=dtype)
+                else:  # subsequent steps => reload state
+                    vec_Z_taus = prev_states_cpu[chunk_id].to(device)
 
-        # print(vec_Z_taus.shape, vec_scores.shape)
-        final_vec_mu_hats[:, insert_idx,:, :] = means.permute((1, 0, 2)).cpu().numpy()
-        vec_z = torch.randn_like(vec_drift).to(device)
-        vec_Z_taus = vec_drift + vec_diffParam * vec_z
-        insert_idx -=1
-    assert (final_vec_mu_hats.shape == (Xshape, es, num_taus, config.ts_dims))
-    return final_vec_mu_hats
+                # times
+                diff_times = d.expand(n)  # (n,)
+                eff_times = diffusion.get_eff_times(diff_times=diff_times).view(n, 1, 1)  # (n,1,1)
+                vec_diff_times = diff_times.repeat(num_taus)  # (n*num_taus,)
+                vec_eff_times = eff_times.repeat(num_taus, 1, 1)  # (n*num_taus,1,1)
+                vec_conditioner = feats.repeat(num_taus, 1, 1)  # (n*num_taus,1,F)
+
+                # forward pass
+                if onlyGauss:
+                    scoreEval_vec_Z_taus = torch.randn_like(vec_Z_taus)
+                else:
+                    scoreEval_vec_Z_taus = vec_Z_taus
+
+                vec_predicted_score = good.forward(
+                    inputs=scoreEval_vec_Z_taus,
+                    times=vec_diff_times,
+                    conditioner=vec_conditioner,
+                    eff_times=vec_eff_times
+                )
+
+                # scalar coefficients (avoid big expanded tensors)
+                beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0])
+                sigma2_taus = 1.0 - beta_taus.pow(2)
+
+                predicted_score = -scoreEval_vec_Z_taus / sigma2_taus + (beta_taus / sigma2_taus) * vec_predicted_score
+
+                vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(
+                    x=vec_Z_taus,
+                    predicted_score=predicted_score,
+                    diff_index=torch.tensor([int(num_diff_times - 1 - difftime_idx)], device=device),
+                    max_diff_steps=Ndiff_discretisation
+                )
+
+                if "PM" in config.scoreNet_trained_path:
+                    final_mu_hats = (beta_taus * scoreEval_vec_Z_taus / sigma2_taus) + (
+                            ((sigma2_taus + (beta_taus * config.diffusion).pow(2) * ts_step) / (
+                                        ts_step * sigma2_taus)) * vec_predicted_score
+                    )
+                else:
+                    final_mu_hats = (scoreEval_vec_Z_taus / (ts_step * beta_taus)) + (
+                            ((sigma2_taus + (beta_taus * config.diffusion).pow(2) * ts_step) / (
+                                        ts_step * beta_taus)) * vec_scores
+                    )
+
+                # reshape to (n, num_taus, ts_dims) then place into output
+                means = final_mu_hats.view(num_taus, n, config.ts_dims).permute(1, 0, 2)  # (n, num_taus, ts_dims)
+                final_vec_mu_hats[start:end, insert_idx, :, :] = means.cpu()
+                # update latent state for next diffusion step (if es>1)
+                vec_z = torch.randn_like(vec_drift)
+                next_state = (vec_drift + vec_diffParam * vec_z).to("cpu")
+                prev_states_cpu[chunk_id] = next_state
+
+                # free per-chunk temps promptly
+                del feats, vec_conditioner, vec_predicted_score, scoreEval_vec_Z_taus
+                del vec_scores, vec_drift, vec_diffParam, final_mu_hats, means, vec_Z_taus, next_state
+
+            insert_idx -= 1
+    # match your original return type
+    return final_vec_mu_hats.numpy()
 def MLP_1D_drifts(config, PM):
     print("Beta Min : ", config.beta_min)
     if config.has_cuda:
