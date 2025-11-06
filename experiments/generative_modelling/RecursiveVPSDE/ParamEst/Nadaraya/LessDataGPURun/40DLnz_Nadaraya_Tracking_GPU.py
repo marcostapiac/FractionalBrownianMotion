@@ -371,7 +371,7 @@ if __name__ == "__main__":
             np.save(save_path + "_global_states.npy", all_global_states)
             np.save(save_path + "_local_states.npy", all_local_states)
 
-            M_tile = 32
+            M_tile = 1024
             Nn_tile = 512000
             stable = True
             num_dhats = 1 # No variability given we use same training dataset
@@ -400,7 +400,7 @@ if __name__ == "__main__":
                     is_prevPath_observations, is_path_incs, inv_H, float(norm_const),
                     Xs, float(config.t1), float(config.t0),
                     truncate=True, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
-                ).numpy()
+                ).cpu().numpy()
             save_path = save_path.replace("DriftTrack", "DriftEvalExp")
             print(f"Save path for EvalExp {save_path}\n")
             np.save(save_path + "_muhats.npy", unif_is_drift_hats)
