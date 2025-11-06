@@ -866,7 +866,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 true_drifts = (-np.sin(config.sin_space_scale * Xs) * np.log(
                     1 + config.log_space_scale * np.abs(Xs)) / config.sin_space_scale)
         else:
-            num_paths = 100
+            num_paths = 10
             if "DLnz" in config.data_path:
                 fLnz = FractionalLorenz96(X0=config.initState, diff=config.diffusion, num_dims=config.ndims,
                                           forcing_const=config.forcing_const)
