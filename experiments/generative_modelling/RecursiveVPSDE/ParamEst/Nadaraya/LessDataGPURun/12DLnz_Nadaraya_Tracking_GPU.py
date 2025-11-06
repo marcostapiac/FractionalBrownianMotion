@@ -334,7 +334,7 @@ if __name__ == "__main__":
             bw = bws[bw_idx, :]
             inv_H = np.diag(np.power(bw, -2))
             norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
-            quant_idx = 1
+            quant_idx = 0
             print(f"Considering bandwidth grid number {bw_idx}\n")
             results = {}
             out = process_IID_bandwidth_gpu(
