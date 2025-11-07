@@ -937,7 +937,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}{config.ndims}DLnz_DriftEvalExp_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{1}NDT_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}_{round(config.forcing_const, 3)}FConst").replace(
                 ".", "")
         print(f"Save path:{save_path}\n")
-        np.save(save_path + "_muhats.npy", final_vec_mu_hats)
+        if ("DLnz" not in config.data_path) and ("DDimsNS" not in config.data_path):
+            np.save(save_path + "_muhats.npy", final_vec_mu_hats)
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
         if len(true_drifts.shape) == 1:
@@ -947,6 +948,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                                                                        final_vec_mu_hats.shape[2],
                                                                                        final_vec_mu_hats.shape[
                                                                                            -1] * 1).mean(axis=1))
+        np.save(save_path + "_MSE.npy", {epoch:mse}, allow_pickle=True)
         print(f"Current vs Best MSE {mse}, {self.curr_best_evalexp_mse} at Epoch {epoch}\n")
         return mse
 
