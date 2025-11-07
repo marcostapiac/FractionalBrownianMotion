@@ -320,7 +320,6 @@ if __name__ == "__main__":
         np.copyto(path_incs_shm_array, path_incs)
 
         num_time_steps = int(1*config.ts_length)
-        num_state_paths = 200
         rmse_quantile_nums = 1
         # Ensure randomness across starmap calls
         master_seed = 42
@@ -329,6 +328,8 @@ if __name__ == "__main__":
 
         # Euler-Maruyama Scheme for Tracking Errors
         shape = prevPath_observations.shape
+        num_state_paths = 100
+        mses = {bw_idx: np.inf for bw_idx in (range(10, bws.shape[0]))}
         for bw_idx in tqdm(range(10,bws.shape[0])):
             set_runtime_global(idx=bw_idx)
             bw = bws[bw_idx, :]
@@ -401,6 +402,14 @@ if __name__ == "__main__":
                     Xs, float(config.t1), float(config.t0),
                     truncate=True, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
                 ).cpu().numpy()
+            est_unif_is_drift_hats = np.mean(unif_is_drift_hats, axis=1)
+            mses[bw_idx] = (
+            bws[bw_idx], np.mean(np.sum(np.power(est_unif_is_drift_hats - all_true_states, 2), axis=-1), axis=-1))
             save_path = save_path.replace("DriftTrack", "DriftEvalExp")
             print(f"Save path for EvalExp {save_path}\n")
-            np.save(save_path + "_muhats.npy", unif_is_drift_hats)
+            # np.save(save_path + "_muhats_true_states.npy", all_true_states)
+            # np.save(save_path + "_muhats.npy", unif_is_drift_hats)
+        save_path = (
+                project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_f{config.ndims}DLnz_DriftEvalExp_MSEs_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
+            ".", "")
+        np.save(save_path, mses, allow_pickle=True)
