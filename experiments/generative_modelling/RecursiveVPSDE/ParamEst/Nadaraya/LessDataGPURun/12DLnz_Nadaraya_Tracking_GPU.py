@@ -412,4 +412,5 @@ if __name__ == "__main__":
         save_path = (
                 project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_f{config.ndims}DLnz_DriftEvalExp_MSEs_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
             ".", "")
-        np.savez(save_path, mses, allow_pickle=True)
+        import pandas as pd
+        pd.DataFrame.from_dict(mses).to_parquet(save_path+"_muhats_MSE.pickle")

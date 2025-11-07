@@ -948,7 +948,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                                                                        final_vec_mu_hats.shape[2],
                                                                                        final_vec_mu_hats.shape[
                                                                                            -1] * 1).mean(axis=1))
-        np.savez(save_path + "_MSE.npy", {epoch:mse}, allow_pickle=True)
+        import pandas as pd
+        pd.DataFrame.from_dict({epoch:mse}).to_parquet(save_path+"_MSE.pickle")
         print(f"Current vs Best MSE {mse}, {self.curr_best_evalexp_mse} at Epoch {epoch}\n")
         return mse
 
