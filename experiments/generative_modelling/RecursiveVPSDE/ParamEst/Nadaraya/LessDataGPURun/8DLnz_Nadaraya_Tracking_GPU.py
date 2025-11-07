@@ -409,7 +409,7 @@ if __name__ == "__main__":
             print(f"Save path for EvalExp {save_path}\n")
             import pandas as pd
 
-            pd.DataFrame.from_dict(mses[bw_idx], orient="index", columns=["mse"]).to_parquet(
+            pd.DataFrame.from_dict({bw_idx:mses[bw_idx]}, orient="index", columns=["mse"]).to_parquet(
                 save_path + "_muhats_MSE.pickle")
             # np.save(save_path + "_muhats_true_states.npy", all_true_states)
             # np.save(save_path + "_muhats.npy", unif_is_drift_hats)
