@@ -405,12 +405,14 @@ if __name__ == "__main__":
             est_unif_is_drift_hats = np.mean(unif_is_drift_hats, axis=1)
             mses[bw_idx] = (
             bws[bw_idx], np.mean(np.sum(np.power(est_unif_is_drift_hats - all_true_states, 2), axis=-1), axis=-1))
-            save_path = save_path.replace("DriftTrack", "DriftEvalExp")
             print(f"Save path for EvalExp {save_path}\n")
+            import pandas as pd
+
+            pd.DataFrame.from_dict(mses[bw_idx], orient="index", columns=["mse"]).to_parquet(
+                save_path + "_muhats_MSE.pickle")
             # np.save(save_path + "_muhats_true_states.npy", all_true_states)
             # np.save(save_path + "_muhats.npy", unif_is_drift_hats)
         save_path = (
                 project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_f{config.ndims}DLnz_DriftEvalExp_MSEs_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
             ".", "")
-        import pandas as pd
-        pd.DataFrame.from_dict(mses).to_parquet(save_path+"_muhats_MSE.pickle")
+        pd.DataFrame.from_dict(mses, orient="index", columns=["mse"]).to_parquet(save_path + "_muhats_MSE.pickle")
