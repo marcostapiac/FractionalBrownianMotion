@@ -412,4 +412,4 @@ if __name__ == "__main__":
         save_path = (
                 project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_f{config.ndims}DLnz_DriftEvalExp_MSEs_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
             ".", "")
-        np.save(save_path, mses, allow_pickle=True)
+        np.savez(save_path, mses, allow_pickle=True)
