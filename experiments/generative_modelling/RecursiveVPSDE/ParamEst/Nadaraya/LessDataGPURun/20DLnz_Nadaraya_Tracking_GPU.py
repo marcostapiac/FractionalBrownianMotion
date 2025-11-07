@@ -410,7 +410,7 @@ if __name__ == "__main__":
             import pandas as pd
 
             pd.DataFrame.from_dict({bw_idx: mses[bw_idx]}, orient="index", columns=["bw", "mse"]).to_parquet(
-                save_path + "_muhats_MSE.pickle")
+                save_path + f"_muhats_MSE_bwidx{bw_idx}.pickle")
             # np.save(save_path + "_muhats_true_states.npy", all_true_states)
             # np.save(save_path + "_muhats.npy", unif_is_drift_hats)
     save_path = (
