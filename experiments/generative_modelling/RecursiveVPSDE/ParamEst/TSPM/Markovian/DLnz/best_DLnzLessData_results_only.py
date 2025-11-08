@@ -34,6 +34,16 @@ def get_best_epoch(type):
             print(file.split(f"{type}NEp")[-1])
             best_epoch = int(file.split(f"{type}NEp")[-1])
     return best_epoch
+def get_best_eval_exp_file(root_score_dir, ts_type):
+    best_epoch_eval = get_best_epoch(type="EE")
+    for file in os.listdir(root_score_dir):
+        if ("_"+str(best_epoch_eval)+"Nep") in file and "MSE" in file and ts_type in file and "1000FTh" in file and "075FConst" in file:
+            print(f"Starting {file}\n")
+            with open(root_score_dir+file, 'rb') as f:
+                buf = io.BytesIO(f.read())  # hydrates once, sequentially
+            print(f"Starting {file}\n")
+            mse = pd.read_parquet(root_score_dir+file, engine="fastparquet")
+    return mse
 
 def get_best_track_file(root_score_dir, ts_type, best_epoch_track):
     for file in os.listdir(root_score_dir):
@@ -100,7 +110,7 @@ def track_pipeline(root_score_dir, ts_type, config, root_dir, toSave, label):
 
 toSave = False
 eval_tracks = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
-for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
+for config in [lnz_20d_config, lnz_40d_config]:
     assert config.feat_thresh == 1.
     assert config.forcing_const == 0.75
     Xshape = config.ts_length
@@ -119,8 +129,10 @@ for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
         root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/40DLnzLessData/"
         ts_type = "40DLnz"
     print(f"Starting {ts_type}\n")
-    rmse = track_pipeline(root_score_dir=root_score_dir, ts_type=ts_type, config=config, root_dir=root_dir, toSave=toSave, label=label)
-    eval_tracks[ts_type] = [rmse]
+    rmse = get_best_eval_exp_file(root_score_dir=root_score_dir, ts_type=ts_type)
+    eval_tracks[ts_type] = [rmse.values[0][0]]
+    #rmse = track_pipeline(root_score_dir=root_score_dir, ts_type=ts_type, config=config, root_dir=root_dir, toSave=toSave, label=label)
+    #eval_tracks[ts_type] = [rmse]
 
 
 # In[ ]:
