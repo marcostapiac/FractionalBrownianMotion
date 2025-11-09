@@ -40,12 +40,12 @@ def true_drift_gpu(prev: torch.Tensor, num_paths: int, config) -> torch.Tensor:
     true_drifts = -(4. * torch.tensor(config.quartic_coeff, device=prev.device) * torch.pow(prev,
                                                                    3) + 2. * torch.tensor(config.quad_coeff, device=prev.device) * prev + torch.tensor(config.const, device=prev.device))
     xstar = torch.sqrt(
-        np.maximum(1e-12, -np.array(config.quad_coeff) / (2.0 * np.array(config.quartic_coeff))))
+        np.maximum(1e-12, -torch.tensor(config.quad_coeff, device=prev.device) / (2.0 * torch.tensor(config.quartic_coeff, device=prev.device))))
     s2 = (config.scale * xstar) ** 2 + 1e-12  # (D,) or (K,1,D)
     diff = prev ** 2 - xstar ** 2  # same shape as prev
     phi = torch.exp(-(diff ** 2) / (2.0 * s2 * xstar ** 2 + 1e-12))
     phi_prime = phi * (-2.0 * prev * diff / ((config.scale ** 2) * (xstar ** 4 + 1e-12)))
-    nbr = np.roll(phi, 1, axis=-1) + np.roll(phi, -1, axis=-1)  # same shape as phi
+    nbr = torch.roll(phi, 1, dim=-1) + torch.roll(phi, -1, dim=-1)  # same shape as phi
     drift = true_drifts - 0.5 * config.coupling * phi_prime * nbr
     return drift[:, None, :]
 
