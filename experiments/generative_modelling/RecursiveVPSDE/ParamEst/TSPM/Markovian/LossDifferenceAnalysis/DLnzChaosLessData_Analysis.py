@@ -110,7 +110,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
                         x=x, t1=float(config.t1), t0=float(config.t0),
                         truncate=True, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
                     ).cpu().numpy()
-            print(nad_mean.shape)
+            print(nad_states.shape, eps.shape,nad_mean.shape)
             true_states[:, [i], :] = (true_states[:, [i - 1], :] \
                                       + true_mean * deltaT \
                                       + eps) / denom
