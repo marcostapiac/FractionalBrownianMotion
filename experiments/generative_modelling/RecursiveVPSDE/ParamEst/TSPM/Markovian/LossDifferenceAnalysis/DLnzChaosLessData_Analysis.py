@@ -353,7 +353,7 @@ for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
     stable = True
     block_size = 1024
 
-    all_true_paths, all_global_paths, all_global_nad_paths = generate_synthetic_paths(config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable, prevPath_observations=is_prevPath_obs, prevPath_incs=is_prevPath_incs)
+    all_true_paths, all_global_paths, all_global_nad_paths = generate_synthetic_paths(config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable, prevPath_observations=is_prevPath_obs, prevPath_incs=is_prevPath_incs, inv_H=inv_H, norm_const=norm_const)
     all_true_paths = all_true_paths.reshape((-1, config.ts_length+1, config.ts_dims))
     all_global_paths = all_global_paths.reshape((-1, config.ts_length+1, config.ts_dims))
     all_global_nad_paths = all_global_nad_paths.reshape((-1, config.ts_length+1, config.ts_dims))
