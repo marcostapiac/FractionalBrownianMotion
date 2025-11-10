@@ -104,9 +104,10 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
                                                              device=device_id,
                                                              prev=score_states[:, i - 1, :])
 
+            x = torch.as_tensor(nad_states[:, i - 1, :], device=device_id, dtype=torch.float32).contiguous()
             nad_mean = IID_NW_multivar_estimator_gpu(
                         prevPath_observations=prevPath_observations, path_incs=prevPath_incs, inv_H=inv_H, norm_const=float(norm_const),
-                        x=nad_states[:, i - 1, :], t1=float(config.t1), t0=float(config.t0),
+                        x=x, t1=float(config.t1), t0=float(config.t0),
                         truncate=True, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
                     )
 
