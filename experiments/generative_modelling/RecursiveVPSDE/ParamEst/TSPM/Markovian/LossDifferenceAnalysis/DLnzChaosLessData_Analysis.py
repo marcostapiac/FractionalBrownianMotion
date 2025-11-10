@@ -108,7 +108,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
             nad_mean = IID_NW_multivar_estimator_gpu(
                         prevPath_observations=prevPath_observations, path_incs=prevPath_incs, inv_H=inv_H, norm_const=float(norm_const),
                         x=x, t1=float(config.t1), t0=float(config.t0),
-                        truncate=False, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
+                        truncate=True, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
                     ).cpu().numpy()[:, np.newaxis, :]
             true_states[:, [i], :] = (true_states[:, [i - 1], :] \
                                       + true_mean * deltaT \
@@ -303,7 +303,7 @@ def run_nadaraya_single_bw(config, is_path_observations, states, M_tile, inv_H, 
     unif_is_drift_hats = IID_NW_multivar_estimator_gpu(
         is_prevPath_observations, is_path_incs, inv_H, float(norm_const),
         Xs, float(config.t1), float(config.t0),
-        truncate=False, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
+        truncate=True, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
     ).cpu().numpy()
     return unif_is_drift_hats
 
