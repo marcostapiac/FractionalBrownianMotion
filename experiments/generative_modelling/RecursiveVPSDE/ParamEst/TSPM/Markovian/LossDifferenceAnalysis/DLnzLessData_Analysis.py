@@ -321,7 +321,7 @@ score_state_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 
 for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
     assert config.feat_thresh == 1.
-    assert config.forcing_const == 1.25
+    assert config.forcing_const == 0.75
     Xshape = config.ts_length
     root_score_dir = root_dir
     label = "$\mu_{5}$"
