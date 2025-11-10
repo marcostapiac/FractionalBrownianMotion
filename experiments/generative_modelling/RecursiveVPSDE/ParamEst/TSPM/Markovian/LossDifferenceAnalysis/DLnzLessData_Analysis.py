@@ -67,7 +67,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     num_diff_times = 1
     rmse_quantile_nums = 1
-    num_paths = 200
+    num_paths = 2
     num_time_steps = int(5*config.ts_length)
     deltaT = config.deltaT
     all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
@@ -120,7 +120,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
         all_score_states[quant_idx, :, :, :] = score_states
         all_nad_states[quant_idx, :, :, :] = nad_states
     del prevPath_observations, prevPath_incs
-    return all_true_states, all_score_states, all_nad_states
+    return all_true_states, all_score_states, all_nad_states, num_time_steps
 
 
 # In[15]:
@@ -322,7 +322,6 @@ score_state_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
     assert config.feat_thresh == 1.
     assert config.forcing_const == 0.75
-    Xshape = config.ts_length
     root_score_dir = root_dir
     label = "$\mu_{5}$"
     if "8DLnz" in config.data_path:
@@ -360,10 +359,10 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
     stable = True
     block_size = 1024
 
-    all_true_paths, all_score_paths, all_nad_paths = generate_synthetic_paths(config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable, prevPath_observations=is_prevPath_obs, prevPath_incs=is_prevPath_incs, inv_H=inv_H, norm_const=norm_const)
-    all_true_paths = all_true_paths.reshape((-1, config.ts_length+1, config.ts_dims))
-    all_score_paths = all_score_paths.reshape((-1, config.ts_length+1, config.ts_dims))
-    all_nad_paths = all_nad_paths.reshape((-1, config.ts_length+1, config.ts_dims))
+    all_true_paths, all_score_paths, all_nad_paths, num_time_steps = generate_synthetic_paths(config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable, prevPath_observations=is_prevPath_obs, prevPath_incs=is_prevPath_incs, inv_H=inv_H, norm_const=norm_const)
+    all_true_paths = all_true_paths.reshape((-1, num_time_steps+1, config.ts_dims))
+    all_score_paths = all_score_paths.reshape((-1, num_time_steps+1, config.ts_dims))
+    all_nad_paths = all_nad_paths.reshape((-1, num_time_steps+1, config.ts_dims))
     all_true_states = all_true_paths[:, 1:,:].reshape((-1, config.ts_dims))
     all_score_states = all_score_paths[:, 1:,:].reshape((-1, config.ts_dims))
     all_nad_states = all_nad_paths[:, 1:,:].reshape((-1, config.ts_dims))
