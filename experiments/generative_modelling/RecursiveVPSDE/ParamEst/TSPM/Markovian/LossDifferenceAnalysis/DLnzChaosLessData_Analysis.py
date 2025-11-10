@@ -365,8 +365,7 @@ for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
     all_global_states = all_global_paths[:, 1:,:].reshape((-1, config.ts_dims))
     all_global_nad_states = all_global_nad_paths[:, 1:,:].reshape((-1, config.ts_dims))
 
-
-    true_drift = true_drifts(state=all_true_states, device_id=device_id,config=config).cpu().numpy()[:, 0,:]
+    true_drift = true_drifts(state=all_true_states, device_id=device_id,config=config).cpu().numpy()[:,0,:]
     torch.cuda.synchronize()
     torch.cuda.empty_cache()
     gc.collect()
@@ -392,6 +391,7 @@ for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
         drift_ests = drift_ests[:, -1, :, :].reshape(drift_ests.shape[0], drift_ests.shape[2], drift_ests.shape[
             -1] * 1).mean(axis=1)
         all_score_drift_ests_true_law[k:k + block_size, :] = drift_ests
+        # Now evaluate on true path law
         nad_drift_est = run_nadaraya_single_bw(config=config, is_path_observations=is_obs, states=curr_states, M_tile=block_size, inv_H=inv_H, norm_const=norm_const,stable=stable, Nn_tile=Nn_tile)
         all_nad_drift_ests_true_law[k:k+block_size,:] = nad_drift_est
         torch.cuda.synchronize()
