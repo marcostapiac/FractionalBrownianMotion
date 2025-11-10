@@ -103,7 +103,7 @@ def track_pipeline(root_score_dir, ts_type, config, root_dir, toSave, label):
     plt.show()
     plt.close()
     print(f"Final time cumulative MSE local-time error {total_global_errors[-1]} with IQR ({total_global_errors_minq[-1], total_global_errors_maxq[-1]})at Nepoch {best_epoch_track}\n")
-    return total_global_errors[-1]
+    return (np.mean((all_global_errors.reshape(-1, 1)), axis=0)[0])#total_global_errors[-1]
 
 
 # In[ ]:
