@@ -67,7 +67,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     num_diff_times = 1
     rmse_quantile_nums = 1
-    num_paths = 100
+    num_paths = 200
     num_time_steps = config.ts_length
     deltaT = config.deltaT
     all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
@@ -379,7 +379,6 @@ for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
     all_nad_drift_ests_true_law = np.zeros_like(true_drift)
     score_state_eval[ts_type] = np.sqrt(np.mean(np.sum(np.power(all_true_paths - all_score_paths, 2), axis=-1), axis=0)[-1])
     nad_state_eval[ts_type] = np.sqrt(np.mean(np.sum(np.power(all_true_paths - all_nad_paths, 2), axis=-1), axis=0)[-1])
-    print(score_state_eval)
     for k in tqdm(range(0, all_score_states.shape[0], block_size)):
         curr_states = torch.tensor(all_score_states[k:k+block_size, :], device=device_id, dtype=torch.float32)
         drift_ests = experiment_MLP_DDims_drifts(config=config, Xs=curr_states, good=good, onlyGauss=False)
