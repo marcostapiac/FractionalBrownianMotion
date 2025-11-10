@@ -299,7 +299,7 @@ def run_nadaraya_single_bw(config, is_path_observations, states, M_tile):
 import gc, time
 score_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 nad_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
-for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
+for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
     assert config.feat_thresh == 1.
     assert config.forcing_const == 1.25
     Xshape = config.ts_length
@@ -346,7 +346,7 @@ for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
     time.sleep(5)
     all_score_drift_ests = np.zeros_like(true_drift)
     all_nad_drift_ests = np.zeros_like(true_drift)
-    block_size = 1024
+    block_size = 5012
     is_obs = prepare_for_nadaraya(config=config)
     for k in tqdm(range(0, all_global_states.shape[0], block_size)):
         curr_states = torch.tensor(all_global_states[k:k+block_size, :], device=device_id, dtype=torch.float32)
