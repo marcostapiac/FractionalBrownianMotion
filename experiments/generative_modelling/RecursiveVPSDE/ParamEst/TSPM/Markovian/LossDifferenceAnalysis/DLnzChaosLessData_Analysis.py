@@ -316,6 +316,9 @@ score_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 score_eval_true_law = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 nad_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 nad_eval_true_law = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
+nad_state_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
+score_state_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
+
 for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
     assert config.feat_thresh == 1.
     assert config.forcing_const == 1.25
@@ -357,13 +360,13 @@ for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
     stable = True
     block_size = 1024
 
-    all_true_paths, all_global_paths, all_global_nad_paths = generate_synthetic_paths(config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable, prevPath_observations=is_prevPath_obs, prevPath_incs=is_prevPath_incs, inv_H=inv_H, norm_const=norm_const)
+    all_true_paths, all_score_paths, all_nad_paths = generate_synthetic_paths(config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable, prevPath_observations=is_prevPath_obs, prevPath_incs=is_prevPath_incs, inv_H=inv_H, norm_const=norm_const)
     all_true_paths = all_true_paths.reshape((-1, config.ts_length+1, config.ts_dims))
-    all_global_paths = all_global_paths.reshape((-1, config.ts_length+1, config.ts_dims))
-    all_global_nad_paths = all_global_nad_paths.reshape((-1, config.ts_length+1, config.ts_dims))
+    all_score_paths = all_score_paths.reshape((-1, config.ts_length+1, config.ts_dims))
+    all_nad_paths = all_nad_paths.reshape((-1, config.ts_length+1, config.ts_dims))
     all_true_states = all_true_paths[:, 1:,:].reshape((-1, config.ts_dims))
-    all_global_states = all_global_paths[:, 1:,:].reshape((-1, config.ts_dims))
-    all_global_nad_states = all_global_nad_paths[:, 1:,:].reshape((-1, config.ts_dims))
+    all_score_states = all_score_paths[:, 1:,:].reshape((-1, config.ts_dims))
+    all_nad_states = all_nad_paths[:, 1:,:].reshape((-1, config.ts_dims))
 
     true_drift = true_drifts(state=all_true_states, device_id=device_id,config=config).cpu().numpy()[:,0,:]
     torch.cuda.synchronize()
@@ -374,14 +377,17 @@ for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
     all_nad_drift_ests = np.zeros_like(true_drift)
     all_score_drift_ests_true_law = np.zeros_like(true_drift)
     all_nad_drift_ests_true_law = np.zeros_like(true_drift)
-    for k in tqdm(range(0, all_global_states.shape[0], block_size)):
-        curr_states = torch.tensor(all_global_states[k:k+block_size, :], device=device_id, dtype=torch.float32)
+    score_state_eval[ts_type] = np.sqrt(np.mean(np.sum(np.power(all_true_paths - all_score_paths, 2), axis=-1), axis=0)[-1])
+    nad_state_eval[ts_type] = np.sqrt(np.mean(np.sum(np.power(all_true_paths - all_nad_paths, 2), axis=-1), axis=0)[-1])
+    print(score_state_eval)
+    for k in tqdm(range(0, all_score_states.shape[0], block_size)):
+        curr_states = torch.tensor(all_score_states[k:k+block_size, :], device=device_id, dtype=torch.float32)
         drift_ests = experiment_MLP_DDims_drifts(config=config, Xs=curr_states, good=good, onlyGauss=False)
         drift_ests= drift_ests[:, -1, :, :].reshape(drift_ests.shape[0],drift_ests.shape[2],drift_ests.shape[
                                                                                                 -1] * 1).mean(axis=1)
         all_score_drift_ests[k:k+block_size,:] = drift_ests
         del curr_states
-        curr_states = torch.tensor(all_global_nad_states[k:k+block_size, :], device=device_id, dtype=torch.float32)
+        curr_states = torch.tensor(all_nad_states[k:k+block_size, :], device=device_id, dtype=torch.float32)
         nad_drift_est = run_nadaraya_single_bw(config=config, is_path_observations=is_obs, states=curr_states, M_tile=block_size, inv_H=inv_H, norm_const=norm_const,stable=stable, Nn_tile=Nn_tile)
         all_nad_drift_ests[k:k+block_size,:] = nad_drift_est
         del curr_states
@@ -421,8 +427,12 @@ pd.DataFrame.from_dict(score_eval, orient="index", columns=["mse"]).to_parquet(s
 pd.DataFrame.from_dict(nad_eval, orient="index", columns=["mse"]).to_parquet(save_path + "_nad_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval_true_law, orient="index", columns=["mse"]).to_parquet(save_path + "_nad_true_law_MSE.parquet")
 pd.DataFrame.from_dict(score_eval_true_law, orient="index", columns=["mse"]).to_parquet(save_path + "_score_true_law_MSE.parquet")
+pd.DataFrame.from_dict(score_state_eval, orient="index", columns=["mse"]).to_parquet(save_path + "_score_state_MSE.parquet")
+pd.DataFrame.from_dict(nad_state_eval, orient="index", columns=["mse"]).to_parquet(save_path + "_nad_state_MSE.parquet")
+
 print("Score vs Nadaraya Alt Law", "\n", score_eval, "\n", nad_eval, "End\n")
 print("Score vs Nadaraya True Law", "\n", score_eval_true_law, "\n", nad_eval_true_law, "End\n")
+print("Score vs Nadaraya State Eval", "\n", score_state_eval, "\n", nad_state_eval, "End\n")
 
 
 # In[ ]:
