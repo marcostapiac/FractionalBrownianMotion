@@ -109,7 +109,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
                         prevPath_observations=prevPath_observations, path_incs=prevPath_incs, inv_H=inv_H, norm_const=float(norm_const),
                         x=x, t1=float(config.t1), t0=float(config.t0),
                         truncate=True, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
-                    ).cpu().numpy()
+                    ).cpu().numpy()[:, np.newaxis, :]
             print(nad_states.shape, eps.shape,nad_mean.shape)
             true_states[:, [i], :] = (true_states[:, [i - 1], :] \
                                       + true_mean * deltaT \
