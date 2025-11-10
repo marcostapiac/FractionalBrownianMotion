@@ -340,13 +340,9 @@ for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
     torch.cuda.empty_cache()
     gc.collect()
     time.sleep(5)
-    torch.cuda.synchronize()
-    torch.cuda.empty_cache()
-    gc.collect()
-    time.sleep(5)
     all_score_drift_ests = np.zeros_like(true_drift)
     all_nad_drift_ests = np.zeros_like(true_drift)
-    block_size = 5012
+    block_size = 1024
     is_obs = prepare_for_nadaraya(config=config)
     for k in tqdm(range(0, all_global_states.shape[0], block_size)):
         curr_states = torch.tensor(all_global_states[k:k+block_size, :], device=device_id, dtype=torch.float32)
