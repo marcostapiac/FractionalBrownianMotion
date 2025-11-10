@@ -61,7 +61,9 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
         inv_H = torch.as_tensor(inv_H_vec, device=device_id)
     else:
         inv_H = torch.as_tensor(inv_H_np.astype(np.float32), device=device_id)
-
+    prevPath_observations = torch.as_tensor(prevPath_observations, dtype=torch.float32,
+                                               device=device_id).contiguous()
+    prevPath_incs = torch.as_tensor(prevPath_incs, dtype=torch.float32, device=device_id).contiguous()
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     num_diff_times = 1
     rmse_quantile_nums = 1
@@ -117,7 +119,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
         all_true_states[quant_idx, :, :, :] = true_states
         all_score_states[quant_idx, :, :, :] = score_states
         all_nad_states[quant_idx, :, :, :] = nad_states
-
+    del prevPath_observations, path_incs
     return all_true_states, all_score_states, all_nad_states
 
 
@@ -360,6 +362,8 @@ for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
     all_true_states = all_true_paths[:, 1:,:].reshape((-1, config.ts_dims))
     all_global_states = all_global_paths[:, 1:,:].reshape((-1, config.ts_dims))
     all_global_nad_states = all_global_nad_paths[:, 1:,:].reshape((-1, config.ts_dims))
+
+
     true_drift = true_drifts(state=all_true_states, device_id=device_id,config=config).cpu().numpy()[:, 0,:]
     torch.cuda.synchronize()
     torch.cuda.empty_cache()
