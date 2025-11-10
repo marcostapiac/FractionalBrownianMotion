@@ -70,8 +70,8 @@ def track_pipeline(root_score_dir, ts_type, config, root_dir, toSave, label):
     time_steps = np.linspace(config.t0,config.deltaT*all_true_states.shape[2],all_true_states.shape[2])
     all_global_errors = np.sum(np.power(all_true_states- all_global_states,2), axis=-1)
     all_global_errors = all_global_errors.reshape(-1, all_global_errors.shape[-1])
-    total_global_errors = np.sqrt(np.mean((all_global_errors), axis=0))/np.sqrt(time_steps)
-    all_errs = np.sqrt(all_global_errors)/np.sqrt(time_steps)
+    total_global_errors = np.sqrt(np.mean((all_global_errors), axis=0))#/np.sqrt(time_steps)
+    all_errs = np.sqrt(all_global_errors)#/np.sqrt(time_steps)
     total_global_errors[np.isinf(total_global_errors)] = 0.
     all_errs[np.isinf(all_errs)] = 0.
     total_global_errors_minq, total_global_errors_maxq = np.quantile(all_errs, axis=0,q=[0.005,0.995])
@@ -98,7 +98,7 @@ def track_pipeline(root_score_dir, ts_type, config, root_dir, toSave, label):
         ax.set_ylabel('RMSE', fontsize=38)
     plt.tight_layout()
     if toSave:
-        plt.savefig((root_dir +f"DiffusionModelPresentationImages/TSPM_Markovian/{ts_type}LessData/TSPM_MLP_PM_ST_{config.feat_thresh:.3f}FTh_{ts_type}_DriftTrack_{best_epoch_track}Nep_{round(total_global_errors_minq[-1], 7)}_MinIQR_{round(total_global_errors_maxq[-1], 7)}_MaxIQR").replace(".", "")+".png")
+        plt.savefig((root_dir +f"DiffusionModelPresentationImages/TSPM_Markovian/{ts_type}ChaosLessData/TSPM_MLP_PM_ST_{config.feat_thresh:.3f}FTh_{ts_type}_DriftTrack_{best_epoch_track}Nep_{round(total_global_errors_minq[-1], 7)}_MinIQR_{round(total_global_errors_maxq[-1], 7)}_MaxIQR").replace(".", "")+".png")
     plt.grid(True)
     plt.show()
     plt.close()
@@ -111,6 +111,8 @@ def track_pipeline(root_score_dir, ts_type, config, root_dir, toSave, label):
 
 toSave = False
 eval_tracks = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
+tracking_tracks = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
+
 for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
     assert config.feat_thresh == 1.
     assert config.forcing_const == 1.25
@@ -132,8 +134,8 @@ for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
     print(f"Starting {ts_type}\n")
     rmse = get_best_eval_exp_file(root_score_dir=root_score_dir, ts_type=ts_type)
     eval_tracks[ts_type] = [rmse.values[0][0]]
-    #rmse = track_pipeline(root_score_dir=root_score_dir, ts_type=ts_type, config=config, root_dir=root_dir, toSave=toSave, label=label)
-    #eval_tracks[ts_type] = [rmse]
+    rmse = track_pipeline(root_score_dir=root_score_dir, ts_type=ts_type, config=config, root_dir=root_dir, toSave=toSave, label=label)
+    tracking_tracks[ts_type] = [rmse]
 
 
 # In[ ]:
@@ -141,7 +143,8 @@ for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
 
 eval_tracks = (pd.DataFrame.from_dict(eval_tracks))
 print(eval_tracks)
-
+tracking_tracks = (pd.DataFrame.from_dict(tracking_tracks))
+print(tracking_tracks)
 
 # In[ ]:
 

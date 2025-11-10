@@ -123,13 +123,10 @@ def compute_cv_for_bw(_bw):
     return np.sum(cvs)
 
 
-bws = np.logspace(-3.55, -0.05, 30)  # np.logspace(-2, -0.05, 20)
-# CVs = np.zeros(len(bws))
-# for h in tqdm(range(bws.shape[0])):
-#    CVs[h] = compute_cv_for_bw(bws[h])
-
-# bw = bws[np.argmin(CVs)]
-# print(CVs)
+grid_1d = np.logspace(-3.55, -0.05, 30)
+xadd = np.logspace(-0.05, 1.0, 11)[1:]  # 10 values > -0.05
+xadd2 = np.logspace(1.0, 2.0, 11)[1:]  # 10 values > -0.05
+bws = np.concatenate([grid_1d, xadd, xadd2])
 
 numXs = 256  # config.ts_length
 minx = -1.5

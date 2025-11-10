@@ -110,6 +110,7 @@ def track_pipeline(root_score_dir, ts_type, config, root_dir, toSave, label):
 
 toSave = False
 eval_tracks = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
+tracking_tracks = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
     assert config.feat_thresh == 1.
     assert config.forcing_const == 0.75
@@ -131,8 +132,8 @@ for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
     print(f"Starting {ts_type}\n")
     rmse = get_best_eval_exp_file(root_score_dir=root_score_dir, ts_type=ts_type)
     eval_tracks[ts_type] = [rmse.values[0][0]]
-    #rmse = track_pipeline(root_score_dir=root_score_dir, ts_type=ts_type, config=config, root_dir=root_dir, toSave=toSave, label=label)
-    #eval_tracks[ts_type] = [rmse]
+    rmse = track_pipeline(root_score_dir=root_score_dir, ts_type=ts_type, config=config, root_dir=root_dir, toSave=toSave, label=label)
+    tracking_tracks[ts_type] = [rmse]
 
 
 # In[ ]:
@@ -140,6 +141,8 @@ for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
 
 eval_tracks = (pd.DataFrame.from_dict(eval_tracks))
 print(eval_tracks)
+tracking_tracks = (pd.DataFrame.from_dict(tracking_tracks))
+print(tracking_tracks)
 
 
 # In[ ]:
