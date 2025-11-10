@@ -68,7 +68,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
     num_diff_times = 1
     rmse_quantile_nums = 1
     num_paths = 200
-    num_time_steps = config.ts_length
+    num_time_steps = int(5*config.ts_length)
     deltaT = config.deltaT
     all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
     all_score_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
@@ -420,7 +420,7 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
 
 
 import pandas as pd
-save_path = (project_config.ROOT_DIR + f"experiments/results/DLnzChaos_NewDriftEvalExp_MSEs_{num_paths}NPaths").replace(
+save_path = (project_config.ROOT_DIR + f"experiments/results/DLnzChaos_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
             ".", "")
 pd.DataFrame.from_dict(score_eval, orient="index", columns=["mse"]).to_parquet(save_path + "_score_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval, orient="index", columns=["mse"]).to_parquet(save_path + "_nad_MSE.parquet")
