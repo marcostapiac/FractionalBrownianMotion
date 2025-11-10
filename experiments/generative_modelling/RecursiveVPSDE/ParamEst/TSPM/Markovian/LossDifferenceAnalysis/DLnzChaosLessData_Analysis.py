@@ -373,7 +373,7 @@ for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
 
 
 import pandas as pd
-save_path = (project_config.ROOT_DIR + f"experiments/results/DLnzChaos_{config.ndims}_NewDriftEvalExp_MSEs_{num_paths}NPaths").replace(
+save_path = (project_config.ROOT_DIR + f"experiments/results/DLnzChaos_NewDriftEvalExp_MSEs_{num_paths}NPaths").replace(
             ".", "")
 pd.DataFrame.from_dict(score_eval, orient="index", columns=["mse"]).to_parquet(save_path + "_score_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval, orient="index", columns=["mse"]).to_parquet(save_path + "_nad_MSE.parquet")
