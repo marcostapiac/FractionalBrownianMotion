@@ -53,30 +53,38 @@ root_dir ="/Users/marcos/Library/CloudStorage/OneDrive-ImperialCollegeLondon/Sta
 # In[10]:
 
 
-def generate_synthetic_paths(config, device_id, good):
+def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPath_observations, prevPath_incs, M_tile, Nn_tile, stable):
+    # Prepare for Nadaraya
+    inv_H_np = np.asarray(inv_H)
+    if inv_H_np.ndim == 2 and np.allclose(inv_H_np, np.diag(np.diag(inv_H_np))):
+        inv_H_vec = np.diag(inv_H_np).astype(np.float32)
+        inv_H = torch.as_tensor(inv_H_vec, device=device_id)
+    else:
+        inv_H = torch.as_tensor(inv_H_np.astype(np.float32), device=device_id)
+
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     num_diff_times = 1
     rmse_quantile_nums = 1
-    num_paths = 100
+    num_paths = 2
     num_time_steps = config.ts_length
     deltaT = config.deltaT
     all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
-    all_global_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
-    all_local_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_score_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_nad_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
     for quant_idx in tqdm(range(rmse_quantile_nums)):
         good.eval()
         initial_state = np.repeat(np.atleast_2d(config.initState)[np.newaxis, :], num_paths, axis=0)
         assert (initial_state.shape == (num_paths, 1, config.ndims))
 
         true_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
-        global_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
-        local_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+        score_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+        nad_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
 
         # Initialise the "true paths"
         true_states[:, [0], :] = initial_state + 0.00001 * np.random.randn(*initial_state.shape)
         # Initialise the "global score-based drift paths"
-        global_states[:, [0], :] = true_states[:, [0], :]
-        local_states[:, [0], :] = true_states[:, [0],
+        score_states[:, [0], :] = true_states[:, [0], :]
+        nad_states[:, [0], :] = true_states[:, [0],
                                   :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
 
         # Euler-Maruyama Scheme for Tracking Errors
@@ -86,22 +94,31 @@ def generate_synthetic_paths(config, device_id, good):
             assert (eps.shape == (num_paths, 1, config.ndims))
             true_mean = true_drifts(state=true_states[:, i - 1, :], device_id=device_id,config=config).cpu().numpy()
             denom = 1.
-            global_mean = multivar_score_based_MLP_drift_OOS(score_model=good,
+            score_mean = multivar_score_based_MLP_drift_OOS(score_model=good,
                                                              num_diff_times=num_diff_times,
                                                              diffusion=diffusion,
                                                              num_paths=num_paths,
                                                              ts_step=deltaT, config=config,
                                                              device=device_id,
-                                                             prev=global_states[:, i - 1, :])
+                                                             prev=score_states[:, i - 1, :])
+
+            nad_mean = IID_NW_multivar_estimator_gpu(
+                        prevPath_observations=prevPath_observations, path_incs=prevPath_incs, inv_H=inv_H, norm_const=float(norm_const),
+                        x=nad_states[:, i - 1, :], t1=float(config.t1), t0=float(config.t0),
+                        truncate=True, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
+                    )
 
             true_states[:, [i], :] = (true_states[:, [i - 1], :] \
                                       + true_mean * deltaT \
                                       + eps) / denom
-            global_states[:, [i], :] = (global_states[:, [i - 1], :] + global_mean * deltaT + eps) / denom
+            score_states[:, [i], :] = (score_states[:, [i - 1], :] + score_mean * deltaT + eps) / denom
+            nad_states[:, [i], :] = (nad_states[:, [i - 1], :] + nad_mean * deltaT + eps) / denom
 
         all_true_states[quant_idx, :, :, :] = true_states
-        all_global_states[quant_idx, :, :, :] = global_states
-    return all_true_states, all_local_states
+        all_score_states[quant_idx, :, :, :] = score_states
+        all_nad_states[quant_idx, :, :, :] = nad_states
+
+    return all_true_states, all_score_states, all_nad_states
 
 
 # In[15]:
@@ -248,7 +265,6 @@ def IID_NW_multivar_estimator_gpu(
 def prepare_for_nadaraya(config):
     deltaT = config.deltaT
     t1 = deltaT * config.ts_length
-    H = config.hurst
     is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :, :]
     is_path_observations = np.concatenate(
         [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0),
@@ -262,14 +278,11 @@ def prepare_for_nadaraya(config):
     assert (path_incs.shape[1] == config.ts_length - 1)
     assert (path_observations.shape[1] == prevPath_observations.shape[1] + 2)
     assert (prevPath_observations.shape[1] * deltaT == (t1 - t0))
-    return is_path_observations
+    prevPath_observations = path_observations[:, 1:-1, :]
+    path_incs = np.diff(path_observations, axis=1)[:, 1:, :]
+    return is_path_observations, prevPath_observations, path_incs
 
-def run_nadaraya_single_bw(config, is_path_observations, states, M_tile):
-    bw = np.logspace(-3.55, -0.05, 30)[[5]]
-    inv_H = np.diag(np.power(bw, -2))
-    norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
-    Nn_tile = 512000
-    stable = True
+def run_nadaraya_single_bw(config, is_path_observations, states, M_tile, inv_H, norm_const, Nn_tile, stable):
     Xs = torch.as_tensor(states, dtype=torch.float32, device=device_id).contiguous()
     is_ss_path_observations = is_path_observations
     is_prevPath_observations = is_ss_path_observations[:, 1:-1]
@@ -330,11 +343,23 @@ for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
     assert entered
     good = good.to(device_id)
     good.eval()
-    all_true_paths, all_global_paths = generate_synthetic_paths(config=config, device_id=device_id, good=good)
-    all_true_paths = all_true_paths.reshape(-1, config.ts_length+1, config.ts_dims)
-    all_global_paths = all_global_paths.reshape(-1, config.ts_length+1, config.ts_dims)
-    all_true_states = all_true_paths[:, 1:,:].reshape(-1, config.ts_dims)
-    all_global_states = all_global_paths[:, 1:,:].reshape(-1, config.ts_dims)
+
+    # Prepare for Nadaraya
+    is_obs, is_prevPath_obs, is_prevPath_incs = prepare_for_nadaraya(config=config)
+    bw = np.logspace(-3.55, -0.05, 30)[[5]]
+    inv_H = np.diag(np.power(bw, -2))
+    norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
+    Nn_tile = 512000
+    stable = True
+    block_size = 1024
+
+    all_true_paths, all_global_paths, all_global_nad_paths = generate_synthetic_paths(config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable, prevPath_observations=is_prevPath_obs, prevPath_incs=is_prevPath_incs)
+    all_true_paths = all_true_paths.reshape((-1, config.ts_length+1, config.ts_dims))
+    all_global_paths = all_global_paths.reshape((-1, config.ts_length+1, config.ts_dims))
+    all_global_nad_paths = all_global_nad_paths.reshape((-1, config.ts_length+1, config.ts_dims))
+    all_true_states = all_true_paths[:, 1:,:].reshape((-1, config.ts_dims))
+    all_global_states = all_global_paths[:, 1:,:].reshape((-1, config.ts_dims))
+    all_global_nad_states = all_global_nad_paths[:, 1:,:].reshape((-1, config.ts_dims))
     true_drift = true_drifts(state=all_true_states, device_id=device_id,config=config).cpu().numpy()[:, 0,:]
     torch.cuda.synchronize()
     torch.cuda.empty_cache()
@@ -342,15 +367,15 @@ for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config, lnz_40d_config]:
     time.sleep(5)
     all_score_drift_ests = np.zeros_like(true_drift)
     all_nad_drift_ests = np.zeros_like(true_drift)
-    block_size = 1024
-    is_obs = prepare_for_nadaraya(config=config)
     for k in tqdm(range(0, all_global_states.shape[0], block_size)):
         curr_states = torch.tensor(all_global_states[k:k+block_size, :], device=device_id, dtype=torch.float32)
         drift_ests = experiment_MLP_DDims_drifts(config=config, Xs=curr_states, good=good, onlyGauss=False)
         drift_ests= drift_ests[:, -1, :, :].reshape(drift_ests.shape[0],drift_ests.shape[2],drift_ests.shape[
                                                                                                 -1] * 1).mean(axis=1)
         all_score_drift_ests[k:k+block_size,:] = drift_ests
-        nad_drift_est = run_nadaraya_single_bw(config=config, is_path_observations=is_obs, states=curr_states, M_tile=block_size)
+        del curr_states
+        curr_states = torch.tensor(all_global_nad_states[k:k+block_size, :], device=device_id, dtype=torch.float32)
+        nad_drift_est = run_nadaraya_single_bw(config=config, is_path_observations=is_obs, states=curr_states, M_tile=block_size, inv_H=inv_H, norm_const=norm_const,stable=stable, Nn_tile=Nn_tile)
         all_nad_drift_ests[k:k+block_size,:] = nad_drift_est
         del curr_states
         torch.cuda.synchronize()
