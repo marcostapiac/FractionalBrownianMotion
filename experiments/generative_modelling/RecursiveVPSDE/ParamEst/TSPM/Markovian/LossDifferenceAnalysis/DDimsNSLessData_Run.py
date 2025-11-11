@@ -173,7 +173,7 @@ def IID_NW_multivar_estimator_gpu(
     stable: bool = True,
 ) -> torch.Tensor:
     """
-    Returns: (M,d) float32 CUDA tensor (keeps all heavy ops on LongerTimes_GPU).
+    Returns: (M,d) float32 CUDA tensor (keeps all heavy ops on Times_GPU).
     Matches your scaling:
       denom = sum(w)/(N*n)
       numer = (sum(w * incs)/N) * (t1 - t0)
@@ -359,12 +359,15 @@ for config in [ddimsNS_12d_config, ddimsNS_8d_config]:
     block_size = 1024
 
     all_true_paths, all_score_paths, all_nad_paths, num_time_steps = generate_synthetic_paths(config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable, prevPath_observations=is_prevPath_obs, prevPath_incs=is_prevPath_incs, inv_H=inv_H, norm_const=norm_const)
-    all_true_paths = all_true_paths.reshape((-1, num_time_steps+1, config.ts_dims))
-    all_score_paths = all_score_paths.reshape((-1, num_time_steps+1, config.ts_dims))
-    all_nad_paths = all_nad_paths.reshape((-1, num_time_steps+1, config.ts_dims))
-    all_true_states = all_true_paths[:, 1:,:].reshape((-1, config.ts_dims))
-    all_score_states = all_score_paths[:, 1:,:].reshape((-1, config.ts_dims))
-    all_nad_states = all_nad_paths[:, 1:,:].reshape((-1, config.ts_dims))
+    all_true_paths = all_true_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
+    all_score_paths = all_score_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
+    all_nad_paths = all_nad_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
+    BB, TT, DD = all_score_paths.shape
+    TT -= 1
+    all_true_states = all_true_paths[:, 1:,:].reshape((-1, config.ts_dims), order="C")
+    all_score_states = all_score_paths[:, 1:,:].reshape((-1, config.ts_dims), order="C")
+    all_nad_states = all_nad_paths[:, 1:,:].reshape((-1, config.ts_dims), order="C")
+
 
     true_drift = true_drifts(state=all_true_states, device_id=device_id,config=config).cpu().numpy()[:,0,:]
     torch.cuda.synchronize()
@@ -375,8 +378,8 @@ for config in [ddimsNS_12d_config, ddimsNS_8d_config]:
     all_nad_drift_ests = np.zeros_like(true_drift)
     all_score_drift_ests_true_law = np.zeros_like(true_drift)
     all_nad_drift_ests_true_law = np.zeros_like(true_drift)
-    score_state_eval[ts_type] = np.sqrt(np.mean(np.sum(np.power(all_true_paths - all_score_paths, 2), axis=-1), axis=0)[-1])
-    nad_state_eval[ts_type] = np.sqrt(np.mean(np.sum(np.power(all_true_paths - all_nad_paths, 2), axis=-1), axis=0)[-1])
+    score_state_eval[ts_type] = np.sqrt(np.mean(np.sum(np.power(all_true_paths - all_score_paths, 2), axis=-1), axis=0))
+    nad_state_eval[ts_type] = np.sqrt(np.mean(np.sum(np.power(all_true_paths - all_nad_paths, 2), axis=-1), axis=0))
     for k in tqdm(range(0, all_score_states.shape[0], block_size)):
         curr_states = torch.tensor(all_score_states[k:k+block_size, :], device=device_id, dtype=torch.float32)
         drift_ests = experiment_MLP_DDims_drifts(config=config, Xs=curr_states, good=good, onlyGauss=False)
@@ -400,13 +403,22 @@ for config in [ddimsNS_12d_config, ddimsNS_8d_config]:
         torch.cuda.synchronize()
         torch.cuda.empty_cache()
         gc.collect()
-    mse = np.mean(np.sum(np.power(true_drift - all_score_drift_ests,2), axis=-1))
+    mse = np.cumsum(np.mean(np.sum(np.power(
+        true_drift.reshape(((BB, TT, DD)), order="C") - all_score_drift_ests.reshape(((BB, TT, DD)), order="C"), 2),
+        axis=-1), axis=0)) / np.arange(1, TT + 1)
     score_eval[ts_type] = mse
-    mse = np.mean(np.sum(np.power(true_drift - all_nad_drift_ests,2), axis=-1))
+    mse = np.cumsum(np.mean(np.sum(
+        np.power(true_drift.reshape(((BB, TT, DD)), order="C") - all_nad_drift_ests.reshape(((BB, TT, DD)), order="C"),
+                 2), axis=-1), axis=0)) / np.arange(1, TT + 1)
     nad_eval[ts_type] = mse
-    mse = np.mean(np.sum(np.power(true_drift - all_nad_drift_ests_true_law,2), axis=-1))
+    mse = np.cumsum(np.mean(np.sum(np.power(
+        true_drift.reshape(((BB, TT, DD)), order="C") - all_nad_drift_ests_true_law.reshape(((BB, TT, DD)), order="C"),
+        2), axis=-1), axis=0)) / np.arange(1, TT + 1)
     nad_eval_true_law[ts_type] = mse
-    mse = np.mean(np.sum(np.power(true_drift - all_score_drift_ests_true_law,2), axis=-1))
+    mse = np.cumsum(np.mean(np.sum(np.power(
+        true_drift.reshape(((BB, TT, DD)), order="C") - all_score_drift_ests_true_law.reshape(((BB, TT, DD)),
+                                                                                              order="C"), 2), axis=-1),
+        axis=0)) / np.arange(1, TT + 1)
     score_eval_true_law[ts_type] = mse
 
     torch.cuda.synchronize()
@@ -418,14 +430,14 @@ for config in [ddimsNS_12d_config, ddimsNS_8d_config]:
 
 
 import pandas as pd
-save_path = (project_config.ROOT_DIR + f"experiments/results/DDimsNS_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
+save_path = (project_config.ROOT_DIR + f"experiments/results/DDimsNS_NewDriftEvalExp_MSEs_{num_paths}NPaths").replace(
             ".", "")
-pd.DataFrame.from_dict(score_eval, orient="index", columns=["mse"]).to_parquet(save_path + "_score_MSE.parquet")
-pd.DataFrame.from_dict(nad_eval, orient="index", columns=["mse"]).to_parquet(save_path + "_nad_MSE.parquet")
-pd.DataFrame.from_dict(nad_eval_true_law, orient="index", columns=["mse"]).to_parquet(save_path + "_nad_true_law_MSE.parquet")
-pd.DataFrame.from_dict(score_eval_true_law, orient="index", columns=["mse"]).to_parquet(save_path + "_score_true_law_MSE.parquet")
-pd.DataFrame.from_dict(score_state_eval, orient="index", columns=["mse"]).to_parquet(save_path + "_score_state_MSE.parquet")
-pd.DataFrame.from_dict(nad_state_eval, orient="index", columns=["mse"]).to_parquet(save_path + "_nad_state_MSE.parquet")
+pd.DataFrame.from_dict(score_eval).to_parquet(save_path + "_score_MSE.parquet")
+pd.DataFrame.from_dict(nad_eval).to_parquet(save_path + "_nad_MSE.parquet")
+pd.DataFrame.from_dict(nad_eval_true_law).to_parquet(save_path + "_nad_true_law_MSE.parquet")
+pd.DataFrame.from_dict(score_eval_true_law).to_parquet(save_path + "_score_true_law_MSE.parquet")
+pd.DataFrame.from_dict(score_state_eval).to_parquet(save_path + "_score_state_MSE.parquet")
+pd.DataFrame.from_dict(nad_state_eval).to_parquet(save_path + "_nad_state_MSE.parquet")
 
 print("Score vs Nadaraya Alt Law", "\n", score_eval, "\n", nad_eval, "End\n")
 print("Score vs Nadaraya True Law", "\n", score_eval_true_law, "\n", nad_eval_true_law, "End\n")
