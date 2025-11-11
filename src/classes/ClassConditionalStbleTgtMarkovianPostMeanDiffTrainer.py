@@ -1251,11 +1251,12 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                         self.ewma_loss = (1. - 0.92) * all_losses_per_epoch[i] + 0.92 * self.ewma_loss
                     assert (self.ewma_loss != 0.)
                 self.ewma_loss = (1. - 0.92) * curr_loss + 0.92 * self.ewma_loss
-            if isinstance(self.scheduler, torch.optim.lr_scheduler.LambdaLR):
-                print("Using LambdaLR")
-                self.scheduler.step()
-            else:
-                self.scheduler.step(self.ewma_loss)
+            if epoch >=40: #burn in for scheduler
+                if isinstance(self.scheduler, torch.optim.lr_scheduler.LambdaLR):
+                    print("Using LambdaLR")
+                    self.scheduler.step()
+                else:
+                    self.scheduler.step(self.ewma_loss)
             # Log current learning rate:
             current_lr = self.opt.param_groups[0]['lr']
             print(f"Epoch {epoch + 1}: EWMA Loss: {self.ewma_loss:.6f}, LR: {current_lr:.12f}\n")
