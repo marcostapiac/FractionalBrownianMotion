@@ -67,7 +67,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     num_diff_times = 1
     rmse_quantile_nums = 1
-    num_paths = 2
+    num_paths = 200
     num_time_steps = int(1*config.ts_length)
     deltaT = config.deltaT
     all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
@@ -132,19 +132,6 @@ def get_best_epoch(config, type):
         if config.scoreNet_trained_path in os.path.join(model_dir, file) and f"{type}" in file:
             best_epoch = int(file.split(f"{type}NEp")[-1])
     return best_epoch
-
-def get_best_track_file(root_score_dir, ts_type, best_epoch_track):
-    for file in os.listdir(root_score_dir):
-        if ("_"+str(best_epoch_track)+"Nep") in file and "true" in file and ts_type in file and "1000FTh" in file and "125FConst" in file:
-            with open(root_score_dir+file, 'rb') as f:
-                buf = io.BytesIO(f.read())  # hydrates once, sequentially
-            true_file = np.load(root_score_dir+file, allow_pickle=True)
-        elif ("_"+str(best_epoch_track)+"Nep") in file and "global" in file and ts_type in file and "1000FTh" in file and "125FConst" in file:
-            with open(root_score_dir+file, 'rb') as f:
-                buf = io.BytesIO(f.read())  # hydrates once, sequentially
-            global_file = np.load(root_score_dir+file, allow_pickle=True)
-    print(ts_type)
-    return true_file, global_file
 
 def get_best_eval_exp_file(config, root_score_dir, ts_type):
     best_epoch_eval = get_best_epoch(config=config,type="EE")
@@ -319,7 +306,7 @@ nad_eval_true_law = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 nad_state_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 score_state_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 
-for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
+for config in [lnz_8d_config]:#lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_40d_config]:
     assert config.feat_thresh == 1.
     assert config.forcing_const == 0.75
     root_score_dir = root_dir
