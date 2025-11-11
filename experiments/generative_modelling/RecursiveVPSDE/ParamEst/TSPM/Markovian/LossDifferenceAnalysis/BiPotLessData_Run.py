@@ -257,7 +257,7 @@ def IID_NW_multivar_estimator_gpu(
 def prepare_for_nadaraya(config):
     deltaT = config.deltaT
     t1 = deltaT * config.ts_length
-    is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :, :]
+    is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :, np.newaxis]
     is_path_observations = np.concatenate(
         [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0),
          is_path_observations], axis=1)
