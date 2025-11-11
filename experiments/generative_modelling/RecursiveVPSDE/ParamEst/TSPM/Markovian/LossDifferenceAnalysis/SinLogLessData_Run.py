@@ -337,7 +337,7 @@ for config in [bipot_config]:
     xadd = np.logspace(-0.05, 1.0, 11)[1:]  # 10 values > -0.05
     xadd2 = np.logspace(1.0, 2.0, 11)[1:]  # 10 values > -0.05
     bws = np.concatenate([grid_1d, xadd, xadd2])
-    bw = bws[[a]]AC
+    bw = bws[[34]]
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
     Nn_tile = 512000
