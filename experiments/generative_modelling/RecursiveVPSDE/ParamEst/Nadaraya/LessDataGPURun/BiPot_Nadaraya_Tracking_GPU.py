@@ -267,7 +267,7 @@ if __name__ == "__main__":
         initial_state = np.array(config.initState)
         rvs = None
         H = config.hurst
-        is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :, :]
+        is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :]
         is_path_observations = np.concatenate(
             [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0),
              is_path_observations], axis=1)
