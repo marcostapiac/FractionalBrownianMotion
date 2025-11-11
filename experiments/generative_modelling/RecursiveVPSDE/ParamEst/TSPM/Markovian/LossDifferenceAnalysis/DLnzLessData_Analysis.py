@@ -360,12 +360,13 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
     block_size = 1024
 
     all_true_paths, all_score_paths, all_nad_paths, num_time_steps = generate_synthetic_paths(config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable, prevPath_observations=is_prevPath_obs, prevPath_incs=is_prevPath_incs, inv_H=inv_H, norm_const=norm_const)
-    all_true_paths = all_true_paths.reshape((-1, num_time_steps+1, config.ts_dims))
-    all_score_paths = all_score_paths.reshape((-1, num_time_steps+1, config.ts_dims))
-    all_nad_paths = all_nad_paths.reshape((-1, num_time_steps+1, config.ts_dims))
-    all_true_states = all_true_paths[:, 1:,:].reshape((-1, config.ts_dims))
-    all_score_states = all_score_paths[:, 1:,:].reshape((-1, config.ts_dims))
-    all_nad_states = all_nad_paths[:, 1:,:].reshape((-1, config.ts_dims))
+    all_true_paths = all_true_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
+    all_score_paths = all_score_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
+    all_nad_paths = all_nad_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
+    BB, TT, DD = all_score_paths.shape
+    all_true_states = all_true_paths[:, 1:,:].reshape((-1, config.ts_dims), order="C")
+    all_score_states = all_score_paths[:, 1:,:].reshape((-1, config.ts_dims), order="C")
+    all_nad_states = all_nad_paths[:, 1:,:].reshape((-1, config.ts_dims), order="C")
 
     true_drift = true_drifts(state=all_true_states, device_id=device_id,config=config).cpu().numpy()[:,0,:]
     torch.cuda.synchronize()
@@ -376,8 +377,8 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
     all_nad_drift_ests = np.zeros_like(true_drift)
     all_score_drift_ests_true_law = np.zeros_like(true_drift)
     all_nad_drift_ests_true_law = np.zeros_like(true_drift)
-    score_state_eval[ts_type] = np.sqrt(np.mean(np.sum(np.power(all_true_paths - all_score_paths, 2), axis=-1), axis=0)[-1])
-    nad_state_eval[ts_type] = np.sqrt(np.mean(np.sum(np.power(all_true_paths - all_nad_paths, 2), axis=-1), axis=0)[-1])
+    score_state_eval[ts_type] = np.sqrt(np.mean(np.sum(np.power(all_true_paths - all_score_paths, 2), axis=-1), axis=0))
+    nad_state_eval[ts_type] = np.sqrt(np.mean(np.sum(np.power(all_true_paths - all_nad_paths, 2), axis=-1), axis=0))
     for k in tqdm(range(0, all_score_states.shape[0], block_size)):
         curr_states = torch.tensor(all_score_states[k:k+block_size, :], device=device_id, dtype=torch.float32)
         drift_ests = experiment_MLP_DDims_drifts(config=config, Xs=curr_states, good=good, onlyGauss=False)
@@ -401,13 +402,13 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
         torch.cuda.synchronize()
         torch.cuda.empty_cache()
         gc.collect()
-    mse = np.mean(np.sum(np.power(true_drift - all_score_drift_ests,2), axis=-1))
+    mse = np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_score_drift_ests.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0)
     score_eval[ts_type] = mse
-    mse = np.mean(np.sum(np.power(true_drift - all_nad_drift_ests,2), axis=-1))
+    mse = np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_nad_drift_ests.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0)
     nad_eval[ts_type] = mse
-    mse = np.mean(np.sum(np.power(true_drift - all_nad_drift_ests_true_law,2), axis=-1))
+    mse = np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_nad_drift_ests_true_law.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0)
     nad_eval_true_law[ts_type] = mse
-    mse = np.mean(np.sum(np.power(true_drift - all_score_drift_ests_true_law,2), axis=-1))
+    mse = np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_score_drift_ests_true_law.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0)
     score_eval_true_law[ts_type] = mse
 
     torch.cuda.synchronize()
