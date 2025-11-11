@@ -5,7 +5,7 @@ import numpy as np
 from tqdm import tqdm
 
 from configs import project_config
-from configs.RecursiveVPSDE.Markovian_fBiPotDDims_NonSep.recursive_Markovian_PostMeanScore_fBiPot12DimsNS_T256_H05_tl_110data_StbleTgt import \
+from configs.RecursiveVPSDE.Markovian_fBiPotDDims_NonSep.recursive_Markovian_PostMeanScore_fBiPot8DimsNS_T256_H05_tl_110data_StbleTgt import \
     get_config
 from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
 from utils.resource_logger import ResourceLogger, set_runtime_global
@@ -268,7 +268,7 @@ if __name__ == "__main__":
             outfile=config.nadaraya_resource_logging_path.replace(".json.json", "_GPUNADARAYA.json.json"),  # path where log will be written
             job_type="GPU training",
     ):
-        assert num_paths == 1024
+        assert num_paths == 10240
         t0 = config.t0
         deltaT = config.deltaT
         t1 = deltaT * config.ts_length
@@ -368,7 +368,7 @@ if __name__ == "__main__":
             all_global_states = np.concatenate([v[1][np.newaxis, :] for v in results.values()], axis=0)
             all_local_states = np.concatenate([v[2][np.newaxis, :] for v in results.values()], axis=0)
             assert (all_true_states.shape == all_global_states.shape == all_local_states.shape)
-            assert num_paths == 1024
+            assert num_paths == 10240
 
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_fBiPot_{config.ndims}DDimsNS_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c").replace(

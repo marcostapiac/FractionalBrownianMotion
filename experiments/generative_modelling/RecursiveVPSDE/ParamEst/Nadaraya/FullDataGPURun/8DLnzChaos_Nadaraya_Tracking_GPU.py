@@ -5,7 +5,7 @@ import numpy as np
 from tqdm import tqdm
 
 from configs import project_config
-from configs.RecursiveVPSDE.Markovian_fBiPotDDims_NonSep.recursive_Markovian_PostMeanScore_fBiPot12DimsNS_T256_H05_tl_110data_StbleTgt import \
+from configs.RecursiveVPSDE.Markovian_8DLorenz.recursive_Markovian_PostMeanScore_8DLorenz_Chaos_T256_H05_tl_110data_StbleTgt import \
     get_config
 from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
 from utils.resource_logger import ResourceLogger, set_runtime_global
@@ -37,17 +37,12 @@ def true_drift_gpu(prev: torch.Tensor, num_paths: int, config) -> torch.Tensor:
     """
     # Ensure shape
     assert prev.ndim == 2 and prev.shape[0] == num_paths and prev.shape[1] == config.ndims
-    true_drifts = -(4. * torch.tensor(config.quartic_coeff, device=prev.device) * torch.pow(prev,
-                                                                   3) + 2. * torch.tensor(config.quad_coeff, device=prev.device) * prev + torch.tensor(config.const, device=prev.device))
-    xstar = torch.sqrt(
-        torch.maximum(torch.tensor([1e-12], device=prev.device), -torch.tensor(config.quad_coeff, device=prev.device) / (2.0 * torch.tensor(config.quartic_coeff, device=prev.device))))
-    s2 = (config.scale * xstar) ** 2 + 1e-12  # (D,) or (K,1,D)
-    diff = prev ** 2 - xstar ** 2  # same shape as prev
-    phi = torch.exp(-(diff ** 2) / (2.0 * s2 * xstar ** 2 + 1e-12))
-    phi_prime = phi * (-2.0 * prev * diff / ((config.scale ** 2) * (xstar ** 4 + 1e-12)))
-    nbr = torch.roll(phi, 1, dims=-1) + torch.roll(phi, -1, dims=-1)  # same shape as phi
-    drift = true_drifts - 0.5 * config.coupling * phi_prime * nbr
-    drift = drift / (1.+config.deltaT*torch.abs(drift))
+    x = prev
+    # Vectorized Lorenz96 drift:
+    x_ip1 = torch.roll(x, shifts=-1, dims=1)  # x_{i+1}
+    x_im1 = torch.roll(x, shifts=1,  dims=1)  # x_{i-1}
+    x_im2 = torch.roll(x, shifts=2,  dims=1)  # x_{i-2}
+    drift = (x_ip1 - x_im2) * x_im1 - x*float(config.forcing_const)
     return drift[:, None, :]
 
 
@@ -268,7 +263,7 @@ if __name__ == "__main__":
             outfile=config.nadaraya_resource_logging_path.replace(".json.json", "_GPUNADARAYA.json.json"),  # path where log will be written
             job_type="GPU training",
     ):
-        assert num_paths == 1024
+        assert num_paths == 10240
         t0 = config.t0
         deltaT = config.deltaT
         t1 = deltaT * config.ts_length
@@ -335,7 +330,7 @@ if __name__ == "__main__":
         # Euler-Maruyama Scheme for Tracking Errors
         shape = prevPath_observations.shape
         num_state_paths = 100
-        mses = {bw_idx: np.inf for bw_idx in (range(10,bws.shape[0]))}
+        mses = {bw_idx: np.inf for bw_idx in (range(10, bws.shape[0]))}
         for bw_idx in tqdm(range(0,bws.shape[0])):
             set_runtime_global(idx=bw_idx)
             bw = bws[bw_idx, :]
@@ -368,10 +363,10 @@ if __name__ == "__main__":
             all_global_states = np.concatenate([v[1][np.newaxis, :] for v in results.values()], axis=0)
             all_local_states = np.concatenate([v[2][np.newaxis, :] for v in results.values()], axis=0)
             assert (all_true_states.shape == all_global_states.shape == all_local_states.shape)
-            assert num_paths == 1024
+            assert num_paths == 10240
 
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_fBiPot_{config.ndims}DDimsNS_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c").replace(
+                    project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_f{config.ndims}DLnz_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
                 ".", "")
             print(f"Save path for Track {save_path}\n")
             np.save(save_path + "_true_states.npy", all_true_states)
@@ -386,7 +381,6 @@ if __name__ == "__main__":
             all_true_states = all_true_states[np.random.choice(np.arange(all_true_states.shape[0]), 100), :, :]
             all_true_states = all_true_states.reshape(-1, config.ts_dims)
             unif_is_drift_hats = np.zeros((all_true_states.shape[0], num_dhats, config.ts_dims))
-
             Xs = torch.as_tensor(all_true_states, dtype=torch.float32, device=device).contiguous()
             for k in tqdm(range(num_dhats)):
                 is_ss_path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False),
@@ -409,17 +403,19 @@ if __name__ == "__main__":
                     Xs, float(config.t1), float(config.t0),
                     truncate=True, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
                 ).cpu().numpy()
-            est_unif_is_drift_hats = np.mean(unif_is_drift_hats,axis=1)
-            mses[bw_idx] = (bws[bw_idx], np.mean(np.sum(np.power(est_unif_is_drift_hats-all_true_states,2),axis=-1),axis=-1))
+            est_unif_is_drift_hats = np.mean(unif_is_drift_hats, axis=1)
+            mses[bw_idx] = (
+            bws[bw_idx], np.mean(np.sum(np.power(est_unif_is_drift_hats - all_true_states, 2), axis=-1), axis=-1))
             save_path = save_path.replace("DriftTrack", "DriftEvalExp")
             print(f"Save path for EvalExp {save_path}\n")
             import pandas as pd
 
-            pd.DataFrame.from_dict({bw_idx:mses[bw_idx]}, orient="index", columns=["bw", "mse"]).to_parquet(
+            pd.DataFrame.from_dict({bw_idx: mses[bw_idx]}, orient="index", columns=["bw", "mse"]).to_parquet(
                 save_path + f"_muhats_MSE_bwidx{bw_idx}.pickle")
             # np.save(save_path + "_muhats_true_states.npy", all_true_states)
             # np.save(save_path + "_muhats.npy", unif_is_drift_hats)
         save_path = (
-                project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_fBiPot_{config.ndims}DDimsNS_DriftEvalExp_MSEs_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c").replace(
+                project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_f{config.ndims}DLnz_DriftEvalExp_MSEs_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
             ".", "")
-        pd.DataFrame.from_dict(mses, orient="index", columns=["bw", "mse"]).to_parquet(save_path + "_muhats_MSE.pickle")
+        pd.DataFrame.from_dict(mses, orient="index", columns=["bw", "mse"]).to_parquet(
+            save_path + "_muhats_MSE.pickle")

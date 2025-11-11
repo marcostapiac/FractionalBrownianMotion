@@ -268,7 +268,7 @@ if __name__ == "__main__":
         initial_state = np.array(config.initState)
         rvs = None
         H = config.hurst
-        is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :]
+        is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :][:, :, np.newaxis]
         is_path_observations = np.concatenate(
             [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0),
              is_path_observations], axis=1)
@@ -366,7 +366,7 @@ if __name__ == "__main__":
             all_true_states = all_true_states.reshape(-1, config.ts_dims)
             unif_is_drift_hats = np.zeros((all_true_states.shape[0], num_dhats, config.ts_dims))
 
-            Xs = torch.linspace(-1.5, 1.5, 256).to(device)
+            Xs = torch.linspace(-1.5, 1.5, all_true_states.shape[0])[:, np.newaxis].to(device)
             #Xs = torch.as_tensor(all_true_states, dtype=torch.float32, device=device).contiguous()
             for k in tqdm(range(num_dhats)):
                 is_ss_path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False),

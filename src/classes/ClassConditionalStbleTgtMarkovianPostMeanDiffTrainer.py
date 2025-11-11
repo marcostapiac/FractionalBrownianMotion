@@ -857,6 +857,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
                                                                                    3) + 2. * np.array(
                         config.quad_coeff) * Xs + np.array(config.const))
+                true_drifts = true_drifts/(1+config.deltaT*np.abs(true_drifts))
             elif "QuadSin" in config.data_path:
                 Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
                 true_drifts = (-2. * config.quad_coeff * Xs + config.sin_coeff * config.sin_space_scale * np.sin(
@@ -901,6 +902,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 phi_prime = phi * (-2.0 * prev * diff / ((config.scale ** 2) * (xstar ** 4 + 1e-12)))
                 nbr = np.roll(phi, 1, axis=-1) + np.roll(phi, -1, axis=-1)  # same shape as phi
                 true_drifts = true_drifts - 0.5 * config.coupling * phi_prime * nbr
+                true_drifts = true_drifts/(1+config.deltaT*np.abs(true_drifts))
             final_vec_mu_hats = experiment_MLP_DDims_drifts(config=config, Xs=prev, good=self.score_network.module, onlyGauss=False)
         type = "PM"
         assert (type in config.scoreNet_trained_path)
@@ -977,6 +979,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 phi_prime = phi * (-2.0 * prev * diff / ((config.scale ** 2) * (xstar ** 4 + 1e-12)))
                 nbr = np.roll(phi, 1, axis=-1) + np.roll(phi, -1, axis=-1)  # same shape as phi
                 drift_X = drift_X - 0.5 * config.coupling * phi_prime * nbr
+                drift_X = drift_X/(1+config.deltaT*np.abs(drift_X))
                 return drift_X[:, np.newaxis, :]
             elif "QuadSin" in config.data_path:
                 drift_X = -2. * config.quad_coeff * prev + config.sin_coeff * config.sin_space_scale * np.sin(

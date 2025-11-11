@@ -5,7 +5,7 @@ import numpy as np
 from tqdm import tqdm
 
 from configs import project_config
-from configs.RecursiveVPSDE.Markovian_fBiPotDDims_NonSep.recursive_Markovian_PostMeanScore_fBiPot12DimsNS_T256_H05_tl_110data_StbleTgt import \
+from configs.RecursiveVPSDE.Markovian_fBiPot.recursive_Markovian_PostMeanScore_fBiPot_LowFTh_T256_H05_tl_110data_StbleTgt import \
     get_config
 from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
 from utils.resource_logger import ResourceLogger, set_runtime_global
@@ -37,18 +37,8 @@ def true_drift_gpu(prev: torch.Tensor, num_paths: int, config) -> torch.Tensor:
     """
     # Ensure shape
     assert prev.ndim == 2 and prev.shape[0] == num_paths and prev.shape[1] == config.ndims
-    true_drifts = -(4. * torch.tensor(config.quartic_coeff, device=prev.device) * torch.pow(prev,
-                                                                   3) + 2. * torch.tensor(config.quad_coeff, device=prev.device) * prev + torch.tensor(config.const, device=prev.device))
-    xstar = torch.sqrt(
-        torch.maximum(torch.tensor([1e-12], device=prev.device), -torch.tensor(config.quad_coeff, device=prev.device) / (2.0 * torch.tensor(config.quartic_coeff, device=prev.device))))
-    s2 = (config.scale * xstar) ** 2 + 1e-12  # (D,) or (K,1,D)
-    diff = prev ** 2 - xstar ** 2  # same shape as prev
-    phi = torch.exp(-(diff ** 2) / (2.0 * s2 * xstar ** 2 + 1e-12))
-    phi_prime = phi * (-2.0 * prev * diff / ((config.scale ** 2) * (xstar ** 4 + 1e-12)))
-    nbr = torch.roll(phi, 1, dims=-1) + torch.roll(phi, -1, dims=-1)  # same shape as phi
-    drift = true_drifts - 0.5 * config.coupling * phi_prime * nbr
-    drift = drift / (1.+config.deltaT*torch.abs(drift))
-    return drift[:, None, :]
+    drift_X = -(4. * config.quartic_coeff * torch.pow(prev, 3) + 2. * config.quad_coeff * prev + config.const)
+    return drift_X[:, np.newaxis, :]
 
 
 # ------------------------------------------------------------
@@ -268,7 +258,7 @@ if __name__ == "__main__":
             outfile=config.nadaraya_resource_logging_path.replace(".json.json", "_GPUNADARAYA.json.json"),  # path where log will be written
             job_type="GPU training",
     ):
-        assert num_paths == 1024
+        assert num_paths == 10240
         t0 = config.t0
         deltaT = config.deltaT
         t1 = deltaT * config.ts_length
@@ -277,23 +267,11 @@ if __name__ == "__main__":
         initial_state = np.array(config.initState)
         rvs = None
         H = config.hurst
-        try:
-            is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :, :]
-            is_path_observations = np.concatenate(
-                [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0),
-                 is_path_observations], axis=1)
-            assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
-        except (FileNotFoundError, AssertionError) as e:
-            print(e)
-            fLnz = FractionalLorenz96(X0=config.initState, diff=config.diffusion, num_dims=config.ndims,
-                                      forcing_const=config.forcing_const)
-            is_path_observations = np.array(
-                [fLnz.euler_simulation(H=H, N=config.ts_length, deltaT=deltaT, X0=initial_state, Ms=None, gaussRvs=rvs,
-                                       t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
-                (num_paths, config.ts_length + 1, config.ndims))
-            np.save(config.data_path, is_path_observations[:, 1:, :])
-            assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
-
+        is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :][:, :, np.newaxis]
+        is_path_observations = np.concatenate(
+            [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0),
+             is_path_observations], axis=1)
+        assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
         is_idxs = np.arange(is_path_observations.shape[0])
         path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False), :]
         # We note that we DO NOT evaluate the drift at time t_{0}=0
@@ -368,10 +346,10 @@ if __name__ == "__main__":
             all_global_states = np.concatenate([v[1][np.newaxis, :] for v in results.values()], axis=0)
             all_local_states = np.concatenate([v[2][np.newaxis, :] for v in results.values()], axis=0)
             assert (all_true_states.shape == all_global_states.shape == all_local_states.shape)
-            assert num_paths == 1024
+            assert num_paths == 10240
 
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_fBiPot_{config.ndims}DDimsNS_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c").replace(
+                    project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_fBiPot_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(
                 ".", "")
             print(f"Save path for Track {save_path}\n")
             np.save(save_path + "_true_states.npy", all_true_states)
@@ -386,8 +364,8 @@ if __name__ == "__main__":
             all_true_states = all_true_states[np.random.choice(np.arange(all_true_states.shape[0]), 100), :, :]
             all_true_states = all_true_states.reshape(-1, config.ts_dims)
             unif_is_drift_hats = np.zeros((all_true_states.shape[0], num_dhats, config.ts_dims))
-
-            Xs = torch.as_tensor(all_true_states, dtype=torch.float32, device=device).contiguous()
+            Xs = torch.linspace(-1.5, 1.5, all_true_states.shape[0])[:, np.newaxis].to(device)
+            #Xs = torch.as_tensor(all_true_states, dtype=torch.float32, device=device).contiguous()
             for k in tqdm(range(num_dhats)):
                 is_ss_path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False),
                                           :]
@@ -420,6 +398,6 @@ if __name__ == "__main__":
             # np.save(save_path + "_muhats_true_states.npy", all_true_states)
             # np.save(save_path + "_muhats.npy", unif_is_drift_hats)
         save_path = (
-                project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_fBiPot_{config.ndims}DDimsNS_DriftEvalExp_MSEs_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c").replace(
+                project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_fBiPot_DriftEvalExp_MSEs_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(
             ".", "")
         pd.DataFrame.from_dict(mses, orient="index", columns=["bw", "mse"]).to_parquet(save_path + "_muhats_MSE.pickle")
