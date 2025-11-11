@@ -47,6 +47,7 @@ def true_drift_gpu(prev: torch.Tensor, num_paths: int, config) -> torch.Tensor:
     phi_prime = phi * (-2.0 * prev * diff / ((config.scale ** 2) * (xstar ** 4 + 1e-12)))
     nbr = torch.roll(phi, 1, dims=-1) + torch.roll(phi, -1, dims=-1)  # same shape as phi
     drift = true_drifts - 0.5 * config.coupling * phi_prime * nbr
+    drift = drift / (1.+config.deltaT*torch.abs(drift))
     return drift[:, None, :]
 
 
