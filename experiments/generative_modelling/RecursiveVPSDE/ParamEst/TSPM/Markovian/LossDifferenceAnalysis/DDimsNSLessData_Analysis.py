@@ -28,6 +28,7 @@ def _get_device(device_str: str | None = None):
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 def true_drifts(device_id, config, state):
+    state = torch.tensor(state, device=device_id, dtype=torch.float32)
     true_drifts = -(4. * torch.tensor(config.quartic_coeff, device=device_id, dtype=torch.float32) * torch.pow(state,
                                                                    3) + 2. * torch.tensor(config.quad_coeff,device= device_id,dtype=torch.float32) * state + torch.tensor(config.const, device=device_id, dtype=torch.float32))
     xstar = torch.sqrt(
