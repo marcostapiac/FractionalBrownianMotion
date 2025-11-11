@@ -324,6 +324,7 @@ for config in [bipot_config]:
             good = ConditionalMarkovianTSPostMeanScoreMatching(
         *config.model_parameters)
             entered = True
+            print(file)
             good.load_state_dict(torch.load(os.path.join(model_dir, file)))
     assert entered
     good = good.to(device_id)
