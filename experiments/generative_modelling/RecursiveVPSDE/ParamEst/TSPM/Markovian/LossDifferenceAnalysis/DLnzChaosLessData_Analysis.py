@@ -123,9 +123,6 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
     return all_true_states, all_score_states, all_nad_states, num_time_steps
 
 
-# In[15]:
-
-
 def get_best_epoch(config, type):
     model_dir = "/".join(config.scoreNet_trained_path.split("/")[:-1]) + "/"
     for file in os.listdir(model_dir):

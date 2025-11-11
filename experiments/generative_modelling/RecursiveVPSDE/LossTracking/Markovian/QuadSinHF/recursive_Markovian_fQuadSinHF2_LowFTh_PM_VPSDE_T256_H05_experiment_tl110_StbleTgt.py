@@ -26,7 +26,7 @@ if __name__ == "__main__":
         assert (config.early_stop_idx == 0)
         assert (config.tdata_mult == 110)
         assert (config.sin_space_scale == 25.)
-        assert (config.feat_thresh == 1./500.)
+        #assert (config.feat_thresh == 1./500.)
         print(config.scoreNet_trained_path, config.dataSize)
         rng = np.random.default_rng()
         scoreModel = ConditionalMarkovianTSPostMeanScoreMatching(
