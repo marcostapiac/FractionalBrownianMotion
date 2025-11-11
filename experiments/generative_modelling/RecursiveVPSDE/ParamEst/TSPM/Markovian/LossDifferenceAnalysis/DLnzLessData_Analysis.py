@@ -67,7 +67,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     num_diff_times = 1
     rmse_quantile_nums = 1
-    num_paths = 200
+    num_paths = 2
     num_time_steps = int(1*config.ts_length)
     deltaT = config.deltaT
     all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
@@ -423,6 +423,9 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
 import pandas as pd
 save_path = (project_config.ROOT_DIR + f"experiments/results/DLnz_NewDriftEvalExp_MSEs_{num_paths}NPaths").replace(
             ".", "")
+print(score_eval)
+print(pd.DataFrame.from_dict(score_eval, orient="index", columns=["val", "mse"]))
+print(pd.DataFrame.from_dict(score_eval))
 pd.DataFrame.from_dict(score_eval, orient="index", columns=["mse"]).to_parquet(save_path + "_score_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval, orient="index", columns=["mse"]).to_parquet(save_path + "_nad_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval_true_law, orient="index", columns=["mse"]).to_parquet(save_path + "_nad_true_law_MSE.parquet")
