@@ -390,13 +390,13 @@ for config in [lnz_8d_config]:#lnz_40d_config, lnz_12d_config, lnz_20d_config,ln
         torch.cuda.synchronize()
         torch.cuda.empty_cache()
         gc.collect()
-    mse = np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_score_drift_ests.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1, TT)
+    mse = np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_score_drift_ests.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1, TT+1)
     score_eval[ts_type] = mse
-    mse =  np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_nad_drift_ests.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1, TT)
+    mse =  np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_nad_drift_ests.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1, TT+1)
     nad_eval[ts_type] = mse
-    mse =  np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_nad_drift_ests_true_law.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1, TT)
+    mse =  np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_nad_drift_ests_true_law.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1,  TT+1)
     nad_eval_true_law[ts_type] = mse
-    mse =  np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_score_drift_ests_true_law.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1, TT)
+    mse =  np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_score_drift_ests_true_law.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1,  TT+1)
     score_eval_true_law[ts_type] = mse
 
     torch.cuda.synchronize()
