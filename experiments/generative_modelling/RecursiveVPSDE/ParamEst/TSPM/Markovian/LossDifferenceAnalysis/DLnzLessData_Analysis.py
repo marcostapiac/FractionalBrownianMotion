@@ -306,7 +306,7 @@ nad_eval_true_law = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 nad_state_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 score_state_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 
-for config in [lnz_8d_config]:#lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_40d_config]:
+for config in [lnz_8d_config, lnz_12d_config, lnz_20d_config,lnz_40d_config]:
     assert config.feat_thresh == 1.
     assert config.forcing_const == 0.75
     root_score_dir = root_dir
@@ -410,14 +410,12 @@ for config in [lnz_8d_config]:#lnz_40d_config, lnz_12d_config, lnz_20d_config,ln
 import pandas as pd
 save_path = (project_config.ROOT_DIR + f"experiments/results/DLnz_NewDriftEvalExp_MSEs_{num_paths}NPaths").replace(
             ".", "")
-print(score_eval)
-print(pd.DataFrame(score_eval))
-pd.DataFrame.from_dict(score_eval, orient="index", columns=["mse"]).to_parquet(save_path + "_score_MSE.parquet")
-pd.DataFrame.from_dict(nad_eval, orient="index", columns=["mse"]).to_parquet(save_path + "_nad_MSE.parquet")
-pd.DataFrame.from_dict(nad_eval_true_law, orient="index", columns=["mse"]).to_parquet(save_path + "_nad_true_law_MSE.parquet")
-pd.DataFrame.from_dict(score_eval_true_law, orient="index", columns=["mse"]).to_parquet(save_path + "_score_true_law_MSE.parquet")
-pd.DataFrame.from_dict(score_state_eval, orient="index", columns=["mse"]).to_parquet(save_path + "_score_state_MSE.parquet")
-pd.DataFrame.from_dict(nad_state_eval, orient="index", columns=["mse"]).to_parquet(save_path + "_nad_state_MSE.parquet")
+pd.DataFrame.from_dict(score_eval).to_parquet(save_path + "_score_MSE.parquet")
+pd.DataFrame.from_dict(nad_eval).to_parquet(save_path + "_nad_MSE.parquet")
+pd.DataFrame.from_dict(nad_eval_true_law).to_parquet(save_path + "_nad_true_law_MSE.parquet")
+pd.DataFrame.from_dict(score_eval_true_law).to_parquet(save_path + "_score_true_law_MSE.parquet")
+pd.DataFrame.from_dict(score_state_eval).to_parquet(save_path + "_score_state_MSE.parquet")
+pd.DataFrame.from_dict(nad_state_eval).to_parquet(save_path + "_nad_state_MSE.parquet")
 
 print("Score vs Nadaraya Alt Law", "\n", score_eval, "\n", nad_eval, "End\n")
 print("Score vs Nadaraya True Law", "\n", score_eval_true_law, "\n", nad_eval_true_law, "End\n")
