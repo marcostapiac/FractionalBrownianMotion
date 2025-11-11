@@ -390,13 +390,13 @@ for config in [lnz_8d_config]:#lnz_40d_config, lnz_12d_config, lnz_20d_config,ln
         torch.cuda.synchronize()
         torch.cuda.empty_cache()
         gc.collect()
-    mse = np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_score_drift_ests.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0)
+    mse = np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_score_drift_ests.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1, TT)
     score_eval[ts_type] = mse
-    mse = np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_nad_drift_ests.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0)
+    mse =  np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_nad_drift_ests.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1, TT)
     nad_eval[ts_type] = mse
-    mse = np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_nad_drift_ests_true_law.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0)
+    mse =  np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_nad_drift_ests_true_law.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1, TT)
     nad_eval_true_law[ts_type] = mse
-    mse = np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_score_drift_ests_true_law.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0)
+    mse =  np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_score_drift_ests_true_law.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1, TT)
     score_eval_true_law[ts_type] = mse
 
     torch.cuda.synchronize()
@@ -411,8 +411,7 @@ import pandas as pd
 save_path = (project_config.ROOT_DIR + f"experiments/results/DLnz_NewDriftEvalExp_MSEs_{num_paths}NPaths").replace(
             ".", "")
 print(score_eval)
-print(pd.DataFrame.from_dict(score_eval, orient="index", columns=["val", "mse"]))
-print(pd.DataFrame.from_dict(score_eval))
+print(pd.DataFrame(score_eval))
 pd.DataFrame.from_dict(score_eval, orient="index", columns=["mse"]).to_parquet(save_path + "_score_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval, orient="index", columns=["mse"]).to_parquet(save_path + "_nad_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval_true_law, orient="index", columns=["mse"]).to_parquet(save_path + "_nad_true_law_MSE.parquet")
