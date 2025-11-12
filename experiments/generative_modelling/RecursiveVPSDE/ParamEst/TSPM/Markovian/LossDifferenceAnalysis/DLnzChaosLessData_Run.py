@@ -68,7 +68,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
     num_diff_times = 1
     rmse_quantile_nums = 1
     num_paths = 1000
-    num_time_steps = int(5*config.ts_length)
+    num_time_steps = int(1*config.ts_length)
     deltaT = config.deltaT
     all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
     all_score_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
@@ -338,7 +338,7 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
     entered = False
     best_epoch = get_best_epoch(config=config,type="EE")
     for file in os.listdir(model_dir):
-        if config.scoreNet_trained_path in os.path.join(model_dir, file) and ("EE" in file and "Trk" not in file) and str(best_epoch) in file:
+        if config.scoreNet_trained_path in os.path.join(model_dir, file) and ("EE" not in file and "Trk" not in file):# and str(best_epoch) in file:
             good = ConditionalMarkovianTSPostMeanScoreMatching(
         *config.model_parameters)
             entered = True
@@ -427,7 +427,7 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
 
 
 import pandas as pd
-save_path = (project_config.ROOT_DIR + f"experiments/results/DLnzChaos_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
+save_path = (project_config.ROOT_DIR + f"experiments/results/DLnzChaos_NewDriftEvalExp_MSEs_{num_paths}NPaths").replace(
             ".", "")
 pd.DataFrame.from_dict(score_eval).to_parquet(save_path + "_score_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval).to_parquet(save_path + "_nad_MSE.parquet")
