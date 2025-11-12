@@ -44,9 +44,10 @@ lnz_12d_config = get_12dlnz_config()
 lnz_20d_config = get_20dlnz_config()
 lnz_40d_config = get_40dlnz_config()
 device_id = _get_device()
-assert lnz_8d_config.feat_thresh == lnz_12d_config.feat_thresh == lnz_20d_config.feat_thresh == lnz_40d_config.feat_thresh
+assert lnz_8d_config.feat_thresh == lnz_12d_config.feat_thresh != 1
+assert lnz_20d_config.feat_thresh == lnz_40d_config.feat_thresh != 1
 num_paths = 1024 if lnz_8d_config.feat_thresh == 1. else 10240
-assert num_paths == 1024
+assert num_paths == 10240
 root_dir ="/Users/marcos/Library/CloudStorage/OneDrive-ImperialCollegeLondon/StatML_CDT/Year2/DiffusionModels/"
 
 
@@ -312,23 +313,22 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_8d_config]:
     root_score_dir = root_dir
     label = "$\mu_{5}$"
     if "8DLnz" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/8DLnzLessData/"
+        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/8DLnz/"
         ts_type = "8DLnz"
     elif "12DLnz" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/12DLnzLessData/"
+        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/12DLnz/"
         ts_type = "12DLnz"
     elif "20DLnz" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/20DLnzLessData/"
+        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/20DLnz/"
         ts_type = "20DLnz"
     elif "40DLnz" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/40DLnzLessData/"
+        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/40DLnz/"
         ts_type = "40DLnz"
     print(f"Starting {ts_type}\n")
     model_dir = "/".join(config.scoreNet_trained_path.split("/")[:-1]) + "/"
     entered = False
-    best_epoch = get_best_epoch(config=config,type="EE")
     for file in os.listdir(model_dir):
-        if config.scoreNet_trained_path in os.path.join(model_dir, file) and ("EE" in file and "Trk" not in file)  and str(best_epoch) in file:
+        if config.scoreNet_trained_path in os.path.join(model_dir, file) and ("EE" not in file and "Trk" not in file):
             good = ConditionalMarkovianTSPostMeanScoreMatching(
         *config.model_parameters)
             entered = True
@@ -402,10 +402,6 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_8d_config]:
     torch.cuda.synchronize()
     torch.cuda.empty_cache()
     gc.collect()
-
-
-# In[27]:
-
 
 import pandas as pd
 save_path = (project_config.ROOT_DIR + f"experiments/results/DLnz_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
