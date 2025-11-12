@@ -252,7 +252,7 @@ def IID_NW_multivar_estimator_gpu(
         est[denom <= (m / 2.0)] = 0
 
     return est
-def prepare_for_nadaraya(config):
+def prepare_for_nadaraya(config, num_paths):
     deltaT = config.deltaT
     t1 = deltaT * config.ts_length
     is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :, :]
@@ -338,13 +338,13 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_8d_config]:
     good.eval()
 
     # Prepare for Nadaraya
-    is_obs, is_prevPath_obs, is_prevPath_incs = prepare_for_nadaraya(config=config)
+    is_obs, is_prevPath_obs, is_prevPath_incs = prepare_for_nadaraya(config=config, num_paths=num_paths)
     bw = np.logspace(-3.55, -0.05, 30)[[5]]
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
     Nn_tile = 51200000
     stable = True
-    block_size = 2048
+    block_size = 512
 
     all_true_paths, all_score_paths, all_nad_paths, num_time_steps = generate_synthetic_paths(config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable, prevPath_observations=is_prevPath_obs, prevPath_incs=is_prevPath_incs, inv_H=inv_H, norm_const=norm_const)
     all_true_paths = all_true_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")

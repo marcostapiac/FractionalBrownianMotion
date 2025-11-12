@@ -251,7 +251,7 @@ def IID_NW_multivar_estimator_gpu(
         est[denom <= (m / 2.0)] = 0
 
     return est
-def prepare_for_nadaraya(config):
+def prepare_for_nadaraya(config, num_paths):
     deltaT = config.deltaT
     t1 = deltaT * config.ts_length
     is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :, :]
@@ -338,7 +338,7 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_8d_config]:
     good.eval()
 
     # Prepare for Nadaraya
-    is_obs, is_prevPath_obs, is_prevPath_incs = prepare_for_nadaraya(config=config)
+    is_obs, is_prevPath_obs, is_prevPath_incs = prepare_for_nadaraya(config=config, num_paths=num_paths)
     bw = np.logspace(-3.55, -0.05, 30)[[5]]
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
