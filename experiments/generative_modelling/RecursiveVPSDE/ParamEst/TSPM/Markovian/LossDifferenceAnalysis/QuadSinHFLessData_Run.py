@@ -369,7 +369,8 @@ for config in [bipot_config]:
     score_state_eval[ts_type] = np.sqrt(np.mean(np.sum(np.power(all_true_paths - all_score_paths, 2), axis=-1), axis=0))
     nad_state_eval[ts_type] = np.sqrt(np.mean(np.sum(np.power(all_true_paths - all_nad_paths, 2), axis=-1), axis=0))
     uniform_positions = torch.linspace(-1.5, 1.5, all_true_states.shape[0], device="cpu", dtype=torch.float32)[:, np.newaxis]
-    uniform_true_drifts = true_drifts(device_id=device_id, state=uniform_positions, config=config).cpu().numpy()
+    uniform_true_drifts = true_drifts(device_id=device_id, state=uniform_positions, config=config).cpu().numpy().flatten()[:, np.newaxis]
+    assert uniform_true_drifts.shape == all_score_drift_ests_uniform.shape
     for k in tqdm(range(0, all_score_states.shape[0], block_size)):
         curr_states = torch.tensor(all_score_states[k:k+block_size, :], device=device_id, dtype=torch.float32)
         drift_ests = experiment_MLP_DDims_drifts(config=config, Xs=curr_states, good=good, onlyGauss=False)
