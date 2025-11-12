@@ -354,7 +354,7 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
     Nn_tile = 512000
     stable = True
-    block_size = 512
+    block_size = 1024
 
     all_true_paths, all_score_paths, all_nad_paths, num_time_steps = generate_synthetic_paths(config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable, prevPath_observations=is_prevPath_obs, prevPath_incs=is_prevPath_incs, inv_H=inv_H, norm_const=norm_const)
     all_true_paths = all_true_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
