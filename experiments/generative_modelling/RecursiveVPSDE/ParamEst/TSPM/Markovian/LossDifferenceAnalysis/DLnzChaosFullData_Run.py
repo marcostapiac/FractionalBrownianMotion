@@ -318,7 +318,7 @@ nad_state_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 score_state_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 
 for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
-    assert config.feat_thresh == 1.
+    assert config.feat_thresh != 1.
     assert config.forcing_const == 1.25
     root_score_dir = root_dir
     label = "$\mu_{5}$"
