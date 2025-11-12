@@ -11,10 +11,10 @@ import torch
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
     ConditionalMarkovianTSPostMeanScoreMatching
 from utils.drift_evaluation_functions import experiment_MLP_DDims_drifts
-from configs.RecursiveVPSDE.Markovian_8DLorenz.recursive_Markovian_PostMeanScore_8DLorenz_Stable_T256_H05_tl_110data_StbleTgt import get_config as get_8dlnz_config
-from configs.RecursiveVPSDE.Markovian_12DLorenz.recursive_Markovian_PostMeanScore_12DLorenz_Stable_T256_H05_tl_110data_StbleTgt import get_config as get_12dlnz_config
-from configs.RecursiveVPSDE.Markovian_20DLorenz.recursive_Markovian_PostMeanScore_20DLorenz_Stable_T256_H05_tl_110data_StbleTgt import get_config as get_20dlnz_config
-from configs.RecursiveVPSDE.Markovian_40DLorenz.recursive_Markovian_PostMeanScore_40DLorenz_Stable_T256_H05_tl_110data_StbleTgt import get_config as get_40dlnz_config
+from configs.RecursiveVPSDE.Markovian_8DLorenz.recursive_Markovian_PostMeanScore_8DLorenz_Chaos_T256_H05_tl_110data_StbleTgt import get_config as get_8dlnz_config
+from configs.RecursiveVPSDE.Markovian_12DLorenz.recursive_Markovian_PostMeanScore_12DLorenz_Chaos_T256_H05_tl_110data_StbleTgt import get_config as get_12dlnz_config
+from configs.RecursiveVPSDE.Markovian_20DLorenz.recursive_Markovian_PostMeanScore_20DLorenz_Chaos_T256_H05_tl_110data_StbleTgt import get_config as get_20dlnz_config
+from configs.RecursiveVPSDE.Markovian_40DLorenz.recursive_Markovian_PostMeanScore_40DLorenz_Chaos_T256_H05_tl_110data_StbleTgt import get_config as get_40dlnz_config
 from tqdm import tqdm
 from utils.drift_evaluation_functions import multivar_score_based_MLP_drift_OOS
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
@@ -44,9 +44,10 @@ lnz_12d_config = get_12dlnz_config()
 lnz_20d_config = get_20dlnz_config()
 lnz_40d_config = get_40dlnz_config()
 device_id = _get_device()
-assert lnz_8d_config.feat_thresh == lnz_12d_config.feat_thresh == lnz_20d_config.feat_thresh == lnz_40d_config.feat_thresh
+assert lnz_8d_config.feat_thresh == lnz_12d_config.feat_thresh != 1
+assert lnz_20d_config.feat_thresh == lnz_40d_config.feat_thresh != 1
 num_paths = 1024 if lnz_8d_config.feat_thresh == 1. else 10240
-assert num_paths == 1024
+assert num_paths == 10240
 root_dir ="/Users/marcos/Library/CloudStorage/OneDrive-ImperialCollegeLondon/StatML_CDT/Year2/DiffusionModels/"
 
 
@@ -123,15 +124,25 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
     return all_true_states, all_score_states, all_nad_states, num_time_steps
 
 
-# In[15]:
-
-
 def get_best_epoch(config, type):
     model_dir = "/".join(config.scoreNet_trained_path.split("/")[:-1]) + "/"
     for file in os.listdir(model_dir):
         if config.scoreNet_trained_path in os.path.join(model_dir, file) and f"{type}" in file:
             best_epoch = int(file.split(f"{type}NEp")[-1])
     return best_epoch
+
+def get_best_track_file(root_score_dir, ts_type, best_epoch_track):
+    for file in os.listdir(root_score_dir):
+        if ("_"+str(best_epoch_track)+"Nep") in file and "true" in file and ts_type in file and "1000FTh" in file and "125FConst" in file:
+            with open(root_score_dir+file, 'rb') as f:
+                buf = io.BytesIO(f.read())  # hydrates once, sequentially
+            true_file = np.load(root_score_dir+file, allow_pickle=True)
+        elif ("_"+str(best_epoch_track)+"Nep") in file and "global" in file and ts_type in file and "1000FTh" in file and "125FConst" in file:
+            with open(root_score_dir+file, 'rb') as f:
+                buf = io.BytesIO(f.read())  # hydrates once, sequentially
+            global_file = np.load(root_score_dir+file, allow_pickle=True)
+    print(ts_type)
+    return true_file, global_file
 
 def get_best_eval_exp_file(config, root_score_dir, ts_type):
     best_epoch_eval = get_best_epoch(config=config,type="EE")
@@ -306,29 +317,28 @@ nad_eval_true_law = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 nad_state_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 score_state_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 
-for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_8d_config]:
+for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
     assert config.feat_thresh == 1.
-    assert config.forcing_const == 0.75
+    assert config.forcing_const == 1.25
     root_score_dir = root_dir
     label = "$\mu_{5}$"
     if "8DLnz" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/8DLnzLessData/"
+        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/8DLnzChaos/"
         ts_type = "8DLnz"
     elif "12DLnz" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/12DLnzLessData/"
+        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/12DLnzChaos/"
         ts_type = "12DLnz"
     elif "20DLnz" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/20DLnzLessData/"
+        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/20DLnzChaos/"
         ts_type = "20DLnz"
     elif "40DLnz" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/40DLnzLessData/"
+        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/40DLnzChaos/"
         ts_type = "40DLnz"
     print(f"Starting {ts_type}\n")
     model_dir = "/".join(config.scoreNet_trained_path.split("/")[:-1]) + "/"
     entered = False
-    best_epoch = get_best_epoch(config=config,type="EE")
     for file in os.listdir(model_dir):
-        if config.scoreNet_trained_path in os.path.join(model_dir, file) and ("EE" in file and "Trk" not in file)  and str(best_epoch) in file:
+        if config.scoreNet_trained_path in os.path.join(model_dir, file) and ("EE" not in file and "Trk" not in file):
             good = ConditionalMarkovianTSPostMeanScoreMatching(
         *config.model_parameters)
             entered = True
@@ -342,7 +352,7 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_8d_config]:
     bw = np.logspace(-3.55, -0.05, 30)[[5]]
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
-    Nn_tile = 51200000
+    Nn_tile = 512000
     stable = True
     block_size = 1024
 
@@ -390,13 +400,22 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_8d_config]:
         torch.cuda.synchronize()
         torch.cuda.empty_cache()
         gc.collect()
-    mse = np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_score_drift_ests.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1, TT+1)
+    mse = np.cumsum(np.mean(np.sum(np.power(
+        true_drift.reshape(((BB, TT, DD)), order="C") - all_score_drift_ests.reshape(((BB, TT, DD)), order="C"), 2),
+                                   axis=-1), axis=0)) / np.arange(1, TT + 1)
     score_eval[ts_type] = mse
-    mse =  np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_nad_drift_ests.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1, TT+1)
+    mse = np.cumsum(np.mean(np.sum(
+        np.power(true_drift.reshape(((BB, TT, DD)), order="C") - all_nad_drift_ests.reshape(((BB, TT, DD)), order="C"),
+                 2), axis=-1), axis=0)) / np.arange(1, TT + 1)
     nad_eval[ts_type] = mse
-    mse =  np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_nad_drift_ests_true_law.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1,  TT+1)
+    mse = np.cumsum(np.mean(np.sum(np.power(
+        true_drift.reshape(((BB, TT, DD)), order="C") - all_nad_drift_ests_true_law.reshape(((BB, TT, DD)), order="C"),
+        2), axis=-1), axis=0)) / np.arange(1, TT + 1)
     nad_eval_true_law[ts_type] = mse
-    mse =  np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_score_drift_ests_true_law.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1,  TT+1)
+    mse = np.cumsum(np.mean(np.sum(np.power(
+        true_drift.reshape(((BB, TT, DD)), order="C") - all_score_drift_ests_true_law.reshape(((BB, TT, DD)),
+                                                                                              order="C"), 2), axis=-1),
+                            axis=0)) / np.arange(1, TT + 1)
     score_eval_true_law[ts_type] = mse
 
     torch.cuda.synchronize()
@@ -408,7 +427,7 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_8d_config]:
 
 
 import pandas as pd
-save_path = (project_config.ROOT_DIR + f"experiments/results/DLnz_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
+save_path = (project_config.ROOT_DIR + f"experiments/results/DLnzChaos_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
             ".", "")
 pd.DataFrame.from_dict(score_eval).to_parquet(save_path + "_score_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval).to_parquet(save_path + "_nad_MSE.parquet")
@@ -421,8 +440,6 @@ print("Score vs Nadaraya Alt Law", "\n", score_eval, "\n", nad_eval, "End\n")
 print("Score vs Nadaraya True Law", "\n", score_eval_true_law, "\n", nad_eval_true_law, "End\n")
 print("Score vs Nadaraya State Eval", "\n", score_state_eval, "\n", nad_state_eval, "End\n")
 
-
-# In[ ]:
 
 
 

@@ -338,7 +338,7 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
     entered = False
     best_epoch = get_best_epoch(config=config,type="EE")
     for file in os.listdir(model_dir):
-        if config.scoreNet_trained_path in os.path.join(model_dir, file) and ("EE" not in file and "Trk" not in file):# and str(best_epoch) in file:
+        if config.scoreNet_trained_path in os.path.join(model_dir, file) and ("EE" in file and "Trk" not in file) and str(best_epoch) in file:
             good = ConditionalMarkovianTSPostMeanScoreMatching(
         *config.model_parameters)
             entered = True
