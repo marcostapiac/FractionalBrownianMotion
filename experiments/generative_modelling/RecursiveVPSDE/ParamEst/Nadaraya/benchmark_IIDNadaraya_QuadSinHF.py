@@ -23,7 +23,7 @@ def rmse_ignore_nans(y_true, y_pred):
     y_true = y_true.flatten()
     y_pred = y_pred.flatten()
     mask = ~np.isnan(y_true) & ~np.isnan(y_pred)  # Ignore NaNs in both arrays
-    return np.sqrt(np.mean((y_true[mask] - y_pred[mask]) ** 2))
+    return np.sqrt(np.nanmean((y_true[mask] - y_pred[mask]) ** 2))
 
 
 # In[18]:
@@ -143,7 +143,7 @@ for bw in bws:
         is_prevPath_observations = is_ss_path_observations[:, 1:-1]
         is_path_incs = np.diff(is_ss_path_observations, axis=1)[:, 1:]
         unif_is_drift_hats[:, k] = IID_NW_estimator(prevPath_observations=is_prevPath_observations, bw=bw, x=Xs,
-                                                    path_incs=is_path_incs, t1=t1, t0=t0, truncate=True)
+                                                    path_incs=is_path_incs, t1=t1, t0=t0, truncate=False)
     save_path = (
             project_config.ROOT_DIR + f"experiments/results/IIDNadaraya_fQuadSinHF_DriftEvalExp_{round(bw, 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.ts_length}NumDPS").replace(
         ".", "")

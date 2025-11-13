@@ -152,11 +152,9 @@ def IID_NW_multivar_estimator_gpu(
         denom[m0:m0 + X.size(0)] += denom_tile
         numer[m0:m0 + X.size(0)] += numer_tile
 
-    est = (numer / denom[:, None]).to(torch.float32)          # (M,d)
-
-    if truncate:
-        m = denom.min()
-        est[denom <= (m / 2.0)] = 0
+    est = torch.full((M, d), float('nan'), dtype=torch.float32, device=x.device)
+    mask = (denom > 0) & torch.isfinite(denom) & torch.isfinite(numer).all(dim=1)
+    est[mask] = (numer[mask] / denom[mask, None]).to(torch.float32)
 
     return est
 
@@ -230,7 +228,7 @@ def process_IID_bandwidth_gpu(
         global_mean = IID_NW_multivar_estimator_gpu(
             prevPath, path_incs, inv_H, float(norm_const),
             x_global, float(config.t1), float(config.t0),
-            truncate=True, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
+            truncate=False, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
         )
 
         # Local mean (at true state)
@@ -238,7 +236,7 @@ def process_IID_bandwidth_gpu(
         local_mean = IID_NW_multivar_estimator_gpu(
             prevPath, path_incs, inv_H, float(norm_const),
             x_true, float(config.t1), float(config.t0),
-            truncate=True, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
+            truncate=False, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
         )
 
         # Euler–Maruyama updates
@@ -402,10 +400,10 @@ if __name__ == "__main__":
                 unif_is_drift_hats[:, k, :] = IID_NW_multivar_estimator_gpu(
                     is_prevPath_observations, is_path_incs, inv_H, float(norm_const),
                     Xs, float(config.t1), float(config.t0),
-                    truncate=True, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
+                    truncate=False, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
                 ).cpu().numpy()
-            est_unif_is_drift_hats = np.mean(unif_is_drift_hats,axis=1)
-            mses[bw_idx] = (bws[bw_idx], np.mean(np.sum(np.power(est_unif_is_drift_hats-all_true_states,2),axis=-1),axis=-1))
+            est_unif_is_drift_hats = np.nanmean(unif_is_drift_hats,axis=1)
+            mses[bw_idx] = (bws[bw_idx], np.nanmean(np.sum(np.power(est_unif_is_drift_hats-all_true_states,2),axis=-1),axis=-1))
             save_path = save_path.replace("DriftTrack", "DriftEvalExp")
             print(f"Save path for EvalExp {save_path}\n")
             import pandas as pd

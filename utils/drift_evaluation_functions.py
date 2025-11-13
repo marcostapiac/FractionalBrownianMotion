@@ -136,11 +136,11 @@ def process_IID_SBurgers_bandwidth(quant_idx, shape, inv_H, norm_const, true_dri
         true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_state_paths, config=config)[:, np.newaxis, :]
         global_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, inv_H=inv_H, norm_const=norm_const,
                                                x=global_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
-                                               t0=config.t0, truncate=True)[:, np.newaxis, :]
+                                               t0=config.t0, truncate=False)[:, np.newaxis, :]
         local_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, inv_H=inv_H,
                                                norm_const=norm_const,
                                                x=true_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
-                                               t0=config.t0, truncate=True)[:, np.newaxis, :]
+                                               t0=config.t0, truncate=False)[:, np.newaxis, :]
         print(true_mean.shape)
         true_states[:, [i], :] = (true_states[:, [i - 1], :] + true_mean * deltaT + eps) / denom
         global_states[:, [i], :] = (global_states[:, [i - 1], :] + global_mean * deltaT + eps)/denom
@@ -1187,11 +1187,11 @@ def process_IID_bandwidth(quant_idx, shape, inv_H, norm_const, true_drift, confi
         true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_state_paths, config=config)
         global_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, inv_H=inv_H, norm_const=norm_const,
                                                x=global_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
-                                               t0=config.t0, truncate=True)[:, np.newaxis, :]
+                                               t0=config.t0, truncate=False)[:, np.newaxis, :]
         local_mean = IID_NW_multivar_estimator(prevPath_observations=prevPath_observations, inv_H=inv_H,
                                                norm_const=norm_const,
                                                x=true_states[:, i - 1, :], path_incs=path_incs, t1=config.t1,
-                                               t0=config.t0, truncate=True)[:, np.newaxis, :]
+                                               t0=config.t0, truncate=False)[:, np.newaxis, :]
         print(true_mean.shape)
         true_states[:, [i], :] = true_states[:, [i - 1], :] + true_mean * deltaT + eps
         global_states[:, [i], :] = global_states[:, [i - 1], :] + global_mean * deltaT + eps

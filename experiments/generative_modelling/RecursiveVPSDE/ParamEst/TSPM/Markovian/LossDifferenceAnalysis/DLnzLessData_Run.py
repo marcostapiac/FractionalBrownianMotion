@@ -108,7 +108,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
             nad_mean = IID_NW_multivar_estimator_gpu(
                         prevPath_observations=prevPath_observations, path_incs=prevPath_incs, inv_H=inv_H, norm_const=float(norm_const),
                         x=x, t1=float(config.t1), t0=float(config.t0),
-                        truncate=True, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
+                        truncate=False, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
                     ).cpu().numpy()[:, np.newaxis, :]
             true_states[:, [i], :] = (true_states[:, [i - 1], :] \
                                       + true_mean * deltaT \
@@ -236,19 +236,14 @@ def IID_NW_multivar_estimator_gpu(
             denom_tile += w.sum(dim=0, dtype=torch.float64) / (N * n)
             numer_tile += (w.t() @ dX_i).to(torch.float64) * ((t1 - t0) / N)
 
-        if stable:
-            scale = torch.exp(lse_max.to(torch.float64))
-            denom_tile *= scale
-            numer_tile *= scale[:, None]
+        
 
         denom[m0:m0 + X.size(0)] += denom_tile
         numer[m0:m0 + X.size(0)] += numer_tile
 
-    est = (numer / denom[:, None]).to(torch.float32)          # (M,d)
-
-    if truncate:
-        m = denom.min()
-        est[denom <= (m / 2.0)] = 0
+    est = torch.full((M, d), float('nan'), dtype=torch.float32, device=x.device)
+    mask = (denom > 0) & torch.isfinite(denom) & torch.isfinite(numer).all(dim=1)
+    est[mask] = (numer[mask] / denom[mask, None]).to(torch.float32)
 
     return est
 def prepare_for_nadaraya(config, num_paths):
@@ -290,7 +285,7 @@ def run_nadaraya_single_bw(config, is_path_observations, states, M_tile, inv_H, 
     unif_is_drift_hats = IID_NW_multivar_estimator_gpu(
         is_prevPath_observations, is_path_incs, inv_H, float(norm_const),
         Xs, float(config.t1), float(config.t0),
-        truncate=True, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
+        truncate=False, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
     ).cpu().numpy()
     return unif_is_drift_hats
 
@@ -365,8 +360,8 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_8d_config]:
     all_nad_drift_ests = np.zeros_like(true_drift)
     all_score_drift_ests_true_law = np.zeros_like(true_drift)
     all_nad_drift_ests_true_law = np.zeros_like(true_drift)
-    score_state_eval[ts_type] = np.sqrt(np.mean(np.sum(np.power(all_true_paths - all_score_paths, 2), axis=-1), axis=0))
-    nad_state_eval[ts_type] = np.sqrt(np.mean(np.sum(np.power(all_true_paths - all_nad_paths, 2), axis=-1), axis=0))
+    score_state_eval[ts_type] = np.sqrt(np.nanmean(np.sum(np.power(all_true_paths - all_score_paths, 2), axis=-1), axis=0))
+    nad_state_eval[ts_type] = np.sqrt(np.nanmean(np.sum(np.power(all_true_paths - all_nad_paths, 2), axis=-1), axis=0))
     for k in tqdm(range(0, all_score_states.shape[0], block_size)):
         curr_states = torch.tensor(all_score_states[k:k+block_size, :], device=device_id, dtype=torch.float32)
         drift_ests = experiment_MLP_DDims_drifts(config=config, Xs=curr_states, good=good, onlyGauss=False)
@@ -390,13 +385,13 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_8d_config]:
         torch.cuda.synchronize()
         torch.cuda.empty_cache()
         gc.collect()
-    mse = np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_score_drift_ests.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1, TT+1)
+    mse = np.cumsum(np.nanmean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_score_drift_ests.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1, TT+1)
     score_eval[ts_type] = mse
-    mse =  np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_nad_drift_ests.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1, TT+1)
+    mse =  np.cumsum(np.nanmean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_nad_drift_ests.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1, TT+1)
     nad_eval[ts_type] = mse
-    mse =  np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_nad_drift_ests_true_law.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1,  TT+1)
+    mse =  np.cumsum(np.nanmean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_nad_drift_ests_true_law.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1,  TT+1)
     nad_eval_true_law[ts_type] = mse
-    mse =  np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_score_drift_ests_true_law.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1,  TT+1)
+    mse =  np.cumsum(np.nanmean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_score_drift_ests_true_law.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1,  TT+1)
     score_eval_true_law[ts_type] = mse
 
     torch.cuda.synchronize()

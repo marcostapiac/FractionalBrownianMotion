@@ -24,7 +24,7 @@ def rmse_ignore_nans(y_true, y_pred):
     y_true = y_true.flatten()
     y_pred = y_pred.flatten()
     mask = ~np.isnan(y_true) & ~np.isnan(y_pred)  # Ignore NaNs in both arrays
-    return np.sqrt(np.mean((y_true[mask] - y_pred[mask]) ** 2))
+    return np.sqrt(np.nanmean((y_true[mask] - y_pred[mask]) ** 2))
 
 
 # In[18]:
@@ -138,7 +138,7 @@ for bw in bws:
         is_path_incs = np.diff(is_ss_path_observations, axis=1)[:, 1:]
         unif_is_drift_hats[:, k, :] = IID_NW_multivar_estimator(prevPath_observations=is_prevPath_observations,
                                                                 inv_H=inv_H, x=Xs,
-                                                                path_incs=is_path_incs, t1=t1, t0=t0, truncate=True,
+                                                                path_incs=is_path_incs, t1=t1, t0=t0, truncate=False,
                                                                 norm_const=norm_const)
 
     save_path = (

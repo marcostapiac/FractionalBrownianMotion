@@ -103,7 +103,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
             nad_mean = IID_NW_multivar_estimator_gpu(
                         prevPath_observations=prevPath_observations, path_incs=prevPath_incs, inv_H=inv_H, norm_const=float(norm_const),
                         x=x, t1=float(config.t1), t0=float(config.t0),
-                        truncate=True, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
+                        truncate=False, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
                     ).cpu().numpy()[:, np.newaxis, :]
             true_states[:, [i], :] = (true_states[:, [i - 1], :] \
                                       + true_mean * deltaT \
@@ -231,19 +231,14 @@ def IID_NW_multivar_estimator_gpu(
             denom_tile += w.sum(dim=0, dtype=torch.float64) / (N * n)
             numer_tile += (w.t() @ dX_i).to(torch.float64) * ((t1 - t0) / N)
 
-        if stable:
-            scale = torch.exp(lse_max.to(torch.float64))
-            denom_tile *= scale
-            numer_tile *= scale[:, None]
+        
 
         denom[m0:m0 + X.size(0)] += denom_tile
         numer[m0:m0 + X.size(0)] += numer_tile
 
-    est = (numer / denom[:, None]).to(torch.float32)          # (M,d)
-
-    if truncate:
-        m = denom.min()
-        est[denom <= (m / 2.0)] = 0
+    est = torch.full((M, d), float('nan'), dtype=torch.float32, device=x.device)
+    mask = (denom > 0) & torch.isfinite(denom) & torch.isfinite(numer).all(dim=1)
+    est[mask] = (numer[mask] / denom[mask, None]).to(torch.float32)
 
     return est
 def prepare_for_nadaraya(config, num_paths):
@@ -285,7 +280,7 @@ def run_nadaraya_single_bw(config, is_path_observations, states, M_tile, inv_H, 
     unif_is_drift_hats = IID_NW_multivar_estimator_gpu(
         is_prevPath_observations, is_path_incs, inv_H, float(norm_const),
         Xs, float(config.t1), float(config.t0),
-        truncate=True, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
+        truncate=False, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
     ).cpu().numpy()
     return unif_is_drift_hats
 
@@ -331,22 +326,28 @@ good.eval()
 
 # Prepare for Nadaraya
 is_obs, is_prevPath_obs, is_prevPath_incs = prepare_for_nadaraya(config=config, num_paths=num_paths)
-bw = np.logspace(-3.55, -0.05, 30)[[5]]
+bw = np.logspace(-3.55, -0.05, 30)[[-1]]
 inv_H = np.diag(np.power(bw, -2))
 norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
 Nn_tile = 512000
 stable = True
-block_size = 2048
+block_size = 32
 
-all_true_paths, all_score_paths, all_nad_paths, num_time_steps = generate_synthetic_paths(config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable, prevPath_observations=is_prevPath_obs, prevPath_incs=is_prevPath_incs, inv_H=inv_H, norm_const=norm_const)
+#all_true_paths, all_score_paths, all_nad_paths, num_time_steps = generate_synthetic_paths(config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable, prevPath_observations=is_prevPath_obs, prevPath_incs=is_prevPath_incs, inv_H=inv_H, norm_const=norm_const)
 save_path = (
             project_config.ROOT_DIR + f"experiments/results/8DLnz_NewDriftEvalExp_MSEs_{num_paths}NPaths").replace(
     ".", "")
-np.save(save_path+"_true_paths.npy", all_true_paths)
-np.save(save_path+"_score_paths.npy", all_score_paths)
-np.save(save_path+"_nad_paths.npy", all_nad_paths)
-np.save(save_path+"_trainingPrevPath_paths.npy", is_prevPath_obs)
-np.save(save_path+"_trainingIncs_paths.npy", is_prevPath_incs)
+#np.save(save_path+"_true_paths.npy", all_true_paths)
+#np.save(save_path+"_score_paths.npy", all_score_paths)
+#np.save(save_path+"_nad_paths.npy", all_nad_paths)
+#np.save(save_path+"_trainingPrevPath_paths.npy", is_prevPath_obs)
+#np.save(save_path+"_trainingIncs_paths.npy", is_prevPath_incs)
+all_true_paths=np.load(save_path+"_true_paths.npy", allow_pickle=True)
+all_score_paths=np.load(save_path+"_score_paths.npy", allow_pickle=True)
+all_nad_paths=np.load(save_path+"_nad_paths.npy", allow_pickle=True)
+is_prevPath_obs=np.load(save_path+"_trainingPrevPath_paths.npy", allow_pickle=True)
+is_prevPath_incs=np.load(save_path+"_trainingIncs_paths.npy", allow_pickle=True)
+num_time_steps = 256
 all_true_paths = all_true_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
 all_score_paths = all_score_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
 all_nad_paths = all_nad_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
@@ -357,8 +358,6 @@ all_score_states = all_score_paths[:, 1:,:].reshape((-1, config.ts_dims), order=
 all_nad_states = all_nad_paths[:, 1:,:].reshape((-1, config.ts_dims), order="C")
 
 true_drift = true_drifts(state=all_true_states, device_id=device_id,config=config).cpu().numpy()[:,0,:]
-torch.cuda.synchronize()
-torch.cuda.empty_cache()
 gc.collect()
 time.sleep(5)
 all_score_drift_ests_true_law = np.zeros_like(true_drift)
@@ -372,6 +371,7 @@ for k in tqdm(range(0, all_score_states.shape[0], block_size)):
     all_score_drift_ests_true_law[k:k + block_size, :] = drift_ests
     # Now evaluate on true path law
     nad_drift_est = run_nadaraya_single_bw(config=config, is_path_observations=is_obs, states=curr_states, M_tile=block_size, inv_H=inv_H, norm_const=norm_const,stable=stable, Nn_tile=Nn_tile)
+    print(nad_drift_est)
     all_nad_drift_ests_true_law[k:k+block_size,:] = nad_drift_est
     torch.cuda.synchronize()
     torch.cuda.empty_cache()
@@ -381,6 +381,6 @@ torch.cuda.empty_cache()
 gc.collect()
 
 
-np.save(save_path+"_true_drifts.npy", true_drift)
-np.save(save_path+"_score_drifts.npy", all_score_drift_ests_true_law)
-np.save(save_path+"_nad_drifts.npy", all_nad_drift_ests_true_law)
+#np.save(save_path+"_true_drifts.npy", true_drift)
+#np.save(save_path+"_score_drifts.npy", all_score_drift_ests_true_law)
+#np.save(save_path+"_nad_drifts.npy", all_nad_drift_ests_true_law)
