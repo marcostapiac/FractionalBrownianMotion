@@ -376,24 +376,11 @@ for k in tqdm(range(0, all_score_states.shape[0], block_size)):
     torch.cuda.synchronize()
     torch.cuda.empty_cache()
     gc.collect()
-mse =  np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_nad_drift_ests_true_law.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1,  TT+1)
-nad_eval_true_law[ts_type] = mse
-mse =  np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_score_drift_ests_true_law.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1,  TT+1)
-score_eval_true_law[ts_type] = mse
-
 torch.cuda.synchronize()
 torch.cuda.empty_cache()
 gc.collect()
 
 
-# In[27]:
-
-
-import pandas as pd
-pd.DataFrame.from_dict(nad_eval_true_law).to_parquet(save_path + "_nad_true_law_MSE.parquet")
-pd.DataFrame.from_dict(score_eval_true_law).to_parquet(save_path + "_score_true_law_MSE.parquet")
-print("Score vs Nadaraya True Law", "\n", score_eval_true_law, "\n", nad_eval_true_law, "End\n")
-
-
-
-
+np.save(save_path+"_true_drifts.npy", true_drift)
+np.save(save_path+"_score_drifts.npy", all_score_drift_ests_true_law)
+np.save(save_path+"_nad_drifts.npy", all_nad_drift_ests_true_law)
