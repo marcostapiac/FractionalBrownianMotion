@@ -314,7 +314,7 @@ if __name__ == "__main__":
         # Euler-Maruyama Scheme for Tracking Errors
         shape = prevPath_observations.shape
         num_state_paths = 100
-        mses = {bw_idx: np.inf for bw_idx in (range(10,bws.shape[0]))}
+        mses = {bw_idx: np.inf for bw_idx in (range(0,bws.shape[0]))}
         for bw_idx in tqdm(range(0,bws.shape[0])):
             set_runtime_global(idx=bw_idx)
             bw = bws[bw_idx, :]
