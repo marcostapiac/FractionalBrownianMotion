@@ -313,7 +313,7 @@ score_uniform_eval = {t: np.inf for t in  ["SinLog"]}
 nad_uniform_eval = {t: np.inf for t in  ["SinLog"]}
 
 for config in [bipot_config]:
-    assert config.feat_thresh == 1.
+    assert config.feat_thresh != 1.
     root_score_dir = root_dir
     ts_type = "SinLog"
     print(f"Starting {ts_type}\n")
