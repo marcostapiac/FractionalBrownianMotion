@@ -5,6 +5,7 @@
 
 
 import numpy as np
+import pandas as pd
 import io
 import os
 import torch
@@ -12,9 +13,6 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
     ConditionalMarkovianTSPostMeanScoreMatching
 from utils.drift_evaluation_functions import experiment_MLP_DDims_drifts
 from configs.RecursiveVPSDE.Markovian_8DLorenz.recursive_Markovian_PostMeanScore_8DLorenz_Stable_T256_H05_tl_110data_StbleTgt import get_config as get_8dlnz_config
-from configs.RecursiveVPSDE.Markovian_12DLorenz.recursive_Markovian_PostMeanScore_12DLorenz_Stable_T256_H05_tl_110data_StbleTgt import get_config as get_12dlnz_config
-from configs.RecursiveVPSDE.Markovian_20DLorenz.recursive_Markovian_PostMeanScore_20DLorenz_Stable_T256_H05_tl_110data_StbleTgt import get_config as get_20dlnz_config
-from configs.RecursiveVPSDE.Markovian_40DLorenz.recursive_Markovian_PostMeanScore_40DLorenz_Stable_T256_H05_tl_110data_StbleTgt import get_config as get_40dlnz_config
 from tqdm import tqdm
 from utils.drift_evaluation_functions import multivar_score_based_MLP_drift_OOS
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
@@ -40,11 +38,8 @@ def true_drifts(device_id, config, state):
 
 
 lnz_8d_config = get_8dlnz_config()
-lnz_12d_config = get_12dlnz_config()
-lnz_20d_config = get_20dlnz_config()
-lnz_40d_config = get_40dlnz_config()
 device_id = _get_device()
-assert lnz_8d_config.feat_thresh == lnz_12d_config.feat_thresh == lnz_20d_config.feat_thresh == lnz_40d_config.feat_thresh
+assert lnz_8d_config.feat_thresh == 1.
 num_paths = 1024 if lnz_8d_config.feat_thresh == 1. else 10240
 assert num_paths == 1024
 root_dir ="/Users/marcos/Library/CloudStorage/OneDrive-ImperialCollegeLondon/StatML_CDT/Year2/DiffusionModels/"
@@ -295,16 +290,13 @@ def run_nadaraya_single_bw(config, is_path_observations, states, M_tile, inv_H, 
     return unif_is_drift_hats
 
 
-# In[20]:
-
-
 import gc, time
-score_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
-score_eval_true_law = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
-nad_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
-nad_eval_true_law = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
-nad_state_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
-score_state_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
+score_eval = {t: np.inf for t in ["8DLnz"]}
+score_eval_true_law = {t: np.inf for t in ["8DLnz"]}
+nad_eval = {t: np.inf for t in ["8DLnz"]}
+nad_eval_true_law = {t: np.inf for t in ["8DLnz"]}
+nad_state_eval = {t: np.inf for t in ["8DLnz"]}
+score_state_eval = {t: np.inf for t in ["8DLnz"]}
 
 config = lnz_8d_config
 assert config.feat_thresh == 1.
@@ -342,16 +334,66 @@ is_obs, is_prevPath_obs, is_prevPath_incs = prepare_for_nadaraya(config=config, 
 bw = np.logspace(-3.55, -0.05, 30)[[5]]
 inv_H = np.diag(np.power(bw, -2))
 norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
-Nn_tile = 51200
+Nn_tile = 5120000
 stable = True
-block_size = 32
+block_size = 8192
 
 all_true_paths, all_score_paths, all_nad_paths, num_time_steps = generate_synthetic_paths(config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable, prevPath_observations=is_prevPath_obs, prevPath_incs=is_prevPath_incs, inv_H=inv_H, norm_const=norm_const)
 save_path = (
             project_config.ROOT_DIR + f"experiments/results/8DLnz_NewDriftEvalExp_MSEs_{num_paths}NPaths").replace(
     ".", "")
-np.save(save_path+"_true_paths.pickle", all_true_paths)
-np.save(save_path+"_score_paths.pickle", all_score_paths)
-np.save(save_path+"_nad_paths.pickle", all_nad_paths)
-np.save(save_path+"_trainingPrevPath_paths.pickle", is_prevPath_obs)
-np.save(save_path+"_trainingIncs_paths.pickle", is_prevPath_obs)
+np.save(save_path+"_true_paths.npy", all_true_paths)
+np.save(save_path+"_score_paths.npy", all_score_paths)
+np.save(save_path+"_nad_paths.npy", all_nad_paths)
+np.save(save_path+"_trainingPrevPath_paths.npy", is_prevPath_obs)
+np.save(save_path+"_trainingIncs_paths.npy", is_prevPath_incs)
+all_true_paths = all_true_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
+all_score_paths = all_score_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
+all_nad_paths = all_nad_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
+BB, TT, DD = all_score_paths.shape
+TT -= 1
+all_true_states = all_true_paths[:, 1:,:].reshape((-1, config.ts_dims), order="C")
+all_score_states = all_score_paths[:, 1:,:].reshape((-1, config.ts_dims), order="C")
+all_nad_states = all_nad_paths[:, 1:,:].reshape((-1, config.ts_dims), order="C")
+
+true_drift = true_drifts(state=all_true_states, device_id=device_id,config=config).cpu().numpy()[:,0,:]
+torch.cuda.synchronize()
+torch.cuda.empty_cache()
+gc.collect()
+time.sleep(5)
+all_score_drift_ests_true_law = np.zeros_like(true_drift)
+all_nad_drift_ests_true_law = np.zeros_like(true_drift)
+for k in tqdm(range(0, all_score_states.shape[0], block_size)):
+    # Now evaluate on true path law
+    curr_states = torch.tensor(all_true_states[k:k+block_size, :], device=device_id, dtype=torch.float32)
+    drift_ests = experiment_MLP_DDims_drifts(config=config, Xs=curr_states, good=good, onlyGauss=False)
+    drift_ests = drift_ests[:, -1, :, :].reshape(drift_ests.shape[0], drift_ests.shape[2], drift_ests.shape[
+        -1] * 1).mean(axis=1)
+    all_score_drift_ests_true_law[k:k + block_size, :] = drift_ests
+    # Now evaluate on true path law
+    nad_drift_est = run_nadaraya_single_bw(config=config, is_path_observations=is_obs, states=curr_states, M_tile=block_size, inv_H=inv_H, norm_const=norm_const,stable=stable, Nn_tile=Nn_tile)
+    all_nad_drift_ests_true_law[k:k+block_size,:] = nad_drift_est
+    torch.cuda.synchronize()
+    torch.cuda.empty_cache()
+    gc.collect()
+mse =  np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_nad_drift_ests_true_law.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1,  TT+1)
+nad_eval_true_law[ts_type] = mse
+mse =  np.cumsum(np.mean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_score_drift_ests_true_law.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1,  TT+1)
+score_eval_true_law[ts_type] = mse
+
+torch.cuda.synchronize()
+torch.cuda.empty_cache()
+gc.collect()
+
+
+# In[27]:
+
+
+import pandas as pd
+pd.DataFrame.from_dict(nad_eval_true_law).to_parquet(save_path + "_nad_true_law_MSE.parquet")
+pd.DataFrame.from_dict(score_eval_true_law).to_parquet(save_path + "_score_true_law_MSE.parquet")
+print("Score vs Nadaraya True Law", "\n", score_eval_true_law, "\n", nad_eval_true_law, "End\n")
+
+
+
+
