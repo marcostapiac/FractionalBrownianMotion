@@ -303,7 +303,8 @@ if __name__ == "__main__":
         grid_1d = np.logspace(-3.55, -0.05, 30)
         xadd = np.logspace(-0.05, 1.0, 11)[1:]  # 10 values > -0.05
         xadd2 = np.logspace(1.0, 2.0, 11)[1:]  # 10 values > -0.05
-        grid_1d = np.concatenate([grid_1d, xadd, xadd2])
+        xadd3 = np.logspace(2.0, 4.0, 11)[1:]  # 10 values > -0.05
+        grid_1d = np.concatenate([grid_1d, xadd, xadd2, xadd3])
         bws = np.stack([grid_1d for m in range(config.ndims)], axis=-1)
         assert (bws.shape == (50, config.ndims))
 

@@ -334,7 +334,10 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_8d_config]:
 
     # Prepare for Nadaraya
     is_obs, is_prevPath_obs, is_prevPath_incs = prepare_for_nadaraya(config=config, num_paths=num_paths)
-    bw = np.logspace(-3.55, -0.05, 30)[[5]]
+    grid_1d = np.logspace(-3.55, -0.05, 30)
+    xadd = np.logspace(-0.05, 1.0, 11)[1:]  # 10 values > -0.05
+    xadd2 = np.logspace(1.0, 2.0, 11)[1:]  # 10 values > -0.05
+    bw = np.concatenate([grid_1d, xadd, xadd2])[-1]
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
     Nn_tile = 5120000
