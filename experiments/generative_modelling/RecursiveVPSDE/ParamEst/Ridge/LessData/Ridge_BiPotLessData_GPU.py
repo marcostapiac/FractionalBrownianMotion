@@ -92,8 +92,7 @@ def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M, device_id):
         lhat = opt.x
         opt = scipy.optimize.minimize(obj, opt.x)
     lhat = opt.x[0]
-    a = np.atleast_2d(np.linalg.inv(BTB+lhat*I)@BTZ)
-    a = torch.as_tensor(a, dtype=torch.float32, device=device_id)
+    a = torch.atleast_2d(torch.linalg.inv(BTB+lhat*I)@BTZ)
     assert (np.allclose(a.T@a , const))
     return a
 
