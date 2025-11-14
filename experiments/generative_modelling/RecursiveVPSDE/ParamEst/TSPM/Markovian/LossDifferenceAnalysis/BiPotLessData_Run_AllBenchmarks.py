@@ -53,7 +53,8 @@ def construct_Z_vector(R, T, basis, paths):
     return Z
 
 
-def construct_Phi_matrix(R, deltaT, T, basis, paths):
+def construct_Phi_matrix(R, deltaT, T, basis, device_id, paths):
+    paths = torch.as_tensor(paths, device=device_id, dtype=torch.float32)
     assert (basis.shape[0] == paths.shape[0])
     assert (basis.shape[1] == paths.shape[1])
     basis = basis[:, :-1, :]
@@ -62,7 +63,7 @@ def construct_Phi_matrix(R, deltaT, T, basis, paths):
     deltaT /= T
     intermediate = deltaT * basis.permute((0, 2, 1)) @ basis
     assert intermediate.shape == (
-        N, R, R), f"Intermidate matrix is shape {intermediate.shape} but shoould be {(N, R, R)}"
+        N, R, R), f"Intermediate matrix is shape {intermediate.shape} but should be {(N, R, R)}"
     for i in range(N):
         es = torch.linalg.eigvalsh(intermediate[i, :, :]) >= 0.
         assert (torch.all(es)), f"Submat at {i} is not PD, for R={R}"
@@ -74,10 +75,11 @@ def construct_Phi_matrix(R, deltaT, T, basis, paths):
     return Phi
 
 
-def estimate_coefficients(R, deltaT, t1, basis, paths, Phi=None):
+def estimate_coefficients(R, deltaT, t1, basis, paths, device_id, Phi=None):
+    paths = torch.as_tensor(paths, device=device_id, dtype=torch.float32)
     Z = construct_Z_vector(R=R, T=t1, basis=basis, paths=paths)
     if Phi is None:
-        Phi = construct_Phi_matrix(R=R, deltaT=deltaT, T=t1, basis=basis, paths=paths)
+        Phi = construct_Phi_matrix(R=R, deltaT=deltaT, T=t1, basis=basis, paths=paths,device_id=device_id)
     theta_hat = torch.linalg.solve(Phi, Z)
     assert (theta_hat.shape == (R, 1))
     return theta_hat
@@ -432,7 +434,7 @@ for config in [bipot_config]:
     R = 8
     hermite_basis = hermite_basis_GPU(R=R, paths=is_obs.squeeze(), device_id=device_id)
     hermite_coeffs = (
-        estimate_coefficients(R=R, deltaT=config.deltaT, basis=hermite_basis, paths=is_obs.squeeze(), t1=config.t1, Phi=None))
+        estimate_coefficients(R=R, deltaT=config.deltaT, basis=hermite_basis, paths=is_obs.squeeze(), t1=config.t1,device_id=device_id, Phi=None))
 
     Nn_tile = 512000
     stable = True
