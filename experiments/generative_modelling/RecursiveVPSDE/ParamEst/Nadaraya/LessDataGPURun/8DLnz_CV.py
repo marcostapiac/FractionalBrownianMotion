@@ -355,7 +355,7 @@ for h in tqdm(range(bws.shape[0])):
         cvs.append(compute_cv_for_bw_per_path(i, bws[h], device=device_id, path_incs=path_incs[:10,:],
                                               prevPath_observations=prevPath_observations[:10,:], deltaT=config.deltaT))
     CVs[h] = np.sum(cvs)
-bw = bws[np.argmin(CVs).flatten(),:]
+bw = bws[np.argmin(CVs).flatten(),:].flatten()
 print(bw)
 inv_H = np.diag(np.power(bw, -2))
 print(inv_H)
