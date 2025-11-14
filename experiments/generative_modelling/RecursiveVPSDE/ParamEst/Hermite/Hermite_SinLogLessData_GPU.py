@@ -139,8 +139,8 @@ numXs = 1024  # config.ts_length
 Xs = torch.linspace(-1.5, 1.5, numXs).reshape(1, -1)
 def true_drifts(device_id, config, state):
     state = torch.tensor(state, device=device_id, dtype=torch.float32)
-    drift = -2. * config.quad_coeff * state + config.sin_coeff * config.sin_space_scale * torch.sin(
-        config.sin_space_scale * state)
+    drift = (-torch.sin(config.sin_space_scale * state) * torch.log(
+        1 + config.log_space_scale * torch.abs(state)) / config.sin_space_scale)
     return drift[:, np.newaxis, :]
 
 true_drift = true_drifts(device_id=device_id, config=config, state=Xs).cpu().squeeze().numpy()
