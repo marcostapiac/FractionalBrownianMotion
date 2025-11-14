@@ -172,7 +172,7 @@ for KN in KNs:
     ridge_drift[Xs[:, :-1].flatten() < AN, :] = np.nan
     ridge_drift[Xs[:, :-1].flatten() > BN, :] = np.nan
     mse = np.nanmean(np.sum(np.power(ridge_drift - true_drift, 2), axis=-1), axis=-1)
-    mses[KN] = mse
+    mses[KN] = [mse]
     print(KN, mse)
 
 save_path = (

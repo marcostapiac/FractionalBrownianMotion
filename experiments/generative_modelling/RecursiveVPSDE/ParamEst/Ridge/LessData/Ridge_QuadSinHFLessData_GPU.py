@@ -10,8 +10,8 @@ from configs.RecursiveVPSDE.Markovian_fQuadSinHF.recursive_Markovian_PostMeanSco
 
 def true_drifts(device_id, config, state):
     state = torch.tensor(state, device=device_id, dtype=torch.float32)
-    drift = -(4. * config.quartic_coeff * torch.pow(state,
-                                                    3) + 2. * config.quad_coeff * state + config.const)
+    drift = -2. * config.quad_coeff * state + config.sin_coeff * config.sin_space_scale * torch.sin(
+        config.sin_space_scale * state)
     return drift[:, np.newaxis, :]
 
 
@@ -172,11 +172,11 @@ for KN in KNs:
     ridge_drift[Xs[:, :-1].flatten() < AN, :] = np.nan
     ridge_drift[Xs[:, :-1].flatten() > BN, :] = np.nan
     mse = np.nanmean(np.sum(np.power(ridge_drift - true_drift, 2), axis=-1), axis=-1)
-    mses[KN] = mse
+    mses[KN] = [mse]
     print(KN, mse)
 
 save_path = (
-        project_config.ROOT_DIR + f"experiments/results/Ridge_fBiPot_DriftEvalExp_{num_paths}NPaths_{config.deltaT:.3e}dT").replace(
+        project_config.ROOT_DIR + f"experiments/results/Ridge_fQuadSinHF_DriftEvalExp_{num_paths}NPaths_{config.deltaT:.3e}dT").replace(
     ".", "")
 mses = (pd.DataFrame(mses)).T
 mses.columns = mses.columns.astype(str)
