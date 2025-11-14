@@ -147,7 +147,7 @@ def true_drifts(device_id, config, state):
 true_drift = true_drifts(device_id=device_id, config=config, state=Xs).cpu().squeeze().numpy()
 # In[9]:
 mses = {}
-for R in np.arange(2, 41, 1):
+for R in np.arange(2, 4, 1):
     basis = hermite_basis_GPU(R=R, paths=paths, device_id=device_id)
     coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None, device_id=device_id))
     basis = hermite_basis_GPU(R=R, paths=Xs, device_id=device_id)
@@ -162,4 +162,11 @@ save_path = (
 mses = (pd.DataFrame(mses)).T
 mses.columns = mses.columns.astype(str)
 mses.to_parquet(save_path + "_MSEs.parquet", engine="fastparquet")
-print(pd.read_parquet(save_path + "_MSEs.parquet", engine="fastparquet"))
+Ridx = np.argmin(mses.values.flatten())
+R = np.arange(2, 41, 1)[Ridx]
+basis = hermite_basis_GPU(R=R, paths=paths, device_id=device_id)
+coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None, device_id=device_id))
+basis = hermite_basis_GPU(R=R, paths=Xs, device_id=device_id)
+bhat = construct_Hermite_drift(basis=basis, coefficients=coeffs).cpu().squeeze().numpy()
+np.save(bhat, save_path + "_drift_est.npy")
+np.save(true_drift, save_path + "_true_drift.npy")
