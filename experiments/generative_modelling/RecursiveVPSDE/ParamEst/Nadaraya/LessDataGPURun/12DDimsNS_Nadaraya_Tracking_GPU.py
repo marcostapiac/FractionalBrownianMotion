@@ -311,7 +311,7 @@ if __name__ == "__main__":
         xadd3 = np.logspace(2.0, 4.0, 11)[1:]  # 10 values > -0.05
         grid_1d = np.concatenate([grid_1d, xadd, xadd2, xadd3])
         bws = np.stack([grid_1d for m in range(config.ndims)], axis=-1)
-        assert (bws.shape == (50, config.ndims))
+        assert (bws.shape == (60, config.ndims))
 
         prevPath_shm = shared_memory.SharedMemory(create=True, size=prevPath_observations.nbytes)
         path_incs_shm = shared_memory.SharedMemory(create=True, size=path_incs.nbytes)
