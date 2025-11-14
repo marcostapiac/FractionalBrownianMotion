@@ -130,6 +130,7 @@ mses = {}
 for KN in KNs:
     B = spline_basis(paths=paths, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
     Z = np.power(deltaT,-1)*np.diff(paths, axis=1).reshape((paths.shape[0]*(paths.shape[1]-1),1))
+    Z = torch.tensor(Z, dtype=torch.float32, device=device_id)
     assert (B.shape[0] == Z.shape[0] and len(B.shape)==len(Z.shape) == 2)
     coeffs = find_optimal_Ridge_estimator_coeffs(B=B, Z=Z, KN=KN, LN=LN, M=M, device_id=device_id)
     unif_B = spline_basis(paths=Xs, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
@@ -150,6 +151,8 @@ Kidx = np.argmin(mses.values.flatten())
 KN = KNs[Kidx]
 B = spline_basis(paths=paths, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
 Z = np.power(deltaT,-1)*np.diff(paths, axis=1).reshape((paths.shape[0]*(paths.shape[1]-1),1))
+Z = torch.tensor(Z, dtype=torch.float32, device=device_id)
+
 assert (B.shape[0] == Z.shape[0] and len(B.shape)==len(Z.shape) == 2)
 coeffs = find_optimal_Ridge_estimator_coeffs(B=B, Z=Z, KN=KN, LN=LN, M=M, device_id=device_id)
 unif_B = spline_basis(paths=Xs, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
