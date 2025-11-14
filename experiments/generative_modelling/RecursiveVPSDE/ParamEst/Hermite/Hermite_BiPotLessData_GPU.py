@@ -160,4 +160,6 @@ save_path = (
         project_config.ROOT_DIR + f"experiments/results/Hermite_fBiPot_DriftEvalExp_{num_paths}NPaths_{config.deltaT:.3e}dT").replace(
     ".", "")
 mses = (pd.DataFrame(mses)).T
+mses.columns = mses.columns.astype(str)
 mses.to_parquet(save_path + "_MSEs.parquet", engine="fastparquet")
+print(pd.read_parquet(save_path + "_MSEs.parquet", engine="fastparquet"))

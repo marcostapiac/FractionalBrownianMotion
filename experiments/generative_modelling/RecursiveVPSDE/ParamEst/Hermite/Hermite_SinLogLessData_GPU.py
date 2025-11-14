@@ -158,4 +158,6 @@ for R in np.arange(2, 41, 1):
 save_path = (
         project_config.ROOT_DIR + f"experiments/results/Hermite_fSinLog_DriftEvalExp_{num_paths}NPaths_{config.deltaT:.3e}dT").replace(
     ".", "")
-pd.DataFrame(mses).to_parquet(save_path + "_MSEs.parquet")
+mses = (pd.DataFrame(mses)).T
+mses.columns = mses.columns.astype(str)
+mses.to_parquet(save_path + "_MSEs.parquet", engine="fastparquet")
