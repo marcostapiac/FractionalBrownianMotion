@@ -345,7 +345,10 @@ for config in [ddimsNS_12d_config, ddimsNS_8d_config]:
     grid_1d = np.logspace(-3.55, -0.05, 30)
     xadd = np.logspace(-0.05, 1.0, 11)[1:]  # 10 values > -0.05
     xadd2 = np.logspace(1.0, 2.0, 11)[1:]  # 10 values > -0.05
-    bw = np.concatenate([grid_1d, xadd, xadd2])[[-1]]
+    bws = np.concatenate([grid_1d, xadd, xadd2])
+    bws = np.stack([bws for m in range(config.ndims)], axis=-1)
+    bw = bws[-1, :]
+    assert bw.shape[0] == config.ndims and len(bw.shape) == 1
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
     Nn_tile = 512000
