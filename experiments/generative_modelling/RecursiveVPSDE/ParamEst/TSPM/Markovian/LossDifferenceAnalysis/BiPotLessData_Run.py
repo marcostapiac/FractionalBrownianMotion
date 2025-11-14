@@ -1,9 +1,4 @@
 #!/usr/bin/env python
-# coding: utf-8
-
-# In[23]:
-
-
 import numpy as np
 import io
 import os
@@ -16,10 +11,7 @@ from tqdm import tqdm
 from utils.drift_evaluation_functions import multivar_score_based_MLP_drift_OOS
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from configs import project_config
-
-
-# In[8]:
-
+import gc, time
 
 def _get_device(device_str: str | None = None):
     if device_str is not None:
@@ -31,20 +23,6 @@ def true_drifts(device_id, config, state):
     drift = -(4. * config.quartic_coeff * torch.pow(state,
                                                                    3) + 2. * config.quad_coeff * state + config.const)
     return drift[:, np.newaxis, :]
-
-
-# In[9]:
-
-
-bipot_config = get_config()
-device_id = _get_device()
-num_paths = 1024 if bipot_config.feat_thresh == 1. else 10240
-assert num_paths == 1024
-root_dir ="/Users/marcos/Library/CloudStorage/OneDrive-ImperialCollegeLondon/StatML_CDT/Year2/DiffusionModels/"
-
-
-# In[10]:
-
 
 def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPath_observations, prevPath_incs, M_tile, Nn_tile, stable):
     # Prepare for Nadaraya
@@ -292,11 +270,12 @@ def run_nadaraya_single_bw(config, is_path_observations, states, M_tile, inv_H, 
     ).cpu().numpy()
     return unif_is_drift_hats
 
+bipot_config = get_config()
+device_id = _get_device()
+num_paths = 1024 if bipot_config.feat_thresh == 1. else 10240
+assert num_paths == 1024
+root_dir ="/Users/marcos/Library/CloudStorage/OneDrive-ImperialCollegeLondon/StatML_CDT/Year2/DiffusionModels/"
 
-# In[20]:
-
-
-import gc, time
 score_eval = {t: np.inf for t in ["BiPot"]}
 score_eval_true_law = {t: np.inf for t in ["BiPot"]}
 nad_eval = {t: np.inf for t in ["BiPot"]}
