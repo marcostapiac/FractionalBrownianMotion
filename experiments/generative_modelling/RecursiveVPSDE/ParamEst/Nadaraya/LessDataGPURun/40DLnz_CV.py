@@ -425,6 +425,8 @@ for k in tqdm(range(0, all_score_states.shape[0], block_size)):
     nad_drift_est = run_nadaraya_single_bw(config=config, is_path_observations=path_observations, states=curr_states,
                                            M_tile=block_size, inv_H=inv_H, norm_const=norm_const, stable=stable,
                                            Nn_tile=Nn_tile)
+    print(f"Nad Est is {nad_drift_est}\n")
+    print("\n\n\n")
     all_nad_drift_ests_true_law[k:k + block_size, :] = nad_drift_est
     torch.cuda.synchronize()
     torch.cuda.empty_cache()
