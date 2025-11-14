@@ -128,6 +128,13 @@ xadd = np.logspace(-0.05, 1.0, 11)[1:]  # 10 values > -0.05
 xadd2 = np.logspace(1.0, 2.0, 11)[1:]  # 10 values > -0.05
 bws = np.concatenate([grid_1d, xadd, xadd2])
 
+grid_1d = np.logspace(-4, -0.05, 50)
+bws = np.stack([grid_1d for m in range(config.ndims)], axis=-1)
+assert (bws.shape == (50, config.ndims))
+# CVs = np.zeros(len(bws))
+# for h in tqdm(range(bws.shape[0])):
+#    CVs[h] = compute_cv_for_bw(bws[h])
+
 numXs = 256  # config.ts_length
 minx = -1.5
 maxx = -minx
