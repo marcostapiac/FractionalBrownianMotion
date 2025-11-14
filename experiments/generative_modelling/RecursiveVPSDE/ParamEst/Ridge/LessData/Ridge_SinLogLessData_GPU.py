@@ -10,8 +10,8 @@ from configs.RecursiveVPSDE.Markovian_fSinLog.recursive_Markovian_PostMeanScore_
 
 def true_drifts(device_id, config, state):
     state = torch.tensor(state, device=device_id, dtype=torch.float32)
-    drift = -2. * config.quad_coeff * state + config.sin_coeff * config.sin_space_scale * torch.sin(
-        config.sin_space_scale * state)
+    drift = (-torch.sin(config.sin_space_scale * state) * torch.log(
+        1 + config.log_space_scale * torch.abs(state)) / config.sin_space_scale)
     return drift[:, np.newaxis, :]
 
 
@@ -176,7 +176,7 @@ for KN in KNs:
     print(KN, mse)
 
 save_path = (
-        project_config.ROOT_DIR + f"experiments/results/Ridge_fQuadSinHF_DriftEvalExp_{num_paths}NPaths_{config.deltaT:.3e}dT").replace(
+        project_config.ROOT_DIR + f"experiments/results/Ridge_fSinLog_DriftEvalExp_{num_paths}NPaths_{config.deltaT:.3e}dT").replace(
     ".", "")
 mses = (pd.DataFrame(mses)).T
 mses.columns = mses.columns.astype(str)
