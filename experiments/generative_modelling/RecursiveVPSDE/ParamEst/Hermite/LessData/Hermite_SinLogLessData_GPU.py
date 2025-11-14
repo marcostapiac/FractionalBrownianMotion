@@ -143,7 +143,7 @@ def true_drifts(device_id, config, state):
         1 + config.log_space_scale * torch.abs(state)) / config.sin_space_scale)
     return drift[:, np.newaxis, :]
 
-true_drift = true_drifts(device_id=device_id, config=config, state=Xs).cpu().squeeze().numpy()
+true_drift = true_drifts(device_id=device_id, config=config, state=Xs).cpu().squeeze().numpy().reshape((numXs, config.ndims))
 # In[9]:
 mses = {}
 Rs = np.arange(2, 41, 1)
@@ -151,7 +151,7 @@ for R in Rs:
     basis = hermite_basis_GPU(R=R, paths=paths, device_id=device_id)
     coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None, device_id=device_id))
     basis = hermite_basis_GPU(R=R, paths=Xs, device_id=device_id)
-    bhat = construct_Hermite_drift(basis=basis, coefficients=coeffs).cpu().squeeze().numpy()
+    bhat = construct_Hermite_drift(basis=basis, coefficients=coeffs).cpu().squeeze().numpy().reshape((numXs, config.ndims))
     print(bhat.shape, true_drift.shape)
     mse = np.nanmean(np.sum(np.power(bhat - true_drift, 2), axis=-1), axis=-1)
     print(R, mse)

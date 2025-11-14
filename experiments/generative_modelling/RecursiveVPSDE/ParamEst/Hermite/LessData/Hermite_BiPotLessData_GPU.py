@@ -10,6 +10,11 @@ from configs import project_config
 from configs.RecursiveVPSDE.Markovian_fBiPot.recursive_Markovian_PostMeanScore_fBiPot_LowFTh_T256_H05_tl_110data_StbleTgt import \
     get_config
 
+def true_drifts(device_id, config, state):
+    state = torch.tensor(state, device=device_id, dtype=torch.float32)
+    drift = -(4. * config.quartic_coeff * torch.pow(state,
+                                                    3) + 2. * config.quad_coeff * state + config.const)
+    return drift[:, np.newaxis, :]
 
 def basis_number_selection(paths, num_paths, num_time_steps, deltaT, t1, device_id):
     poss_Rs = torch.arange(1, 11)
@@ -138,13 +143,8 @@ assert paths.shape == (num_paths, config.ts_length + 1)
 
 numXs = 1024  # config.ts_length
 Xs = torch.linspace(-1.5, 1.5, numXs).reshape(1, -1)
-def true_drifts(device_id, config, state):
-    state = torch.tensor(state, device=device_id, dtype=torch.float32)
-    drift = -(4. * config.quartic_coeff * torch.pow(state,
-                                                    3) + 2. * config.quad_coeff * state + config.const)
-    return drift[:, np.newaxis, :]
 
-true_drift = true_drifts(device_id=device_id, config=config, state=Xs).cpu().squeeze().numpy()
+true_drift = true_drifts(device_id=device_id, config=config, state=Xs).cpu().squeeze().numpy().reshape((numXs, config.ndims))
 # In[9]:
 mses = {}
 Rs = np.arange(2, 41, 1)
@@ -152,7 +152,7 @@ for R in Rs:
     basis = hermite_basis_GPU(R=R, paths=paths, device_id=device_id)
     coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None, device_id=device_id))
     basis = hermite_basis_GPU(R=R, paths=Xs, device_id=device_id)
-    bhat = construct_Hermite_drift(basis=basis, coefficients=coeffs).cpu().squeeze().numpy()
+    bhat = construct_Hermite_drift(basis=basis, coefficients=coeffs).cpu().squeeze().numpy().reshape((numXs, config.ndims))
     print(bhat)
     mse = np.nanmean(np.sum(np.power(bhat - true_drift, 2), axis=-1), axis=-1)
     print(R, mse)
