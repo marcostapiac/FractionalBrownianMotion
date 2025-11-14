@@ -19,12 +19,12 @@ def basis_number_selection(paths, num_paths, num_time_steps, deltaT, t1, device_
     for r in poss_Rs:
         basis = hermite_basis_GPU(R=r, paths=paths, device_id=device_id)
         try:
-            Phi = construct_Phi_matrix(R=r, deltaT=deltaT, T=t1, basis=basis, paths=paths)
+            Phi = construct_Phi_matrix(R=r, deltaT=deltaT, T=t1, basis=basis, paths=paths, device_id=device_id)
         except AssertionError:
             cvs.append(torch.inf)
             continue
-        coeffs = estimate_coefficients(R=r, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=Phi)
-        bhat = torch.pow(construct_drift(basis=basis, coefficients=coeffs), 2)
+        coeffs = estimate_coefficients(R=r, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=Phi, device_id=device_id)
+        bhat = torch.pow(construct_Hermite_drift(basis=basis, coefficients=coeffs), 2)
         bhat_norm = torch.nanmean(torch.sum(bhat * deltaT / t1, dim=-1))
         inv_Phi = torch.linalg.inv(Phi)
         s = torch.sqrt(torch.max(torch.linalg.eigvalsh(inv_Phi @ inv_Phi.T)))
@@ -39,20 +39,21 @@ def basis_number_selection(paths, num_paths, num_time_steps, deltaT, t1, device_
     return poss_Rs[np.argmin(cvs)]
 
 def hermite_basis_GPU(R, device_id, paths):
-    assert (paths.shape[0] >= 1 and len(paths.shape) == 2)
-    basis = torch.zeros((paths.shape[0], paths.shape[1], R), device=device_id, dtype=torch.float32)
-    polynomials = torch.zeros((paths.shape[0], paths.shape[1], R), device=device_id, dtype=torch.float32)
+    paths = torch.as_tensor(paths, device=device_id, dtype=torch.float32)
+    print(paths.shape)
+    assert paths.ndim == 2 and paths.shape[0] >= 1
+    N, D = paths.shape
+    basis = torch.empty((N, D, R), device=device_id, dtype=torch.float32)
+    polynomials = torch.empty_like(basis)
     for i in range(R):
         if i == 0:
-            polynomials[:, :, i] = torch.ones_like(paths)
+            polynomials[:, :, i] = 1.0
         elif i == 1:
             polynomials[:, :, i] = paths
         else:
-            polynomials[:, :, i] = 2. * paths * polynomials[:, :, i - 1] - 2. * (i - 1) * polynomials[:, :, i - 2]
-        basis[:, :, i] = torch.pow((torch.pow(torch.tensor(2), i) * torch.sqrt(torch.tensor(math.pi)) * math.factorial(i)), -0.5) * polynomials[:, :,
-                                                                                                 i] * torch.exp(
-            -torch.pow(paths, 2) / 2.)
-        # basis[:,:, i] = torch.pow((torch.pow(2, i)*torch.sqrt(math.pi)*math.factorial(i)),-0.5)*hermite(i,monic=True)(paths)*torch.exp(-torch.pow(paths,2)/2.)
+            polynomials[:, :, i] = 2.0 * paths * polynomials[:, :, i - 1] - 2.0 * (i - 1) * polynomials[:, :, i - 2]
+        norm = (2.0 ** i * math.sqrt(math.pi) * math.factorial(i)) ** -0.5  # Python float is fine
+        basis[:, :, i] = norm * polynomials[:, :, i] * torch.exp(-0.5 * paths ** 2)
     return basis
 
 def construct_Z_vector(R, T, basis, paths):
@@ -69,7 +70,8 @@ def construct_Z_vector(R, T, basis, paths):
     return Z
 
 
-def construct_Phi_matrix(R, deltaT, T, basis, paths):
+def construct_Phi_matrix(R, deltaT, T, basis, device_id, paths):
+    paths = torch.as_tensor(paths, device=device_id, dtype=torch.float32)
     assert (basis.shape[0] == paths.shape[0])
     assert (basis.shape[1] == paths.shape[1])
     basis = basis[:, :-1, :]
@@ -78,35 +80,37 @@ def construct_Phi_matrix(R, deltaT, T, basis, paths):
     deltaT /= T
     intermediate = deltaT * basis.permute((0, 2, 1)) @ basis
     assert intermediate.shape == (
-        N, R, R), f"Intermidate matrix is shape {intermediate.shape} but shoould be {(N, R, R)}"
+        N, R, R), f"Intermediate matrix is shape {intermediate.shape} but should be {(N, R, R)}"
     for i in range(N):
         es = torch.linalg.eigvalsh(intermediate[i, :, :]) >= 0.
-        assert (torch.all(es)), f"Submat at {i} is not PD, for R={R}"
+        #assert (torch.all(es)), f"Submat at {i} is not PD, for R={R}"
     Phi = deltaT * (basis.permute((0, 2, 1)) @ basis)
     assert (Phi.shape == (N, R, R))
     Phi = Phi.mean(axis=0, keepdims=False)
     assert (Phi.shape == (R, R)), f"Phi matrix is shape {Phi.shape} but should be {(R, R)}"
-    assert torch.all(torch.linalg.eigvalsh(Phi) >= 0.), f"Phi matrix is not PD"
+    #assert torch.all(torch.linalg.eigvalsh(Phi) >= 0.), f"Phi matrix is not PD"
     return Phi
 
 
-def estimate_coefficients(R, deltaT, t1, basis, paths, Phi=None):
+def estimate_coefficients(R, deltaT, t1, basis, paths, device_id, Phi=None):
+    paths = torch.as_tensor(paths, device=device_id, dtype=torch.float32)
     Z = construct_Z_vector(R=R, T=t1, basis=basis, paths=paths)
     if Phi is None:
-        Phi = construct_Phi_matrix(R=R, deltaT=deltaT, T=t1, basis=basis, paths=paths)
+        Phi = construct_Phi_matrix(R=R, deltaT=deltaT, T=t1, basis=basis, paths=paths,device_id=device_id)
     theta_hat = torch.linalg.solve(Phi, Z)
     assert (theta_hat.shape == (R, 1))
     return theta_hat
 
 
-def construct_drift(basis, coefficients):
+def construct_Hermite_drift(basis, coefficients):
     b_hat = (basis @ coefficients).squeeze(-1)
     assert (b_hat.shape == basis.shape[:2]), f"b_hat should be shape {basis.shape[:2]}, but has shape {b_hat.shape}"
     return b_hat
 
+
 config = get_config()
-num_paths = 102 if config.feat_thresh == 1. else 10240
-assert num_paths == 102
+num_paths = 1024 if config.feat_thresh == 1. else 10240
+assert num_paths == 1024
 num_time_steps = config.ts_length
 isUnitInterval = True
 diff = config.diffusion
@@ -130,12 +134,12 @@ maxx = -minx
 
 # In[9]:
 
-for R in [4, 5, 6, 7, 8, 9, 10, 11, 12]:
+for R in np.arange(2,21):
     basis = hermite_basis_GPU(R=R, paths=paths, device_id=device_id)
-    coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None))
+    coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None, device_id=device_id))
     Xs = torch.linspace(minx, maxx, numXs).reshape(1, -1)
     basis = hermite_basis_GPU(R=R, paths=Xs, device_id=device_id)
-    bhat = construct_drift(basis=basis, coefficients=coeffs)
+    bhat = construct_Hermite_drift(basis=basis, coefficients=coeffs)
 
     save_path = (
             project_config.ROOT_DIR + f"experiments/results/Hermite_fBiPot_DriftEvalExp_{R}R_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(

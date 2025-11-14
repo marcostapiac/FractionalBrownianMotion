@@ -82,7 +82,6 @@ def estimate_coefficients(R, deltaT, t1, basis, paths, device_id, Phi=None):
         Phi = construct_Phi_matrix(R=R, deltaT=deltaT, T=t1, basis=basis, paths=paths,device_id=device_id)
     theta_hat = torch.linalg.solve(Phi, Z)
     assert (theta_hat.shape == (R, 1))
-    print(theta_hat)
     return theta_hat
 
 
