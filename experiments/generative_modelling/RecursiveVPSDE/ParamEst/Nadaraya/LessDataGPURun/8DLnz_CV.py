@@ -11,7 +11,7 @@ import torch
 from tqdm import tqdm
 
 from configs import project_config
-from configs.RecursiveVPSDE.Markovian_40DLorenz.recursive_Markovian_PostMeanScore_40DLorenz_Stable_T256_H05_tl_110data_StbleTgt import \
+from configs.RecursiveVPSDE.Markovian_8DLorenz.recursive_Markovian_PostMeanScore_8DLorenz_Stable_T256_H05_tl_110data_StbleTgt import \
     get_config
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
@@ -335,12 +335,12 @@ eps = 0.
 log_h_min = np.log10(np.power(float(config.ts_length - 1), -(1. / (2. - eps))))
 print(log_h_min)
 import gc, time
-score_eval = {t: np.inf for t in ["40DLnz"]}
-score_eval_true_law = {t: np.inf for t in ["40DLnz"]}
-nad_eval = {t: np.inf for t in ["40DLnz"]}
-nad_eval_true_law = {t: np.inf for t in ["40DLnz"]}
-nad_state_eval = {t: np.inf for t in ["40DLnz"]}
-score_state_eval = {t: np.inf for t in ["40DLnz"]}
+score_eval = {t: np.inf for t in ["8DLnz"]}
+score_eval_true_law = {t: np.inf for t in ["8DLnz"]}
+nad_eval = {t: np.inf for t in ["8DLnz"]}
+nad_eval_true_law = {t: np.inf for t in ["8DLnz"]}
+nad_state_eval = {t: np.inf for t in ["8DLnz"]}
+score_state_eval = {t: np.inf for t in ["8DLnz"]}
 
 grid_1d = np.logspace(-3.55, 4, 100)
 bws = np.stack([grid_1d for m in range(config.ndims)], axis=-1)
@@ -372,7 +372,7 @@ for file in os.listdir(model_dir):
 assert entered
 good = good.to(device_id)
 good.eval()
-ts_type = "40DLnz"
+ts_type = "8DLnz"
 all_true_paths, all_score_paths, all_nad_paths, num_time_steps = generate_synthetic_paths(config=config,
                                                                                           device_id=device_id,
                                                                                           good=good, M_tile=block_size,
@@ -458,7 +458,7 @@ gc.collect()
 import pandas as pd
 
 save_path = (
-            project_config.ROOT_DIR + f"experiments/results/40DLnz_CV_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
+            project_config.ROOT_DIR + f"experiments/results/8DLnz_CV_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
     ".", "")
 pd.DataFrame.from_dict(score_eval).to_parquet(save_path + "_score_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval).to_parquet(save_path + "_nad_MSE.parquet")

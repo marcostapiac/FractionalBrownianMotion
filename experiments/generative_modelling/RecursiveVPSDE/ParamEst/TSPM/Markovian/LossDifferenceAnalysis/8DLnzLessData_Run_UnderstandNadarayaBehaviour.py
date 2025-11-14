@@ -335,7 +335,7 @@ block_size = 32
 
 #all_true_paths, all_score_paths, all_nad_paths, num_time_steps = generate_synthetic_paths(config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable, prevPath_observations=is_prevPath_obs, prevPath_incs=is_prevPath_incs, inv_H=inv_H, norm_const=norm_const)
 save_path = (
-            project_config.ROOT_DIR + f"experiments/results/8DLnz_NewDriftEvalExp_MSEs_{num_paths}NPaths").replace(
+            project_config.ROOT_DIR + f"experiments/results/8DLnz_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
     ".", "")
 #np.save(save_path+"_true_paths.npy", all_true_paths)
 #np.save(save_path+"_score_paths.npy", all_score_paths)
