@@ -36,10 +36,10 @@ def get_config():
     config.save_freq = 2
     config.lr = 1e-3
     config.max_epochs = [13000]
-    config.ref_batch_size = 512
+    config.ref_batch_size = 256
     config.batch_size = 256
     config.chunk_size = 512
-    config.feat_thresh = 1./1.#1/100.
+    config.feat_thresh = 1./100.#1/100.
     config.isfBm = True
     config.isUnitInterval = True
     config.hybrid = True

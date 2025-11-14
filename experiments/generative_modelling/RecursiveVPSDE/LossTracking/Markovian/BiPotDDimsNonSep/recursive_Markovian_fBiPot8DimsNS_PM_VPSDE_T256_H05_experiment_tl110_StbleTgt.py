@@ -45,7 +45,7 @@ if __name__ == "__main__":
                         config.ts_length - 1)), 1200000)))
             training_size = 1024 if config.feat_thresh == 1. else 10240
             print(training_size)
-            assert training_size == 1024
+            assert training_size == 10240
             assert config.feat_thresh == 1.
             try:
                 data = np.load(config.data_path, allow_pickle=True)
