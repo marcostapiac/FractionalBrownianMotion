@@ -349,16 +349,13 @@ CVs = np.zeros(len(bws))
 device_id = _get_device()
 for h in tqdm(range(bws.shape[0])):
     N = prevPath_observations.shape[0]
-    N=10
     cvs = []
     for i in range(N):
-        cvs.append(compute_cv_for_bw_per_path(i, bws[h], device=device_id, path_incs=path_incs[:10,:],
-                                              prevPath_observations=prevPath_observations[:10,:], deltaT=config.deltaT))
+        cvs.append(compute_cv_for_bw_per_path(i, bws[h], device=device_id, path_incs=path_incs,
+                                              prevPath_observations=prevPath_observations, deltaT=config.deltaT))
     CVs[h] = np.sum(cvs)
 bw = bws[np.argmin(CVs).flatten(),:].flatten()
-print(bw)
 inv_H = np.diag(np.power(bw, -2))
-print(inv_H)
 norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
 Nn_tile = 2560000
 stable = True
