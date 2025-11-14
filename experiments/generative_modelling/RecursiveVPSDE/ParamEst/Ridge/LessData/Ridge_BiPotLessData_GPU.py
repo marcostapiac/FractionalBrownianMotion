@@ -113,8 +113,8 @@ Xs = torch.linspace(AN - 0.5, BN + 0.5, numXs).reshape(1, -1)
 LN = np.log(num_paths)
 M = 3 if "BiPot" in config.data_path else 2
 true_drift = true_drifts(device_id=device_id,config=config, state=Xs).squeeze().cpu().numpy().reshape((numXs, config.ndims))
-true_drift[Xs[:, :-1].flatten() < AN] = np.nan
-true_drift[Xs[:, :-1].flatten() > BN] = np.nan
+true_drift[Xs.flatten() < AN, :] = np.nan
+true_drift[Xs.flatten() > BN, :] = np.nan
 mses = {}
 for KN in KNs:
     B = spline_basis(paths=paths, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
@@ -123,8 +123,8 @@ for KN in KNs:
     coeffs = find_optimal_Ridge_estimator_coeffs(B=B, Z=Z, KN=KN, LN=LN, M=M)
     unif_B = spline_basis(paths=Xs, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
     ridge_drift = construct_Ridge_estimator(coeffs=coeffs, B=unif_B, LN=LN).cpu().numpy().flatten().reshape((numXs, config.ndims))
-    ridge_drift[Xs[:,:-1].flatten() < AN] = np.nan
-    ridge_drift[Xs[:,:-1].flatten() > BN] = np.nan
+    ridge_drift[Xs.flatten() < AN, :] = np.nan
+    ridge_drift[Xs.flatten() > BN, :] = np.nan
     mse = np.nanmean(np.sum(np.power(ridge_drift - true_drift, 2), axis=-1), axis=-1)
     mses[KN] = mse
     print(KN, mse)
@@ -143,8 +143,8 @@ assert (B.shape[0] == Z.shape[0] and len(B.shape)==len(Z.shape) == 2)
 coeffs = find_optimal_Ridge_estimator_coeffs(B=B, Z=Z, KN=KN, LN=LN, M=M)
 unif_B = spline_basis(paths=Xs, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
 ridge_drift = construct_Ridge_estimator(coeffs=coeffs, B=unif_B, LN=LN).cpu().numpy().flatten().reshape((numXs, config.ndims))
-ridge_drift[Xs[:,:-1].flatten() < AN] = np.nan
-ridge_drift[Xs[:,:-1].flatten() > BN] = np.nan
+ridge_drift[Xs.flatten() < AN, :] = np.nan
+ridge_drift[Xs.flatten() > BN, :] = np.nan
 np.save(save_path + "_drift_est.npy",ridge_drift)
 np.save(save_path + "_true_drift.npy",true_drift)
 
