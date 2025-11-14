@@ -108,6 +108,12 @@ def construct_Hermite_drift(basis, coefficients):
     return b_hat
 
 
+def _get_device(device_str: str | None = None):
+    if device_str is not None:
+        return torch.device(device_str)
+    return torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+
 config = get_config()
 num_paths = 1024 if config.feat_thresh == 1. else 10240
 assert num_paths == 1024
@@ -120,7 +126,7 @@ H = config.hurst
 deltaT = config.deltaT
 t0 = config.t0
 t1 = deltaT * num_time_steps
-device_id = "cpu"
+device_id = _get_device()
 paths = torch.tensor(np.load(config.data_path, allow_pickle=True)[:num_paths, :], device=device_id, dtype=torch.float32)
 paths = torch.concatenate(
     [torch.tensor(np.repeat((np.array(config.initState)).reshape((1, 1)), paths.shape[0], axis=0), device=device_id, dtype=torch.float32),
