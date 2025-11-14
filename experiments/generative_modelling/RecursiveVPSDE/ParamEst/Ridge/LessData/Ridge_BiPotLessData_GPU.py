@@ -131,7 +131,7 @@ for KN in KNs:
     B = spline_basis(paths=paths, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
     Z = np.power(deltaT,-1)*np.diff(paths, axis=1).reshape((paths.shape[0]*(paths.shape[1]-1),1))
     assert (B.shape[0] == Z.shape[0] and len(B.shape)==len(Z.shape) == 2)
-    coeffs = find_optimal_Ridge_estimator_coeffs(B=B, Z=Z, KN=KN, LN=LN, M=M)
+    coeffs = find_optimal_Ridge_estimator_coeffs(B=B, Z=Z, KN=KN, LN=LN, M=M, device_id=device_id)
     unif_B = spline_basis(paths=Xs, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
     ridge_drift = construct_Ridge_estimator(coeffs=coeffs, B=unif_B, LN=LN).cpu().numpy().flatten().reshape((numXs, config.ndims))
     ridge_drift[Xs.flatten() < AN, :] = np.nan
@@ -151,7 +151,7 @@ KN = KNs[Kidx]
 B = spline_basis(paths=paths, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
 Z = np.power(deltaT,-1)*np.diff(paths, axis=1).reshape((paths.shape[0]*(paths.shape[1]-1),1))
 assert (B.shape[0] == Z.shape[0] and len(B.shape)==len(Z.shape) == 2)
-coeffs = find_optimal_Ridge_estimator_coeffs(B=B, Z=Z, KN=KN, LN=LN, M=M)
+coeffs = find_optimal_Ridge_estimator_coeffs(B=B, Z=Z, KN=KN, LN=LN, M=M, device_id=device_id)
 unif_B = spline_basis(paths=Xs, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
 ridge_drift = construct_Ridge_estimator(coeffs=coeffs, B=unif_B, LN=LN).cpu().numpy().flatten().reshape((numXs, config.ndims))
 ridge_drift[Xs.flatten() < AN, :] = np.nan
