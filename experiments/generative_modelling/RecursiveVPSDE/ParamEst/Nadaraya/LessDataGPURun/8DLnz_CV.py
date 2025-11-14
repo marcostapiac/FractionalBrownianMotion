@@ -165,7 +165,7 @@ print(log_h_min)
 def compute_cv_for_bw_per_path(i, _bw, device, deltaT, path_incs, prevPath_observations):
     N = prevPath_observations.shape[0]
     mask = np.arange(N) != i  # Leave-one-out !
-    prevPath_observations=torch.tensor(prevPath_observations[mask, :], device=device, dtype=torch.float32)
+    maskedprevPath_observations=torch.tensor(prevPath_observations[mask, :], device=device, dtype=torch.float32)
     path_incs=torch.tensor(path_incs[mask, :], device=device, dtype=torch.float32)
     x = torch.tensor(prevPath_observations[i, :], device=device, dtype=torch.float32)
     Nn_tile = 512000
@@ -179,7 +179,7 @@ def compute_cv_for_bw_per_path(i, _bw, device, deltaT, path_incs, prevPath_obser
     else:
         inv_H = torch.as_tensor(inv_H_np.astype(np.float32), device=device)
     estimator = IID_NW_multivar_estimator_gpu(
-        prevPath_observations=prevPath_observations,
+        prevPath_observations=maskedprevPath_observations,
         path_incs=path_incs,
         inv_H=inv_H,
         norm_const=norm_const,
