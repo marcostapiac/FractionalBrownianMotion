@@ -137,19 +137,26 @@ assert paths.shape == (num_paths, config.ts_length + 1)
 
 # R = basis_number_selection(paths=paths, num_paths=num_paths, num_time_steps=num_time_steps, deltaT=deltaT, t1=t1, device_id=device_id)
 numXs = 256  # config.ts_length
-minx = -1.5
-maxx = -minx
+Xs = torch.linspace(-1.5, 1.5, numXs).reshape(1, -1)
+def true_drifts(device_id, config, state):
+    state = torch.tensor(state, device=device_id, dtype=torch.float32)
+    drift = -(4. * config.quartic_coeff * torch.pow(state,
+                                                    3) + 2. * config.quad_coeff * state + config.const)
+    return drift[:, np.newaxis, :]
 
+true_drift = true_drifts(device_id=device_id, config=config, state=Xs).cpu().numpy()
 # In[9]:
-
+mses = {}
 for R in np.arange(2, 21, 1):
     basis = hermite_basis_GPU(R=R, paths=paths, device_id=device_id)
     coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None, device_id=device_id))
-    Xs = torch.linspace(minx, maxx, numXs).reshape(1, -1)
     basis = hermite_basis_GPU(R=R, paths=Xs, device_id=device_id)
     bhat = construct_Hermite_drift(basis=basis, coefficients=coeffs)
-
-    save_path = (
-            project_config.ROOT_DIR + f"experiments/results/Hermite_fBiPot_DriftEvalExp_{R}R_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(
-        ".", "")
-    torch.save(save_path + "_unifdriftHats.npy", bhat)
+    print(bhat.shape, true_drift.shape)
+    mse = np.nanmean(np.sum(np.power(bhat - true_drift, 2), axis=-1), axis=-1)
+    print(R, mse)
+    mses[R] = mse
+save_path = (
+        project_config.ROOT_DIR + f"experiments/results/Hermite_fBiPot_DriftEvalExp_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(
+    ".", "")
+np.save(save_path + "_MSEs.npy", mses)
