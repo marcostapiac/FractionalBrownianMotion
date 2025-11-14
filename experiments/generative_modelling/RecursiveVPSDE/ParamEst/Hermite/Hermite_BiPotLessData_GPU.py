@@ -151,7 +151,7 @@ for R in np.arange(2, 41, 1):
     coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None, device_id=device_id))
     basis = hermite_basis_GPU(R=R, paths=Xs, device_id=device_id)
     bhat = construct_Hermite_drift(basis=basis, coefficients=coeffs).cpu().squeeze().numpy()
-    print(bhat.shape, true_drift.shape)
+    print(bhat)
     mse = np.nanmean(np.sum(np.power(bhat - true_drift, 2), axis=-1), axis=-1)
     print(R, mse)
     mses[R] = mse
