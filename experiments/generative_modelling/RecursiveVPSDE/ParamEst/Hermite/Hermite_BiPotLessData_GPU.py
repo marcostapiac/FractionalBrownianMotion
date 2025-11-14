@@ -146,7 +146,7 @@ def true_drifts(device_id, config, state):
 true_drift = true_drifts(device_id=device_id, config=config, state=Xs).cpu().squeeze().numpy()
 # In[9]:
 mses = {}
-for R in np.arange(2, 21, 1):
+for R in np.arange(2, 41, 1):
     basis = hermite_basis_GPU(R=R, paths=paths, device_id=device_id)
     coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None, device_id=device_id))
     basis = hermite_basis_GPU(R=R, paths=Xs, device_id=device_id)
@@ -156,6 +156,6 @@ for R in np.arange(2, 21, 1):
     print(R, mse)
     mses[R] = mse
 save_path = (
-        project_config.ROOT_DIR + f"experiments/results/Hermite_fBiPot_DriftEvalExp_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(
+        project_config.ROOT_DIR + f"experiments/results/Hermite_fBiPot_DriftEvalExp_{num_paths}NPaths_{config.deltaT:.3e}dT").replace(
     ".", "")
 np.save(save_path + "_MSEs.npy", mses)
