@@ -147,7 +147,7 @@ def true_drifts(device_id, config, state):
 true_drift = true_drifts(device_id=device_id, config=config, state=Xs).cpu().squeeze().numpy()
 # In[9]:
 mses = {}
-for R in np.arange(2, 4, 1):
+for R in np.arange(2, 41, 1):
     basis = hermite_basis_GPU(R=R, paths=paths, device_id=device_id)
     coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None, device_id=device_id))
     basis = hermite_basis_GPU(R=R, paths=Xs, device_id=device_id)
