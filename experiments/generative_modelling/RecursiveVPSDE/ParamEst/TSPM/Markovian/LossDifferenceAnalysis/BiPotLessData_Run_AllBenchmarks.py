@@ -585,8 +585,6 @@ for config in [bipot_config]:
     torch.cuda.empty_cache()
     gc.collect()
 
-# In[27]:
-raise RuntimeError
 save_path = (
             project_config.ROOT_DIR + f"experiments/results/BiPot_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
     ".", "")

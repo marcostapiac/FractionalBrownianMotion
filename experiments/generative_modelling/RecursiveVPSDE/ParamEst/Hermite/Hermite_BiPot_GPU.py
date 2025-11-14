@@ -134,7 +134,7 @@ maxx = -minx
 
 # In[9]:
 
-for R in np.arange(2,21):
+for R in np.arange(2,21,1):
     basis = hermite_basis_GPU(R=R, paths=paths, device_id=device_id)
     coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None, device_id=device_id))
     Xs = torch.linspace(minx, maxx, numXs).reshape(1, -1)
