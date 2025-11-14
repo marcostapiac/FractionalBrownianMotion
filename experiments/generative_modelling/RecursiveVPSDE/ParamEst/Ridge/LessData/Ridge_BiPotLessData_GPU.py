@@ -77,7 +77,8 @@ def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M, device_id):
     if torch.all(torch.linalg.eigvalsh(BTB)>0.):
         print(f"Matrix BTB is invertible\n")
         a = torch.linalg.inv(BTB)@BTZ
-        if a.T@a <= const:
+        print(a.T@a, const)
+        if (a.T@a).cpu().numpy().flatten()[0] <= const:
             print(f"L2 norm of coefficients automatically satisfies projection constraint\n")
             return a
     I = torch.eye(KN+M, device=device_id, dtype=torch.float32)
@@ -89,6 +90,7 @@ def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M, device_id):
     opt = scipy.optimize.minimize(obj, max(0.,-torch.min(torch.linalg.eigvalsh(BTB)))+1e-12)
     lhat = np.inf
     while not (opt.success) and not np.allclose(lhat, opt.x):
+        print(lhat, opt.x)
         lhat = opt.x
         opt = scipy.optimize.minimize(obj, opt.x)
     lhat = opt.x[0]
