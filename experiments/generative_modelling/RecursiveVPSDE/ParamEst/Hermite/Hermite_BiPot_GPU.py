@@ -135,8 +135,7 @@ paths = torch.concatenate(
      paths], dim=1)
 assert paths.shape == (num_paths, config.ts_length + 1)
 
-# R = basis_number_selection(paths=paths, num_paths=num_paths, num_time_steps=num_time_steps, deltaT=deltaT, t1=t1, device_id=device_id)
-numXs = 256  # config.ts_length
+numXs = 1024  # config.ts_length
 Xs = torch.linspace(-1.5, 1.5, numXs).reshape(1, -1)
 def true_drifts(device_id, config, state):
     state = torch.tensor(state, device=device_id, dtype=torch.float32)
