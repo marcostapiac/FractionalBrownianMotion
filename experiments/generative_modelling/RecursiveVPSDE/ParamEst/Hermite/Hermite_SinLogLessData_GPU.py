@@ -154,8 +154,8 @@ for R in np.arange(2, 41, 1):
     print(bhat.shape, true_drift.shape)
     mse = np.nanmean(np.sum(np.power(bhat - true_drift, 2), axis=-1), axis=-1)
     print(R, mse)
-    mses[R] = mse
+    mses[R] = [mse]
 save_path = (
         project_config.ROOT_DIR + f"experiments/results/Hermite_fSinLog_DriftEvalExp_{num_paths}NPaths_{config.deltaT:.3e}dT").replace(
     ".", "")
-np.save(save_path + "_MSEs.npy", mses)
+pd.DataFrame(mses).to_parquet(save_path + "_MSEs.parquet")
