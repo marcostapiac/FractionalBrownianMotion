@@ -22,6 +22,7 @@ from utils.drift_evaluation_functions import multivar_score_based_MLP_drift_OOS
 
 def hermite_basis_GPU(R, device_id, paths):
     paths = torch.as_tensor(paths, device=device_id, dtype=torch.float32)
+    print(paths.shape)
     assert paths.ndim == 2 and paths.shape[0] >= 1
     N, D = paths.shape
     basis = torch.empty((N, D, R), device=device_id, dtype=torch.float32)
