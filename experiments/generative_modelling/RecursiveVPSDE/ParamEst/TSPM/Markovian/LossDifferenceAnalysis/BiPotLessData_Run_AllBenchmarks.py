@@ -431,7 +431,7 @@ for config in [bipot_config]:
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
     # Prepare for Hermite
-    R = 8
+    R = 11
     hermite_basis = hermite_basis_GPU(R=R, paths=is_obs.squeeze(), device_id=device_id)
     hermite_coeffs = (
         estimate_coefficients(R=R, deltaT=config.deltaT, basis=hermite_basis, paths=is_obs.squeeze(), t1=config.t1,device_id=device_id, Phi=None))
