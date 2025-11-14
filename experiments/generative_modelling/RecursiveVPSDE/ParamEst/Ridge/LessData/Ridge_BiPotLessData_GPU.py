@@ -69,7 +69,7 @@ def construct_Ridge_estimator(coeffs, B, LN):
 
 
 
-def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M):
+def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M, device_id):
     # Precompute certain matrices
     BTB = B.T@B
     BTZ = (B.T@Z)
@@ -80,7 +80,7 @@ def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M):
         if a.T@a <= const:
             print(f"L2 norm of coefficients automatically satisfies projection constraint\n")
             return a
-    I = np.eye(KN+M)
+    I = torch.eye(KN+M, device=device_id, dtype=torch.float32)
     def obj(l):
         inv = torch.linalg.inv(BTB+l*I) @ BTZ
         return torch.abs(inv.T@inv - const)
@@ -91,6 +91,7 @@ def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M):
         opt = scipy.optimize.minimize(obj, opt.x)
     lhat = opt.x[0]
     a = np.atleast_2d(np.linalg.inv(BTB+lhat*I)@BTZ)
+    a = torch.as_tensor(a, dtype=torch.float32, device=device_id)
     assert (np.allclose(a.T@a , const))
     return a
 
