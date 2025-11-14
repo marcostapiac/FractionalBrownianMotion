@@ -389,9 +389,6 @@ for config in [bipot_config]:
         all_score_drift_ests_true_law[k:k + block_size, :] = drift_ests
         # Now evaluate on true path law
         nad_drift_est = run_nadaraya_single_bw(config=config, is_path_observations=is_obs, states=curr_states, M_tile=block_size, inv_H=inv_H, norm_const=norm_const,stable=stable, Nn_tile=Nn_tile)
-        print("Nad\n\n")
-        print(nad_drift_est)
-        print("\n\n")
         all_nad_drift_ests_true_law[k:k+block_size,:] = nad_drift_est
 
         # Now evaluate on uniform positions
@@ -403,9 +400,6 @@ for config in [bipot_config]:
         nad_drift_est = run_nadaraya_single_bw(config=config, is_path_observations=is_obs, states=curr_states,
                                                M_tile=block_size, inv_H=inv_H, norm_const=norm_const, stable=stable,
                                                Nn_tile=Nn_tile)
-        print("Nad\n\n")
-        print(nad_drift_est)
-        print("\n\n")
         all_nad_drift_ests_uniform[k:k + block_size, :] = nad_drift_est
         torch.cuda.synchronize()
         torch.cuda.empty_cache()

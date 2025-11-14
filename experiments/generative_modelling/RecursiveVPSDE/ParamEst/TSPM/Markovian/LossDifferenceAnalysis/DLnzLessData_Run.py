@@ -377,9 +377,6 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_8d_config]:
         del curr_states
         curr_states = torch.tensor(all_nad_states[k:k+block_size, :], device=device_id, dtype=torch.float32)
         nad_drift_est = run_nadaraya_single_bw(config=config, is_path_observations=is_obs, states=curr_states, M_tile=block_size, inv_H=inv_H, norm_const=norm_const,stable=stable, Nn_tile=Nn_tile)
-        print("Nad\n\n")
-        print(nad_drift_est)
-        print("\n\n")
         all_nad_drift_ests[k:k+block_size,:] = nad_drift_est
         del curr_states
         # Now evaluate on true path law
@@ -390,9 +387,6 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_8d_config]:
         all_score_drift_ests_true_law[k:k + block_size, :] = drift_ests
         # Now evaluate on true path law
         nad_drift_est = run_nadaraya_single_bw(config=config, is_path_observations=is_obs, states=curr_states, M_tile=block_size, inv_H=inv_H, norm_const=norm_const,stable=stable, Nn_tile=Nn_tile)
-        print("Nad\n\n")
-        print(nad_drift_est)
-        print("\n\n")
         all_nad_drift_ests_true_law[k:k+block_size,:] = nad_drift_est
         torch.cuda.synchronize()
         torch.cuda.empty_cache()
@@ -413,7 +407,6 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_8d_config]:
 
 # In[27]:
 
-raise RuntimeError
 import pandas as pd
 save_path = (project_config.ROOT_DIR + f"experiments/results/DLnz_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
             ".", "")
