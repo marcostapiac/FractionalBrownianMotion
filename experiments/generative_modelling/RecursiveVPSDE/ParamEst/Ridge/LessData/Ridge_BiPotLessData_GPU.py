@@ -22,35 +22,45 @@ def _get_device(device_str: str | None = None):
 
 def spline_basis(paths, device_id, KN, AN, BN, M):
     paths = torch.as_tensor(paths, dtype=torch.float32, device=device_id)
-    assert (paths.shape[0] >= 1 and len(paths.shape)==2)
+    assert (paths.shape[0] >= 1 and len(paths.shape) == 2)
     assert (AN < BN and KN > 0 and M > 0)
+
     def construct_ith_knot(i, AN, BN, KN):
         if i < 0:
             return AN
         elif i > KN:
             return BN
         else:
-            return AN + i*(BN-AN)/KN
-    def bspline(i, l, u, x, KN, M):
-        if l == 0 and -M <= i <= KN+M-1:
-            return ((u[i] <= x) & (x < u[i+1])).astype(float)
-        elif 1 <= l <= M  and -M <= i <= KN+M-l-1:
-            num1 = ((x-u[i])/(u[i+l]-u[i]))
-            num1[torch.isinf(num1)] = 0.
-            num2 = ((-x+u[i+l+1])/(u[i+l+1]-u[i+1]))
-            num2[torch.isinf(num2)] = 0.
-            return num1*bspline(i=i,l=l-1, u=u, x=x, KN=KN, M=M)+num2*bspline(i=i+1, l=l-1, u=u, x=x, KN=KN, M=M)
+            return AN + i * (BN - AN) / KN
 
-    knots = {i:construct_ith_knot(i, AN, BN, KN) for i in range(-M, KN+M+1)}
+    def bspline(i, l, u, x, KN, M):
+        if l == 0 and -M <= i <= KN + M - 1:
+            return ((u[i] <= x) & (x < u[i + 1])).float()
+        elif 1 <= l <= M and -M <= i <= KN + M - l - 1:
+            num1 = (x - u[i]) / (u[i + l] - u[i])
+            num1[torch.isinf(num1)] = 0.
+            num2 = ((-x + u[i + l + 1]) / (u[i + l + 1] - u[i + 1]))
+            num2[torch.isinf(num2)] = 0.
+            return num1 * bspline(i=i,     l=l - 1, u=u, x=x, KN=KN, M=M) + \
+                   num2 * bspline(i=i + 1, l=l - 1, u=u, x=x, KN=KN, M=M)
+
+    # Knots as CPU Python scalars (not moved to GPU)
+    knots = {i: construct_ith_knot(i, AN, BN, KN) for i in range(-M, KN + M + 1)}
+
+    # Preserve original path handling
     if paths.shape[1] > 1:
-        paths = paths[:,:-1].flatten()
+        paths = paths[:, :-1].flatten()
     else:
         paths = paths.flatten()
-    basis = torch.tensor(np.array([bspline(i=i, l=M, u=knots, x=paths, KN=KN,M=M) for i in range(-M, KN)]).T, device=device_id, dtype=torch.float32)
-    assert (basis.shape == (paths.shape[0], KN+M)), f"Basis is shape {basis.shape} but should be {(paths.shape[0], KN+M)}"
+
+    # Build basis columns on GPU; no NumPy hop
+    cols = [bspline(i=i, l=M, u=knots, x=paths, KN=KN, M=M) for i in range(-M, KN)]
+    basis = torch.stack(cols, dim=1).to(device=device_id, dtype=torch.float32)
+
+    assert (basis.shape == (paths.shape[0], KN + M)), \
+        f"Basis is shape {basis.shape} but should be {(paths.shape[0], KN + M)}"
     assert torch.all(basis >= 0.)
     return basis
-
 
 def construct_Ridge_estimator(coeffs, B, LN):
     drift  = B@coeffs
