@@ -2,15 +2,13 @@
 # coding: utf-8
 import math
 
-import matplotlib.pyplot as plt
 import numpy as np
-from scipy.special import eval_laguerre
+import torch
 
 from configs import project_config
 from configs.RecursiveVPSDE.Markovian_fBiPot.recursive_Markovian_PostMeanScore_fBiPot_LowFTh_T256_H05_tl_110data_StbleTgt import \
     get_config
-from src.classes.ClassFractionalBiPotential import FractionalBiPotential
-import torch
+
 
 def basis_number_selection(paths, num_paths, num_time_steps, deltaT, t1, device_id):
     poss_Rs = torch.arange(1, 11)
@@ -23,7 +21,8 @@ def basis_number_selection(paths, num_paths, num_time_steps, deltaT, t1, device_
         except AssertionError:
             cvs.append(torch.inf)
             continue
-        coeffs = estimate_coefficients(R=r, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=Phi, device_id=device_id)
+        coeffs = estimate_coefficients(R=r, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=Phi,
+                                       device_id=device_id)
         bhat = torch.pow(construct_Hermite_drift(basis=basis, coefficients=coeffs), 2)
         bhat_norm = torch.nanmean(torch.sum(bhat * deltaT / t1, dim=-1))
         inv_Phi = torch.linalg.inv(Phi)
@@ -37,6 +36,7 @@ def basis_number_selection(paths, num_paths, num_time_steps, deltaT, t1, device_
             pen = kappa * s_p / (num_paths * num_time_steps * deltaT)
             cvs.append(-bhat_norm + pen)
     return poss_Rs[np.argmin(cvs)]
+
 
 def hermite_basis_GPU(R, device_id, paths):
     paths = torch.as_tensor(paths, device=device_id, dtype=torch.float32)
@@ -55,6 +55,7 @@ def hermite_basis_GPU(R, device_id, paths):
         norm = (2.0 ** i * math.sqrt(math.pi) * math.factorial(i)) ** -0.5  # Python float is fine
         basis[:, :, i] = norm * polynomials[:, :, i] * torch.exp(-0.5 * paths ** 2)
     return basis
+
 
 def construct_Z_vector(R, T, basis, paths):
     assert (basis.shape[0] == paths.shape[0])
@@ -83,12 +84,12 @@ def construct_Phi_matrix(R, deltaT, T, basis, device_id, paths):
         N, R, R), f"Intermediate matrix is shape {intermediate.shape} but should be {(N, R, R)}"
     for i in range(N):
         es = torch.linalg.eigvalsh(intermediate[i, :, :]) >= 0.
-        #assert (torch.all(es)), f"Submat at {i} is not PD, for R={R}"
+        # assert (torch.all(es)), f"Submat at {i} is not PD, for R={R}"
     Phi = deltaT * (basis.permute((0, 2, 1)) @ basis)
     assert (Phi.shape == (N, R, R))
     Phi = Phi.mean(axis=0, keepdims=False)
     assert (Phi.shape == (R, R)), f"Phi matrix is shape {Phi.shape} but should be {(R, R)}"
-    #assert torch.all(torch.linalg.eigvalsh(Phi) >= 0.), f"Phi matrix is not PD"
+    # assert torch.all(torch.linalg.eigvalsh(Phi) >= 0.), f"Phi matrix is not PD"
     return Phi
 
 
@@ -96,7 +97,7 @@ def estimate_coefficients(R, deltaT, t1, basis, paths, device_id, Phi=None):
     paths = torch.as_tensor(paths, device=device_id, dtype=torch.float32)
     Z = construct_Z_vector(R=R, T=t1, basis=basis, paths=paths)
     if Phi is None:
-        Phi = construct_Phi_matrix(R=R, deltaT=deltaT, T=t1, basis=basis, paths=paths,device_id=device_id)
+        Phi = construct_Phi_matrix(R=R, deltaT=deltaT, T=t1, basis=basis, paths=paths, device_id=device_id)
     theta_hat = torch.linalg.solve(Phi, Z)
     assert (theta_hat.shape == (R, 1))
     return theta_hat
@@ -129,18 +130,19 @@ t1 = deltaT * num_time_steps
 device_id = _get_device()
 paths = torch.tensor(np.load(config.data_path, allow_pickle=True)[:num_paths, :], device=device_id, dtype=torch.float32)
 paths = torch.concatenate(
-    [torch.tensor(np.repeat((np.array(config.initState)).reshape((1, 1)), paths.shape[0], axis=0), device=device_id, dtype=torch.float32),
+    [torch.tensor(np.repeat((np.array(config.initState)).reshape((1, 1)), paths.shape[0], axis=0), device=device_id,
+                  dtype=torch.float32),
      paths], dim=1)
 assert paths.shape == (num_paths, config.ts_length + 1)
 
-#R = basis_number_selection(paths=paths, num_paths=num_paths, num_time_steps=num_time_steps, deltaT=deltaT, t1=t1, device_id=device_id)
+# R = basis_number_selection(paths=paths, num_paths=num_paths, num_time_steps=num_time_steps, deltaT=deltaT, t1=t1, device_id=device_id)
 numXs = 256  # config.ts_length
 minx = -1.5
 maxx = -minx
 
 # In[9]:
 
-for R in np.arange(2,21,1):
+for R in np.arange(2, 21, 1):
     basis = hermite_basis_GPU(R=R, paths=paths, device_id=device_id)
     coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None, device_id=device_id))
     Xs = torch.linspace(minx, maxx, numXs).reshape(1, -1)
