@@ -504,7 +504,7 @@ for config in [bipot_config]:
         # Hermite Alt
         curr_states = torch.tensor(all_hermite_states[k:k + block_size, :], device=device_id, dtype=torch.float32)
         basis = hermite_basis_GPU(R=R, paths=curr_states, device_id=device_id)
-        hermite_drift_est = construct_Hermite_drift(basis=basis, coefficients=hermite_coeffs)
+        hermite_drift_est = construct_Hermite_drift(basis=basis, coefficients=hermite_coeffs).cpu().numpy()
         all_hermite_drift_ests[k:k + block_size, :] = hermite_drift_est
         del curr_states
 
@@ -521,7 +521,7 @@ for config in [bipot_config]:
         all_nad_drift_ests_true_law[k:k + block_size, :] = nad_drift_est
         # Hermite True
         basis = hermite_basis_GPU(R=R, paths=curr_states, device_id=device_id)
-        hermite_drift_est = construct_Hermite_drift(basis=basis, coefficients=hermite_coeffs)
+        hermite_drift_est = construct_Hermite_drift(basis=basis, coefficients=hermite_coeffs).cpu().numpy()
         all_hermite_drift_ests_true_law[k:k + block_size, :] = hermite_drift_est
 
         # Now evaluate on uniform positions
@@ -536,7 +536,7 @@ for config in [bipot_config]:
         all_nad_drift_ests_uniform[k:k + block_size, :] = nad_drift_est
 
         basis = hermite_basis_GPU(R=R, paths=curr_states, device_id=device_id)
-        hermite_drift_est = construct_Hermite_drift(basis=basis, coefficients=hermite_coeffs)
+        hermite_drift_est = construct_Hermite_drift(basis=basis, coefficients=hermite_coeffs).cpu().numpy()
         all_hermite_drift_ests_uniform[k:k + block_size, :] = hermite_drift_est
 
         torch.cuda.synchronize()
