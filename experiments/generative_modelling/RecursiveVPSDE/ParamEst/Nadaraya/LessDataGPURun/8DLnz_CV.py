@@ -356,7 +356,9 @@ for h in tqdm(range(bws.shape[0])):
                                               prevPath_observations=prevPath_observations[:10,:], deltaT=config.deltaT))
     CVs[h] = np.sum(cvs)
 bw = bws[np.argmin(CVs).flatten(),:]
+print(bw)
 inv_H = np.diag(np.power(bw, -2))
+print(inv_H)
 norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
 Nn_tile = 2560000
 stable = True
