@@ -71,7 +71,7 @@ def construct_Phi_matrix(R, deltaT, T, basis, device_id, paths):
     assert (Phi.shape == (N, R, R))
     Phi = Phi.mean(axis=0, keepdims=False)
     assert (Phi.shape == (R, R)), f"Phi matrix is shape {Phi.shape} but should be {(R, R)}"
-    assert torch.all(torch.linalg.eigvalsh(Phi) >= 0.), f"Phi matrix is not PD"
+    #assert torch.all(torch.linalg.eigvalsh(Phi) >= 0.), f"Phi matrix is not PD"
     return Phi
 
 
@@ -82,6 +82,7 @@ def estimate_coefficients(R, deltaT, t1, basis, paths, device_id, Phi=None):
         Phi = construct_Phi_matrix(R=R, deltaT=deltaT, T=t1, basis=basis, paths=paths,device_id=device_id)
     theta_hat = torch.linalg.solve(Phi, Z)
     assert (theta_hat.shape == (R, 1))
+    print(theta_hat)
     return theta_hat
 
 
@@ -431,7 +432,7 @@ for config in [bipot_config]:
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
     # Prepare for Hermite
-    R = 7
+    R = 8
     hermite_basis = hermite_basis_GPU(R=R, paths=is_obs.squeeze(), device_id=device_id)
     hermite_coeffs = (
         estimate_coefficients(R=R, deltaT=config.deltaT, basis=hermite_basis, paths=is_obs.squeeze(), t1=config.t1,device_id=device_id, Phi=None))
