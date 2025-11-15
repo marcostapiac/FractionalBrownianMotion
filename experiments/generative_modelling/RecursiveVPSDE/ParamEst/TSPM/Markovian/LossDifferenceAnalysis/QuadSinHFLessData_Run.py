@@ -226,7 +226,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
     num_diff_times = 1
     rmse_quantile_nums = 1
     num_paths = 1000
-    num_time_steps = int(5 * config.ts_length)
+    num_time_steps = int(.05 * config.ts_length)
     deltaT = config.deltaT
     all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
     all_score_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
