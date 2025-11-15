@@ -617,6 +617,8 @@ for config in [bipot_config]:
     nad_state_eval[ts_type] = np.sqrt(np.nanmean(np.sum(np.power(all_true_paths - all_nad_paths, 2), axis=-1), axis=0))
     hermite_state_eval[ts_type] = np.sqrt(
         np.nanmean(np.sum(np.power(all_true_paths - all_hermite_paths, 2), axis=-1), axis=0))
+    ridge_state_eval[ts_type] = np.sqrt(
+        np.nanmean(np.sum(np.power(all_true_paths - all_ridge_paths, 2), axis=-1), axis=0))
 
     uniform_positions = torch.linspace(-1.5, 1.5, all_true_states.shape[0], device="cpu", dtype=torch.float32)[:,
                         np.newaxis]
