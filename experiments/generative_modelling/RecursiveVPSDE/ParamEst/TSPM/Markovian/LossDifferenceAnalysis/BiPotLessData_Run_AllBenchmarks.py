@@ -776,6 +776,11 @@ for config in [bipot_config]:
 save_path = (
             project_config.ROOT_DIR + f"experiments/results/BiPot_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
     ".", "")
+np.save(save_path + "_true_uniform.npy", uniform_true_drifts)
+np.save(save_path + "_score_uniform.npy", all_score_drift_ests_uniform)
+np.save(save_path + "_nad_uniform.npy", all_nad_drift_ests_uniform)
+np.save(save_path + "_hermite_uniform.npy", all_hermite_drift_ests_uniform)
+np.save(save_path + "_rigde_uniform.npy", all_ridge_drift_ests_uniform)
 
 pd.DataFrame.from_dict(score_eval).to_parquet(save_path + "_score_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval).to_parquet(save_path + "_nad_MSE.parquet")
