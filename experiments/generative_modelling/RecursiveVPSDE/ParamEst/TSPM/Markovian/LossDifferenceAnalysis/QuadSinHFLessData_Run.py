@@ -564,7 +564,7 @@ for config in [bipot_config]:
     M = 2
     KN = 24
     LN = np.log(num_paths)
-    AN = -5
+    AN = -1.5
     BN = -AN
     B = spline_basis(paths=is_obs.squeeze(), KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
     Z = np.power(config.deltaT,-1)*np.diff(is_obs.squeeze(), axis=1).reshape((is_obs.squeeze().shape[0]*(is_obs.squeeze().shape[1]-1),1))
