@@ -671,6 +671,7 @@ for config in [bipot_config]:
         # Hermite True
         basis = hermite_basis_GPU(R=R, paths=curr_states, device_id=device_id)
         hermite_drift_est = construct_Hermite_drift(basis=basis, coefficients=hermite_coeffs).cpu().numpy()
+        print(hermite_drift_est)
         all_hermite_drift_ests_true_law[k:k + block_size, :] = hermite_drift_est
 
         # Ridge True
@@ -680,6 +681,7 @@ for config in [bipot_config]:
         ridge_drift_est = construct_Ridge_estimator(coeffs=ridge_coeffs, B=ridge_basis, LN=LN,device_id=device_id).cpu().numpy().flatten().reshape((curr_states.shape[0]-1, config.ndims))
         ridge_drift_est[curr_states[:, :-1].cpu().numpy().flatten() < AN, :] = np.nan
         ridge_drift_est[curr_states[:, :-1].cpu().numpy().flatten() > BN, :] = np.nan
+        print(ridge_drift_est)
         all_ridge_drift_ests_true_law[k:k + block_size, :] = ridge_drift_est
         del curr_states
 
