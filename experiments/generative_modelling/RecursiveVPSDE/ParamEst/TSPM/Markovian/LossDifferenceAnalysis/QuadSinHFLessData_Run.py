@@ -650,6 +650,8 @@ for config in [bipot_config]:
         # Ridge Alt
         curr_states = torch.tensor(all_ridge_states[k:k + block_size, :], device=device_id, dtype=torch.float32).T
         curr_states = torch.concatenate([curr_states, torch.zeros((1, 1), device=device_id, dtype=torch.float32)], dim=-1)
+        AN = round(-np.max(np.max(curr_states.cpu().numpy().flatten()),np.abs(np.min(curr_states.cpu().numpy().flatten())))-0.5, 1)
+        BN = -AN
         ridge_basis = spline_basis(paths=curr_states, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
         ridge_drift_est = construct_Ridge_estimator(coeffs=ridge_coeffs, B=ridge_basis, LN=LN,device_id=device_id).cpu().numpy().flatten().reshape((curr_states.shape[1]-1, config.ndims))
         ridge_drift_est[curr_states[:, :-1].cpu().numpy().flatten() < AN, :] = np.nan
@@ -677,6 +679,8 @@ for config in [bipot_config]:
 
         # Ridge True
         curr_states = torch.concatenate([curr_states.T, torch.zeros((1, 1), device=device_id, dtype=torch.float32)], dim=-1)
+        AN = round(-np.max(np.max(curr_states.cpu().numpy().flatten()),np.abs(np.min(curr_states.cpu().numpy().flatten())))-0.5, 1)
+        BN = -AN
         ridge_basis = spline_basis(paths=curr_states, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
         ridge_drift_est = construct_Ridge_estimator(coeffs=ridge_coeffs, B=ridge_basis, LN=LN,device_id=device_id).cpu().numpy().flatten().reshape((curr_states.shape[1]-1, config.ndims))
         ridge_drift_est[curr_states[:, :-1].cpu().numpy().flatten() < AN, :] = np.nan
@@ -704,6 +708,8 @@ for config in [bipot_config]:
         all_hermite_drift_ests_uniform[k:k + block_size, :] = hermite_drift_est
 
         # Ridge Uniform
+        AN = -1.5
+        BN = -AN
         curr_states = torch.concatenate([curr_states.T, torch.zeros((1, 1), device=device_id, dtype=torch.float32)], dim=-1)
         ridge_basis = spline_basis(paths=curr_states, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
         ridge_drift_est = construct_Ridge_estimator(coeffs=ridge_coeffs, B=ridge_basis, LN=LN,
