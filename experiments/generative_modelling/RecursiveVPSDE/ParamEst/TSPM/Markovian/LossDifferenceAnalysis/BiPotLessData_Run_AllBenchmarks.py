@@ -672,7 +672,6 @@ for config in [bipot_config]:
         # Hermite True
         basis = hermite_basis_GPU(R=R, paths=curr_states, device_id=device_id)
         hermite_drift_est = construct_Hermite_drift(basis=basis, coefficients=hermite_coeffs).cpu().numpy()
-        print(hermite_drift_est)
         all_hermite_drift_ests_true_law[k:k + block_size, :] = hermite_drift_est
 
         # Ridge True
@@ -681,7 +680,6 @@ for config in [bipot_config]:
         ridge_drift_est = construct_Ridge_estimator(coeffs=ridge_coeffs, B=ridge_basis, LN=LN,device_id=device_id).cpu().numpy().flatten().reshape((curr_states.shape[1]-1, config.ndims))
         ridge_drift_est[curr_states[:, :-1].cpu().numpy().flatten() < AN, :] = np.nan
         ridge_drift_est[curr_states[:, :-1].cpu().numpy().flatten() > BN, :] = np.nan
-        print(ridge_drift_est)
         all_ridge_drift_ests_true_law[k:k + block_size, :] = ridge_drift_est
         del curr_states
 
@@ -778,12 +776,6 @@ for config in [bipot_config]:
 save_path = (
             project_config.ROOT_DIR + f"experiments/results/BiPot_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
     ".", "")
-np.save(save_path + "_true_uniform.npy", uniform_true_drifts)
-np.save(save_path + "_score_uniform.npy", all_score_drift_ests_uniform)
-np.save(save_path + "_nad_uniform.npy", all_nad_drift_ests_uniform)
-np.save(save_path + "_hermite_uniform.npy", all_hermite_drift_ests_uniform)
-np.save(save_path + "_rigde_uniform.npy", all_ridge_drift_ests_uniform)
-raise RuntimeError
 
 pd.DataFrame.from_dict(score_eval).to_parquet(save_path + "_score_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval).to_parquet(save_path + "_nad_MSE.parquet")
