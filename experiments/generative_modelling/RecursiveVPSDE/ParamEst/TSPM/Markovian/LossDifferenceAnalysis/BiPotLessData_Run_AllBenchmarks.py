@@ -647,14 +647,15 @@ for config in [bipot_config]:
         del curr_states
 
         # Ridge Alt
-        curr_states = torch.tensor(all_ridge_states[k:k + block_size, :], device=device_id, dtype=torch.float32).T
-        assert curr_states.shape == (1, block_size)
+        curr_states = torch.tensor(all_ridge_states[k:k + block_size+1, :], device=device_id, dtype=torch.float32).T
+        assert curr_states.shape == (1, block_size+1)
         ridge_basis = spline_basis(paths=curr_states, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
         ridge_drift_est = construct_Ridge_estimator(coeffs=ridge_coeffs, B=ridge_basis, LN=LN,device_id=device_id).cpu().numpy().flatten().reshape((curr_states.shape[1]-1, config.ndims))
         ridge_drift_est[curr_states[:, :-1].cpu().numpy().flatten() < AN, :] = np.nan
         ridge_drift_est[curr_states[:, :-1].cpu().numpy().flatten() > BN, :] = np.nan
         all_ridge_drift_ests[k:k + block_size, :] = ridge_drift_est
         del curr_states
+        raise RuntimeError
 
         # Score True
         curr_states = torch.tensor(all_true_states[k:k + block_size, :], device=device_id, dtype=torch.float32)
@@ -710,7 +711,7 @@ for config in [bipot_config]:
         ridge_basis = spline_basis(paths=curr_states, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
         ridge_drift_est = construct_Ridge_estimator(coeffs=ridge_coeffs, B=ridge_basis, LN=LN,
                                                     device_id=device_id).cpu().numpy().flatten().reshape(
-            (curr_states.shape[0], config.ndims))
+            (curr_states.shape[-1]-1, config.ndims))
         ridge_drift_est[curr_states[:, :-1].cpu().numpy().flatten() < AN, :] = np.nan
         ridge_drift_est[curr_states[:, :-1].cpu().numpy().flatten() > BN, :] = np.nan
         all_ridge_drift_ests_true_law[k:k + block_size, :] = ridge_drift_est
