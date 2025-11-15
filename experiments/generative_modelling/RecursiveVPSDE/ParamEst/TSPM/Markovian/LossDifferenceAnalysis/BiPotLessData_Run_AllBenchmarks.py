@@ -566,8 +566,8 @@ for config in [bipot_config]:
     M = 3
     KN = 1
     LN = np.log(num_paths)
-    AN = 5
-    BN = -5
+    AN = -5
+    BN = -AN
     B = spline_basis(paths=is_obs.squeeze(), KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
     Z = np.power(config.deltaT,-1)*np.diff(is_obs.squeeze(), axis=1).reshape((is_obs.squeeze().shape[0]*(is_obs.squeeze().shape[1]-1),1))
     Z = torch.tensor(Z, dtype=torch.float32, device=device_id)
@@ -774,9 +774,17 @@ for config in [bipot_config]:
     torch.cuda.empty_cache()
     gc.collect()
 
+
 save_path = (
             project_config.ROOT_DIR + f"experiments/results/BiPot_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
     ".", "")
+np.save(save_path + "_true_uniform.npy", uniform_true_drifts)
+np.save(save_path + "_score_uniform.npy", all_score_drift_ests_uniform)
+np.save(save_path + "_nad_uniform.npy", all_nad_drift_ests_uniform)
+np.save(save_path + "_hermite_uniform.npy", all_hermite_drift_ests_uniform)
+np.save(save_path + "_rigde_uniform.npy", all_ridge_drift_ests_uniform)
+raise RuntimeError
+
 pd.DataFrame.from_dict(score_eval).to_parquet(save_path + "_score_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval).to_parquet(save_path + "_nad_MSE.parquet")
 pd.DataFrame.from_dict(hermite_eval).to_parquet(save_path + "_hermite_MSE.parquet")
@@ -801,8 +809,3 @@ pd.DataFrame.from_dict(hermite_uniform_eval, orient="index", columns=["mse"]).to
 pd.DataFrame.from_dict(ridge_uniform_eval, orient="index", columns=["mse"]).to_parquet(
     save_path + "_ridge_uniform_MSE.parquet")
 
-np.save(save_path + "_true_uniform.npy", uniform_true_drifts)
-np.save(save_path + "_score_uniform.npy", all_score_drift_ests_uniform)
-np.save(save_path + "_nad_uniform.npy", all_nad_drift_ests_uniform)
-np.save(save_path + "_hermite_uniform.npy", all_hermite_drift_ests_uniform)
-np.save(save_path + "_rigde_uniform.npy", all_ridge_drift_ests_uniform)
