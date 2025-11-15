@@ -235,7 +235,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
     all_hermite_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
     all_ridge_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
 
-    for quant_idx in tqdm(range(rmse_quantile_nums)):
+    for quant_idx in (range(rmse_quantile_nums)):
         good.eval()
         initial_state = np.repeat(np.atleast_2d(config.initState)[np.newaxis, :], num_paths, axis=0)
         assert (initial_state.shape == (num_paths, 1, config.ndims))
@@ -257,7 +257,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
         ridge_states[:, [0], :] = true_states[:, [0],
                                     :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
         # Euler-Maruyama Scheme for Tracking Errors
-        for i in range(1, num_time_steps + 1):
+        for i in tqdm(range(1, num_time_steps + 1)):
             eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT) * config.diffusion
 
             assert (eps.shape == (num_paths, 1, config.ndims))

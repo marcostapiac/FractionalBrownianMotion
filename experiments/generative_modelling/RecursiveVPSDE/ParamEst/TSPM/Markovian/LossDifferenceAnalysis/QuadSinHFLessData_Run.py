@@ -234,7 +234,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
     all_hermite_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
     all_ridge_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
 
-    for quant_idx in tqdm(range(rmse_quantile_nums)):
+    for quant_idx in (range(rmse_quantile_nums)):
         good.eval()
         initial_state = np.repeat(np.atleast_2d(config.initState)[np.newaxis, :], num_paths, axis=0)
         assert (initial_state.shape == (num_paths, 1, config.ndims))
@@ -256,7 +256,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
         ridge_states[:, [0], :] = true_states[:, [0],
                                     :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
         # Euler-Maruyama Scheme for Tracking Errors
-        for i in range(1, num_time_steps + 1):
+        for i in tqdm(range(1, num_time_steps + 1)):
             eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT) * config.diffusion
 
             assert (eps.shape == (num_paths, 1, config.ndims))
@@ -555,14 +555,14 @@ for config in [bipot_config]:
     block_size = 1024
 
     # Prepare for Hermite
-    R = 11
+    R = 7
     hermite_basis = hermite_basis_GPU(R=R, paths=is_obs.squeeze(), device_id=device_id)
     hermite_coeffs = (
         estimate_coefficients(R=R, deltaT=config.deltaT, basis=hermite_basis, paths=is_obs.squeeze(), t1=config.t1,device_id=device_id, Phi=None))
 
     # Prepare for Ridge
-    M = 3
-    KN = 1
+    M = 2
+    KN = 24
     LN = np.log(num_paths)
     AN = -5
     BN = -AN
