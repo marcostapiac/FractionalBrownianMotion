@@ -226,7 +226,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
     num_diff_times = 1
     rmse_quantile_nums = 1
     num_paths = 1000
-    num_time_steps = int(0.05 * config.ts_length)
+    num_time_steps = int(5 * config.ts_length)
     deltaT = config.deltaT
     all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
     all_score_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
@@ -650,7 +650,7 @@ for config in [bipot_config]:
         # Ridge Alt
         curr_states = torch.tensor(all_ridge_states[k:k + block_size, :], device=device_id, dtype=torch.float32).T
         curr_states = torch.concatenate([curr_states, torch.zeros((1, 1), device=device_id, dtype=torch.float32)], dim=-1)
-        AN = torch.min(curr_states.flatten()).cpu().numpy()[0] - 0.5
+        AN = torch.min(curr_states.flatten()).cpu().numpy() - 0.5
         BN = -AN + 0.5
         ridge_basis = spline_basis(paths=curr_states, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
         ridge_drift_est = construct_Ridge_estimator(coeffs=ridge_coeffs, B=ridge_basis, LN=LN,device_id=device_id).cpu().numpy().flatten().reshape((curr_states.shape[1]-1, config.ndims))
@@ -679,7 +679,7 @@ for config in [bipot_config]:
 
         # Ridge True
         curr_states = torch.concatenate([curr_states.T, torch.zeros((1, 1), device=device_id, dtype=torch.float32)], dim=-1)
-        AN = torch.min(curr_states.flatten()).cpu().numpy()[0] - 0.5
+        AN = torch.min(curr_states.flatten()).cpu().numpy() - 0.5
         BN = -AN + 0.5
         ridge_basis = spline_basis(paths=curr_states, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
         ridge_drift_est = construct_Ridge_estimator(coeffs=ridge_coeffs, B=ridge_basis, LN=LN,device_id=device_id).cpu().numpy().flatten().reshape((curr_states.shape[1]-1, config.ndims))
@@ -709,7 +709,7 @@ for config in [bipot_config]:
 
         # Ridge Uniform
         curr_states = torch.concatenate([curr_states.T, torch.zeros((1, 1), device=device_id, dtype=torch.float32)], dim=-1)
-        AN = torch.min(curr_states.flatten()).cpu().numpy()[0] - 0.5
+        AN = torch.min(curr_states.flatten()).cpu().numpy() - 0.5
         BN = -AN + 0.5
         ridge_basis = spline_basis(paths=curr_states, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
         ridge_drift_est = construct_Ridge_estimator(coeffs=ridge_coeffs, B=ridge_basis, LN=LN,
