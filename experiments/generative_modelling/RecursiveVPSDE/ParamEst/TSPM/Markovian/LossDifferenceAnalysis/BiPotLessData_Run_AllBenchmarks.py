@@ -710,7 +710,7 @@ for config in [bipot_config]:
             (curr_states.shape[-1]-1, config.ndims))
         ridge_drift_est[curr_states[:, :-1].cpu().numpy().flatten() < AN, :] = np.nan
         ridge_drift_est[curr_states[:, :-1].cpu().numpy().flatten() > BN, :] = np.nan
-        all_ridge_drift_ests_true_law[k:k + block_size, :] = ridge_drift_est
+        all_ridge_drift_ests_uniform[k:k + block_size, :] = ridge_drift_est
         del curr_states
 
         torch.cuda.synchronize()
