@@ -674,9 +674,9 @@ for config in [bipot_config]:
         hermite_drift_est = construct_Hermite_drift(basis=basis, coefficients=hermite_coeffs).cpu().numpy()
         print(hermite_drift_est)
         all_hermite_drift_ests_true_law[k:k + block_size, :] = hermite_drift_est
-        del curr_states
+
         # Ridge True
-        curr_states = torch.tensor(all_true_states[k:k + block_size+1, :], device=device_id, dtype=torch.float32)
+        curr_states = torch.concatenate([curr_states, torch.zeros((1, 1), device=device_id, dtype=torch.float32)], dim=-1)
         curr_states = curr_states.T
         assert curr_states.shape == (1, block_size+1)
         ridge_basis = spline_basis(paths=curr_states, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
@@ -705,9 +705,11 @@ for config in [bipot_config]:
         basis = hermite_basis_GPU(R=R, paths=curr_states, device_id=device_id)
         hermite_drift_est = construct_Hermite_drift(basis=basis, coefficients=hermite_coeffs).cpu().numpy()
         all_hermite_drift_ests_uniform[k:k + block_size, :] = hermite_drift_est
-        del curr_states
+
         # Ridge Uniform
-        curr_states = uniform_positions[k:k + block_size+1, :].to(device_id)
+        curr_states = torch.concatenate([curr_states, torch.zeros((1, 1), device=device_id, dtype=torch.float32)], dim=-1)
+        print(curr_states.flatten())
+        raise RuntimeError
         curr_states = curr_states.T
         assert curr_states.shape == (1, block_size+1)
         ridge_basis = spline_basis(paths=curr_states, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
