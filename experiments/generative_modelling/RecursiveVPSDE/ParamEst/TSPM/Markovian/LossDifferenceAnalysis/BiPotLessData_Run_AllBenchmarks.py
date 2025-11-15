@@ -287,7 +287,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
             del x
             x = torch.as_tensor(ridge_states[:, i - 1, :], device=device_id, dtype=torch.float32).contiguous()
             ridge_basis = spline_basis(paths=x, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
-            ridge_mean = construct_Ridge_estimator(coeffs=ridge_coeffs, B=ridge_basis, LN=LN, device_id=device_id)[:, np.newaxis, :]
+            ridge_mean = construct_Ridge_estimator(coeffs=ridge_coeffs, B=ridge_basis, LN=LN, device_id=device_id).cpu().numpy()[:, np.newaxis, :]
             del x
 
             true_states[:, [i], :] = (true_states[:, [i - 1], :] + true_mean * deltaT + eps) / denom
