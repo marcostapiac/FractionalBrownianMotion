@@ -597,20 +597,20 @@ for config in [bipot_config]:
     gc.collect()
     time.sleep(5)
 
-    all_score_drift_ests = np.zeros_like(true_drift)
-    all_nad_drift_ests = np.zeros_like(true_drift)
-    all_hermite_drift_ests = np.zeros_like(true_drift)
-    all_ridge_drift_ests = np.zeros_like(true_drift)
+    all_score_drift_ests = np.full_like(true_drift, np.nan, dtype=float)
+    all_nad_drift_ests = np.full_like(true_drift, np.nan, dtype=float)
+    all_hermite_drift_ests = np.full_like(true_drift, np.nan, dtype=float)
+    all_ridge_drift_ests = np.full_like(true_drift, np.nan, dtype=float)
 
-    all_score_drift_ests_true_law = np.zeros_like(true_drift)
-    all_nad_drift_ests_true_law = np.zeros_like(true_drift)
-    all_hermite_drift_ests_true_law = np.zeros_like(true_drift)
-    all_ridge_drift_ests_true_law = np.zeros_like(true_drift)
+    all_score_drift_ests_true_law = np.full_like(true_drift, np.nan, dtype=float)
+    all_nad_drift_ests_true_law = np.full_like(true_drift, np.nan, dtype=float)
+    all_hermite_drift_ests_true_law = np.full_like(true_drift, np.nan, dtype=float)
+    all_ridge_drift_ests_true_law = np.full_like(true_drift, np.nan, dtype=float)
 
-    all_score_drift_ests_uniform = np.zeros_like(true_drift)
-    all_nad_drift_ests_uniform = np.zeros_like(true_drift)
-    all_hermite_drift_ests_uniform = np.zeros_like(true_drift)
-    all_ridge_drift_ests_uniform = np.zeros_like(true_drift)
+    all_score_drift_ests_uniform = np.full_like(true_drift, np.nan, dtype=float)
+    all_nad_drift_ests_uniform = np.full_like(true_drift, np.nan, dtype=float)
+    all_hermite_drift_ests_uniform = np.full_like(true_drift, np.nan, dtype=float)
+    all_ridge_drift_ests_uniform = np.full_like(true_drift, np.nan, dtype=float)
 
     score_state_eval[ts_type] = np.sqrt(
         np.nanmean(np.sum(np.power(all_true_paths - all_score_paths, 2), axis=-1), axis=0))
