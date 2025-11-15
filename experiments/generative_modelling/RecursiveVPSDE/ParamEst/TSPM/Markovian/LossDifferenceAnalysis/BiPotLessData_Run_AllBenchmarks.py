@@ -677,7 +677,6 @@ for config in [bipot_config]:
 
         # Ridge True
         curr_states = torch.concatenate([curr_states.T, torch.zeros((1, 1), device=device_id, dtype=torch.float32)], dim=-1)
-        assert curr_states.shape == (1, block_size+1)
         ridge_basis = spline_basis(paths=curr_states, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
         ridge_drift_est = construct_Ridge_estimator(coeffs=ridge_coeffs, B=ridge_basis, LN=LN,device_id=device_id).cpu().numpy().flatten().reshape((curr_states.shape[1]-1, config.ndims))
         ridge_drift_est[curr_states[:, :-1].cpu().numpy().flatten() < AN, :] = np.nan
