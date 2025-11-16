@@ -319,7 +319,7 @@ if __name__ == "__main__":
             bw = bws[bw_idx, :]
             inv_H = np.diag(np.power(bw, -2))
             norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
-            quant_idx = 0
+            """quant_idx = 0
             print(f"Considering bandwidth grid number {bw_idx}\n")
             results = {}
             out = process_IID_bandwidth_gpu(
@@ -346,28 +346,28 @@ if __name__ == "__main__":
             all_global_states = np.concatenate([v[1][np.newaxis, :] for v in results.values()], axis=0)
             all_local_states = np.concatenate([v[2][np.newaxis, :] for v in results.values()], axis=0)
             assert (all_true_states.shape == all_global_states.shape == all_local_states.shape)
-
+            """
             assert num_paths == 10240
 
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_fQuadSinHF_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quad_coeff}a_{config.sin_coeff}b_{config.sin_space_scale}c_{config.ts_length}NumDPS").replace(
                 ".", "")
             print(f"Save path for Track {save_path}\n")
-            np.save(save_path + "_true_states.npy", all_true_states)
+            """np.save(save_path + "_true_states.npy", all_true_states)
             np.save(save_path + "_global_states.npy", all_global_states)
-            np.save(save_path + "_local_states.npy", all_local_states)
+            np.save(save_path + "_local_states.npy", all_local_states)"""
 
             M_tile = 1024
             Nn_tile = 512000
             stable = True
             num_dhats = 1  # No variability given we use same training dataset
             device = _get_device(None)
+            all_true_states = np.zeros((100 * 256, config.ts_dims))
+            Xs = torch.linspace(-1.5, 1.5, all_true_states.shape[0])[:, np.newaxis].to(device)
+            all_true_states = true_drift_gpu(prev=Xs, num_paths=all_true_states.shape[0], config=config)[:, 0,
+                              :].cpu().numpy()
             unif_is_drift_hats = np.zeros((all_true_states.shape[0], num_dhats, config.ts_dims))
-            #all_true_states = np.zeros((100 * 256, config.ts_dims))
-            #Xs = torch.linspace(-1.5, 1.5, all_true_states.shape[0])[:, np.newaxis].to(device)
-            #all_true_states = true_drift_gpu(prev=Xs, num_paths=all_true_states.shape[0], config=config)[:, 0,
-            #                  :].cpu().numpy()
-            Xs = torch.as_tensor(all_true_states, dtype=torch.float32, device=device).contiguous()
+            #Xs = torch.as_tensor(all_true_states, dtype=torch.float32, device=device).contiguous()
             for k in tqdm(range(num_dhats)):
                 is_ss_path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False),
                                           :]
