@@ -318,7 +318,7 @@ if __name__ == "__main__":
             bw = bws[bw_idx, :]
             inv_H = np.diag(np.power(bw, -2))
             norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
-            quant_idx = 0
+            """quant_idx = 0
             print(f"Considering bandwidth grid number {bw_idx}\n")
             results = {}
             out = process_IID_bandwidth_gpu(
@@ -355,15 +355,18 @@ if __name__ == "__main__":
             np.save(save_path + "_global_states.npy", all_global_states)
             np.save(save_path + "_local_states.npy", all_local_states)
 
+            all_true_states = all_true_states[np.random.choice(np.arange(all_true_states.shape[0]), 100), :, :]
+            all_true_states = all_true_states.reshape(-1, config.ts_dims)
+            """
             M_tile = 1024
             Nn_tile = 512000
             stable = True
             num_dhats = 1 # No variability given we use same training dataset
             device = _get_device(None)
-            all_true_states = all_true_states[np.random.choice(np.arange(all_true_states.shape[0]), 100), :, :]
-            all_true_states = all_true_states.reshape(-1, config.ts_dims)
-            unif_is_drift_hats = np.zeros((all_true_states.shape[0], num_dhats, config.ts_dims))
+            all_true_states = np.zeros((100*256, config.ts_dims))
+            unif_is_drift_hats = np.zeros((100*256, num_dhats, config.ts_dims))
             Xs = torch.linspace(-1.5, 1.5, all_true_states.shape[0])[:, np.newaxis].to(device)
+            all_true_states = true_drift_gpu(prev=Xs, num_paths=all_true_states.shape[0], config=config)[:, 0, :]
             #Xs = torch.as_tensor(all_true_states, dtype=torch.float32, device=device).contiguous()
             for k in tqdm(range(num_dhats)):
                 is_ss_path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False),
