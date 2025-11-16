@@ -73,7 +73,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
     num_diff_times = 1
     rmse_quantile_nums = 1
     num_paths = 1000
-    num_time_steps = int(1*config.ts_length)
+    num_time_steps = int(5*config.ts_length)
     deltaT = config.deltaT
     all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
     all_score_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
@@ -261,7 +261,7 @@ def IID_NW_multivar_estimator_gpu(
     est[mask] = (numer[mask] / denom[mask, None]).to(torch.float32)
 
     return est
-def prepare_for_nadaraya(config):
+def prepare_for_nadaraya(config, num_paths):
     deltaT = config.deltaT
     t1 = deltaT * config.ts_length
     is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :, :]
@@ -341,13 +341,14 @@ for config in [ddimsNS_12d_config, ddimsNS_8d_config]:
     good.eval()
 
     # Prepare for Nadaraya
-    is_obs, is_prevPath_obs, is_prevPath_incs = prepare_for_nadaraya(config=config)
+    is_obs, is_prevPath_obs, is_prevPath_incs = prepare_for_nadaraya(config=config, num_paths=num_paths)
     grid_1d = np.logspace(-3.55, -0.05, 30)
     xadd = np.logspace(-0.05, 1.0, 11)[1:]  # 10 values > -0.05
     xadd2 = np.logspace(1.0, 2.0, 11)[1:]  # 10 values > -0.05
-    bws = np.concatenate([grid_1d, xadd, xadd2])
+    xadd3 = np.logspace(2.0, 4.0, 11)[1:]  # 10 values > -0.05
+    bws = np.concatenate([grid_1d, xadd, xadd2, xadd3])
     bws = np.stack([bws for m in range(config.ndims)], axis=-1)
-    bw = bws[-1, :]
+    bw = bws[58, :]
     assert bw.shape[0] == config.ndims and len(bw.shape) == 1
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
