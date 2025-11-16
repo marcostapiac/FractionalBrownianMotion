@@ -345,12 +345,14 @@ if __name__ == "__main__":
             all_global_states = np.concatenate([v[1][np.newaxis, :] for v in results.values()], axis=0)
             all_local_states = np.concatenate([v[2][np.newaxis, :] for v in results.values()], axis=0)
             assert (all_true_states.shape == all_global_states.shape == all_local_states.shape)
+            """
             assert num_paths == 1024
 
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_fBiPot_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c").replace(
                 ".", "")
             print(f"Save path for Track {save_path}\n")
+            """
             np.save(save_path + "_true_states.npy", all_true_states)
             np.save(save_path + "_global_states.npy", all_global_states)
             np.save(save_path + "_local_states.npy", all_local_states)
