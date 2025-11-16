@@ -435,7 +435,7 @@ def IID_NW_multivar_estimator_gpu(
                 w = torch.exp(expo)
 
             denom_tile += w.sum(dim=0, dtype=torch.float64) / (N * n)
-            numer_tile += (w.t() @ dX_i).to(torch.float64) * ((t1 - t0) / N)
+            numer_tile += (w.t() @ dX_i).to(torch.float64) / (N * (t1 - t0))
 
         denom[m0:m0 + X.size(0)] += denom_tile
         numer[m0:m0 + X.size(0)] += numer_tile
