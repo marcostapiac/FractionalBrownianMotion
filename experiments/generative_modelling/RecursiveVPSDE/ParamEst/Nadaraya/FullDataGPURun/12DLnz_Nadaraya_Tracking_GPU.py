@@ -5,7 +5,7 @@ import numpy as np
 from tqdm import tqdm
 
 from configs import project_config
-from configs.RecursiveVPSDE.Markovian_12DLorenz.recursive_Markovian_PostMeanScore_12DLorenz_Stable_T256_H05_tl_110data_StbleTgt import \
+from configs.RecursiveVPSDE.Markovian_12DLorenz.recursive_Markovian_PostMeanScore_12DLorenz_Stable_T256_H05_tl_110data_StbleTgt_FULLDATA import \
     get_config
 from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
 from utils.resource_logger import ResourceLogger, set_runtime_global
