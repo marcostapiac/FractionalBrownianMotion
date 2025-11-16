@@ -520,7 +520,7 @@ ridge_state_eval = {t: np.inf for t in ["QuadSinHF"]}
 ridge_uniform_eval = {t: np.inf for t in ["QuadSinHF"]}
 
 for config in [bipot_config]:
-    assert config.feat_thresh == 1.
+    assert config.feat_thresh != 1.
     root_score_dir = root_dir
     ts_type = "QuadSinHF"
     print(f"Starting {ts_type}\n")
