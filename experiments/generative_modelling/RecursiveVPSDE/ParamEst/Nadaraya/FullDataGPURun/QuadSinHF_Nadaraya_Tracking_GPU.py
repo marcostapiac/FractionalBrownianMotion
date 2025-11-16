@@ -346,6 +346,7 @@ if __name__ == "__main__":
             all_global_states = np.concatenate([v[1][np.newaxis, :] for v in results.values()], axis=0)
             all_local_states = np.concatenate([v[2][np.newaxis, :] for v in results.values()], axis=0)
             assert (all_true_states.shape == all_global_states.shape == all_local_states.shape)
+
             assert num_paths == 10240
 
             save_path = (
@@ -359,14 +360,14 @@ if __name__ == "__main__":
             M_tile = 1024
             Nn_tile = 512000
             stable = True
-            num_dhats = 1 # No variability given we use same training dataset
+            num_dhats = 1  # No variability given we use same training dataset
             device = _get_device(None)
-            all_true_states = all_true_states[np.random.choice(np.arange(all_true_states.shape[0]), 100), :, :]
-            all_true_states = all_true_states.reshape(-1, config.ts_dims)
             unif_is_drift_hats = np.zeros((all_true_states.shape[0], num_dhats, config.ts_dims))
-
-            Xs = torch.linspace(-1.5, 1.5, all_true_states.shape[0])[:, np.newaxis].to(device)
-            #Xs = torch.as_tensor(all_true_states, dtype=torch.float32, device=device).contiguous()
+            #all_true_states = np.zeros((100 * 256, config.ts_dims))
+            #Xs = torch.linspace(-1.5, 1.5, all_true_states.shape[0])[:, np.newaxis].to(device)
+            #all_true_states = true_drift_gpu(prev=Xs, num_paths=all_true_states.shape[0], config=config)[:, 0,
+            #                  :].cpu().numpy()
+            Xs = torch.as_tensor(all_true_states, dtype=torch.float32, device=device).contiguous()
             for k in tqdm(range(num_dhats)):
                 is_ss_path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False),
                                           :]
@@ -389,6 +390,8 @@ if __name__ == "__main__":
                     truncate=False, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
                 ).cpu().numpy()
             est_unif_is_drift_hats = np.nanmean(unif_is_drift_hats,axis=1)
+            assert est_unif_is_drift_hats.shape == all_true_states.shape
+            assert all_true_states.shape[-1] == 1
             mses[bw_idx] = (bws[bw_idx], np.nanmean(np.sum(np.power(est_unif_is_drift_hats-all_true_states,2),axis=-1),axis=-1))
             save_path = save_path.replace("DriftTrack", "DriftEvalExp")
             print(f"Save path for EvalExp {save_path}\n")
