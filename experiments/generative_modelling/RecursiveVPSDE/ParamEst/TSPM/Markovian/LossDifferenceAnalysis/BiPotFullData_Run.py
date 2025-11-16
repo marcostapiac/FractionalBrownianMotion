@@ -493,7 +493,6 @@ def run_nadaraya_single_bw(config, is_path_observations, states, M_tile, inv_H, 
 
 
 bipot_config = get_config()
-bipot_config.feat_thresh = 1./500.
 device_id = _get_device()
 num_paths = 1024 if bipot_config.feat_thresh == 1. else 10240
 assert num_paths == 10240
@@ -521,7 +520,7 @@ ridge_state_eval = {t: np.inf for t in ["BiPot"]}
 ridge_uniform_eval = {t: np.inf for t in ["BiPot"]}
 
 for config in [bipot_config]:
-    assert config.feat_thresh == 1.
+    assert config.feat_thresh != 1.
     root_score_dir = root_dir
     ts_type = "BiPot"
     print(f"Starting {ts_type}\n")
@@ -548,16 +547,16 @@ for config in [bipot_config]:
     xadd3 = np.logspace(2.0, 4.0, 11)[1:]  # 10 values > -0.05
     bws = np.concatenate([grid_1d, xadd, xadd2, xadd3])
     bws = np.stack([bws for m in range(config.ndims)], axis=-1)
-    bw = bws[44, :]
+    bw = bws[40, :]
     assert bw.shape[0] == 1 and len(bw.shape) == 1
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
-    Nn_tile = 256000
+    Nn_tile = 512000
     stable = True
     block_size = 1024
 
     # Prepare for Hermite
-    R = 11
+    R = 13
     hermite_basis = hermite_basis_GPU(R=R, paths=is_obs.squeeze(), device_id=device_id)
     hermite_coeffs = (
         estimate_coefficients(R=R, deltaT=config.deltaT, basis=hermite_basis, paths=is_obs.squeeze(), t1=config.t1,device_id=device_id, Phi=None))
@@ -652,7 +651,7 @@ for config in [bipot_config]:
         # Ridge Alt
         curr_states = torch.tensor(all_ridge_states[k:k + block_size, :], device=device_id, dtype=torch.float32).T
         curr_states = torch.concatenate([curr_states, torch.zeros((1, 1), device=device_id, dtype=torch.float32)], dim=-1)
-
+        
         ridge_basis = spline_basis(paths=curr_states, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
         ridge_drift_est = construct_Ridge_estimator(coeffs=ridge_coeffs, B=ridge_basis, LN=LN,device_id=device_id).cpu().numpy().flatten().reshape((curr_states.shape[1]-1, config.ndims))
         #ridge_drift_est[curr_states[:, :-1].cpu().numpy().flatten() < AN, :] = np.nan
@@ -680,7 +679,7 @@ for config in [bipot_config]:
 
         # Ridge True
         curr_states = torch.concatenate([curr_states.T, torch.zeros((1, 1), device=device_id, dtype=torch.float32)], dim=-1)
-
+        
         ridge_basis = spline_basis(paths=curr_states, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
         ridge_drift_est = construct_Ridge_estimator(coeffs=ridge_coeffs, B=ridge_basis, LN=LN,device_id=device_id).cpu().numpy().flatten().reshape((curr_states.shape[1]-1, config.ndims))
         #ridge_drift_est[curr_states[:, :-1].cpu().numpy().flatten() < AN, :] = np.nan
@@ -708,6 +707,8 @@ for config in [bipot_config]:
         all_hermite_drift_ests_uniform[k:k + block_size, :] = hermite_drift_est
 
         # Ridge Uniform
+        AN = -1.5
+        BN = -AN
         curr_states = torch.concatenate([curr_states.T, torch.zeros((1, 1), device=device_id, dtype=torch.float32)], dim=-1)
 
         ridge_basis = spline_basis(paths=curr_states, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
