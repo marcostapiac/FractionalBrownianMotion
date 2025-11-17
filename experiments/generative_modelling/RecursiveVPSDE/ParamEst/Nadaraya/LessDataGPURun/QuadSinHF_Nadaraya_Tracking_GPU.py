@@ -365,7 +365,7 @@ if __name__ == "__main__":
             #all_true_states = true_drift_gpu(prev=Xs, num_paths=all_true_states.shape[0], config=config)[:, 0,
             #                  :].cpu().numpy()
             Xs = torch.as_tensor(all_true_states, dtype=torch.float32, device=device).contiguous()
-            for k in tqdm(range(num_dhats)):
+            for k in (range(num_dhats)):
                 is_ss_path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False),
                                           :]
                 is_prevPath_observations = is_ss_path_observations[:, 1:-1]

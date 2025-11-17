@@ -325,7 +325,8 @@ if __name__ == "__main__":
 
         # Euler-Maruyama Scheme for Tracking Errors
         shape = prevPath_observations.shape
-        num_state_paths = 100
+        num_state_paths = 1000
+        idxs = np.arange(num_state_paths)
         mses = {bw_idx: np.inf for bw_idx in (range(0,bws.shape[0]))}
         for bw_idx in tqdm(range(0,bws.shape[0])):
             set_runtime_global(idx=bw_idx)
@@ -374,12 +375,14 @@ if __name__ == "__main__":
             stable = True
             num_dhats = 1 # No variability given we use same training dataset
             device = _get_device(None)
-            all_true_states = all_true_states[np.random.choice(np.arange(all_true_states.shape[0]), 100), :, :]
+            all_true_states = all_true_states.reshape(
+                (np.prod(all_true_states.shape[:2]), all_true_states.shape[2], config.ts_dims))
+            all_true_states = all_true_states[idxs, :, :]
             all_true_states = all_true_states.reshape(-1, config.ts_dims)
             unif_is_drift_hats = np.zeros((all_true_states.shape[0], num_dhats, config.ts_dims))
 
             Xs = torch.as_tensor(all_true_states, dtype=torch.float32, device=device).contiguous()
-            for k in tqdm(range(num_dhats)):
+            for k in (range(num_dhats)):
                 is_ss_path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False),
                                           :]
                 is_prevPath_observations = is_ss_path_observations[:, 1:-1]
