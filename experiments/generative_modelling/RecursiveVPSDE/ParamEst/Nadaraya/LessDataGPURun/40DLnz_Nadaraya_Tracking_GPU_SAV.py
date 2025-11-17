@@ -324,7 +324,7 @@ if __name__ == "__main__":
         print(f"Save path for Track {save_path}\n")
 
         M_tile = 128
-        Nn_tile = 32000
+        Nn_tile = 3200
         stable = True
         num_dhats = 1 # No variability given we use same training dataset
         device = _get_device(None)
