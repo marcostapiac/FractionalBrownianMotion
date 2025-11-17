@@ -164,8 +164,6 @@ def IID_NW_multivar_estimator_gpu(
 def process_IID_bandwidth_gpu_ONLYTRUE(
     quant_idx: int,
     shape: tuple,                 # (N, n, d)
-    inv_H_np: np.ndarray,         # (d,d) diag matrix or (d,) diag vector
-    norm_const: float,
     config,                       # your config object
     num_time_steps: int,
     num_state_paths: int,
@@ -284,38 +282,37 @@ if __name__ == "__main__":
 
     # Euler-Maruyama Scheme for Tracking Errors
     shape = prevPath_observations.shape
-    num_state_paths = 1000
+    num_state_paths = 10240
     mses = {bw_idx: np.inf for bw_idx in (range(0, bws.shape[0]))}
-    same_rndm_idxs = np.random.choice(np.arange(num_state_paths), 100)
+    same_rndm_idxs = np.random.choice(np.arange(num_state_paths), 2000)
+    results = {}
+    quant_idx = 0
+    out = process_IID_bandwidth_gpu_ONLYTRUE(
+        quant_idx=quant_idx,
+        shape=prevPath_observations.shape,
+        config=config,
+        num_time_steps=num_time_steps,
+        num_state_paths=num_state_paths,
+        deltaT=deltaT,
+        prevPath_np=prevPath_observations,
+        path_incs_np=path_incs,
+        seed_seq=child_seeds[quant_idx],
+        device_str=None,  # or leave None to auto-pick
+        M_tile=32,  # tune up/down
+        Nn_tile=512_000,  # tune up/down (or None)
+        stable=True,
+    )
+    results.update(out)
+
+    # Then concatenate & save like before
+    all_true_states = np.concatenate([v[0][np.newaxis, :] for v in results.values()], axis=0)
     for bw_idx in tqdm(range(0,bws.shape[0])):
         set_runtime_global(idx=bw_idx)
         bw = bws[bw_idx, :]
         inv_H = np.diag(np.power(bw, -2))
         norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
-        quant_idx = 0
         print(f"Considering bandwidth grid number {bw_idx}\n")
-        results = {}
-        out = process_IID_bandwidth_gpu_ONLYTRUE(
-            quant_idx=quant_idx,
-            shape=prevPath_observations.shape,
-            inv_H_np=inv_H,  # pass diag matrix or vector
-            norm_const=norm_const,
-            config=config,
-            num_time_steps=num_time_steps,
-            num_state_paths=num_state_paths,
-            deltaT=deltaT,
-            prevPath_np=prevPath_observations,
-            path_incs_np=path_incs,
-            seed_seq=child_seeds[quant_idx],
-            device_str=None,  # or leave None to auto-pick
-            M_tile=32,  # tune up/down
-            Nn_tile=512_000,  # tune up/down (or None)
-            stable=True,
-        )
-        results.update(out)
 
-        # Then concatenate & save like before
-        all_true_states = np.concatenate([v[0][np.newaxis, :] for v in results.values()], axis=0)
         assert num_paths == 1024
 
         save_path = (
@@ -360,7 +357,6 @@ if __name__ == "__main__":
         save_path = save_path.replace("DriftTrack", "DriftEvalExp")
         print(f"Save path for EvalExp {save_path}\n")
         import pandas as pd
-
         pd.DataFrame.from_dict({bw_idx: mses[bw_idx]}, orient="index", columns=["bw", "mse"]).to_parquet(
             save_path + f"_muhats_MSE_bwidx{bw_idx}.pickle")
         # np.save(save_path + "_muhats_true_states.npy", all_true_states)
