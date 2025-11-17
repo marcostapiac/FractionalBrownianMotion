@@ -5,7 +5,7 @@ import numpy as np
 from tqdm import tqdm
 
 from configs import project_config
-from configs.RecursiveVPSDE.Markovian_40DLorenz.recursive_Markovian_PostMeanScore_40DLorenz_Stable_T256_H05_tl_110data_StbleTgt import \
+from configs.RecursiveVPSDE.Markovian_12DLorenz.recursive_Markovian_PostMeanScore_12DLorenz_Stable_T256_H05_tl_110data_StbleTgt import \
     get_config
 from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
 from utils.resource_logger import ResourceLogger, set_runtime_global
@@ -328,6 +328,7 @@ if __name__ == "__main__":
         stable = True
         num_dhats = 1 # No variability given we use same training dataset
         device = _get_device(None)
+        all_true_states = all_true_states.reshape((np.prod(all_true_states.shape[:2]), all_true_states.shape[2], config.ts_dims))
         all_true_states = all_true_states[same_rndm_idxs, :, :]
         all_true_states = all_true_states.reshape(-1, config.ts_dims)
         unif_is_drift_hats = np.zeros((all_true_states.shape[0], num_dhats, config.ts_dims))
