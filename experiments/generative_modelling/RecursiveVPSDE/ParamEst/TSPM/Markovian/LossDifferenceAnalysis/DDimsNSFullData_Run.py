@@ -317,7 +317,7 @@ nad_state_eval = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
 score_state_eval = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
 
 for config in [ddimsNS_12d_config, ddimsNS_8d_config]:
-    assert config.feat_thresh == 1.
+    assert config.feat_thresh != 1.
     root_score_dir = root_dir
     label = "$\mu_{5}$"
     if "8DDimsNS" in config.data_path:
