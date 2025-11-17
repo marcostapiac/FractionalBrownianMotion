@@ -5,7 +5,7 @@ import numpy as np
 from tqdm import tqdm
 
 from configs import project_config
-from configs.RecursiveVPSDE.Markovian_40DLorenz.recursive_Markovian_PostMeanScore_40DLorenz_Stable_T256_H05_tl_110data_StbleTgt import \
+from configs.RecursiveVPSDE.Markovian_fBiPotDDims_NonSep.recursive_Markovian_PostMeanScore_fBiPot12DimsNS_T256_H05_tl_110data_StbleTgt_FULLDATA import \
     get_config
 from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
 from utils.resource_logger import ResourceLogger, set_runtime_global
@@ -37,12 +37,20 @@ def true_drift_gpu(prev: torch.Tensor, num_paths: int, config) -> torch.Tensor:
     """
     # Ensure shape
     assert prev.ndim == 2 and prev.shape[0] == num_paths and prev.shape[1] == config.ndims
-    x = prev
-    # Vectorized Lorenz96 drift:
-    x_ip1 = torch.roll(x, shifts=-1, dims=1)  # x_{i+1}
-    x_im1 = torch.roll(x, shifts=1,  dims=1)  # x_{i-1}
-    x_im2 = torch.roll(x, shifts=2,  dims=1)  # x_{i-2}
-    drift = (x_ip1 - x_im2) * x_im1 - x*float(config.forcing_const)
+    true_drifts = -(4. * torch.tensor(config.quartic_coeff, device=prev.device) * torch.pow(prev,
+                                                                                            3) + 2. * torch.tensor(
+        config.quad_coeff, device=prev.device) * prev + torch.tensor(config.const, device=prev.device))
+    xstar = torch.sqrt(
+        torch.maximum(torch.tensor([1e-12], device=prev.device),
+                      -torch.tensor(config.quad_coeff, device=prev.device) / (
+                                  2.0 * torch.tensor(config.quartic_coeff, device=prev.device))))
+    s2 = (config.scale * xstar) ** 2 + 1e-12  # (D,) or (K,1,D)
+    diff = prev ** 2 - xstar ** 2  # same shape as prev
+    phi = torch.exp(-(diff ** 2) / (2.0 * s2 * xstar ** 2 + 1e-12))
+    phi_prime = phi * (-2.0 * prev * diff / ((config.scale ** 2) * (xstar ** 4 + 1e-12)))
+    nbr = torch.roll(phi, 1, dims=-1) + torch.roll(phi, -1, dims=-1)  # same shape as phi
+    drift = true_drifts - 0.5 * config.coupling * phi_prime * nbr
+    drift = drift / (1. + config.deltaT * torch.abs(drift))
     return drift[:, None, :]
 
 
