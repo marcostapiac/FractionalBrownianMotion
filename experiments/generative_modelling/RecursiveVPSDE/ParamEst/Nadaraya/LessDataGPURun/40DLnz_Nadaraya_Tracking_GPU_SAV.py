@@ -323,8 +323,8 @@ if __name__ == "__main__":
             ".", "")
         print(f"Save path for Track {save_path}\n")
 
-        M_tile = 1024
-        Nn_tile = 256000
+        M_tile = 512
+        Nn_tile = 128000
         stable = True
         num_dhats = 1 # No variability given we use same training dataset
         device = _get_device(None)
