@@ -332,7 +332,7 @@ if __name__ == "__main__":
 
         unif_is_drift_hats = np.zeros((all_true_states.shape[0], num_dhats, config.ts_dims))
         Xs = torch.as_tensor(all_true_states, dtype=torch.float32, device=device).contiguous()
-        for k in tqdm(range(num_dhats)):
+        for k in (range(num_dhats)):
             is_ss_path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False),
                                       :]
             is_prevPath_observations = is_ss_path_observations[:, 1:-1]
@@ -363,6 +363,7 @@ if __name__ == "__main__":
             save_path + f"_muhats_MSE_bwidx{bw_idx}.pickle")
         # np.save(save_path + "_muhats_true_states.npy", all_true_states)
         # np.save(save_path + "_muhats.npy", unif_is_drift_hats)
+        print(mses)
     save_path = (
             project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_f{config.ndims}DLnz_DriftEvalExp_MSEs_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
         ".", "")
