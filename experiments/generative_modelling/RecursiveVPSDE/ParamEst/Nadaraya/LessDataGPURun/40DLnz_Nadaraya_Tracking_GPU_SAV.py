@@ -306,6 +306,10 @@ if __name__ == "__main__":
 
     # Then concatenate & save like before
     all_true_states = np.concatenate([v[0][np.newaxis, :] for v in results.values()], axis=0)
+    all_true_states = all_true_states.reshape(
+        (np.prod(all_true_states.shape[:2]), all_true_states.shape[2], config.ts_dims))
+    all_true_states = all_true_states[same_rndm_idxs, :, :]
+    all_true_states = all_true_states.reshape(-1, config.ts_dims)
     for bw_idx in tqdm(range(0,bws.shape[0])):
         set_runtime_global(idx=bw_idx)
         bw = bws[bw_idx, :]
@@ -325,9 +329,7 @@ if __name__ == "__main__":
         stable = True
         num_dhats = 1 # No variability given we use same training dataset
         device = _get_device(None)
-        all_true_states = all_true_states.reshape((np.prod(all_true_states.shape[:2]), all_true_states.shape[2], config.ts_dims))
-        all_true_states = all_true_states[same_rndm_idxs, :, :]
-        all_true_states = all_true_states.reshape(-1, config.ts_dims)
+
         unif_is_drift_hats = np.zeros((all_true_states.shape[0], num_dhats, config.ts_dims))
         Xs = torch.as_tensor(all_true_states, dtype=torch.float32, device=device).contiguous()
         for k in tqdm(range(num_dhats)):
