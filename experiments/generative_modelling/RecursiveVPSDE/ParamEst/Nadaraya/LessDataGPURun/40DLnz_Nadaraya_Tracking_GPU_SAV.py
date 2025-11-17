@@ -232,22 +232,11 @@ if __name__ == "__main__":
     initial_state = np.array(config.initState)
     rvs = None
     H = config.hurst
-    try:
-        is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :, :]
-        is_path_observations = np.concatenate(
-            [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0),
-             is_path_observations], axis=1)
-        assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
-    except (FileNotFoundError, AssertionError) as e:
-        print(e)
-        fLnz = FractionalLorenz96(X0=config.initState, diff=config.diffusion, num_dims=config.ndims,
-                                  forcing_const=config.forcing_const)
-        is_path_observations = np.array(
-            [fLnz.euler_simulation(H=H, N=config.ts_length, deltaT=deltaT, X0=initial_state, Ms=None, gaussRvs=rvs,
-                                   t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
-            (num_paths, config.ts_length + 1, config.ndims))
-        np.save(config.data_path, is_path_observations[:, 1:, :])
-        assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
+    is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :, :]
+    is_path_observations = np.concatenate(
+        [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0),
+         is_path_observations], axis=1)
+    assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
 
     is_idxs = np.arange(is_path_observations.shape[0])
     path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False), :]
@@ -327,11 +316,6 @@ if __name__ == "__main__":
 
         assert num_paths == 1024
 
-        save_path = (
-                project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_f{config.ndims}DLnz_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
-            ".", "")
-        print(f"Save path for Track {save_path}\n")
-
         M_tile = 1024
         Nn_tile = 256000
         stable = True
@@ -364,11 +348,7 @@ if __name__ == "__main__":
         est_unif_is_drift_hats = np.nanmean(unif_is_drift_hats, axis=1)
         mses[bw_idx] = (
         bws[bw_idx, 0], np.nanmean(np.sum(np.power(est_unif_is_drift_hats - all_true_states, 2), axis=-1), axis=-1))
-        save_path = save_path.replace("DriftTrack", "DriftEvalExp")
-        print(f"Save path for EvalExp {save_path}\n")
-        import pandas as pd
-        pd.DataFrame.from_dict({bw_idx: mses[bw_idx]}, orient="index", columns=["bw", "mse"]).to_parquet(
-            save_path + f"_muhats_MSE_bwidx{bw_idx}.pickle")
+
         # np.save(save_path + "_muhats_true_states.npy", all_true_states)
         # np.save(save_path + "_muhats.npy", unif_is_drift_hats)
         print(mses)
