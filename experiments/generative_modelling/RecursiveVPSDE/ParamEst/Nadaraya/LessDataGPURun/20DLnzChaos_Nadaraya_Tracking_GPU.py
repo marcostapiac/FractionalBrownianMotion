@@ -401,7 +401,7 @@ if __name__ == "__main__":
                 ).cpu().numpy()
             est_unif_is_drift_hats = np.nanmean(unif_is_drift_hats, axis=1)
             mses[bw_idx] = (
-            bws[bw_idx], np.nanmean(np.sum(np.power(est_unif_is_drift_hats - all_true_states, 2), axis=-1), axis=-1))
+            bws[bw_idx,0], np.nanmean(np.sum(np.power(est_unif_is_drift_hats - all_true_states, 2), axis=-1), axis=-1))
             print(f"Save path for EvalExp {save_path}\n")
             import pandas as pd
 
