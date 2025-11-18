@@ -312,6 +312,13 @@ nad_eval_true_law = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 nad_state_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 score_state_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 
+score_eval_std = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
+score_eval_true_law_std = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
+nad_eval_std = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
+nad_eval_true_law_std = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
+nad_state_eval_std = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
+score_state_eval_std = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
+
 for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
     assert config.feat_thresh != 1.
     assert config.forcing_const == 1.25
@@ -378,6 +385,8 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
     all_nad_drift_ests_true_law = np.zeros_like(true_drift)
     score_state_eval[ts_type] = np.sqrt(np.nanmean(np.sum(np.power(all_true_paths - all_score_paths, 2), axis=-1), axis=0))
     nad_state_eval[ts_type] = np.sqrt(np.nanmean(np.sum(np.power(all_true_paths - all_nad_paths, 2), axis=-1), axis=0))
+    score_state_eval_std[ts_type] = np.nanstd(np.sum((all_true_paths - all_score_paths) ** 2, axis=-1), axis=0, ddof=1)
+    nad_state_eval_std[ts_type] = np.nanstd(np.sum((all_true_paths - all_nad_paths) ** 2, axis=-1), axis=0, ddof=1)
     for k in tqdm(range(0, all_score_states.shape[0], block_size)):
         curr_states = torch.tensor(all_score_states[k:k+block_size, :], device=device_id, dtype=torch.float32)
         drift_ests = experiment_MLP_DDims_drifts(config=config, Xs=curr_states, good=good, onlyGauss=False)
@@ -419,6 +428,31 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
                             axis=0)) / np.arange(1, TT + 1)
     score_eval_true_law[ts_type] = mse
 
+    # STD
+    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
+                                                                                  order="C") - all_score_drift_ests.reshape(
+        (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
+                    axis=0, ddof=1)
+    score_eval_std[ts_type] = std
+    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
+                                                                                  order="C") - all_nad_drift_ests.reshape(
+        (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
+                    axis=0, ddof=1)
+
+    nad_eval_std[ts_type] = std
+
+    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
+                                                                                  order="C") - all_nad_drift_ests_true_law.reshape(
+        (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
+                    axis=0, ddof=1)
+    nad_eval_true_law_std[ts_type] = std
+
+    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
+                                                                                  order="C") - all_score_drift_ests_true_law.reshape(
+        (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
+                    axis=0, ddof=1)
+    score_eval_true_law_std[ts_type] = std
+
     torch.cuda.synchronize()
     torch.cuda.empty_cache()
     gc.collect()
@@ -436,7 +470,12 @@ pd.DataFrame.from_dict(nad_eval_true_law).to_parquet(save_path + "_nad_true_law_
 pd.DataFrame.from_dict(score_eval_true_law).to_parquet(save_path + "_score_true_law_MSE.parquet")
 pd.DataFrame.from_dict(score_state_eval).to_parquet(save_path + "_score_state_MSE.parquet")
 pd.DataFrame.from_dict(nad_state_eval).to_parquet(save_path + "_nad_state_MSE.parquet")
-
+pd.DataFrame.from_dict(score_eval_std).to_parquet(save_path + "_score_MSE_STD.parquet")
+pd.DataFrame.from_dict(nad_eval_std).to_parquet(save_path + "_nad_MSE_STD.parquet")
+pd.DataFrame.from_dict(nad_eval_true_law_std).to_parquet(save_path + "_nad_true_law_MSE_STD.parquet")
+pd.DataFrame.from_dict(score_eval_true_law_std).to_parquet(save_path + "_score_true_law_MSE_STD.parquet")
+pd.DataFrame.from_dict(score_state_eval_std).to_parquet(save_path + "_score_state_MSE_STD.parquet")
+pd.DataFrame.from_dict(nad_state_eval_std).to_parquet(save_path + "_nad_state_MSE_STD.parquet")
 print("Score vs Nadaraya Alt Law", "\n", score_eval, "\n", nad_eval, "End\n")
 print("Score vs Nadaraya True Law", "\n", score_eval_true_law, "\n", nad_eval_true_law, "End\n")
 print("Score vs Nadaraya State Eval", "\n", score_state_eval, "\n", nad_state_eval, "End\n")
