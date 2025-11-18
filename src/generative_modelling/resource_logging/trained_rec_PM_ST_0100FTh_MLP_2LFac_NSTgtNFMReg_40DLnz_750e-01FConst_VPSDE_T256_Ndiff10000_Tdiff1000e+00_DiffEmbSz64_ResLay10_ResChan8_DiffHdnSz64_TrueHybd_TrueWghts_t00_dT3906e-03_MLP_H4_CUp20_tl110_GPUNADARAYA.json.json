@@ -1,0 +1,32 @@
+{
+  "job_type": "GPU training",
+  "start_time": 1763414496.4812124,
+  "end_time": 1763429258.6873817,
+  "wall_clock_sec": 14762.206169366837,
+  "cpu_percent_avg": 2.37741935483871,
+  "cpu_percent_peak": 2.5,
+  "ram_used_MB_avg": 278516.40026012884,
+  "ram_used_MB_peak": 281465.094144,
+  "gpu_util_avg": 0.0,
+  "gpu_util_peak": 0.0,
+  "gpu_mem_MB_avg": 382.3370240000003,
+  "gpu_mem_MB_peak": 382.337024,
+  "gpu": {
+    "enabled": true,
+    "index": 0,
+    "name": "Quadro RTX 6000",
+    "mem_total_MB": 25769.803776,
+    "samples": 124
+  },
+  "samples": 124,
+  "interval_sec": 120.0,
+  "runtime": {
+    "initial": {
+      "idx": 0
+    },
+    "current": {
+      "idx": 8
+    }
+  },
+  "metadata": {}
+}
