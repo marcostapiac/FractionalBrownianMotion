@@ -5,7 +5,7 @@ import numpy as np
 from tqdm import tqdm
 
 from configs import project_config
-from configs.RecursiveVPSDE.Markovian_12DLorenz.recursive_Markovian_PostMeanScore_12DLorenz_Stable_T256_H05_tl_110data_StbleTgt import \
+from configs.RecursiveVPSDE.Markovian_fBiPotDDims_NonSep.recursive_Markovian_PostMeanScore_fBiPot12DimsNS_T256_H05_tl_110data_StbleTgt import \
     get_config
 from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
 from utils.resource_logger import ResourceLogger, set_runtime_global
@@ -37,12 +37,20 @@ def true_drift_gpu(prev: torch.Tensor, num_paths: int, config) -> torch.Tensor:
     """
     # Ensure shape
     assert prev.ndim == 2 and prev.shape[0] == num_paths and prev.shape[1] == config.ndims
-    x = prev
-    # Vectorized Lorenz96 drift:
-    x_ip1 = torch.roll(x, shifts=-1, dims=1)  # x_{i+1}
-    x_im1 = torch.roll(x, shifts=1,  dims=1)  # x_{i-1}
-    x_im2 = torch.roll(x, shifts=2,  dims=1)  # x_{i-2}
-    drift = (x_ip1 - x_im2) * x_im1 - x*float(config.forcing_const)
+    true_drifts = -(4. * torch.tensor(config.quartic_coeff, device=prev.device) * torch.pow(prev,
+                                                                                            3) + 2. * torch.tensor(
+        config.quad_coeff, device=prev.device) * prev + torch.tensor(config.const, device=prev.device))
+    xstar = torch.sqrt(
+        torch.maximum(torch.tensor([1e-12], device=prev.device),
+                      -torch.tensor(config.quad_coeff, device=prev.device) / (
+                                  2.0 * torch.tensor(config.quartic_coeff, device=prev.device))))
+    s2 = (config.scale * xstar) ** 2 + 1e-12  # (D,) or (K,1,D)
+    diff = prev ** 2 - xstar ** 2  # same shape as prev
+    phi = torch.exp(-(diff ** 2) / (2.0 * s2 * xstar ** 2 + 1e-12))
+    phi_prime = phi * (-2.0 * prev * diff / ((config.scale ** 2) * (xstar ** 4 + 1e-12)))
+    nbr = torch.roll(phi, 1, dims=-1) + torch.roll(phi, -1, dims=-1)  # same shape as phi
+    drift = true_drifts - 0.5 * config.coupling * phi_prime * nbr
+    drift = drift / (1. + config.deltaT * torch.abs(drift))
     return drift[:, None, :]
 
 
@@ -164,8 +172,6 @@ def IID_NW_multivar_estimator_gpu(
 def process_IID_bandwidth_gpu_ONLYTRUE(
     quant_idx: int,
     shape: tuple,                 # (N, n, d)
-    inv_H_np: np.ndarray,         # (d,d) diag matrix or (d,) diag vector
-    norm_const: float,
     config,                       # your config object
     num_time_steps: int,
     num_state_paths: int,
@@ -226,22 +232,11 @@ if __name__ == "__main__":
     initial_state = np.array(config.initState)
     rvs = None
     H = config.hurst
-    try:
-        is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :, :]
-        is_path_observations = np.concatenate(
-            [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0),
-             is_path_observations], axis=1)
-        assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
-    except (FileNotFoundError, AssertionError) as e:
-        print(e)
-        fLnz = FractionalLorenz96(X0=config.initState, diff=config.diffusion, num_dims=config.ndims,
-                                  forcing_const=config.forcing_const)
-        is_path_observations = np.array(
-            [fLnz.euler_simulation(H=H, N=config.ts_length, deltaT=deltaT, X0=initial_state, Ms=None, gaussRvs=rvs,
-                                   t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
-            (num_paths, config.ts_length + 1, config.ndims))
-        np.save(config.data_path, is_path_observations[:, 1:, :])
-        assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
+    is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :, :]
+    is_path_observations = np.concatenate(
+        [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0),
+         is_path_observations], axis=1)
+    assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
 
     is_idxs = np.arange(is_path_observations.shape[0])
     path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False), :]
@@ -284,56 +279,52 @@ if __name__ == "__main__":
 
     # Euler-Maruyama Scheme for Tracking Errors
     shape = prevPath_observations.shape
-    num_state_paths = 1000
+    num_state_paths = 10240
     mses = {bw_idx: np.inf for bw_idx in (range(0, bws.shape[0]))}
-    same_rndm_idxs = np.random.choice(np.arange(num_state_paths), 100)
+    same_rndm_idxs = np.random.choice(np.arange(num_state_paths), 2000)
+    results = {}
+    quant_idx = 0
+    out = process_IID_bandwidth_gpu_ONLYTRUE(
+        quant_idx=quant_idx,
+        shape=prevPath_observations.shape,
+        config=config,
+        num_time_steps=num_time_steps,
+        num_state_paths=num_state_paths,
+        deltaT=deltaT,
+        prevPath_np=prevPath_observations,
+        path_incs_np=path_incs,
+        seed_seq=child_seeds[quant_idx],
+        device_str=None,  # or leave None to auto-pick
+        M_tile=32,  # tune up/down
+        Nn_tile=512_000,  # tune up/down (or None)
+        stable=True,
+    )
+    results.update(out)
+
+    # Then concatenate & save like before
+    all_true_states = np.concatenate([v[0][np.newaxis, :] for v in results.values()], axis=0)
+    all_true_states = all_true_states.reshape(
+        (np.prod(all_true_states.shape[:2]), all_true_states.shape[2], config.ts_dims))
+    all_true_states = all_true_states[same_rndm_idxs, :, :]
+    all_true_states = all_true_states.reshape(-1, config.ts_dims)
     for bw_idx in tqdm(range(0,bws.shape[0])):
         set_runtime_global(idx=bw_idx)
         bw = bws[bw_idx, :]
         inv_H = np.diag(np.power(bw, -2))
         norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
-        quant_idx = 0
         print(f"Considering bandwidth grid number {bw_idx}\n")
-        results = {}
-        out = process_IID_bandwidth_gpu_ONLYTRUE(
-            quant_idx=quant_idx,
-            shape=prevPath_observations.shape,
-            inv_H_np=inv_H,  # pass diag matrix or vector
-            norm_const=norm_const,
-            config=config,
-            num_time_steps=num_time_steps,
-            num_state_paths=num_state_paths,
-            deltaT=deltaT,
-            prevPath_np=prevPath_observations,
-            path_incs_np=path_incs,
-            seed_seq=child_seeds[quant_idx],
-            device_str=None,  # or leave None to auto-pick
-            M_tile=32,  # tune up/down
-            Nn_tile=512_000,  # tune up/down (or None)
-            stable=True,
-        )
-        results.update(out)
 
-        # Then concatenate & save like before
-        all_true_states = np.concatenate([v[0][np.newaxis, :] for v in results.values()], axis=0)
         assert num_paths == 1024
 
-        save_path = (
-                project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_f{config.ndims}DLnz_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
-            ".", "")
-        print(f"Save path for Track {save_path}\n")
-
-        M_tile = 128
-        Nn_tile = 3200
+        M_tile = 1024
+        Nn_tile = 256000
         stable = True
         num_dhats = 1 # No variability given we use same training dataset
         device = _get_device(None)
-        all_true_states = all_true_states.reshape((np.prod(all_true_states.shape[:2]), all_true_states.shape[2], config.ts_dims))
-        all_true_states = all_true_states[same_rndm_idxs, :, :]
-        all_true_states = all_true_states.reshape(-1, config.ts_dims)
+
         unif_is_drift_hats = np.zeros((all_true_states.shape[0], num_dhats, config.ts_dims))
         Xs = torch.as_tensor(all_true_states, dtype=torch.float32, device=device).contiguous()
-        for k in tqdm(range(num_dhats)):
+        for k in (range(num_dhats)):
             is_ss_path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False),
                                       :]
             is_prevPath_observations = is_ss_path_observations[:, 1:-1]
@@ -356,15 +347,11 @@ if __name__ == "__main__":
             ).cpu().numpy()
         est_unif_is_drift_hats = np.nanmean(unif_is_drift_hats, axis=1)
         mses[bw_idx] = (
-        bws[bw_idx], np.nanmean(np.sum(np.power(est_unif_is_drift_hats - all_true_states, 2), axis=-1), axis=-1))
-        save_path = save_path.replace("DriftTrack", "DriftEvalExp")
-        print(f"Save path for EvalExp {save_path}\n")
-        import pandas as pd
+        bws[bw_idx, 0], np.nanmean(np.sum(np.power(est_unif_is_drift_hats - all_true_states, 2), axis=-1), axis=-1))
 
-        pd.DataFrame.from_dict({bw_idx: mses[bw_idx]}, orient="index", columns=["bw", "mse"]).to_parquet(
-            save_path + f"_muhats_MSE_bwidx{bw_idx}.pickle")
         # np.save(save_path + "_muhats_true_states.npy", all_true_states)
         # np.save(save_path + "_muhats.npy", unif_is_drift_hats)
+        print(mses)
     save_path = (
             project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_f{config.ndims}DLnz_DriftEvalExp_MSEs_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
         ".", "")

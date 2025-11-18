@@ -15,7 +15,7 @@ from utils.resource_logger import ResourceLogger
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.Markovian_fBiPotDDims.recursive_Markovian_PostMeanScore_fBiPot8Dims_T256_H05_tl_110data_StbleTgt import \
+    from configs.RecursiveVPSDE.Markovian_fBiPotDDims.recursive_Markovian_PostMeanScore_fBiPot12Dims_T256_H05_tl_110data_StbleTgt_FULLDATA import \
         get_config
 
     config = get_config()
@@ -25,7 +25,7 @@ if __name__ == "__main__":
             job_type="GPU training",
     ):
         assert (config.hurst == 0.5)
-        assert (config.ndims == 8)
+        assert (config.ndims == 12)
         assert (config.early_stop_idx == 0)
         assert (config.tdata_mult == 110)
         print(config.scoreNet_trained_path, config.dataSize)
@@ -45,7 +45,7 @@ if __name__ == "__main__":
                         config.ts_length - 1)), 1200000)))
             training_size = 1024 if config.feat_thresh == 1. else 10240
             print(training_size)
-            assert training_size == 1024
+            assert training_size == 10240
             try:
                 data = np.load(config.data_path, allow_pickle=True)
                 assert (data.shape[0] >= training_size)
@@ -57,7 +57,7 @@ if __name__ == "__main__":
                                        diff=config.diffusion,
                                        initial_state=config.initState)
                 np.save(config.data_path, data)
-            data = np.concatenate([data[:, [0],:] - config.initState, np.diff(data, axis=1)], axis=1)
+            data = np.concatenate([data[:, [0]] - config.initState, np.diff(data, axis=1)], axis=1)
             data = np.atleast_3d(data[:training_size, :])
             assert (data.shape == (training_size, config.ts_length, config.ts_dims))
             # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)

@@ -364,7 +364,7 @@ if __name__ == "__main__":
             # all_true_states = true_drift_gpu(prev=Xs, num_paths=all_true_states.shape[0], config=config)[:, 0,
             #                  :].cpu().numpy()
             Xs = torch.as_tensor(all_true_states, dtype=torch.float32, device=device).contiguous()
-            for k in tqdm(range(num_dhats)):
+            for k in (range(num_dhats)):
                 is_ss_path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False),
                                           :]
                 is_prevPath_observations = is_ss_path_observations[:, 1:-1]
@@ -388,7 +388,7 @@ if __name__ == "__main__":
             est_unif_is_drift_hats = np.nanmean(unif_is_drift_hats, axis=1)
             assert est_unif_is_drift_hats.shape == all_true_states.shape
             assert all_true_states.shape[-1] == 1
-            mses[bw_idx] = (bws[bw_idx], np.nanmean(np.sum(np.power(est_unif_is_drift_hats-all_true_states,2),axis=-1),axis=-1))
+            mses[bw_idx] = (bws[bw_idx,0], np.nanmean(np.sum(np.power(est_unif_is_drift_hats-all_true_states,2),axis=-1),axis=-1))
             save_path = save_path.replace("DriftTrack", "DriftEvalExp")
             print(f"Save path for EvalExp {save_path}\n")
             import pandas as pd

@@ -5,7 +5,7 @@ import numpy as np
 from tqdm import tqdm
 
 from configs import project_config
-from configs.RecursiveVPSDE.Markovian_20DLorenz.recursive_Markovian_PostMeanScore_20DLorenz_Chaos_T256_H05_tl_110data_StbleTgt_FULLDATA import \
+from configs.RecursiveVPSDE.Markovian_fBiPotDDims.recursive_Markovian_PostMeanScore_fBiPot8Dims_T256_H05_tl_110data_StbleTgt_FULLDATA import \
     get_config
 from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
 from utils.resource_logger import ResourceLogger, set_runtime_global
@@ -37,13 +37,10 @@ def true_drift_gpu(prev: torch.Tensor, num_paths: int, config) -> torch.Tensor:
     """
     # Ensure shape
     assert prev.ndim == 2 and prev.shape[0] == num_paths and prev.shape[1] == config.ndims
-    x = prev
-    # Vectorized Lorenz96 drift:
-    x_ip1 = torch.roll(x, shifts=-1, dims=1)  # x_{i+1}
-    x_im1 = torch.roll(x, shifts=1,  dims=1)  # x_{i-1}
-    x_im2 = torch.roll(x, shifts=2,  dims=1)  # x_{i-2}
-    drift = (x_ip1 - x_im2) * x_im1 - x*float(config.forcing_const)
-    return drift[:, None, :]
+    true_drifts = -(4. * torch.tensor(config.quartic_coeff, device=prev.device) * torch.pow(prev,
+                                                                   3) + 2. * torch.tensor(config.quad_coeff, device=prev.device) * prev + torch.tensor(config.const, device=prev.device))
+    true_drifts = true_drifts / (1.+config.deltaT*torch.abs(true_drifts))
+    return true_drifts[:, None, :]
 
 
 # ------------------------------------------------------------
@@ -267,22 +264,11 @@ if __name__ == "__main__":
         initial_state = np.array(config.initState)
         rvs = None
         H = config.hurst
-        try:
-            is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :, :]
-            is_path_observations = np.concatenate(
-                [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0),
-                 is_path_observations], axis=1)
-            assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
-        except (FileNotFoundError, AssertionError) as e:
-            print(e)
-            fLnz = FractionalLorenz96(X0=config.initState, diff=config.diffusion, num_dims=config.ndims,
-                                      forcing_const=config.forcing_const)
-            is_path_observations = np.array(
-                [fLnz.euler_simulation(H=H, N=config.ts_length, deltaT=deltaT, X0=initial_state, Ms=None, gaussRvs=rvs,
-                                       t0=t0, t1=t1) for _ in (range(num_paths))]).reshape(
-                (num_paths, config.ts_length + 1, config.ndims))
-            np.save(config.data_path, is_path_observations[:, 1:, :])
-            assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
+        is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :, :]
+        is_path_observations = np.concatenate(
+            [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0),
+             is_path_observations], axis=1)
+        assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
 
         is_idxs = np.arange(is_path_observations.shape[0])
         path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False), :]
@@ -326,7 +312,7 @@ if __name__ == "__main__":
         # Euler-Maruyama Scheme for Tracking Errors
         shape = prevPath_observations.shape
         num_state_paths = 100
-        mses = {bw_idx: np.inf for bw_idx in (range(0, bws.shape[0]))}
+        mses = {bw_idx: np.inf for bw_idx in (range(0,bws.shape[0]))}
         for bw_idx in tqdm(range(0,bws.shape[0])):
             set_runtime_global(idx=bw_idx)
             bw = bws[bw_idx, :]
@@ -362,7 +348,7 @@ if __name__ == "__main__":
             assert num_paths == 10240
 
             save_path = (
-                    project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_f{config.ndims}DLnz_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
+                    project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_fBiPot_{config.ndims}DDims_DriftTrack_{round(bw[0], 6)}bw_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c").replace(
                 ".", "")
             print(f"Save path for Track {save_path}\n")
             np.save(save_path + "_true_states.npy", all_true_states)
@@ -377,6 +363,7 @@ if __name__ == "__main__":
             all_true_states = all_true_states[np.random.choice(np.arange(all_true_states.shape[0]), 100), :, :]
             all_true_states = all_true_states.reshape(-1, config.ts_dims)
             unif_is_drift_hats = np.zeros((all_true_states.shape[0], num_dhats, config.ts_dims))
+
             Xs = torch.as_tensor(all_true_states, dtype=torch.float32, device=device).contiguous()
             for k in (range(num_dhats)):
                 is_ss_path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False),
@@ -399,18 +386,17 @@ if __name__ == "__main__":
                     Xs, float(config.t1), float(config.t0),
                     truncate=False, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
                 ).cpu().numpy()
-            est_unif_is_drift_hats = np.nanmean(unif_is_drift_hats, axis=1)
-            mses[bw_idx] = (
-            bws[bw_idx,0], np.nanmean(np.sum(np.power(est_unif_is_drift_hats - all_true_states, 2), axis=-1), axis=-1))
+            est_unif_is_drift_hats = np.nanmean(unif_is_drift_hats,axis=1)
+            mses[bw_idx] = (bws[bw_idx,0], np.nanmean(np.sum(np.power(est_unif_is_drift_hats-all_true_states,2),axis=-1),axis=-1))
+            save_path = save_path.replace("DriftTrack", "DriftEvalExp")
             print(f"Save path for EvalExp {save_path}\n")
             import pandas as pd
 
-            pd.DataFrame.from_dict({bw_idx: mses[bw_idx]}, orient="index", columns=["bw", "mse"]).to_parquet(
+            pd.DataFrame.from_dict({bw_idx:mses[bw_idx]}, orient="index", columns=["bw", "mse"]).to_parquet(
                 save_path + f"_muhats_MSE_bwidx{bw_idx}.pickle")
             # np.save(save_path + "_muhats_true_states.npy", all_true_states)
             # np.save(save_path + "_muhats.npy", unif_is_drift_hats)
-    save_path = (
-            project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_f{config.ndims}DLnz_DriftEvalExp_MSEs_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.forcing_const}FConst").replace(
-        ".", "")
-    pd.DataFrame.from_dict(mses, orient="index", columns=["bw", "mse"]).to_parquet(
-        save_path + "_muhats_MSE.pickle")
+        save_path = (
+                project_config.ROOT_DIR + f"experiments/results/IIDNadarayaGPU_fBiPot_{config.ndims}DDims_DriftEvalExp_MSEs_{num_paths}NPaths_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff[0]}a_{config.quad_coeff[0]}b_{config.const[0]}c").replace(
+            ".", "")
+        pd.DataFrame.from_dict(mses, orient="index", columns=["bw", "mse"]).to_parquet(save_path + "_muhats_MSE.pickle")

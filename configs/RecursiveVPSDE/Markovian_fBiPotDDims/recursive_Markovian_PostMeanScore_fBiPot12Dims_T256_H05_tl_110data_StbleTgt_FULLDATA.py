@@ -10,7 +10,7 @@ def get_config():
     # Experiment environment parameters
     config.has_cuda = torch.cuda.is_available()
     # Data set parameters
-    config.ndims = 8
+    config.ndims = 12
     config.hurst = 0.5
     config.quartic_coeff = list(np.linspace(0.25, 1.00, config.ndims))
     config.quad_coeff = list(-np.linspace(0.5, 2.00, config.ndims)[::-1])
@@ -34,10 +34,10 @@ def get_config():
     config.save_freq = 2
     config.lr = 1e-3
     config.max_epochs = [13000]
-    config.ref_batch_size = 1024 #256
-    config.batch_size = 256 #256
+    config.ref_batch_size = 1024
+    config.batch_size = 256
     config.chunk_size = 512
-    config.feat_thresh = 1/1. # 1./100.
+    config.feat_thresh = 1/100. # 1./100.
     config.isfBm = True
     config.isUnitInterval = True
     config.hybrid = True
@@ -76,15 +76,15 @@ def get_config():
 
     # Model filepath
     mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_ST_{:.3f}FTh_PM_MLP_{}LFac_{}{}_fBiPot_{}DDims_VPSDE_T{}_Ndiff{}_Tdiff{:.3e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_{}a_{}b_{}c_MLP_H{}_CUp{}_tl{}".format(
-        config.feat_thresh, config.loss_factor, config.stable_target_label, config.reg_label, config.ndims,
+        config.feat_thresh, config.loss_factor,config.stable_target_label, config.reg_label, config.ndims,
         config.ts_length,
-        config.max_diff_steps, config.end_diff_time,
+        config.max_diff_steps, config.end_diff_time, 
         config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings, config.t0, config.deltaT,
         config.quartic_coeff[0], config.quad_coeff[0], config.const[0], config.mlp_hidden_dims, config.condupsampler_length, config.tdata_mult).replace(".", "")
 
     config.model_choice = "MLP"
-    config.scoreNet_trained_path =  mlpFileName
+    config.scoreNet_trained_path = mlpFileName
     config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.ts_dims, config.mlp_hidden_dims,
                                               config.condupsampler_length, config.residual_layers,
                                config.residual_channels, config.dialation_length]

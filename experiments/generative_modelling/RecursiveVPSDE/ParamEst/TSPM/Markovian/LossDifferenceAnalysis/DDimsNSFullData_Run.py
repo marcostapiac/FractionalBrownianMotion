@@ -11,8 +11,8 @@ import torch
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
     ConditionalMarkovianTSPostMeanScoreMatching
 from utils.drift_evaluation_functions import experiment_MLP_DDims_drifts
-from configs.RecursiveVPSDE.Markovian_fBiPotDDims_NonSep.recursive_Markovian_PostMeanScore_fBiPot8DimsNS_T256_H05_tl_110data_StbleTgt import get_config as get_8dlnz_config
-from configs.RecursiveVPSDE.Markovian_fBiPotDDims_NonSep.recursive_Markovian_PostMeanScore_fBiPot12DimsNS_T256_H05_tl_110data_StbleTgt import get_config as get_12dlnz_config
+from configs.RecursiveVPSDE.Markovian_fBiPotDDims_NonSep.recursive_Markovian_PostMeanScore_fBiPot8DimsNS_T256_H05_tl_110data_StbleTgt_FULLDATA import get_config as get_8dlnz_config
+from configs.RecursiveVPSDE.Markovian_fBiPotDDims_NonSep.recursive_Markovian_PostMeanScore_fBiPot12DimsNS_T256_H05_tl_110data_StbleTgt_FULLDATA import get_config as get_12dlnz_config
 from tqdm import tqdm
 from utils.drift_evaluation_functions import multivar_score_based_MLP_drift_OOS
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
@@ -317,7 +317,7 @@ nad_state_eval = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
 score_state_eval = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
 
 for config in [ddimsNS_12d_config, ddimsNS_8d_config]:
-    assert config.feat_thresh == 1.
+    assert config.feat_thresh != 1.
     root_score_dir = root_dir
     label = "$\mu_{5}$"
     if "8DDimsNS" in config.data_path:
@@ -348,13 +348,14 @@ for config in [ddimsNS_12d_config, ddimsNS_8d_config]:
     xadd3 = np.logspace(2.0, 4.0, 11)[1:]  # 10 values > -0.05
     bws = np.concatenate([grid_1d, xadd, xadd2, xadd3])
     bws = np.stack([bws for m in range(config.ndims)], axis=-1)
-    bw = bws[58, :]
+    bw = bws[54, :]
     assert bw.shape[0] == config.ndims and len(bw.shape) == 1
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
-    Nn_tile = 512000
+    Nn_tile = 256000
     stable = True
     block_size = 2048
+
 
     all_true_paths, all_score_paths, all_nad_paths, num_time_steps = generate_synthetic_paths(config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable, prevPath_observations=is_prevPath_obs, prevPath_incs=is_prevPath_incs, inv_H=inv_H, norm_const=norm_const)
     all_true_paths = all_true_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
