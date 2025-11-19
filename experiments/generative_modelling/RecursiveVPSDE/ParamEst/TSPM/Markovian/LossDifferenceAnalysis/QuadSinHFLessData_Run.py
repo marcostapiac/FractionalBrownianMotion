@@ -885,6 +885,16 @@ np.save(save_path+"_ridge_drifts.npy", all_ridge_drift_ests.reshape(
 np.save(save_path+"_hermite_drifts.npy", all_hermite_drift_ests.reshape(
         (BB, TT, DD), order="C"))
 
+
+np.save(save_path+"_score_drifts_true_law.npy", all_hermite_drift_ests_true_law.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_nad_drifts_true_law.npy", all_nad_drift_ests_true_law.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_ridge_drifts_true_law.npy", all_ridge_drift_ests_true_law.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_hermite_drifts_true_law.npy", all_hermite_drift_ests_true_law.reshape(
+        (BB, TT, DD), order="C"))
+
 np.save(save_path + "_true_uniform.npy", uniform_true_drifts)
 np.save(save_path + "_score_uniform.npy", all_score_drift_ests_uniform)
 np.save(save_path + "_nad_uniform.npy", all_nad_drift_ests_uniform)
