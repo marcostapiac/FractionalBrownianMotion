@@ -608,11 +608,11 @@ for config in [bipot_config]:
 
     BB, TT, DD = all_score_paths.shape
     TT -= 1
-    all_true_states = all_true_paths[:, :-1, :].reshape((-1, config.ts_dims), order="C")
-    all_score_states = all_score_paths[:, :-1, :].reshape((-1, config.ts_dims), order="C")
-    all_nad_states = all_nad_paths[:, :-1, :].reshape((-1, config.ts_dims), order="C")
-    all_hermite_states = all_hermite_paths[:, :-1, :].reshape((-1, config.ts_dims), order="C")
-    all_ridge_states = all_ridge_paths[:, :-1, :].reshape((-1, config.ts_dims), order="C")
+    all_true_states = all_true_paths[:, :, :].reshape((-1, config.ts_dims), order="C")
+    all_score_states = all_score_paths[:, :, :].reshape((-1, config.ts_dims), order="C")
+    all_nad_states = all_nad_paths[:, :, :].reshape((-1, config.ts_dims), order="C")
+    all_hermite_states = all_hermite_paths[:, :, :].reshape((-1, config.ts_dims), order="C")
+    all_ridge_states = all_ridge_paths[:, :, :].reshape((-1, config.ts_dims), order="C")
 
     true_drift = true_drifts(state=all_true_states, device_id=device_id, config=config).cpu().numpy()[:, 0, :]
     true_drift_at_score = true_drifts(state=all_score_states, device_id=device_id, config=config).cpu().numpy()[:, 0, :]
