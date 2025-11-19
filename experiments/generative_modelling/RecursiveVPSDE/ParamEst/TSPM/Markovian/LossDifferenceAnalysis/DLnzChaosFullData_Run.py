@@ -470,12 +470,14 @@ pd.DataFrame.from_dict(nad_eval_true_law).to_parquet(save_path + "_nad_true_law_
 pd.DataFrame.from_dict(score_eval_true_law).to_parquet(save_path + "_score_true_law_MSE.parquet")
 pd.DataFrame.from_dict(score_state_eval).to_parquet(save_path + "_score_state_MSE.parquet")
 pd.DataFrame.from_dict(nad_state_eval).to_parquet(save_path + "_nad_state_MSE.parquet")
+
 pd.DataFrame.from_dict(score_eval_std).to_parquet(save_path + "_score_MSE_STD.parquet")
 pd.DataFrame.from_dict(nad_eval_std).to_parquet(save_path + "_nad_MSE_STD.parquet")
 pd.DataFrame.from_dict(nad_eval_true_law_std).to_parquet(save_path + "_nad_true_law_MSE_STD.parquet")
 pd.DataFrame.from_dict(score_eval_true_law_std).to_parquet(save_path + "_score_true_law_MSE_STD.parquet")
 pd.DataFrame.from_dict(score_state_eval_std).to_parquet(save_path + "_score_state_MSE_STD.parquet")
 pd.DataFrame.from_dict(nad_state_eval_std).to_parquet(save_path + "_nad_state_MSE_STD.parquet")
+
 print("Score vs Nadaraya Alt Law", "\n", score_eval, "\n", nad_eval, "End\n")
 print("Score vs Nadaraya True Law", "\n", score_eval_true_law, "\n", nad_eval_true_law, "End\n")
 print("Score vs Nadaraya State Eval", "\n", score_state_eval, "\n", nad_state_eval, "End\n")

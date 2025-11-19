@@ -35,7 +35,7 @@ class FractionalLorenz96:
     def increment_state(self, prev: np.ndarray, deltaT: float, M: int):
         driftX = self.drift_X(prev=prev)
         diffX = self.diff * M
-        return prev + driftX * deltaT + diffX
+        return prev + driftX * deltaT + diffX, driftX
 
     def euler_simulation(self, H: float, N: int, t0: float, t1: float, deltaT: float, X0: np.ndarray,
                          Ms: np.ndarray = None, gaussRvs: np.ndarray = None):
@@ -46,6 +46,7 @@ class FractionalLorenz96:
             Zs = [self.initialVol]  # [self.lamperti(self.initialVol)]
         else:
             Zs = [X0]  # [self.lamperti(X0)]
+        Ds = [np.zeros_like(X0)]
         if gaussRvs is None:
             if H != 0.5:
                 self.gaussIncs = self.rng.normal(size=2 * N)
@@ -59,5 +60,7 @@ class FractionalLorenz96:
             else:
                 Ms = self.gaussIncs * np.sqrt(deltaT)
         for i in (range(1, N + 1)):
-            Zs.append(self.increment_state(prev=Zs[i - 1], deltaT=deltaT, M=Ms[i - 1]))
-        return np.array(Zs)
+            Y, d = self.increment_state(prev=Zs[i - 1], deltaT=deltaT, M=Ms[i - 1])
+            Zs.append(Y)
+            Ds.append(d)
+        return np.array(Zs), np.array(Ds)

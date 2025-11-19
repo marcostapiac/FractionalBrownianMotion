@@ -519,6 +519,25 @@ ridge_eval_true_law = {t: np.inf for t in ["QuadSinHF"]}
 ridge_state_eval = {t: np.inf for t in ["QuadSinHF"]}
 ridge_uniform_eval = {t: np.inf for t in ["QuadSinHF"]}
 
+
+score_eval_std = {t: np.inf for t in ["QuadSinHF"]}
+score_eval_true_law_std = {t: np.inf for t in ["QuadSinHF"]}
+score_state_eval_std = {t: np.inf for t in ["QuadSinHF"]}
+
+nad_eval_std = {t: np.inf for t in ["QuadSinHF"]}
+nad_eval_true_law_std = {t: np.inf for t in ["QuadSinHF"]}
+nad_state_eval_std = {t: np.inf for t in ["QuadSinHF"]}
+
+hermite_eval_std = {t: np.inf for t in ["QuadSinHF"]}
+hermite_eval_true_law_std = {t: np.inf for t in ["QuadSinHF"]}
+hermite_state_eval_std = {t: np.inf for t in ["QuadSinHF"]}
+
+
+ridge_eval_std = {t: np.inf for t in ["QuadSinHF"]}
+ridge_eval_true_law_std = {t: np.inf for t in ["QuadSinHF"]}
+ridge_state_eval_std = {t: np.inf for t in ["QuadSinHF"]}
+
+
 for config in [bipot_config]:
     assert config.feat_thresh != 1.
     root_score_dir = root_dir
@@ -612,14 +631,19 @@ for config in [bipot_config]:
     all_hermite_drift_ests_uniform = np.full_like(true_drift, np.nan, dtype=float)
     all_ridge_drift_ests_uniform = np.full_like(true_drift, np.nan, dtype=float)
 
-    score_state_eval[ts_type] = np.sqrt(
+    score_state_eval[ts_type] = (
         np.nanmean(np.sum(np.power(all_true_paths - all_score_paths, 2), axis=-1), axis=0))
-    nad_state_eval[ts_type] = np.sqrt(np.nanmean(np.sum(np.power(all_true_paths - all_nad_paths, 2), axis=-1), axis=0))
-    hermite_state_eval[ts_type] = np.sqrt(
+    nad_state_eval[ts_type] = (np.nanmean(np.sum(np.power(all_true_paths - all_nad_paths, 2), axis=-1), axis=0))
+    hermite_state_eval[ts_type] = (
         np.nanmean(np.sum(np.power(all_true_paths - all_hermite_paths, 2), axis=-1), axis=0))
-    ridge_state_eval[ts_type] = np.sqrt(
+    ridge_state_eval[ts_type] = (
         np.nanmean(np.sum(np.power(all_true_paths - all_ridge_paths, 2), axis=-1), axis=0))
 
+    score_state_eval_std[ts_type] = np.nanstd(np.sum((all_true_paths - all_score_paths) ** 2, axis=-1), axis=0, ddof=1)
+    nad_state_eval_std[ts_type] = np.nanstd(np.sum((all_true_paths - all_nad_paths) ** 2, axis=-1), axis=0, ddof=1)
+    hermite_state_eval_std[ts_type] = np.nanstd(np.sum((all_true_paths - all_hermite_paths) ** 2, axis=-1), axis=0, ddof=1)
+    ridge_state_eval_std[ts_type] = np.nanstd(np.sum((all_true_paths - all_ridge_paths) ** 2, axis=-1), axis=0, ddof=1)
+    
     uniform_positions = torch.linspace(-1.5, 1.5, all_true_states.shape[0], device="cpu", dtype=torch.float32)[:,
                         np.newaxis]
     uniform_true_drifts = true_drifts(device_id=device_id, state=uniform_positions,
@@ -774,6 +798,55 @@ for config in [bipot_config]:
     mse = np.nanmean(np.sum(np.power(uniform_true_drifts - all_ridge_drift_ests_uniform, 2), axis=-1))
     ridge_uniform_eval[ts_type] = mse
 
+    # STD
+    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
+                                                                                  order="C") - all_score_drift_ests.reshape(
+        (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
+                    axis=0, ddof=1)
+    score_eval_std[ts_type] = std
+    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
+                                                                                  order="C") - all_nad_drift_ests.reshape(
+        (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
+                    axis=0, ddof=1)
+
+    nad_eval_std[ts_type] = std
+    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
+                                                                                  order="C") - all_hermite_drift_ests.reshape(
+        (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
+                    axis=0, ddof=1)
+
+    hermite_eval_std[ts_type] = std
+    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
+                                                                                  order="C") - all_ridge_drift_ests.reshape(
+        (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
+                    axis=0, ddof=1)
+
+    ridge_eval_std[ts_type] = std
+
+    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
+                                                                                  order="C") - all_nad_drift_ests_true_law.reshape(
+        (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
+                    axis=0, ddof=1)
+    nad_eval_true_law_std[ts_type] = std
+
+    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
+                                                                                  order="C") - all_score_drift_ests_true_law.reshape(
+        (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
+                    axis=0, ddof=1)
+    score_eval_true_law_std[ts_type] = std
+
+    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
+                                                                                  order="C") - all_hermite_drift_ests_true_law.reshape(
+        (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
+                    axis=0, ddof=1)
+    hermite_eval_true_law_std[ts_type] = std
+
+    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
+                                                                                  order="C") - all_ridge_drift_ests_true_law.reshape(
+        (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
+                    axis=0, ddof=1)
+    ridge_eval_true_law_std[ts_type] = std
+
     torch.cuda.synchronize()
     torch.cuda.empty_cache()
     gc.collect()
@@ -782,6 +855,12 @@ for config in [bipot_config]:
 save_path = (
             project_config.ROOT_DIR + f"experiments/results/QuadSinHF_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
     ".", "")
+np.save(save_path+"_true_paths.npy", all_true_paths)
+np.save(save_path+"_score_paths.npy", all_true_paths)
+np.save(save_path+"_nad_paths.npy", all_nad_paths)
+np.save(save_path+"_ridge_paths.npy", all_ridge_paths)
+np.save(save_path+"_hermite_paths.npy", all_hermite_paths)
+
 np.save(save_path + "_true_uniform.npy", uniform_true_drifts)
 np.save(save_path + "_score_uniform.npy", all_score_drift_ests_uniform)
 np.save(save_path + "_nad_uniform.npy", all_nad_drift_ests_uniform)
@@ -802,6 +881,23 @@ pd.DataFrame.from_dict(score_state_eval).to_parquet(save_path + "_score_state_MS
 pd.DataFrame.from_dict(nad_state_eval).to_parquet(save_path + "_nad_state_MSE.parquet")
 pd.DataFrame.from_dict(hermite_state_eval).to_parquet(save_path + "_hermite_state_MSE.parquet")
 pd.DataFrame.from_dict(ridge_state_eval).to_parquet(save_path + "_ridge_state_MSE.parquet")
+
+
+pd.DataFrame.from_dict(score_eval_std).to_parquet(save_path + "_score_MSE_STD.parquet")
+pd.DataFrame.from_dict(score_eval_true_law_std).to_parquet(save_path + "_score_true_law_MSE_STD.parquet")
+pd.DataFrame.from_dict(score_state_eval_std).to_parquet(save_path + "_score_state_MSE_STD.parquet")
+
+pd.DataFrame.from_dict(nad_eval_std).to_parquet(save_path + "_nad_MSE_STD.parquet")
+pd.DataFrame.from_dict(nad_eval_true_law_std).to_parquet(save_path + "_nad_true_law_MSE_STD.parquet")
+pd.DataFrame.from_dict(nad_state_eval_std).to_parquet(save_path + "_nad_state_MSE_STD.parquet")
+
+pd.DataFrame.from_dict(hermite_eval_std).to_parquet(save_path + "_hermite_MSE_STD.parquet")
+pd.DataFrame.from_dict(hermite_eval_true_law_std).to_parquet(save_path + "_hermite_true_law_MSE_STD.parquet")
+pd.DataFrame.from_dict(hermite_state_eval_std).to_parquet(save_path + "_hermite_state_MSE_STD.parquet")
+
+pd.DataFrame.from_dict(ridge_eval_std).to_parquet(save_path + "_ridge_MSE_STD.parquet")
+pd.DataFrame.from_dict(ridge_eval_true_law_std).to_parquet(save_path + "_ridge_true_law_MSE_STD.parquet")
+pd.DataFrame.from_dict(ridge_state_eval_std).to_parquet(save_path + "_ridge_state_MSE_STD.parquet")
 
 pd.DataFrame.from_dict(score_uniform_eval, orient="index", columns=["mse"]).to_parquet(
     save_path + "_score_uniform_MSE.parquet")
