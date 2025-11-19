@@ -85,8 +85,7 @@ def get_config():
         config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings, config.t0, config.deltaT,
         config.quad_coeff, config.sin_coeff, config.sin_space_scale, config.mlp_hidden_dims, config.condupsampler_length, config.tdata_mult).replace(".", "")
-    print(mlpFileName)
-    raise RuntimeError
+
     config.model_choice = "MLP"
     config.scoreNet_trained_path = mlpFileName
     config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.ts_dims, config.mlp_hidden_dims,
