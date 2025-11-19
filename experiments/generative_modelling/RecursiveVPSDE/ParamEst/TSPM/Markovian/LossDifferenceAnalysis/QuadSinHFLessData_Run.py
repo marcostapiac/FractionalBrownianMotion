@@ -576,7 +576,7 @@ for config in [bipot_config]:
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
     Nn_tile = 512000
     stable = True
-    block_size = 2048
+    block_size = 5120
 
     # Prepare for Hermite
     R = 7
@@ -874,11 +874,16 @@ np.save(save_path+"_nad_paths.npy", all_nad_paths)
 np.save(save_path+"_ridge_paths.npy", all_ridge_paths)
 np.save(save_path+"_hermite_paths.npy", all_hermite_paths)
 
-np.save(save_path+"_true_drifts.npy", true_drift)
-np.save(save_path+"_score_drifts.npy", all_hermite_drift_ests)
-np.save(save_path+"_nad_drifts.npy", all_nad_drift_ests)
-np.save(save_path+"_ridge_drifts.npy", all_ridge_drift_ests)
-np.save(save_path+"_hermite_drifts.npy", all_hermite_drift_ests)
+np.save(save_path+"_true_drifts.npy", true_drift.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_score_drifts.npy", all_hermite_drift_ests.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_nad_drifts.npy", all_nad_drift_ests.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_ridge_drifts.npy", all_ridge_drift_ests.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_hermite_drifts.npy", all_hermite_drift_ests.reshape(
+        (BB, TT, DD), order="C"))
 
 np.save(save_path + "_true_uniform.npy", uniform_true_drifts)
 np.save(save_path + "_score_uniform.npy", all_score_drift_ests_uniform)
