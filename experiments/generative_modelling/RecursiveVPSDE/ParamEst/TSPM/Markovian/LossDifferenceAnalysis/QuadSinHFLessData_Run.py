@@ -520,23 +520,26 @@ ridge_eval_true_law = {t: np.inf for t in ["QuadSinHF"]}
 ridge_state_eval = {t: np.inf for t in ["QuadSinHF"]}
 ridge_uniform_eval = {t: np.inf for t in ["QuadSinHF"]}
 
-
 score_eval_std = {t: np.inf for t in ["QuadSinHF"]}
 score_eval_true_law_std = {t: np.inf for t in ["QuadSinHF"]}
 score_state_eval_std = {t: np.inf for t in ["QuadSinHF"]}
+score_uniform_eval_std = {t: np.inf for t in ["QuadSinHF"]}
 
 nad_eval_std = {t: np.inf for t in ["QuadSinHF"]}
 nad_eval_true_law_std = {t: np.inf for t in ["QuadSinHF"]}
 nad_state_eval_std = {t: np.inf for t in ["QuadSinHF"]}
+nad_uniform_eval_std = {t: np.inf for t in ["QuadSinHF"]}
 
 hermite_eval_std = {t: np.inf for t in ["QuadSinHF"]}
 hermite_eval_true_law_std = {t: np.inf for t in ["QuadSinHF"]}
 hermite_state_eval_std = {t: np.inf for t in ["QuadSinHF"]}
+hermite_uniform_eval_std = {t: np.inf for t in ["QuadSinHF"]}
 
 
 ridge_eval_std = {t: np.inf for t in ["QuadSinHF"]}
 ridge_eval_true_law_std = {t: np.inf for t in ["QuadSinHF"]}
 ridge_state_eval_std = {t: np.inf for t in ["QuadSinHF"]}
+ridge_uniform_eval_std = {t: np.inf for t in ["QuadSinHF"]}
 
 
 for config in [bipot_config]:
@@ -799,6 +802,15 @@ for config in [bipot_config]:
     mse = np.nanmean(np.sum(np.power(uniform_true_drifts - all_ridge_drift_ests_uniform, 2), axis=-1))
     ridge_uniform_eval[ts_type] = mse
 
+    std = np.nanstd(np.sum(np.power(uniform_true_drifts - all_score_drift_ests_uniform, 2), axis=-1),axis=0, ddof=1)
+    score_uniform_eval_std[ts_type] = std
+    std = np.nanstd(np.sum(np.power(uniform_true_drifts - all_nad_drift_ests_uniform, 2), axis=-1),axis=0, ddof=1)
+    nad_uniform_eval_std[ts_type] = std
+    std = np.nanstd(np.sum(np.power(uniform_true_drifts - all_hermite_drift_ests_uniform, 2), axis=-1),axis=0, ddof=1)
+    hermite_uniform_eval_std[ts_type] = std
+    std = np.nanstd(np.sum(np.power(uniform_true_drifts - all_ridge_drift_ests_uniform, 2), axis=-1),axis=0, ddof=1)
+    ridge_uniform_eval_std[ts_type] = std
+
     # STD
     std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
                                                                                   order="C") - all_score_drift_ests.reshape(
@@ -857,7 +869,7 @@ save_path = (
             project_config.ROOT_DIR + f"experiments/results/QuadSinHF_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
     ".", "")
 np.save(save_path+"_true_paths.npy", all_true_paths)
-np.save(save_path+"_score_paths.npy", all_true_paths)
+np.save(save_path+"_score_paths.npy", all_score_paths)
 np.save(save_path+"_nad_paths.npy", all_nad_paths)
 np.save(save_path+"_ridge_paths.npy", all_ridge_paths)
 np.save(save_path+"_hermite_paths.npy", all_hermite_paths)
