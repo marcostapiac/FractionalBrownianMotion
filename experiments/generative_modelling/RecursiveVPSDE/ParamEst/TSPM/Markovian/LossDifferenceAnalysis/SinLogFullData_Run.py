@@ -612,12 +612,12 @@ for config in [bipot_config]:
     all_hermite_drift_ests_uniform = np.full_like(true_drift, np.nan, dtype=float)
     all_ridge_drift_ests_uniform = np.full_like(true_drift, np.nan, dtype=float)
 
-    score_state_eval[ts_type] = np.sqrt(
+    score_state_eval[ts_type] = (
         np.nanmean(np.sum(np.power(all_true_paths - all_score_paths, 2), axis=-1), axis=0))
-    nad_state_eval[ts_type] = np.sqrt(np.nanmean(np.sum(np.power(all_true_paths - all_nad_paths, 2), axis=-1), axis=0))
-    hermite_state_eval[ts_type] = np.sqrt(
+    nad_state_eval[ts_type] = (np.nanmean(np.sum(np.power(all_true_paths - all_nad_paths, 2), axis=-1), axis=0))
+    hermite_state_eval[ts_type] = (
         np.nanmean(np.sum(np.power(all_true_paths - all_hermite_paths, 2), axis=-1), axis=0))
-    ridge_state_eval[ts_type] = np.sqrt(
+    ridge_state_eval[ts_type] = (
         np.nanmean(np.sum(np.power(all_true_paths - all_ridge_paths, 2), axis=-1), axis=0))
 
     uniform_positions = torch.linspace(-1.5, 1.5, all_true_states.shape[0], device="cpu", dtype=torch.float32)[:,

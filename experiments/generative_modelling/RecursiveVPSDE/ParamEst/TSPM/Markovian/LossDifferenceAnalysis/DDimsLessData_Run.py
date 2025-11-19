@@ -375,8 +375,8 @@ for config in [ddimsNS_12d_config, ddimsNS_8d_config]:
     all_nad_drift_ests = np.zeros_like(true_drift)
     all_score_drift_ests_true_law = np.zeros_like(true_drift)
     all_nad_drift_ests_true_law = np.zeros_like(true_drift)
-    score_state_eval[ts_type] = np.sqrt(np.nanmean(np.sum(np.power(all_true_paths - all_score_paths, 2), axis=-1), axis=0))
-    nad_state_eval[ts_type] = np.sqrt(np.nanmean(np.sum(np.power(all_true_paths - all_nad_paths, 2), axis=-1), axis=0))
+    score_state_eval[ts_type] = (np.nanmean(np.sum(np.power(all_true_paths - all_score_paths, 2), axis=-1), axis=0))
+    nad_state_eval[ts_type] = (np.nanmean(np.sum(np.power(all_true_paths - all_nad_paths, 2), axis=-1), axis=0))
     score_state_eval_std[ts_type] = np.nanstd(np.sum((all_true_paths - all_score_paths) ** 2, axis=-1), axis=0, ddof=1)
     nad_state_eval_std[ts_type] = np.nanstd(np.sum((all_true_paths - all_nad_paths) ** 2, axis=-1), axis=0, ddof=1)
     for k in tqdm(range(0, all_score_states.shape[0], block_size)):
