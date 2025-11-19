@@ -806,6 +806,7 @@ for config in [bipot_config]:
     mse = np.nanmean(np.sum(np.power(uniform_true_drifts - all_ridge_drift_ests_uniform, 2), axis=-1))
     ridge_uniform_eval[ts_type] = mse
 
+    # STD
     std = np.nanstd(np.sum(np.power(uniform_true_drifts - all_score_drift_ests_uniform, 2), axis=-1),axis=0, ddof=1)
     score_uniform_eval_std[ts_type] = std
     std = np.nanstd(np.sum(np.power(uniform_true_drifts - all_nad_drift_ests_uniform, 2), axis=-1),axis=0, ddof=1)
@@ -815,7 +816,6 @@ for config in [bipot_config]:
     std = np.nanstd(np.sum(np.power(uniform_true_drifts - all_ridge_drift_ests_uniform, 2), axis=-1),axis=0, ddof=1)
     ridge_uniform_eval_std[ts_type] = std
 
-    # STD
     std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
                                                                                   order="C") - all_score_drift_ests.reshape(
         (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),

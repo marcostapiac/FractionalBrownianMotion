@@ -607,12 +607,12 @@ for config in [bipot_config]:
     all_ridge_paths = all_ridge_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
 
     BB, TT, DD = all_score_paths.shape
-    TT -= 1
-    all_true_states = all_true_paths[:, 1:, :].reshape((-1, config.ts_dims), order="C")
-    all_score_states = all_score_paths[:, 1:, :].reshape((-1, config.ts_dims), order="C")
-    all_nad_states = all_nad_paths[:, 1:, :].reshape((-1, config.ts_dims), order="C")
-    all_hermite_states = all_hermite_paths[:, 1:, :].reshape((-1, config.ts_dims), order="C")
-    all_ridge_states = all_ridge_paths[:, 1:, :].reshape((-1, config.ts_dims), order="C")
+    
+    all_true_states = all_true_paths.reshape((-1, config.ts_dims), order="C")
+    all_score_states = all_score_paths.reshape((-1, config.ts_dims), order="C")
+    all_nad_states = all_nad_paths.reshape((-1, config.ts_dims), order="C")
+    all_hermite_states = all_hermite_paths.reshape((-1, config.ts_dims), order="C")
+    all_ridge_states = all_ridge_paths.reshape((-1, config.ts_dims), order="C")
 
     true_drift = true_drifts(state=all_true_states, device_id=device_id, config=config).cpu().numpy()[:, 0, :]
     torch.cuda.synchronize()
@@ -811,7 +811,6 @@ for config in [bipot_config]:
     std = np.nanstd(np.sum(np.power(uniform_true_drifts - all_ridge_drift_ests_uniform, 2), axis=-1),axis=0, ddof=1)
     ridge_uniform_eval_std[ts_type] = std
 
-    # STD
     std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
                                                                                   order="C") - all_score_drift_ests.reshape(
         (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
@@ -878,7 +877,7 @@ np.save(save_path + "_true_uniform.npy", uniform_true_drifts)
 np.save(save_path + "_score_uniform.npy", all_score_drift_ests_uniform)
 np.save(save_path + "_nad_uniform.npy", all_nad_drift_ests_uniform)
 np.save(save_path + "_hermite_uniform.npy", all_hermite_drift_ests_uniform)
-np.save(save_path + "_rigde_uniform.npy", all_ridge_drift_ests_uniform)
+np.save(save_path + "_ridge_uniform.npy", all_ridge_drift_ests_uniform)
 
 pd.DataFrame.from_dict(score_eval).to_parquet(save_path + "_score_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval).to_parquet(save_path + "_nad_MSE.parquet")

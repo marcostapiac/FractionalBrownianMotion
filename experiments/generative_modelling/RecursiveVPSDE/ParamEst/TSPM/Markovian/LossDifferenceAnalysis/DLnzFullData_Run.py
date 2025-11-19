@@ -359,10 +359,10 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_8d_config]:
     all_score_paths = all_score_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
     all_nad_paths = all_nad_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
     BB, TT, DD = all_score_paths.shape
-    TT -= 1
-    all_true_states = all_true_paths[:, 1:,:].reshape((-1, config.ts_dims), order="C")
-    all_score_states = all_score_paths[:, 1:,:].reshape((-1, config.ts_dims), order="C")
-    all_nad_states = all_nad_paths[:, 1:,:].reshape((-1, config.ts_dims), order="C")
+    
+    all_true_states = all_true_paths.reshape((-1, config.ts_dims), order="C")
+    all_score_states = all_score_paths.reshape((-1, config.ts_dims), order="C")
+    all_nad_states = all_nad_paths.reshape((-1, config.ts_dims), order="C")
 
     true_drift = true_drifts(state=all_true_states, device_id=device_id,config=config).cpu().numpy()[:,0,:]
     torch.cuda.synchronize()
