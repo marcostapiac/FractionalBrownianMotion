@@ -615,6 +615,11 @@ for config in [bipot_config]:
     all_ridge_states = all_ridge_paths[:, :-1, :].reshape((-1, config.ts_dims), order="C")
 
     true_drift = true_drifts(state=all_true_states, device_id=device_id, config=config).cpu().numpy()[:, 0, :]
+    true_drift_at_score = true_drifts(state=all_score_states, device_id=device_id, config=config).cpu().numpy()[:, 0, :]
+    true_drift_at_nad = true_drifts(state=all_nad_states, device_id=device_id, config=config).cpu().numpy()[:, 0, :]
+    true_drift_at_hermite = true_drifts(state=all_hermite_states, device_id=device_id, config=config).cpu().numpy()[:, 0, :]
+    true_drift_at_ridge = true_drifts(state=all_ridge_states, device_id=device_id, config=config).cpu().numpy()[:, 0, :]
+
     torch.cuda.synchronize()
     torch.cuda.empty_cache()
     gc.collect()
@@ -885,7 +890,14 @@ np.save(save_path+"_ridge_drifts.npy", all_ridge_drift_ests.reshape(
 np.save(save_path+"_hermite_drifts.npy", all_hermite_drift_ests.reshape(
         (BB, TT, DD), order="C"))
 
-
+np.save(save_path+"_true_drifts_at_score.npy", true_drift_at_score.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_true_drifts_at_nad.npy", true_drift_at_nad.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_true_drifts_at_hermite.npy", true_drift_at_hermite.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_true_drifts_at_ridge.npy", true_drift_at_ridge.reshape(
+        (BB, TT, DD), order="C"))
 np.save(save_path+"_score_drifts_true_law.npy", all_hermite_drift_ests_true_law.reshape(
         (BB, TT, DD), order="C"))
 np.save(save_path+"_nad_drifts_true_law.npy", all_nad_drift_ests_true_law.reshape(
