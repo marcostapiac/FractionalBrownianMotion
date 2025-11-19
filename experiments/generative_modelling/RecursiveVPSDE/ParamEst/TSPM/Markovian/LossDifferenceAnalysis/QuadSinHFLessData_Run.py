@@ -607,7 +607,6 @@ for config in [bipot_config]:
     all_ridge_paths = all_ridge_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
 
     BB, TT, DD = all_score_paths.shape
-    TT -= 1
     all_true_states = all_true_paths[:, :, :].reshape((-1, config.ts_dims), order="C")
     all_score_states = all_score_paths[:, :, :].reshape((-1, config.ts_dims), order="C")
     all_nad_states = all_nad_paths[:, :, :].reshape((-1, config.ts_dims), order="C")
