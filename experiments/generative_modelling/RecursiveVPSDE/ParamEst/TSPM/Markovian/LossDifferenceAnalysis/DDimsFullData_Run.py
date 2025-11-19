@@ -308,12 +308,12 @@ nad_eval_true_law = {t: np.inf for t in ["8DDims", "12DDims"]}
 nad_state_eval = {t: np.inf for t in ["8DDims", "12DDims"]}
 score_state_eval = {t: np.inf for t in ["8DDims", "12DDims"]}
 
-score_eval_std = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
-score_eval_true_law_std = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
-nad_eval_std = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
-nad_eval_true_law_std = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
-nad_state_eval_std = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
-score_state_eval_std = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
+score_eval_std = {t: np.inf for t in ["8DDims", "12DDims"]}
+score_eval_true_law_std = {t: np.inf for t in ["8DDims", "12DDims"]}
+nad_eval_std = {t: np.inf for t in ["8DDims", "12DDims"]}
+nad_eval_true_law_std = {t: np.inf for t in ["8DDims", "12DDims"]}
+nad_state_eval_std = {t: np.inf for t in ["8DDims", "12DDims"]}
+score_state_eval_std = {t: np.inf for t in ["8DDims", "12DDims"]}
 
 
 for config in [ddimsNS_12d_config, ddimsNS_8d_config]:

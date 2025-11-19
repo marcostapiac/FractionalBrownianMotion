@@ -302,12 +302,12 @@ nad_eval_true_law = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 nad_state_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 score_state_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 
-score_eval_std = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
-score_eval_true_law_std = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
-nad_eval_std = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
-nad_eval_true_law_std = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
-nad_state_eval_std = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
-score_state_eval_std = {t: np.inf for t in ["8DDimsNS", "12DDimsNS"]}
+score_eval_std = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
+score_eval_true_law_std = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
+nad_eval_std = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
+nad_eval_true_law_std = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
+nad_state_eval_std = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
+score_state_eval_std = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 
 for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_8d_config]:
     assert config.feat_thresh != 1.
