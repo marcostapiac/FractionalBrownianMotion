@@ -880,7 +880,7 @@ np.save(save_path+"_hermite_paths.npy", all_hermite_paths)
 
 np.save(save_path+"_true_drifts.npy", true_drift.reshape(
         (BB, TT, DD), order="C"))
-np.save(save_path+"_score_drifts.npy", all_hermite_drift_ests.reshape(
+np.save(save_path+"_score_drifts.npy", all_score_drift_ests.reshape(
         (BB, TT, DD), order="C"))
 np.save(save_path+"_nad_drifts.npy", all_nad_drift_ests.reshape(
         (BB, TT, DD), order="C"))
@@ -897,7 +897,7 @@ np.save(save_path+"_true_drifts_at_hermite.npy", true_drift_at_hermite.reshape(
         (BB, TT, DD), order="C"))
 np.save(save_path+"_true_drifts_at_ridge.npy", true_drift_at_ridge.reshape(
         (BB, TT, DD), order="C"))
-np.save(save_path+"_score_drifts_true_law.npy", all_hermite_drift_ests_true_law.reshape(
+np.save(save_path+"_score_drifts_true_law.npy", all_score_drift_ests_true_law.reshape(
         (BB, TT, DD), order="C"))
 np.save(save_path+"_nad_drifts_true_law.npy", all_nad_drift_ests_true_law.reshape(
         (BB, TT, DD), order="C"))
@@ -910,7 +910,7 @@ np.save(save_path + "_true_uniform.npy", uniform_true_drifts)
 np.save(save_path + "_score_uniform.npy", all_score_drift_ests_uniform)
 np.save(save_path + "_nad_uniform.npy", all_nad_drift_ests_uniform)
 np.save(save_path + "_hermite_uniform.npy", all_hermite_drift_ests_uniform)
-np.save(save_path + "_rigde_uniform.npy", all_ridge_drift_ests_uniform)
+np.save(save_path + "_ridge_uniform.npy", all_ridge_drift_ests_uniform)
 
 pd.DataFrame.from_dict(score_eval).to_parquet(save_path + "_score_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval).to_parquet(save_path + "_nad_MSE.parquet")
