@@ -576,7 +576,7 @@ for config in [bipot_config]:
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
     Nn_tile = int(512000)
     stable = True
-    block_size = 2048
+    block_size = 5012
 
     # Prepare for Hermite
     R = 7
