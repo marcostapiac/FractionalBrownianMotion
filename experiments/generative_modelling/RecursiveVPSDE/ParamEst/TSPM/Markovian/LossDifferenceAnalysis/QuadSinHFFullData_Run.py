@@ -492,9 +492,9 @@ def run_nadaraya_single_bw(config, is_path_observations, states, M_tile, inv_H, 
     return unif_is_drift_hats
 
 
-bipot_config = get_config()
+quadsin_config = get_config()
 device_id = _get_device()
-num_paths = 1024 if bipot_config.feat_thresh == 1. else 10240
+num_paths = 1024 if quadsin_config.feat_thresh == 1. else 10240
 assert num_paths == 10240
 root_dir = "/Users/marcos/Library/CloudStorage/OneDrive-ImperialCollegeLondon/StatML_CDT/Year2/DiffusionModels/"
 
@@ -542,7 +542,7 @@ ridge_state_eval_std = {t: np.inf for t in ["QuadSinHF"]}
 ridge_uniform_eval_std = {t: np.inf for t in ["QuadSinHF"]}
 
 
-for config in [bipot_config]:
+for config in [quadsin_config]:
     assert config.feat_thresh != 1.
     root_score_dir = root_dir
     ts_type = "QuadSinHF"

@@ -491,9 +491,9 @@ def run_nadaraya_single_bw(config, is_path_observations, states, M_tile, inv_H, 
     return unif_is_drift_hats
 
 
-bipot_config = get_config()
+sinlog_config = get_config()
 device_id = _get_device()
-num_paths = 1024 if bipot_config.feat_thresh == 1. else 10240
+num_paths = 1024 if sinlog_config.feat_thresh == 1. else 10240
 assert num_paths == 1024
 root_dir = "/Users/marcos/Library/CloudStorage/OneDrive-ImperialCollegeLondon/StatML_CDT/Year2/DiffusionModels/"
 
@@ -539,7 +539,7 @@ ridge_eval_true_law_std = {t: np.inf for t in ["SinLog"]}
 ridge_state_eval_std = {t: np.inf for t in ["SinLog"]}
 ridge_uniform_eval_std = {t: np.inf for t in ["SinLog"]}
 
-for config in [bipot_config]:
+for config in [sinlog_config]:
     assert config.feat_thresh == 1.
     root_score_dir = root_dir
     ts_type = "SinLog"
