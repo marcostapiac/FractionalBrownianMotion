@@ -148,8 +148,8 @@ t0 = config.t0
 t1 = deltaT * num_time_steps
 paths = np.load(config.data_path, allow_pickle=True)[:num_paths, :]
 if paths.shape[1] == config.ts_length + 1:
-    paths = paths[:, 1:, :]
-    np.save(config.data_path, paths[:, :, 0])
+    paths = paths[:, 1:]
+    np.save(config.data_path, paths)
 paths = np.concatenate(
     [np.repeat(np.array(config.initState).reshape((1, 1)), paths.shape[0], axis=0),
      paths], axis=1)
