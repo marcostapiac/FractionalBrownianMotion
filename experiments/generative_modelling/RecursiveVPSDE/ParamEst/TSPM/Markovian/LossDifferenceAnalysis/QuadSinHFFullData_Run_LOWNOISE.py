@@ -111,7 +111,7 @@ def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M, device_id):
     opt = scipy.optimize.minimize(
         obj, x0,
         method="L-BFGS-B",
-        bounds=[(0.0, None)],
+        bounds=[(1e-12, None)],
         options={"eps": 1e-4, "maxiter": 200}
     )
 
@@ -121,7 +121,7 @@ def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M, device_id):
         opt = scipy.optimize.minimize(
             obj, opt.x,
             method="L-BFGS-B",
-            bounds=[(0.0, None)],
+            bounds=[(1e-12, None)],
             options={"eps": 1e-4, "maxiter": 200}
         )
 
@@ -581,9 +581,9 @@ for config in [quadsin_config]:
     assert bw.shape[0] == 1 and len(bw.shape) == 1
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
-    Nn_tile = 256000
+    Nn_tile = 512000
     stable = True
-    block_size = 1024
+    block_size = 2048
 
     # Prepare for Hermite
     R = 36
