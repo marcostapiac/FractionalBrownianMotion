@@ -158,10 +158,10 @@ assert paths.shape == (num_paths, config.ts_length + 1)
 device_id = _get_device()
 
 KNs = np.arange(1, 60, 1)
-AN = -1.5
+AN = -0.15
 BN = -AN
 numXs = 1024
-Xs = torch.linspace(AN - 0.5, BN + 0.5, numXs+1).reshape(1, -1)
+Xs = torch.linspace(AN - 0.05, BN + 0.05, numXs+1).reshape(1, -1)
 LN = np.log(num_paths)
 M = 3 if "BiPot" in config.data_path else 2
 true_drift = true_drifts(device_id=device_id,config=config, state=Xs[:, :-1]).squeeze().cpu().numpy().reshape((numXs, config.ndims))
