@@ -942,7 +942,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}{config.ndims}DLnz_DriftEvalExp_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{1}NDT_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}_{round(config.forcing_const, 3)}FConst").replace(
                 ".", "")
         if (config.diffusion == .1) or (config.diffusion == 10.):
-            save_path += f"_Diff{config.diffusion:.1f}"
+            save_path += f"_Diff{config.diffusion:.1f}".replace(".", "")
         print(f"Save path:{save_path}\n")
         raise RuntimeError
         if ("DLnz" not in config.data_path) and ("DDimsNS" not in config.data_path):
@@ -1125,7 +1125,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}{config.ndims}DLnz_OOSDriftTrack_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}_{round(config.forcing_const, 3)}FConst").replace(
                 ".", "")
         if (config.diffusion == .1) or (config.diffusion == 10.):
-            save_path += f"_Diff{config.diffusion:.1f}"
+            save_path += f"_Diff{config.diffusion:.1f}".replace(".", "")
         print(f"Save path for OOS DriftTrack:{save_path}\n")
         np.save(save_path + "_true_states.npy", all_true_states)
         np.save(save_path + "_global_states.npy", all_global_states)
