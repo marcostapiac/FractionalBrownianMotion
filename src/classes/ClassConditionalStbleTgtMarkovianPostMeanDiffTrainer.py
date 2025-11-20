@@ -944,7 +944,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         if (config.diffusion == .1) or (config.diffusion == 10.):
             save_path += f"_Diff{config.diffusion:.1f}".replace(".", "")
         print(f"Save path:{save_path}\n")
-        raise RuntimeError
         if ("DLnz" not in config.data_path) and ("DDimsNS" not in config.data_path):
             np.save(save_path + "_muhats.npy", final_vec_mu_hats)
         self.score_network.module.train()
