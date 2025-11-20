@@ -58,6 +58,9 @@ if __name__ == "__main__":
                                          diff=config.diffusion,
                                          initial_state=config.initState)
                 np.save(config.data_path, data)
+            if data.shape[1] == config.ts_length +1:
+                data = data[:, 1:]
+                np.save(config.data_path, data)
             data = np.concatenate([data[:, [0]] - config.initState, np.diff(data, axis=1)], axis=1)
             data = np.atleast_3d(data[:training_size, :])
             print(data.shape)
