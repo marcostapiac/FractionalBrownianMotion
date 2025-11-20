@@ -83,8 +83,8 @@ def construct_Phi_matrix(R, deltaT, T, basis, device_id, paths):
     intermediate = deltaT * basis.permute((0, 2, 1)) @ basis
     assert intermediate.shape == (
         N, R, R), f"Intermediate matrix is shape {intermediate.shape} but should be {(N, R, R)}"
-    for i in range(N):
-        es = torch.linalg.eigvalsh(intermediate[i, :, :]) >= 0.
+    #for i in range(N):
+        #es = torch.linalg.eigvalsh(intermediate[i, :, :]) >= 0.
         # assert (torch.all(es)), f"Submat at {i} is not PD, for R={R}"
     Phi = deltaT * (basis.permute((0, 2, 1)) @ basis)
     assert (Phi.shape == (N, R, R))
@@ -139,7 +139,7 @@ paths = torch.concatenate(
 assert paths.shape == (num_paths, config.ts_length + 1)
 
 numXs = 1024  # config.ts_length
-Xs = torch.linspace(-1.5, 1.5, numXs).reshape(1, -1)
+Xs = torch.linspace(-12, 1.2, numXs).reshape(1, -1)
 def true_drifts(device_id, config, state):
     state = torch.tensor(state, device=device_id, dtype=torch.float32)
     drift = -2. * config.quad_coeff * state + config.sin_coeff * config.sin_space_scale * torch.sin(

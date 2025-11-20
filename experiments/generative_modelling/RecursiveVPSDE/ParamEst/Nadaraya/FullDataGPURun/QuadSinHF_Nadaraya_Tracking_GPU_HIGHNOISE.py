@@ -365,7 +365,7 @@ if __name__ == "__main__":
             num_dhats = 1  # No variability given we use same training dataset
             device = _get_device(None)
             all_true_states = np.zeros((100 * 256, config.ts_dims))
-            Xs = torch.linspace(-1.5, 1.5, all_true_states.shape[0])[:, np.newaxis].to(device)
+            Xs = torch.linspace(-12, 12, all_true_states.shape[0])[:, np.newaxis].to(device)
             all_true_states = true_drift_gpu(prev=Xs, num_paths=all_true_states.shape[0], config=config)[:, 0,
                               :].cpu().numpy()
             unif_is_drift_hats = np.zeros((all_true_states.shape[0], num_dhats, config.ts_dims))

@@ -112,7 +112,7 @@ def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M, device_id):
     opt = scipy.optimize.minimize(
         obj, x0,
         method="L-BFGS-B",
-        bounds=[(0.0, None)],
+        bounds=[(1e-12, None)],
         options={"eps": 1e-4, "maxiter": 200}
     )
 
@@ -122,7 +122,7 @@ def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M, device_id):
         opt = scipy.optimize.minimize(
             obj, opt.x,
             method="L-BFGS-B",
-            bounds=[(0.0, None)],
+            bounds=[(1e-12, None)],
             options={"eps": 1e-4, "maxiter": 200}
         )
 
@@ -157,7 +157,7 @@ assert paths.shape == (num_paths, config.ts_length + 1)
 device_id = _get_device()
 
 KNs = np.arange(1, 60, 1)
-AN = -1.5
+AN = -12
 BN = -AN
 numXs = 1024
 Xs = torch.linspace(AN - 0.5, BN + 0.5, numXs+1).reshape(1, -1)

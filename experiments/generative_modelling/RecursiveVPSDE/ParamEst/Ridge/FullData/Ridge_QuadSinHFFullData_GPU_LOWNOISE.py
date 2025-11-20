@@ -101,6 +101,7 @@ def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M, device_id):
     def obj(larr):
         # keep optimizer precision
         l = torch.as_tensor(larr, device=device_id, dtype=torch.float64)
+        print(np.min(np.linalg.eigvalsh(BTB + l * I)), l)
         inv = torch.linalg.inv(BTB + l * I) @ BTZ
         val = torch.abs(inv.T @ inv - const_t).item()  # scalar float
         return val
@@ -111,7 +112,7 @@ def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M, device_id):
     opt = scipy.optimize.minimize(
         obj, x0,
         method="L-BFGS-B",
-        bounds=[(0.0, None)],
+        bounds=[(1e-12, None)],
         options={"eps": 1e-4, "maxiter": 200}
     )
 
@@ -121,7 +122,7 @@ def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M, device_id):
         opt = scipy.optimize.minimize(
             obj, opt.x,
             method="L-BFGS-B",
-            bounds=[(0.0, None)],
+            bounds=[(1e-12, None)],
             options={"eps": 1e-4, "maxiter": 200}
         )
 
@@ -167,7 +168,8 @@ true_drift = true_drifts(device_id=device_id,config=config, state=Xs[:, :-1]).sq
 true_drift[Xs[:, :-1].flatten() < AN, :] = np.nan
 true_drift[Xs[:, :-1].flatten() > BN, :] = np.nan
 mses = {}
-for KN in KNs:
+for idxKN in range(8,KNs.shape[0]):
+    KN = KNs[idxKN]
     B = spline_basis(paths=paths, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
     Z = np.power(deltaT,-1)*np.diff(paths, axis=1).reshape((paths.shape[0]*(paths.shape[1]-1),1))
     Z = torch.tensor(Z, dtype=torch.float32, device=device_id)
