@@ -60,6 +60,7 @@ if __name__ == "__main__":
                 np.save(config.data_path, data)
             data = np.concatenate([data[:, [0]] - config.initState, np.diff(data, axis=1)], axis=1)
             data = np.atleast_3d(data[:training_size, :])
+            print(data.shape)
             assert (data.shape == (training_size, config.ts_length, config.ts_dims))
             # For recursive version, data should be (Batch Size, Sequence Length, Dimensions of Time Series)
             train_and_save_recursive_diffusion_model(data=data, config=config, diffusion=diffusion, scoreModel=scoreModel,
