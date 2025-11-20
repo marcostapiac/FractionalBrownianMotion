@@ -452,9 +452,13 @@ def prepare_for_nadaraya(config, num_paths):
     deltaT = config.deltaT
     t1 = deltaT * config.ts_length
     is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :, np.newaxis]
+    if is_path_observations.shape[1] == config.ts_length+1:
+        is_path_observations = is_path_observations[:, 1:, :]
+        np.save(config.data_path, is_path_observations[:, :, 0])
     is_path_observations = np.concatenate(
         [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0),
          is_path_observations], axis=1)
+
     assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
     path_observations = is_path_observations
     t0 = deltaT
