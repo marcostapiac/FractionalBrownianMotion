@@ -150,6 +150,7 @@ true_drift = true_drifts(device_id=device_id, config=config, state=Xs).cpu().squ
 # In[9]:
 mses = {}
 for R in np.arange(2, 41, 1):
+    break
     basis = hermite_basis_GPU(R=R, paths=paths, device_id=device_id)
     coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None, device_id=device_id))
     basis = hermite_basis_GPU(R=R, paths=Xs, device_id=device_id)
@@ -161,11 +162,13 @@ for R in np.arange(2, 41, 1):
 save_path = (
         project_config.ROOT_DIR + f"experiments/results/Hermite_fQuadSinHF_DriftEvalExp_{num_paths}NPaths_{config.deltaT:.3e}dT_Diff{config.diffusion:.1f}").replace(
     ".", "")
-mses = (pd.DataFrame(mses)).T
-mses.columns = mses.columns.astype(str)
-mses.to_parquet(save_path + "_MSEs.parquet", engine="fastparquet")
-Ridx = np.argmin(mses.values.flatten())
-R = np.arange(2, 41, 1)[Ridx]
+#mses = (pd.DataFrame(mses)).T
+#mses.columns = mses.columns.astype(str)
+#mses.to_parquet(save_path + "_MSEs.parquet", engine="fastparquet")
+#Ridx = np.argmin(mses.values.flatten())
+#R = np.arange(2, 41, 1)[Ridx]
+#print(R)
+R = 22
 basis = hermite_basis_GPU(R=R, paths=paths, device_id=device_id)
 coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None, device_id=device_id))
 basis = hermite_basis_GPU(R=R, paths=Xs, device_id=device_id)

@@ -168,7 +168,7 @@ true_drift = true_drifts(device_id=device_id,config=config, state=Xs[:, :-1]).sq
 true_drift[Xs[:, :-1].flatten() < AN, :] = np.nan
 true_drift[Xs[:, :-1].flatten() > BN, :] = np.nan
 mses = {}
-for idxKN in range(8,KNs.shape[0]):
+for idxKN in range(0,KNs.shape[0]):
     KN = KNs[idxKN]
     B = spline_basis(paths=paths, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
     Z = np.power(deltaT,-1)*np.diff(paths, axis=1).reshape((paths.shape[0]*(paths.shape[1]-1),1))
