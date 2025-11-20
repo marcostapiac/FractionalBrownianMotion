@@ -17,7 +17,7 @@ def true_drifts(device_id, config, state):
     return drift[:, np.newaxis, :]
 
 
-def _get_device(device_str: str | None = None):
+def _get_device(device_str: str  = None):
     if device_str is not None:
         return torch.device(device_str)
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -130,7 +130,6 @@ def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M, device_id):
     a = torch.atleast_2d(torch.linalg.inv(BTB + lhat * I) @ BTZ)
     a = torch.as_tensor(a, device=device_id, dtype=torch.float32)
     return a
-
 
 
 config = get_config()
