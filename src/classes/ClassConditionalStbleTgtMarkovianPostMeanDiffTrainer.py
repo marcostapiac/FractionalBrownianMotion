@@ -859,10 +859,12 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                         config.quad_coeff) * Xs + np.array(config.const))
                 true_drifts = true_drifts/(1+config.deltaT*np.abs(true_drifts))
             elif "QuadSin" in config.data_path:
-                if config.diffusion != 10.:
-                    Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
-                else:
+                if config.diffusion == .1:
+                    Xs = np.linspace(-.15, .15, num=config.ts_length)
+                elif config.diffusion == 10:
                     Xs = np.linspace(-12, 12, num=config.ts_length)
+                else:
+                    Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
                 true_drifts = (-2. * config.quad_coeff * Xs + config.sin_coeff * config.sin_space_scale * np.sin(
                     config.sin_space_scale * Xs))
             elif "SinLog" in config.data_path:

@@ -373,10 +373,12 @@ def MLP_1D_drifts(config, PM):
     diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_time,
                                      steps=Ndiff_discretisation).to(device)
 
-    if config.diffusion != 10.:
-        Xs = torch.linspace(-1.5, 1.5, steps=Xshape)
-    else:
+    if config.diffusion == .1:
+        Xs = torch.linspace(-.15, .15, steps=Xshape)
+    elif config.diffusion == 10.:
         Xs = torch.linspace(-12, 12, steps=Xshape)
+    else:
+        Xs = torch.linspace(-1.5, 1.5, steps=Xshape)
 
     features_tensor = torch.stack([Xs for _ in range(1)], dim=0).reshape(Xshape * 1, 1, -1).to(device)
     final_vec_mu_hats = np.zeros(

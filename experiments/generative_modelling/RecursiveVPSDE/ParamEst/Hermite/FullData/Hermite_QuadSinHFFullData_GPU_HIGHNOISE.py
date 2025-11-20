@@ -139,7 +139,7 @@ paths = torch.concatenate(
 assert paths.shape == (num_paths, config.ts_length + 1)
 
 numXs = 1024  # config.ts_length
-Xs = torch.linspace(-12, 1.2, numXs).reshape(1, -1)
+Xs = torch.linspace(-12, 12, numXs).reshape(1, -1)
 def true_drifts(device_id, config, state):
     state = torch.tensor(state, device=device_id, dtype=torch.float32)
     drift = -2. * config.quad_coeff * state + config.sin_coeff * config.sin_space_scale * torch.sin(
