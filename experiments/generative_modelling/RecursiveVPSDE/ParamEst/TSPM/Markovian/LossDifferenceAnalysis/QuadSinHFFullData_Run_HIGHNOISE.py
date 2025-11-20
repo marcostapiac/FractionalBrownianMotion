@@ -593,7 +593,7 @@ for config in [quadsin_config]:
     M = 2
     KN = 58
     LN = np.log(num_paths)
-    AN = -1.5
+    AN = -12
     BN = -AN
     B = spline_basis(paths=is_obs.squeeze(), KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
     Z = np.power(config.deltaT,-1)*np.diff(is_obs.squeeze(), axis=1).reshape((is_obs.squeeze().shape[0]*(is_obs.squeeze().shape[1]-1),1))
@@ -653,7 +653,7 @@ for config in [quadsin_config]:
     hermite_state_eval_std[ts_type] = np.nanstd(np.sum((all_true_paths - all_hermite_paths) ** 2, axis=-1), axis=0, ddof=1)
     ridge_state_eval_std[ts_type] = np.nanstd(np.sum((all_true_paths - all_ridge_paths) ** 2, axis=-1), axis=0, ddof=1)
     
-    uniform_positions = torch.linspace(-1.5, 1.5, all_true_states.shape[0], device="cpu", dtype=torch.float32)[:,
+    uniform_positions = torch.linspace(-12, 12, all_true_states.shape[0], device="cpu", dtype=torch.float32)[:,
                         np.newaxis]
     uniform_true_drifts = true_drifts(device_id=device_id, state=uniform_positions,
                                       config=config).cpu().numpy().flatten()[:, np.newaxis]
@@ -740,7 +740,7 @@ for config in [quadsin_config]:
         all_hermite_drift_ests_uniform[k:k + block_size, :] = hermite_drift_est
 
         # Ridge Uniform
-        AN = -1.5
+        AN = -12
         BN = -AN
         curr_states = torch.concatenate([curr_states.T, torch.zeros((1, 1), device=device_id, dtype=torch.float32)], dim=-1)
         ridge_basis = spline_basis(paths=curr_states, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
@@ -870,7 +870,7 @@ for config in [quadsin_config]:
 
 
 save_path = (
-            project_config.ROOT_DIR + f"experiments/results/QuadSinHF_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths_Diff01").replace(
+            project_config.ROOT_DIR + f"experiments/results/QuadSinHF_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths_Diff100").replace(
     ".", "")
 np.save(save_path+"_true_paths.npy", all_true_paths)
 np.save(save_path+"_score_paths.npy", all_score_paths)
