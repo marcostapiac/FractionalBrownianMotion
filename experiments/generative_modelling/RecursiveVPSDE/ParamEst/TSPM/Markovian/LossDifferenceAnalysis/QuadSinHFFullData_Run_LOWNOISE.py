@@ -577,7 +577,7 @@ for config in [quadsin_config]:
     xadd3 = np.logspace(2.0, 4.0, 11)[1:]  # 10 values > -0.05
     bws = np.concatenate([grid_1d, xadd, xadd2, xadd3])
     bws = np.stack([bws for m in range(config.ndims)], axis=-1)
-    bw = bws[19, :]
+    bw = bws[7, :]
     assert bw.shape[0] == 1 and len(bw.shape) == 1
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
@@ -655,7 +655,7 @@ for config in [quadsin_config]:
     hermite_state_eval_std[ts_type] = np.nanstd(np.sum((all_true_paths - all_hermite_paths) ** 2, axis=-1), axis=0, ddof=1)
     ridge_state_eval_std[ts_type] = np.nanstd(np.sum((all_true_paths - all_ridge_paths) ** 2, axis=-1), axis=0, ddof=1)
     
-    uniform_positions = torch.linspace(-.15, .15, all_true_states.shape[0], device="cpu", dtype=torch.float32)[:,
+    uniform_positions = torch.linspace(-0.15, 0.15, all_true_states.shape[0], device="cpu", dtype=torch.float32)[:,
                         np.newaxis]
     uniform_true_drifts = true_drifts(device_id=device_id, state=uniform_positions,
                                       config=config).cpu().numpy().flatten()[:, np.newaxis]
