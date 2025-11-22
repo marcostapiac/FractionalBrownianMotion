@@ -1,4 +1,5 @@
 
+
 #!/usr/bin/env python
 import gc
 import io
@@ -519,7 +520,6 @@ ridge_eval_true_law = {t: np.inf for t in ["QuadSinHF"]}
 ridge_state_eval = {t: np.inf for t in ["QuadSinHF"]}
 ridge_uniform_eval = {t: np.inf for t in ["QuadSinHF"]}
 
-
 score_eval_std = {t: np.inf for t in ["QuadSinHF"]}
 score_eval_true_law_std = {t: np.inf for t in ["QuadSinHF"]}
 score_state_eval_std = {t: np.inf for t in ["QuadSinHF"]}
@@ -574,7 +574,7 @@ for config in [quadsin_config]:
     assert bw.shape[0] == 1 and len(bw.shape) == 1
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
-    Nn_tile = 512000
+    Nn_tile = int(512000)
     stable = True
     block_size = 2048
 
@@ -607,14 +607,18 @@ for config in [quadsin_config]:
     all_ridge_paths = all_ridge_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
 
     BB, TT, DD = all_score_paths.shape
-    
-    all_true_states = all_true_paths.reshape((-1, config.ts_dims), order="C")
-    all_score_states = all_score_paths.reshape((-1, config.ts_dims), order="C")
-    all_nad_states = all_nad_paths.reshape((-1, config.ts_dims), order="C")
-    all_hermite_states = all_hermite_paths.reshape((-1, config.ts_dims), order="C")
-    all_ridge_states = all_ridge_paths.reshape((-1, config.ts_dims), order="C")
+    all_true_states = all_true_paths[:, :, :].reshape((-1, config.ts_dims), order="C")
+    all_score_states = all_score_paths[:, :, :].reshape((-1, config.ts_dims), order="C")
+    all_nad_states = all_nad_paths[:, :, :].reshape((-1, config.ts_dims), order="C")
+    all_hermite_states = all_hermite_paths[:, :, :].reshape((-1, config.ts_dims), order="C")
+    all_ridge_states = all_ridge_paths[:, :, :].reshape((-1, config.ts_dims), order="C")
 
     true_drift = true_drifts(state=all_true_states, device_id=device_id, config=config).cpu().numpy()[:, 0, :]
+    true_drift_at_score = true_drifts(state=all_score_states, device_id=device_id, config=config).cpu().numpy()[:, 0, :]
+    true_drift_at_nad = true_drifts(state=all_nad_states, device_id=device_id, config=config).cpu().numpy()[:, 0, :]
+    true_drift_at_hermite = true_drifts(state=all_hermite_states, device_id=device_id, config=config).cpu().numpy()[:, 0, :]
+    true_drift_at_ridge = true_drifts(state=all_ridge_states, device_id=device_id, config=config).cpu().numpy()[:, 0, :]
+
     torch.cuda.synchronize()
     torch.cuda.empty_cache()
     gc.collect()
@@ -801,6 +805,7 @@ for config in [quadsin_config]:
     hermite_uniform_eval[ts_type] = mse
     mse = np.nanmean(np.sum(np.power(uniform_true_drifts - all_ridge_drift_ests_uniform, 2), axis=-1))
     ridge_uniform_eval[ts_type] = mse
+
     # STD
     std = np.nanstd(np.sum(np.power(uniform_true_drifts - all_score_drift_ests_uniform, 2), axis=-1),axis=0, ddof=1)
     score_uniform_eval_std[ts_type] = std
@@ -872,6 +877,34 @@ np.save(save_path+"_score_paths.npy", all_score_paths)
 np.save(save_path+"_nad_paths.npy", all_nad_paths)
 np.save(save_path+"_ridge_paths.npy", all_ridge_paths)
 np.save(save_path+"_hermite_paths.npy", all_hermite_paths)
+
+np.save(save_path+"_true_drifts.npy", true_drift.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_score_drifts.npy", all_score_drift_ests.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_nad_drifts.npy", all_nad_drift_ests.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_ridge_drifts.npy", all_ridge_drift_ests.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_hermite_drifts.npy", all_hermite_drift_ests.reshape(
+        (BB, TT, DD), order="C"))
+
+np.save(save_path+"_true_drifts_at_score.npy", true_drift_at_score.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_true_drifts_at_nad.npy", true_drift_at_nad.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_true_drifts_at_hermite.npy", true_drift_at_hermite.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_true_drifts_at_ridge.npy", true_drift_at_ridge.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_score_drifts_true_law.npy", all_score_drift_ests_true_law.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_nad_drifts_true_law.npy", all_nad_drift_ests_true_law.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_ridge_drifts_true_law.npy", all_ridge_drift_ests_true_law.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_hermite_drifts_true_law.npy", all_hermite_drift_ests_true_law.reshape(
+        (BB, TT, DD), order="C"))
 
 np.save(save_path + "_true_uniform.npy", uniform_true_drifts)
 np.save(save_path + "_score_uniform.npy", all_score_drift_ests_uniform)
