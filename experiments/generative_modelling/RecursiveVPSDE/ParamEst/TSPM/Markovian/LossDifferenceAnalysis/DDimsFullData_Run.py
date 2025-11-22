@@ -348,7 +348,7 @@ for config in [ddimsNS_12d_config, ddimsNS_8d_config]:
     xadd3 = np.logspace(2.0, 4.0, 11)[1:]  # 10 values > -0.05
     bws = np.concatenate([grid_1d, xadd, xadd2, xadd3])
     bws = np.stack([bws for m in range(config.ndims)], axis=-1)
-    bw = bws[54, :]
+    bw = bws[58, :] if config.ndims == 8 else bws[31,:]
     assert bw.shape[0] == config.ndims and len(bw.shape) == 1
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
