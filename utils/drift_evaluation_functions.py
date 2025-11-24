@@ -355,6 +355,7 @@ def experiment_MLP_DDims_drifts(config, Xs, good, onlyGauss=False):
     # match your original return type
     return final_vec_mu_hats.numpy()
 def MLP_1D_drifts(config, PM):
+    assert config.ndims == 1
     print("Beta Min : ", config.beta_min)
     if config.has_cuda:
         device = int(os.environ["LOCAL_RANK"])
@@ -373,13 +374,20 @@ def MLP_1D_drifts(config, PM):
     diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_time,
                                      steps=Ndiff_discretisation).to(device)
 
-    if config.diffusion == .1:
-        Xs = torch.linspace(-.15, .15, steps=Xshape)
-    elif config.diffusion == 10.:
-        Xs = torch.linspace(-12, 12, steps=Xshape)
-    else:
-        Xs = torch.linspace(-1.5, 1.5, steps=Xshape)
-
+    if "BiPot" not in config.data_path:
+        if config.diffusion == .1:
+            Xs = torch.linspace(-.15, .15, steps=Xshape)
+        elif config.diffusion == 10.:
+            Xs = torch.linspace(-12, 12, steps=Xshape)
+        else:
+            Xs = torch.linspace(-1.5, 1.5, steps=Xshape)
+    elif "BiPot" in config.data_path:
+        if config.diffusion == 1:
+            Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
+        elif config.diffusion == 0.1:
+            Xs = np.linspace(-.3, .3, num=config.ts_length)
+        elif config.diffusion == 10.:
+            Xs = np.linspace(-4., 4., num=config.ts_length)
     features_tensor = torch.stack([Xs for _ in range(1)], dim=0).reshape(Xshape * 1, 1, -1).to(device)
     final_vec_mu_hats = np.zeros(
         (Xshape, num_diff_times, num_taus, config.ts_dims))  # Xvalues, DiffTimes, Ztaus, Ts_Dims
@@ -584,7 +592,10 @@ def MLP_fBiPotDDims_drifts(config, PM):
                              torch.linspace(-4.05, 4.05, steps=Xshape).reshape(-1,1), torch.linspace(-3.9, 3.9, steps=Xshape).reshape(-1,1), \
                              torch.linspace(-3.7, 3.7, steps=Xshape).reshape(-1,1), torch.linspace(-3.6, 3.6, steps=Xshape).reshape(-1,1), \
                              torch.linspace(-3.5, 3.5, steps=Xshape).reshape(-1,1), torch.linspace(-3.4, 3.4, steps=Xshape).reshape(-1,1)], dim=1)
-
+    if config.diffusion == 0.1:
+        Xs /= 5.
+    elif config.diffusion == 1.:
+        Xs /= 3.
     features_tensor = torch.stack([Xs for _ in range(1)], dim=0).reshape(Xshape * 1, 1, -1).to(device)
     final_vec_mu_hats = np.zeros(
         (Xshape, num_diff_times, num_taus, config.ts_dims))  # Xvalues, DiffTimes, Ztaus, Ts_Dims

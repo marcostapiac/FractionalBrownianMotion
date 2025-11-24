@@ -1,7 +1,8 @@
-
+import math
 from multiprocessing import shared_memory
 
 import numpy as np
+import torch
 from tqdm import tqdm
 
 from configs import project_config
@@ -9,10 +10,6 @@ from configs.RecursiveVPSDE.Markovian_40DLorenz.recursive_Markovian_PostMeanScor
     get_config
 from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
 from utils.resource_logger import ResourceLogger, set_runtime_global
-
-import math
-import numpy as np
-import torch
 
 
 # ---------------------------
@@ -40,9 +37,9 @@ def true_drift_gpu(prev: torch.Tensor, num_paths: int, config) -> torch.Tensor:
     x = prev
     # Vectorized Lorenz96 drift:
     x_ip1 = torch.roll(x, shifts=-1, dims=1)  # x_{i+1}
-    x_im1 = torch.roll(x, shifts=1,  dims=1)  # x_{i-1}
-    x_im2 = torch.roll(x, shifts=2,  dims=1)  # x_{i-2}
-    drift = (x_ip1 - x_im2) * x_im1 - x*float(config.forcing_const)
+    x_im1 = torch.roll(x, shifts=1, dims=1)  # x_{i-1}
+    x_im2 = torch.roll(x, shifts=2, dims=1)  # x_{i-2}
+    drift = (x_ip1 - x_im2) * x_im1 - x * float(config.forcing_const)
     return drift[:, None, :]
 
 
@@ -53,17 +50,17 @@ def true_drift_gpu(prev: torch.Tensor, num_paths: int, config) -> torch.Tensor:
 
 @torch.no_grad()
 def IID_NW_multivar_estimator_gpu(
-    prevPath_observations: torch.Tensor,  # (N,n,d) float32 CUDA
-    path_incs: torch.Tensor,              # (N,n,d) float32 CUDA
-    inv_H: torch.Tensor,                  # (d,) (diag) or (d,d) float32 CUDA
-    norm_const: float,                    # same meaning as your CPU code
-    x: torch.Tensor,                      # (M,d) float32 CUDA
-    t1: float,
-    t0: float,
-    truncate: bool = True,
-    M_tile: int = 32,                     # micro-batch states
-    Nn_tile: int | None = 512_000,        # micro-batch samples (None => full)
-    stable: bool = True,
+        prevPath_observations: torch.Tensor,  # (N,n,d) float32 CUDA
+        path_incs: torch.Tensor,  # (N,n,d) float32 CUDA
+        inv_H: torch.Tensor,  # (d,) (diag) or (d,d) float32 CUDA
+        norm_const: float,  # same meaning as your CPU code
+        x: torch.Tensor,  # (M,d) float32 CUDA
+        t1: float,
+        t0: float,
+        truncate: bool = True,
+        M_tile: int = 32,  # micro-batch states
+        Nn_tile: int | None = 512_000,  # micro-batch samples (None => full)
+        stable: bool = True,
 ) -> torch.Tensor:
     """
     Returns: (M,d) float32 CUDA tensor (keeps all heavy ops on LongerTimes_GPU).
@@ -71,7 +68,7 @@ def IID_NW_multivar_estimator_gpu(
       denom = sum(w)/(N*n)
       numer = (sum(w * incs)/N) * (t1 - t0)
     """
-    #assert prevPath_observations.is_cuda and path_incs.is_cuda and x.is_cuda
+    # assert prevPath_observations.is_cuda and path_incs.is_cuda and x.is_cuda
     assert prevPath_observations.dtype == torch.float32
     assert path_incs.dtype == torch.float32
     assert x.dtype == torch.float32
@@ -83,19 +80,21 @@ def IID_NW_multivar_estimator_gpu(
 
     # Flatten once
     mu = prevPath_observations.reshape(Nn, d).contiguous()  # (Nn,d)
-    dX = path_incs.reshape(Nn, d).contiguous()              # (Nn,d)
+    dX = path_incs.reshape(Nn, d).contiguous()  # (Nn,d)
 
     # Diagonal vs full inv_H
     diag = (inv_H.ndim == 1)
     if diag:
-        A = inv_H                                           # (d,)
-        muAh = mu * A                                       # (Nn,d)
-        mu_quad = (mu * muAh).sum(-1)                       # (Nn,)
-        def xAh(X): return X * A
+        A = inv_H  # (d,)
+        muAh = mu * A  # (Nn,d)
+        mu_quad = (mu * muAh).sum(-1)  # (Nn,)
+
+        def xAh(X):
+            return X * A
     else:
-        A = inv_H                                           # (d,d)
-        muAh = mu @ A                                       # (Nn,d)
-        mu_quad = (mu * muAh).sum(-1)                       # (Nn,)
+        A = inv_H  # (d,d)
+        muAh = mu @ A  # (Nn,d)
+        mu_quad = (mu * muAh).sum(-1)  # (Nn,)
         # Sanity: PD
         sign, _ = torch.linalg.slogdet(A)
         if sign.item() <= 0:
@@ -106,45 +105,43 @@ def IID_NW_multivar_estimator_gpu(
 
     M = x.size(0)
     # Accumulate in float64 for stability
-    denom = torch.zeros(M,     dtype=torch.float64, device=x.device)
-    numer = torch.zeros(M, d,  dtype=torch.float64, device=x.device)
+    denom = torch.zeros(M, dtype=torch.float64, device=x.device)
+    numer = torch.zeros(M, d, dtype=torch.float64, device=x.device)
 
     for m0 in range(0, M, M_tile):
-        X = x[m0:m0 + M_tile]                     # (mb,d)
-        XAh = xAh(X)                               # (mb,d)
-        X_quad = (X * XAh).sum(-1)                 # (mb,)
+        X = x[m0:m0 + M_tile]  # (mb,d)
+        XAh = xAh(X)  # (mb,d)
+        X_quad = (X * XAh).sum(-1)  # (mb,)
 
-        denom_tile = torch.zeros(X.size(0),    dtype=torch.float64, device=x.device)
+        denom_tile = torch.zeros(X.size(0), dtype=torch.float64, device=x.device)
         numer_tile = torch.zeros(X.size(0), d, dtype=torch.float64, device=x.device)
 
         if stable:
             lse_max = torch.full((X.size(0),), -torch.inf, dtype=torch.float32, device=x.device)
             # First pass: find max exponent per state (over all Nn tiles)
             for i0 in range(0, Nn, Nn_tile):
-                muq_i  = mu_quad[i0:i0 + Nn_tile]             # (bn,)
-                muAh_i = muAh[i0:i0 + Nn_tile]                # (bn,d)
-                cross  = muAh_i @ X.t()                       # (bn,mb)
-                expo   = log_norm_const - 0.5 * (muq_i[:, None] + X_quad[None, :] - 2.0 * cross)
+                muq_i = mu_quad[i0:i0 + Nn_tile]  # (bn,)
+                muAh_i = muAh[i0:i0 + Nn_tile]  # (bn,d)
+                cross = muAh_i @ X.t()  # (bn,mb)
+                expo = log_norm_const - 0.5 * (muq_i[:, None] + X_quad[None, :] - 2.0 * cross)
                 lse_max = torch.maximum(lse_max, expo.max(dim=0).values)
 
         # Second pass: accumulate with stabilization (or plain)
         for i0 in range(0, Nn, Nn_tile):
-            muAh_i = muAh[i0:i0 + Nn_tile]                    # (bn,d)
-            muq_i  = mu_quad[i0:i0 + Nn_tile]                 # (bn,)
-            dX_i   = dX[i0:i0 + Nn_tile]                      # (bn,d)
+            muAh_i = muAh[i0:i0 + Nn_tile]  # (bn,d)
+            muq_i = mu_quad[i0:i0 + Nn_tile]  # (bn,)
+            dX_i = dX[i0:i0 + Nn_tile]  # (bn,d)
 
-            cross = muAh_i @ X.t()                            # (bn,mb)
-            expo  = log_norm_const - 0.5 * (muq_i[:, None] + X_quad[None, :] - 2.0 * cross)
+            cross = muAh_i @ X.t()  # (bn,mb)
+            expo = log_norm_const - 0.5 * (muq_i[:, None] + X_quad[None, :] - 2.0 * cross)
 
             if stable:
-                w = torch.exp(expo - lse_max[None, :])        # (bn,mb)
+                w = torch.exp(expo - lse_max[None, :])  # (bn,mb)
             else:
                 w = torch.exp(expo)
 
             denom_tile += w.sum(dim=0, dtype=torch.float64) / (N * n)
             numer_tile += (w.t() @ dX_i).to(torch.float64) / (N * (t1 - t0))
-
-        
 
         denom[m0:m0 + X.size(0)] += denom_tile
         numer[m0:m0 + X.size(0)] += numer_tile
@@ -162,21 +159,21 @@ def IID_NW_multivar_estimator_gpu(
 
 @torch.no_grad()
 def process_IID_bandwidth_gpu(
-    quant_idx: int,
-    shape: tuple,                 # (N, n, d)
-    inv_H_np: np.ndarray,         # (d,d) diag matrix or (d,) diag vector
-    norm_const: float,
-    config,                       # your config object
-    num_time_steps: int,
-    num_state_paths: int,
-    deltaT: float,
-    prevPath_np: np.ndarray,      # (N, n, d) float64/32 — host
-    path_incs_np: np.ndarray,     # (N, n, d) float64/32 — host
-    seed_seq,                     # numpy.SeedSequence child
-    device_str: str | None = None,
-    M_tile: int = 32,
-    Nn_tile: int | None = 512_000,
-    stable: bool = True,
+        quant_idx: int,
+        shape: tuple,  # (N, n, d)
+        inv_H_np: np.ndarray,  # (d,d) diag matrix or (d,) diag vector
+        norm_const: float,
+        config,  # your config object
+        num_time_steps: int,
+        num_state_paths: int,
+        deltaT: float,
+        prevPath_np: np.ndarray,  # (N, n, d) float64/32 — host
+        path_incs_np: np.ndarray,  # (N, n, d) float64/32 — host
+        seed_seq,  # numpy.SeedSequence child
+        device_str: str | None = None,
+        M_tile: int = 32,
+        Nn_tile: int | None = 512_000,
+        stable: bool = True,
 ):
     """
     Mirrors your original `process_IID_bandwidth`, but fully on LongerTimes_GPU, and returns:
@@ -198,18 +195,18 @@ def process_IID_bandwidth_gpu(
 
     d = config.ndims
     # States on LongerTimes_GPU
-    true_states   = torch.zeros((num_state_paths, 1 + num_time_steps, d), dtype=torch.float32, device=device)
+    true_states = torch.zeros((num_state_paths, 1 + num_time_steps, d), dtype=torch.float32, device=device)
     global_states = torch.zeros_like(true_states)
-    local_states  = torch.zeros_like(true_states)
+    local_states = torch.zeros_like(true_states)
 
     init = torch.as_tensor(np.asarray(config.initState, dtype=np.float32), device=device)
-    true_states[:, 0, :]   = init
+    true_states[:, 0, :] = init
     global_states[:, 0, :] = init
-    local_states[:, 0, :]  = init
+    local_states[:, 0, :] = init
 
     # RNG on LongerTimes_GPU (deterministic from provided SeedSequence)
     g = torch.Generator(device=device)
-    seed = int(seed_seq.generate_state(1, dtype=np.uint64)[0] % (2**63 - 1))
+    seed = int(seed_seq.generate_state(1, dtype=np.uint64)[0] % (2 ** 63 - 1))
     g.manual_seed(seed)
 
     for i in range(1, num_time_steps + 1):
@@ -237,9 +234,9 @@ def process_IID_bandwidth_gpu(
         )
 
         # Euler–Maruyama updates
-        true_states[:,   i, :] = true_states[:,   i - 1, :] + true_mean  * deltaT + eps
+        true_states[:, i, :] = true_states[:, i - 1, :] + true_mean * deltaT + eps
         global_states[:, i, :] = global_states[:, i - 1, :] + global_mean * deltaT + eps
-        local_states[:,  i, :] = true_states[:,   i - 1, :] + local_mean  * deltaT + eps
+        local_states[:, i, :] = true_states[:, i - 1, :] + local_mean * deltaT + eps
 
     # Return as numpy for saving consistency with your code
     return {
@@ -250,12 +247,14 @@ def process_IID_bandwidth_gpu(
         )
     }
 
+
 if __name__ == "__main__":
     config = get_config()
     num_paths = 1024 if config.feat_thresh == 1. else 10240
     with ResourceLogger(
             interval=120,
-            outfile=config.nadaraya_resource_logging_path.replace(".json.json", "_GPUNADARAYA.json.json"),  # path where log will be written
+            outfile=config.nadaraya_resource_logging_path.replace(".json.json", "_GPUNADARAYA.json.json"),
+            # path where log will be written
             job_type="GPU training",
     ):
         assert num_paths == 10240
@@ -270,7 +269,8 @@ if __name__ == "__main__":
         try:
             is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :, :]
             is_path_observations = np.concatenate(
-                [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0], axis=0),
+                [np.repeat(np.array(config.initState).reshape((1, 1, config.ndims)), is_path_observations.shape[0],
+                           axis=0),
                  is_path_observations], axis=1)
             assert is_path_observations.shape == (num_paths, config.ts_length + 1, config.ndims)
         except (FileNotFoundError, AssertionError) as e:
@@ -316,7 +316,7 @@ if __name__ == "__main__":
         np.copyto(prevPath_shm_array, prevPath_observations)
         np.copyto(path_incs_shm_array, path_incs)
 
-        num_time_steps = int(1*config.ts_length)
+        num_time_steps = int(1 * config.ts_length)
         rmse_quantile_nums = 1
         # Ensure randomness across starmap calls
         master_seed = 42
@@ -327,7 +327,7 @@ if __name__ == "__main__":
         shape = prevPath_observations.shape
         num_state_paths = 100
         mses = {bw_idx: np.inf for bw_idx in (range(0, bws.shape[0]))}
-        for bw_idx in tqdm(range(0,bws.shape[0])):
+        for bw_idx in tqdm(range(0, bws.shape[0])):
             set_runtime_global(idx=bw_idx)
             bw = bws[bw_idx, :]
             inv_H = np.diag(np.power(bw, -2))
@@ -372,7 +372,7 @@ if __name__ == "__main__":
             M_tile = 1024
             Nn_tile = 512000
             stable = True
-            num_dhats = 1 # No variability given we use same training dataset
+            num_dhats = 1  # No variability given we use same training dataset
             device = _get_device(None)
             all_true_states = all_true_states[np.random.choice(np.arange(all_true_states.shape[0]), 100), :, :]
             all_true_states = all_true_states.reshape(-1, config.ts_dims)
@@ -401,7 +401,8 @@ if __name__ == "__main__":
                 ).cpu().numpy()
             est_unif_is_drift_hats = np.nanmean(unif_is_drift_hats, axis=1)
             mses[bw_idx] = (
-            bws[bw_idx,0], np.nanmean(np.sum(np.power(est_unif_is_drift_hats - all_true_states, 2), axis=-1), axis=-1))
+                bws[bw_idx, 0],
+                np.nanmean(np.sum(np.power(est_unif_is_drift_hats - all_true_states, 2), axis=-1), axis=-1))
             save_path = save_path.replace("DriftTrack", "DriftEvalExp")
             import pandas as pd
 
