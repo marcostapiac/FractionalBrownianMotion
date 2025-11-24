@@ -811,7 +811,12 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             elif config.ndims == 1:
                 final_vec_mu_hats = MLP_1D_drifts(PM=self.score_network.module, config=config)
             if "BiPot" in config.data_path and config.ndims == 1:
-                Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
+                if config.diffusion == 1:
+                    Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
+                elif config.diffusion == 0.1:
+                    Xs = np.linspace(-.3, .3, num=config.ts_length)
+                elif config.diffusion == 10.:
+                    Xs = np.linspace(-4., 4., num=config.ts_length)
                 true_drifts = -(4. * config.quartic_coeff * np.power(Xs,
                                                                      3) + 2. * config.quad_coeff * Xs + config.const)
             elif "BiPot" in config.data_path and config.ndims > 1:
@@ -840,6 +845,10 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                          np.linspace(-3.5, 3.5, num=Xshape).reshape(-1, 1),
                                          np.linspace(-3.4, 3.4, num=Xshape).reshape(-1, 1)],
                                         axis=1)
+                if config.diffusion == 0.1:
+                    Xs /= 5.
+                elif config.diffusion == 1.:
+                    Xs /= 3.
                 if "coup" in config.data_path:
                     true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
                                                                                    3) + 2. * np.array(
@@ -863,12 +872,17 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     Xs = np.linspace(-.15, .15, num=config.ts_length)
                 elif config.diffusion == 10:
                     Xs = np.linspace(-12, 12, num=config.ts_length)
-                else:
+                elif config.diffusion == 1.:
                     Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
                 true_drifts = (-2. * config.quad_coeff * Xs + config.sin_coeff * config.sin_space_scale * np.sin(
                     config.sin_space_scale * Xs))
             elif "SinLog" in config.data_path:
-                Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
+                if config.diffusion == .1:
+                    Xs = np.linspace(-.15, .15, num=config.ts_length)
+                elif config.diffusion == 10:
+                    Xs = np.linspace(-12, 12, num=config.ts_length)
+                elif config.diffusion == 1.:
+                    Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
                 true_drifts = (-np.sin(config.sin_space_scale * Xs) * np.log(
                     1 + config.log_space_scale * np.abs(Xs)) / config.sin_space_scale)
         else:
@@ -944,6 +958,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}{config.ndims}DLnz_DriftEvalExp_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{1}NDT_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}_{round(config.forcing_const, 3)}FConst").replace(
                 ".", "")
         if (config.diffusion == .1) or (config.diffusion == 10.):
+            save_path += f"_Diff{config.diffusion:.1f}".replace(".", "")
+        if config.diffusion == 1. and "BiPot" in config.data_path and config.ndims > 1:
             save_path += f"_Diff{config.diffusion:.1f}".replace(".", "")
         print(f"Save path:{save_path}\n")
         if ("DLnz" not in config.data_path) and ("DDimsNS" not in config.data_path):
@@ -1126,6 +1142,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}{config.ndims}DLnz_OOSDriftTrack_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{num_diff_times}NDT_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}_{round(config.forcing_const, 3)}FConst").replace(
                 ".", "")
         if (config.diffusion == .1) or (config.diffusion == 10.):
+            save_path += f"_Diff{config.diffusion:.1f}".replace(".", "")
+        if config.diffusion == 1. and "BiPot" in config.data_path and config.ndims > 1:
             save_path += f"_Diff{config.diffusion:.1f}".replace(".", "")
         print(f"Save path for OOS DriftTrack:{save_path}\n")
         np.save(save_path + "_true_states.npy", all_true_states)

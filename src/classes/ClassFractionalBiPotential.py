@@ -50,7 +50,8 @@ class FractionalBiPotential:
         ## See (Weak approximation schemes for SDEs with super-linearly growing coefficients, 2023) for weak solution
         #diffX = diffX/(1.+deltaT*driftX)
         # See Tamed Euler
-        driftX = driftX/(1.+deltaT*np.abs(driftX))
+        if self.ndims > 1:
+            driftX = driftX/(1.+deltaT*np.abs(driftX))
         return prev + driftX * deltaT + diffX
 
     def euler_simulation(self, H: float, N: int, isUnitInterval: bool, t0: float, t1: float, deltaT: float,
