@@ -383,11 +383,12 @@ def MLP_1D_drifts(config, PM):
             Xs = torch.linspace(-1.5, 1.5, steps=Xshape)
     elif "BiPot" in config.data_path:
         if config.diffusion == 1:
-            Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
+            Xs = torch.linspace(-1.5, 1.5, steps=Xshape)
         elif config.diffusion == 0.1:
-            Xs = np.linspace(-.3, .3, num=config.ts_length)
+            Xs = torch.linspace(-.3, .3, steps=Xshape)
         elif config.diffusion == 10.:
-            Xs = np.linspace(-4., 4., num=config.ts_length)
+            Xs = torch.linspace(-4., 4., steps=Xshape)
+
     features_tensor = torch.stack([Xs for _ in range(1)], dim=0).reshape(Xshape * 1, 1, -1).to(device)
     final_vec_mu_hats = np.zeros(
         (Xshape, num_diff_times, num_taus, config.ts_dims))  # Xvalues, DiffTimes, Ztaus, Ts_Dims
