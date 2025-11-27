@@ -15,7 +15,7 @@ from utils.resource_logger import ResourceLogger
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.Markovian_fSinLog.recursive_Markovian_PostMeanScore_fSinLog_LowFTh_T256_H05_tl_110data_StbleTgt_LOWNOISE import \
+    from configs.RecursiveVPSDE.Markovian_fSinLog.recursive_Markovian_PostMeanScore_fSinLog_LowFTh_T256_H05_tl_110data_StbleTgt_HIGHNOISE import \
         get_config
     config = get_config()
     with ResourceLogger(
