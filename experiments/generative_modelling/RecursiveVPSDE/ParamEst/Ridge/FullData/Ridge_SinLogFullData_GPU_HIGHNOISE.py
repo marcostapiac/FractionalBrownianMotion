@@ -111,7 +111,7 @@ def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M, device_id):
         obj, x0,
         method="L-BFGS-B",
         bounds=[(0.0, None)],
-        options={"eps": 1e-1, "maxiter": 200}
+        options={"eps": 1e-0, "maxiter": 200}
     )
 
     lhat = np.inf
@@ -121,7 +121,7 @@ def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M, device_id):
             obj, opt.x,
             method="L-BFGS-B",
             bounds=[(0.0, None)],
-            options={"eps": 1e-1, "maxiter": 200}
+            options={"eps": 1e-0, "maxiter": 200}
         )
 
     lhat = float(np.atleast_1d(opt.x)[0])
