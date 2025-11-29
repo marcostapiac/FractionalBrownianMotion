@@ -105,29 +105,31 @@ def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M, device_id):
         return val
 
     x0 = float(max(0., -torch.min(torch.linalg.eigvalsh(BTB)).item()) + 1e-12)
-
-    # Use a method with bounds and a finite-diff step that isn't annihilated
-    opt = scipy.optimize.minimize(
-        obj, x0,
-        method="L-BFGS-B",
-        bounds=[(0.0, None)],
-        options={"eps": 1e-0, "maxiter": 200}
-    )
-
-    lhat = np.inf
-    while not opt.success and not np.allclose(lhat, opt.x):
-        lhat = opt.x
+    try:
+        # Use a method with bounds and a finite-diff step that isn't annihilated
         opt = scipy.optimize.minimize(
-            obj, opt.x,
+            obj, x0,
             method="L-BFGS-B",
             bounds=[(0.0, None)],
             options={"eps": 1e-0, "maxiter": 200}
         )
 
-    lhat = float(np.atleast_1d(opt.x)[0])
-    a = torch.atleast_2d(torch.linalg.inv(BTB + lhat * I) @ BTZ)
-    a = torch.as_tensor(a, device=device_id, dtype=torch.float32)
-    return a
+        lhat = np.inf
+        while not opt.success and not np.allclose(lhat, opt.x):
+            lhat = opt.x
+            opt = scipy.optimize.minimize(
+                obj, opt.x,
+                method="L-BFGS-B",
+                bounds=[(0.0, None)],
+                options={"eps": 1e-0, "maxiter": 200}
+            )
+
+        lhat = float(np.atleast_1d(opt.x)[0])
+        a = torch.atleast_2d(torch.linalg.inv(BTB + lhat * I) @ BTZ)
+        a = torch.as_tensor(a, device=device_id, dtype=torch.float32)
+        return a
+    except torch._C._LinAlgError:
+        return torch.inf*torch.zeros(size=(KN + M,1), device=device_id, dtype=torch.float32)
 
 
 
@@ -169,13 +171,17 @@ for KN in KNs:
     Z = torch.tensor(Z, dtype=torch.float32, device=device_id)
     assert (B.shape[0] == Z.shape[0] and len(B.shape)==len(Z.shape) == 2)
     coeffs = find_optimal_Ridge_estimator_coeffs(B=B, Z=Z, KN=KN, LN=LN, M=M, device_id=device_id)
-    unif_B = spline_basis(paths=Xs, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
-    ridge_drift = construct_Ridge_estimator(coeffs=coeffs, B=unif_B, LN=LN, device_id=device_id).cpu().numpy().flatten().reshape((numXs, config.ndims))
-    ridge_drift[Xs[:, :-1].flatten() < AN, :] = np.nan
-    ridge_drift[Xs[:, :-1].flatten() > BN, :] = np.nan
-    mse = np.nanmean(np.sum(np.power(ridge_drift - true_drift, 2), axis=-1), axis=-1)
-    mses[KN] = [mse]
-    print(KN, mse)
+    if not torch.all(torch.isinf(coeffs)):
+        unif_B = spline_basis(paths=Xs, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
+        ridge_drift = construct_Ridge_estimator(coeffs=coeffs, B=unif_B, LN=LN, device_id=device_id).cpu().numpy().flatten().reshape((numXs, config.ndims))
+        ridge_drift[Xs[:, :-1].flatten() < AN, :] = np.nan
+        ridge_drift[Xs[:, :-1].flatten() > BN, :] = np.nan
+        mse = np.nanmean(np.sum(np.power(ridge_drift - true_drift, 2), axis=-1), axis=-1)
+        mses[KN] = [mse]
+        print(KN, mse)
+    else:
+        mses[KN] = [np.nan]
+        print(KN, mses[KN])
 
 save_path = (
         project_config.ROOT_DIR + f"experiments/results/Ridge_fSinLog_DriftEvalExp_{num_paths}NPaths_{config.deltaT:.3e}dT_Diff{config.diffusion:.1f}").replace(
