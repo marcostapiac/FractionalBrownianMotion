@@ -83,8 +83,8 @@ def construct_Phi_matrix(R, deltaT, T, basis, device_id, paths):
     intermediate = deltaT * basis.permute((0, 2, 1)) @ basis
     assert intermediate.shape == (
         N, R, R), f"Intermediate matrix is shape {intermediate.shape} but should be {(N, R, R)}"
-    for i in range(N):
-        es = torch.linalg.eigvalsh(intermediate[i, :, :]) >= 0.
+    #for i in range(N):
+        #es = torch.linalg.eigvalsh(intermediate[i, :, :]) >= 0.
         # assert (torch.all(es)), f"Submat at {i} is not PD, for R={R}"
     Phi = deltaT * (basis.permute((0, 2, 1)) @ basis)
     assert (Phi.shape == (N, R, R))
