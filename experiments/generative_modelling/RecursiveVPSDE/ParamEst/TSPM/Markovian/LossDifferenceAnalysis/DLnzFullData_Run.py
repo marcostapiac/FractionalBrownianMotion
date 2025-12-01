@@ -359,7 +359,9 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_8d_config]:
     all_score_paths = all_score_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
     all_nad_paths = all_nad_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
     BB, TT, DD = all_score_paths.shape
-    
+
+
+
     all_true_states = all_true_paths.reshape((-1, config.ts_dims), order="C")
     all_score_states = all_score_paths.reshape((-1, config.ts_dims), order="C")
     all_nad_states = all_nad_paths.reshape((-1, config.ts_dims), order="C")
@@ -400,6 +402,17 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_8d_config]:
         torch.cuda.synchronize()
         torch.cuda.empty_cache()
         gc.collect()
+    save_path = (
+            project_config.ROOT_DIR + f"experiments/results/DLnz_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
+        ".", "")
+    np.save(save_path + f"_{config.ts_dims}_true_paths.npy", all_true_paths)
+    np.save(save_path + f"_{config.ts_dims}_score_paths.npy", all_score_paths)
+    np.save(save_path + f"_{config.ts_dims}_nad_paths.npy", all_nad_paths)
+
+    np.save(save_path + f"_{config.ts_dims}_true_drifts.npy", true_drift)
+    np.save(save_path + f"_{config.ts_dims}_score_drifts.npy", all_score_drift_ests)
+    np.save(save_path + f"_{config.ts_dims}_nad_drifts.npy", all_nad_drift_ests)
+
     mse = np.cumsum(np.nanmean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_score_drift_ests.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1, TT+1)
     score_eval[ts_type] = mse
     mse =  np.cumsum(np.nanmean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_nad_drift_ests.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1, TT+1)
