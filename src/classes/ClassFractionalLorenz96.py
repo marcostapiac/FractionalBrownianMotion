@@ -47,6 +47,7 @@ class FractionalLorenz96:
         else:
             Zs = [X0]  # [self.lamperti(X0)]
         Ds = [np.zeros_like(X0)]
+
         if gaussRvs is None:
             if H != 0.5:
                 self.gaussIncs = self.rng.normal(size=2 * N)
