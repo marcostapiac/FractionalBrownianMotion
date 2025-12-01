@@ -886,11 +886,16 @@ np.save(save_path + "_nad_uniform.npy", all_nad_drift_ests_uniform)
 np.save(save_path + "_hermite_uniform.npy", all_hermite_drift_ests_uniform)
 np.save(save_path + "_ridge_uniform.npy", all_ridge_drift_ests_uniform)
 
-np.save(save_path+"_true_drifts.npy", true_drift)
-np.save(save_path+"_score_drifts.npy", all_score_drift_ests)
-np.save(save_path+"_nad_drifts.npy", all_nad_drift_ests)
-np.save(save_path+"_ridge_drifts.npy", all_ridge_drift_ests)
-np.save(save_path+"_hermite_drifts.npy", all_hermite_drift_ests)
+np.save(save_path+"_true_drifts.npy", true_drift.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_score_drifts.npy", all_score_drift_ests.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_nad_drifts.npy", all_nad_drift_ests.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_ridge_drifts.npy", all_ridge_drift_ests.reshape(
+        (BB, TT, DD), order="C"))
+np.save(save_path+"_hermite_drifts.npy", all_hermite_drift_ests.reshape(
+        (BB, TT, DD), order="C"))
 
 pd.DataFrame.from_dict(score_eval).to_parquet(save_path + "_score_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval).to_parquet(save_path + "_nad_MSE.parquet")
