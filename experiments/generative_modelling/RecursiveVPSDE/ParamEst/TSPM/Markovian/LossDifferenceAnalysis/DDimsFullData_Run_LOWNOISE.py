@@ -458,6 +458,9 @@ for config in [ddims_12d_config, ddims_8d_config]:
 import pandas as pd
 save_path = (project_config.ROOT_DIR + f"experiments/results/DDims_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths_Diff01").replace(
             ".", "")
+np.save(save_path+"_true_paths.npy", all_true_paths)
+np.save(save_path+"_score_paths.npy", all_score_paths)
+np.save(save_path+"_nad_paths.npy", all_nad_paths)
 pd.DataFrame.from_dict(score_eval).to_parquet(save_path + "_score_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval).to_parquet(save_path + "_nad_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval_true_law).to_parquet(save_path + "_nad_true_law_MSE.parquet")
