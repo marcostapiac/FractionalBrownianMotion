@@ -930,20 +930,21 @@ def driftevalexp_mse_ignore_nans(true, pred):
         return np.mean((true[mask] - pred[mask]) ** 2)
 
 
-def multivar_score_based_MLP_drift_OOS(score_model, num_diff_times, diffusion, num_paths, prev,
+def multivar_score_based_MLP_drift_OOS(score_model, numstates,num_diff_times, diffusion, num_paths, prev,
                                        ts_step, config,
                                        device):
     """ Computes drift using MLP score network when features obtained from LSTM directly """
 
     score_model = score_model.to(device)
-    num_taus = 100
+    num_taus = numstates
     Ndiff_discretisation = config.max_diff_steps
     assert (prev.shape == (num_paths, config.ndims))
     assert (prev[0, :].shape[0] == config.ts_dims)
     features_tensor = torch.stack([torch.tensor(prev, dtype=torch.float32) for _ in range(1)], dim=0).reshape(
         num_paths * 1, 1, -1).to(device)
     assert (features_tensor.shape[0] == num_paths)
-    vec_Z_taus = diffusion.prior_sampling(shape=(num_paths * num_taus, 1, config.ts_dims)).to(device)
+
+    vec_Z_taus = diffusion.prior_sampling(shape=(num_paths * num_taus, 1, config.ts_dims)).to(device)#torch.zeros(size=(num_paths * num_taus, 1, config.ts_dims)).to(device)#
 
     diffusion_times = torch.linspace(config.sample_eps, 1., config.max_diff_steps)
     difftime_idx = Ndiff_discretisation - 1
