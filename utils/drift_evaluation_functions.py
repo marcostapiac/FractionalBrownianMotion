@@ -940,6 +940,7 @@ def multivar_score_based_MLP_drift_OOS(score_model, num_diff_times, diffusion, n
     numtimes = 100
     conc_means = []
     for _ in range(numtimes):
+        print("Diff Times", _)
         Ndiff_discretisation = config.max_diff_steps
         assert (prev.shape == (num_paths, config.ndims))
         assert (prev[0, :].shape[0] == config.ts_dims)
