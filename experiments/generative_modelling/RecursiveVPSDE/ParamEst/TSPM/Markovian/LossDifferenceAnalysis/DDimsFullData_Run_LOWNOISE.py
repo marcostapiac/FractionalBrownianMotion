@@ -404,6 +404,18 @@ for config in [ddims_12d_config, ddims_8d_config]:
         torch.cuda.synchronize()
         torch.cuda.empty_cache()
         gc.collect()
+    save_path = (
+            project_config.ROOT_DIR + f"experiments/results/DDims_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths_Diff01").replace(
+        ".", "")
+    np.save(save_path + f"_{config.ndims}_true_paths.npy", all_true_paths)
+    np.save(save_path + f"_{config.ndims}_score_paths.npy", all_score_paths)
+    np.save(save_path + f"_{config.ndims}_nad_paths.npy", all_nad_paths)
+
+    np.save(save_path + f"_{config.ts_dims}_true_drifts.npy", true_drift)
+    np.save(save_path + f"_{config.ts_dims}_score_drifts.npy", all_score_drift_ests)
+    np.save(save_path + f"_{config.ts_dims}_nad_drifts.npy", all_nad_drift_ests)
+
+
     mse = np.cumsum(np.nanmean(np.sum(np.power(
         true_drift.reshape(((BB, TT, DD)), order="C") - all_score_drift_ests.reshape(((BB, TT, DD)), order="C"), 2),
         axis=-1), axis=0)) / np.arange(1, TT + 1)
@@ -458,9 +470,7 @@ for config in [ddims_12d_config, ddims_8d_config]:
 import pandas as pd
 save_path = (project_config.ROOT_DIR + f"experiments/results/DDims_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths_Diff01").replace(
             ".", "")
-np.save(save_path+"_true_paths.npy", all_true_paths)
-np.save(save_path+"_score_paths.npy", all_score_paths)
-np.save(save_path+"_nad_paths.npy", all_nad_paths)
+
 pd.DataFrame.from_dict(score_eval).to_parquet(save_path + "_score_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval).to_parquet(save_path + "_nad_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval_true_law).to_parquet(save_path + "_nad_true_law_MSE.parquet")
