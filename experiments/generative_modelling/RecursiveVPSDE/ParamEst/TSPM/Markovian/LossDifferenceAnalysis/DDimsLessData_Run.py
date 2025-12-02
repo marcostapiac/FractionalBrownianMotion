@@ -318,7 +318,7 @@ score_state_eval_std = {t: np.inf for t in ["8DDims", "12DDims"]}
 for config in [ddimsNS_12d_config, ddimsNS_8d_config]:
     assert config.feat_thresh == 1.
     root_score_dir = root_dir
-    label = "$\mu_{5}$"
+    
     if "8DDims" in config.data_path:
         root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/8DDimsLessData/"
         ts_type = "8DDims"

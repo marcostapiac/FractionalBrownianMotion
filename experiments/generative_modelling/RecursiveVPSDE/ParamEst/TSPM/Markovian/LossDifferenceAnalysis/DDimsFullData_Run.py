@@ -319,12 +319,9 @@ score_state_eval_std = {t: np.inf for t in ["8DDims", "12DDims"]}
 for config in [ddimsNS_12d_config, ddimsNS_8d_config]:
     assert config.feat_thresh != 1.
     root_score_dir = root_dir
-    label = "$\mu_{5}$"
     if "8DDims" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/8DDims/"
         ts_type = "8DDims"
     elif "12DDims" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/12DDims/"
         ts_type = "12DDims"
     print(f"Starting {ts_type}\n")
     model_dir = "/".join(config.scoreNet_trained_path.split("/")[:-1]) + "/"
@@ -412,6 +409,8 @@ for config in [ddimsNS_12d_config, ddimsNS_8d_config]:
     np.save(save_path + f"_{config.ts_dims}_true_drifts.npy", true_drift)
     np.save(save_path + f"_{config.ts_dims}_score_drifts.npy", all_score_drift_ests)
     np.save(save_path + f"_{config.ts_dims}_nad_drifts.npy", all_nad_drift_ests)
+    np.save(save_path + f"_{config.ts_dims}_score_drifts_at_true.npy", all_score_drift_ests_true_law)
+    np.save(save_path + f"_{config.ts_dims}_nad_drifts_at_true.npy", all_nad_drift_ests_true_law)
 
     mse = np.cumsum(np.nanmean(np.sum(np.power(
         true_drift.reshape(((BB, TT, DD)), order="C") - all_score_drift_ests.reshape(((BB, TT, DD)), order="C"), 2),

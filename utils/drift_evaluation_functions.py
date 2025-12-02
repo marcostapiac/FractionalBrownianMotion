@@ -203,7 +203,7 @@ def LSTM_1D_drifts(config, PM):
         sigma_taus = torch.pow(sigma2_taus, 0.5).to(device)
 
         if "PM" in config.scoreNet_trained_path:
-            vec_predicted_score = -vec_Z_taus / sigma_taus + (beta_taus / sigma2_taus) * PM_output
+            vec_predicted_score = -vec_Z_taus / sigma2_taus + (beta_taus / sigma2_taus) * PM_output
         else:
             vec_predicted_score = PM_output
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
@@ -318,9 +318,10 @@ def experiment_MLP_DDims_drifts(config, Xs, good, onlyGauss=False):
                 # scalar coefficients (avoid big expanded tensors)
                 beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0])
                 sigma2_taus = 1.0 - beta_taus.pow(2)
-
-                predicted_score = -scoreEval_vec_Z_taus / sigma2_taus + (beta_taus / sigma2_taus) * vec_predicted_score
-
+                if "PM" in config.scoreNet_trained_path:
+                    predicted_score = -scoreEval_vec_Z_taus / sigma2_taus + (beta_taus / sigma2_taus) * vec_predicted_score
+                else:
+                    predicted_score = vec_predicted_score
                 vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(
                     x=vec_Z_taus,
                     predicted_score=predicted_score,
@@ -329,7 +330,7 @@ def experiment_MLP_DDims_drifts(config, Xs, good, onlyGauss=False):
                 )
 
                 if "PM" in config.scoreNet_trained_path:
-                    final_mu_hats = (beta_taus * scoreEval_vec_Z_taus / sigma2_taus) + (
+                    final_mu_hats = (-beta_taus * scoreEval_vec_Z_taus / sigma2_taus) + (
                             ((sigma2_taus + (beta_taus * config.diffusion).pow(2) * ts_step) / (
                                         ts_step * sigma2_taus)) * vec_predicted_score
                     )
@@ -420,7 +421,7 @@ def MLP_1D_drifts(config, PM):
         sigma_taus = torch.pow(sigma2_taus, 0.5).to(device)
 
         if "PM" in config.scoreNet_trained_path:
-            vec_predicted_score = -vec_Z_taus / sigma_taus + (beta_taus / sigma2_taus) * PM_output
+            vec_predicted_score = -vec_Z_taus / sigma2_taus + (beta_taus / sigma2_taus) * PM_output
         else:
             vec_predicted_score = PM_output
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
@@ -522,7 +523,7 @@ def LSTM_2D_drifts(PM, config):
         sigma_taus = torch.pow(sigma2_taus, 0.5).to(device)
 
         if "PM" in config.scoreNet_trained_path:
-            vec_predicted_score = -vec_Z_taus / sigma_taus + (beta_taus / sigma2_taus) * PM_output
+            vec_predicted_score = -vec_Z_taus / sigma2_taus + (beta_taus / sigma2_taus) * PM_output
         else:
             vec_predicted_score = PM_output
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
@@ -627,7 +628,7 @@ def MLP_fBiPotDDims_drifts(config, PM):
         sigma_taus = torch.pow(sigma2_taus, 0.5).to(device)
 
         if "PM" in config.scoreNet_trained_path:
-            vec_predicted_score = -vec_Z_taus/sigma_taus + (beta_taus/sigma2_taus)*PM_output
+            vec_predicted_score = -vec_Z_taus/sigma2_taus + (beta_taus/sigma2_taus)*PM_output
         else:
             vec_predicted_score = PM_output
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
@@ -703,7 +704,7 @@ def multivar_score_based_LSTM_drift(score_model, num_diff_times, diffusion, num_
         sigma_taus = torch.pow(sigma2_taus, 0.5).to(device)
 
         if "PM" in config.scoreNet_trained_path:
-            vec_predicted_score = -vec_Z_taus / sigma_taus + (beta_taus / sigma2_taus) * PM_output
+            vec_predicted_score = -vec_Z_taus / sigma2_taus + (beta_taus / sigma2_taus) * PM_output
         else:
             vec_predicted_score = PM_output
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
@@ -776,7 +777,7 @@ def multivar_score_based_MLP_drift(score_model, num_diff_times, diffusion, num_p
         sigma_taus = torch.pow(sigma2_taus, 0.5).to(device)
 
         if "PM" in config.scoreNet_trained_path:
-            vec_predicted_score = -vec_Z_taus / sigma_taus + (beta_taus / sigma2_taus) * PM_output
+            vec_predicted_score = -vec_Z_taus / sigma2_taus + (beta_taus / sigma2_taus) * PM_output
         else:
             vec_predicted_score = PM_output
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
@@ -863,7 +864,7 @@ def multivar_score_based_LSTM_drift_OOS(score_model, time_idx, h, c, num_diff_ti
         sigma_taus = torch.pow(sigma2_taus, 0.5).to(device)
 
         if "PM" in config.scoreNet_trained_path:
-            vec_predicted_score = -vec_Z_taus / sigma_taus + (beta_taus / sigma2_taus) * PM_output
+            vec_predicted_score = -vec_Z_taus / sigma2_taus + (beta_taus / sigma2_taus) * PM_output
         else:
             vec_predicted_score = PM_output
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
@@ -965,7 +966,7 @@ def multivar_score_based_MLP_drift_OOS(score_model, num_diff_times, diffusion, n
         sigma_taus = torch.pow(sigma2_taus, 0.5).to(device)
 
         if "PM" in config.scoreNet_trained_path:
-            vec_predicted_score = -vec_Z_taus / sigma_taus + (beta_taus / sigma2_taus) * PM_output
+            vec_predicted_score = -vec_Z_taus / sigma2_taus + (beta_taus / sigma2_taus) * PM_output
         else:
             vec_predicted_score = PM_output
         vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,

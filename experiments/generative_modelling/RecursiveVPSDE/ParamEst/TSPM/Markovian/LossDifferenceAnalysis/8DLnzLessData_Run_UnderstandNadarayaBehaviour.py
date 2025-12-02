@@ -297,18 +297,13 @@ config = lnz_8d_config
 assert config.feat_thresh == 1.
 assert config.forcing_const == 0.75
 root_score_dir = root_dir
-label = "$\mu_{5}$"
 if "8DLnz" in config.data_path:
-    root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/8DLnzLessData/"
     ts_type = "8DLnz"
 elif "12DLnz" in config.data_path:
-    root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/12DLnzLessData/"
     ts_type = "12DLnz"
 elif "20DLnz" in config.data_path:
-    root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/20DLnzLessData/"
     ts_type = "20DLnz"
 elif "40DLnz" in config.data_path:
-    root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/40DLnzLessData/"
     ts_type = "40DLnz"
 print(f"Starting {ts_type}\n")
 model_dir = "/".join(config.scoreNet_trained_path.split("/")[:-1]) + "/"

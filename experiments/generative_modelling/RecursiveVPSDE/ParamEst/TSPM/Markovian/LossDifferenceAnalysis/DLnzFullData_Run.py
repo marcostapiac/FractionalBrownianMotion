@@ -313,7 +313,7 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_8d_config]:
     assert config.feat_thresh != 1.
     assert config.forcing_const == 0.75
     root_score_dir = root_dir
-    label = "$\mu_{5}$"
+    
     if "8DLnz" in config.data_path:
         root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/8DLnz/"
         ts_type = "8DLnz"
@@ -412,6 +412,8 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config,lnz_8d_config]:
     np.save(save_path + f"_{config.ts_dims}_true_drifts.npy", true_drift)
     np.save(save_path + f"_{config.ts_dims}_score_drifts.npy", all_score_drift_ests)
     np.save(save_path + f"_{config.ts_dims}_nad_drifts.npy", all_nad_drift_ests)
+    np.save(save_path + f"_{config.ts_dims}_score_drifts_at_true.npy", all_score_drift_ests_true_law)
+    np.save(save_path + f"_{config.ts_dims}_nad_drifts_at_true.npy", all_nad_drift_ests_true_law)
 
     mse = np.cumsum(np.nanmean(np.sum(np.power(true_drift.reshape(((BB,TT, DD)), order="C") - all_score_drift_ests.reshape(((BB,TT, DD)), order="C"),2), axis=-1), axis=0))/np.arange(1, TT+1)
     score_eval[ts_type] = mse

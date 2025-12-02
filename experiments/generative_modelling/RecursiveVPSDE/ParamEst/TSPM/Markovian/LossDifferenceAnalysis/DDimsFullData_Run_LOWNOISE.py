@@ -322,7 +322,7 @@ score_state_eval_std = {t: np.inf for t in ["8DDims", "12DDims"]}
 for config in [ddims_12d_config, ddims_8d_config]:
     assert config.feat_thresh != 1.
     root_score_dir = root_dir
-    label = "$\mu_{5}$"
+    
     if "8DDims" in config.data_path:
         ts_type = "8DDims"
     elif "12DDims" in config.data_path:
@@ -414,6 +414,8 @@ for config in [ddims_12d_config, ddims_8d_config]:
     np.save(save_path + f"_{config.ts_dims}_true_drifts.npy", true_drift)
     np.save(save_path + f"_{config.ts_dims}_score_drifts.npy", all_score_drift_ests)
     np.save(save_path + f"_{config.ts_dims}_nad_drifts.npy", all_nad_drift_ests)
+    np.save(save_path + f"_{config.ts_dims}_score_drifts_at_true.npy", all_score_drift_ests_true_law)
+    np.save(save_path + f"_{config.ts_dims}_nad_drifts_at_true.npy", all_nad_drift_ests_true_law)
 
 
     mse = np.cumsum(np.nanmean(np.sum(np.power(

@@ -322,7 +322,7 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
     assert config.feat_thresh == 1.
     assert config.forcing_const == 1.25
     root_score_dir = root_dir
-    label = "$\mu_{5}$"
+    
     if "8DLnz" in config.data_path:
         root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/8DLnzChaosLessData/"
         ts_type = "8DLnz"
