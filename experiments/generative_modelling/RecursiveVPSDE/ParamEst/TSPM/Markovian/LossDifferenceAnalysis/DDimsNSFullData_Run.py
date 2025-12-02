@@ -414,6 +414,18 @@ for config in [ddimsNS_12d_config, ddimsNS_8d_config]:
         torch.cuda.synchronize()
         torch.cuda.empty_cache()
         gc.collect()
+    save_path = (
+                project_config.ROOT_DIR + f"experiments/results/DDimsNS_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
+        ".", "")
+    np.save(save_path + f"_{config.ndims}_true_paths.npy", all_true_paths)
+    np.save(save_path + f"_{config.ndims}_score_paths.npy", all_score_paths)
+    np.save(save_path + f"_{config.ndims}_nad_paths.npy", all_nad_paths)
+
+    np.save(save_path + f"_{config.ts_dims}_true_drifts.npy", true_drift)
+    np.save(save_path + f"_{config.ts_dims}_score_drifts.npy", all_score_drift_ests)
+    np.save(save_path + f"_{config.ts_dims}_nad_drifts.npy", all_nad_drift_ests)
+    np.save(save_path + f"_{config.ts_dims}_score_drifts_at_true.npy", all_score_drift_ests_true_law)
+    np.save(save_path + f"_{config.ts_dims}_nad_drifts_at_true.npy", all_nad_drift_ests_true_law)
 
     mse = np.cumsum(np.nanmean(np.sum(np.power(
         true_drift.reshape(((BB, TT, DD)), order="C") - all_score_drift_ests.reshape(((BB, TT, DD)), order="C"), 2),
