@@ -936,8 +936,8 @@ def multivar_score_based_MLP_drift_OOS(score_model, num_diff_times, diffusion, n
     """ Computes drift using MLP score network when features obtained from LSTM directly """
 
     score_model = score_model.to(device)
-    num_taus = 10000
-    numtimes = 100
+    num_taus = 1000
+    numtimes = 1000
     conc_means = []
     for _ in range(numtimes):
         print("Diff Times", _)
