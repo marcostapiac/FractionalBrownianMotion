@@ -403,7 +403,7 @@ for config in [ddimsNS_12d_config, ddimsNS_8d_config]:
         torch.cuda.empty_cache()
         gc.collect()
     save_path = (
-            project_config.ROOT_DIR + f"experiments/results/DDims_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
+            project_config.ROOT_DIR + f"experiments/results/DDims_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths_TRACK").replace(
         ".", "")
     np.save(save_path + f"_{config.ndims}_true_paths.npy", all_true_paths)
     np.save(save_path + f"_{config.ndims}_score_paths.npy", all_score_paths)
