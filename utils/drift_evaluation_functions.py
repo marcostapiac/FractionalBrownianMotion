@@ -254,7 +254,7 @@ def experiment_MLP_DDims_drifts(config, Xs, good, onlyGauss=False):
     ts_step = config.deltaT
     num_diff_times = config.max_diff_steps
     Ndiff_discretisation = config.max_diff_steps
-    num_taus = 100  # as in your code
+    num_taus = 1000  # as in your code
     es = 1  # as in your code
     dtype = torch.float32
     chunk_size = 1024
@@ -290,8 +290,7 @@ def experiment_MLP_DDims_drifts(config, Xs, good, onlyGauss=False):
 
                 # latent state for this chunk at current step
                 if step_i == 0:  # first step => prior sample
-                    vec_Z_taus = diffusion.prior_sampling(shape=(n * num_taus, 1, config.ts_dims)).to(device=device,
-                                                                                                      dtype=dtype)
+                    vec_Z_taus = torch.zeros(size=(n * num_taus, 1, config.ts_dims), dtype=dtype).to(device)#diffusion.prior_sampling(shape=(n * num_taus, 1, config.ts_dims)).to(device=device,dtype=dtype)
                 else:  # subsequent steps => reload state
                     vec_Z_taus = prev_states_cpu[chunk_id].to(device)
 
