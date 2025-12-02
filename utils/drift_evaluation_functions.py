@@ -944,7 +944,7 @@ def multivar_score_based_MLP_drift_OOS(score_model, numstates,num_diff_times, di
         num_paths * 1, 1, -1).to(device)
     assert (features_tensor.shape[0] == num_paths)
 
-    vec_Z_taus = diffusion.prior_sampling(shape=(num_paths * num_taus, 1, config.ts_dims)).to(device)#torch.zeros(size=(num_paths * num_taus, 1, config.ts_dims)).to(device)#
+    vec_Z_taus = 0.1*diffusion.prior_sampling(shape=(num_paths * num_taus, 1, config.ts_dims)).to(device)#torch.zeros(size=(num_paths * num_taus, 1, config.ts_dims)).to(device)#
 
     diffusion_times = torch.linspace(config.sample_eps, 1., config.max_diff_steps)
     difftime_idx = Ndiff_discretisation - 1
