@@ -48,18 +48,8 @@ if __name__ == "__main__":
                         config.ts_length - 1)), 1200000)))
             training_size = 1024 if config.feat_thresh == 1. else 10240
             assert training_size == 10240
-            print(training_size)
-            try:
-                data = np.load(config.data_path, allow_pickle=True)
-                assert (data.shape[0] >= training_size)
-            except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
-                print("Error {}; generating synthetic data\n".format(e))
-                data = generate_fBiPot(num_dims=config.ndims, config=config, T=config.ts_length, isUnitInterval=config.isUnitInterval,
-                                       S=training_size,
-                                       H=config.hurst, a=config.quartic_coeff, b=config.quad_coeff, c=config.const,
-                                       diff=config.diffusion,
-                                       initial_state=config.initState)
-                np.save(config.data_path, data)
+            data = np.load(config.data_path, allow_pickle=True)
+            assert (data.shape[0] >= training_size)
             data = np.concatenate([data[:, [0],:] - config.initState, np.diff(data, axis=1)], axis=1)
             data = np.atleast_3d(data[:training_size, :])
             assert (data.shape == (training_size, config.ts_length, config.ts_dims))

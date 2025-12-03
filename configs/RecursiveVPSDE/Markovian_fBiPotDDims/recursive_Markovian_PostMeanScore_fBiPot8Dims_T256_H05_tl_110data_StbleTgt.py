@@ -15,7 +15,7 @@ def get_config():
     config.quartic_coeff = list(np.linspace(0.25, 1.00, config.ndims))
     config.quad_coeff = list(-np.linspace(0.5, 2.00, config.ndims)[::-1])
     config.const = list(np.zeros(config.ndims))
-    config.diffusion = 4.
+    config.diffusion = 1.
     config.initState = list(np.zeros(config.ndims))
     config.ts_length = 256
     config.t0 = 0.
@@ -25,6 +25,8 @@ def get_config():
         config.ndims, config.t0, config.deltaT, config.ts_length, config.quartic_coeff[0], config.quad_coeff[0], config.const[0],
         config.diffusion, config.initState[0]).replace(
         ".", "") + ".npy"
+    config.upperlims = [2.041, 1.661, 1.407 ,1.233, 1.084, 0.984, 0.894, 0.821]
+    config.lowerlims = [-2.043 ,-1.659, -1.402 ,-1.223, -1.09,  -0.979 ,-0.895 ,-0.827]
 
 
     # Training hyperparameters
@@ -33,8 +35,8 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 2
     config.lr = 1e-3
-    config.max_epochs = [13000]
-    config.ref_batch_size = 1024 #256
+    config.max_epochs = [3000]
+    config.ref_batch_size = 512 #256
     config.batch_size = 256 #256
     config.chunk_size = 512
     config.feat_thresh = 1/1. # 1./100.

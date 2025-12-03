@@ -18,7 +18,7 @@ def get_config():
     config.scale = np.sqrt(np.median(-np.array(config.quad_coeff)/2*(np.array(config.quartic_coeff))))
     config.coupling = 20
     config.const = list(np.zeros(config.ndims))
-    config.diffusion = 4.
+    config.diffusion = 1.
     config.initState = list(np.zeros(config.ndims))
     config.ts_length = 256
     config.t0 = 0.
@@ -36,7 +36,7 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 2
     config.lr = 1e-3
-    config.max_epochs = [13000]
+    config.max_epochs = [3000]
     config.ref_batch_size = 256
     config.batch_size = 256
     config.chunk_size = 512

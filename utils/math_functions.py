@@ -233,7 +233,7 @@ def generate_Lorenz96(H: float, T: int, S: int, config, isUnitInterval: bool, in
 def generate_fBiPotNonSep(H: float, T: int, S: int, scale:float,config, isUnitInterval: bool, a: float, b: float, c: float, coupling:float,
                     initial_state: float, diff: float, ndims: int):
     assert (H == 0.5 and len(initial_state) == ndims)
-    assert (diff == 4.)
+
     try:
         deltaT = config.deltaT
         t0 = config.t0

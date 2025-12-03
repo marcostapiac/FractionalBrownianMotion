@@ -22,7 +22,7 @@ from configs import project_config
 from tqdm import tqdm
 
 from utils.drift_evaluation_functions import MLP_1D_drifts, multivar_score_based_MLP_drift_OOS, \
-    drifttrack_cummse, driftevalexp_mse_ignore_nans, MLP_fBiPotDDims_drifts, drifttrack_mse, stochastic_burgers_drift, \
+    driftevalexp_mse_ignore_nans, MLP_fBiPotDDims_drifts, drifttrack_mse, stochastic_burgers_drift, \
     build_q_nonneg
 from utils.resource_logger import set_runtime_global
 
@@ -1051,7 +1051,6 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
         np.save(save_path + "_local_states.npy", all_local_states)
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
-        # mse = drifttrack_cummse(true=all_true_states, local=all_local_states, deltaT=config.deltaT)
         mse = drifttrack_mse(true=all_true_states, local=all_global_states, deltaT=config.deltaT)
         print(f"Current vs Best MSE {mse}, {self.curr_best_track_mse} at Epoch {epoch}\n")
         return mse

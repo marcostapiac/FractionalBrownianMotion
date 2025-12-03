@@ -28,6 +28,7 @@ if __name__ == "__main__":
         assert (config.ndims == 12)
         assert (config.early_stop_idx == 0)
         assert (config.tdata_mult == 110)
+        assert config.diffusion == 1.
         print(config.scoreNet_trained_path, config.dataSize)
         rng = np.random.default_rng()
         scoreModel = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters)
@@ -47,17 +48,8 @@ if __name__ == "__main__":
             print(training_size)
             assert training_size == 10240
             assert config.feat_thresh != 1.
-            try:
-                data = np.load(config.data_path, allow_pickle=True)
-                assert (data.shape[0] >= training_size)
-            except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
-                print("Error {}; generating synthetic data\n".format(e))
-                data = generate_fBiPotNonSep(ndims=config.ndims, config=config,scale=config.scale,  T=config.ts_length, isUnitInterval=config.isUnitInterval,
-                                       S=training_size,
-                                       H=config.hurst, a=config.quartic_coeff, b=config.quad_coeff, c=config.const,
-                                       diff=config.diffusion,
-                                       initial_state=config.initState, coupling=config.coupling)
-                np.save(config.data_path, data)
+            data = np.load(config.data_path, allow_pickle=True)
+            assert (data.shape[0] >= training_size)
             data = np.concatenate([data[:, [0],:] - config.initState, np.diff(data, axis=1)], axis=1)
             data = np.atleast_3d(data[:training_size, :])
             assert (data.shape == (training_size, config.ts_length, config.ts_dims))

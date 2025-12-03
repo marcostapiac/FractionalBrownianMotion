@@ -43,8 +43,9 @@ class FractionalBiPotential:
     def inverse_lamperti(self, Z: np.ndarray):
         return None  # self.initialVol * np.exp(self.volVol * Z)
 
-    def increment_state(self, prev: np.ndarray, deltaT: float, M: int):
+    def increment_state(self, prev: np.ndarray, deltaT: float, M: np.ndarray):
         # driftX = -V'(x) where V(x) = ax^4+bx^2+cx
+        assert prev.shape[-1] == M.shape[-1]
         driftX = -(4.*self.quartic_coeff * np.power(prev, 3) + 2.*self.quad_coeff * prev + self.const)
         diffX = self.diff * M[np.newaxis, :]
         ## See (Weak approximation schemes for SDEs with super-linearly growing coefficients, 2023) for weak solution

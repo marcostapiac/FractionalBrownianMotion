@@ -25,6 +25,8 @@ def get_config():
         config.ndims, config.t0, config.deltaT, config.ts_length, config.quartic_coeff[0], config.quad_coeff[0], config.const[0],
         config.diffusion, config.initState[0]).replace(
         ".", "") + ".npy"
+    config.upperlims = [0.904, 0.765, 0.642, 0.534 ,0.462 ,0.395, 0.334 ,0.29,  0.251, 0.219, 0.189, 0.17]
+    config.lowerlims = [-0.922, -0.763, -0.635, -0.541, -0.455, -0.383, -0.338 ,-0.291, -0.25,  -0.219, -0.189, -0.17]
 
 
     # Training hyperparameters
@@ -33,8 +35,8 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 2
     config.lr = 1e-3
-    config.max_epochs = [13000]
-    config.ref_batch_size = 1024
+    config.max_epochs = [3000]
+    config.ref_batch_size = 512
     config.batch_size = 256
     config.chunk_size = 512
     config.feat_thresh = 1/100. # 1./100.

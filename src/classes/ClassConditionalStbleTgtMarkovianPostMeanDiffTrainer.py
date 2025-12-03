@@ -24,7 +24,7 @@ from configs import project_config
 from tqdm import tqdm
 
 from utils.drift_evaluation_functions import MLP_1D_drifts, multivar_score_based_MLP_drift_OOS, \
-    drifttrack_cummse, driftevalexp_mse_ignore_nans, MLP_fBiPotDDims_drifts, drifttrack_mse, stochastic_burgers_drift, \
+    driftevalexp_mse_ignore_nans, MLP_fBiPotDDims_drifts, drifttrack_mse, stochastic_burgers_drift, \
     build_q_nonneg, experiment_MLP_DDims_drifts
 from utils.resource_logger import set_runtime_global
 
@@ -92,213 +92,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.snapshot_path = snapshot_path
         print("!!Setup Done!!\n")
 
-    @torch.no_grad()
-    def _tail_mask_bt(self, features: torch.Tensor) -> torch.Tensor:
-        # features: [B,T,D] -> returns [B,T] bool (tail per (b,t))
-        H = self._rare
-        k = H["k"]
-        B, T, D = features.shape
-        Z = ((features - H["mu"]) / H["sd"]).reshape(-1, D).contiguous()
-        if H["D"] == 1:
-            e0 = H["edges"][0]
-            b = torch.bucketize(Z.reshape(-1).contiguous(), e0).clamp(1, k) - 1
-            tail_flat = (b == 0) | (b == k - 1)
-        else:
-            Vt2 = H["Vt"]
-            e0, e1 = H["edges"]
-            P = (Z @ Vt2).contiguous()  # [B*T,2]
-            i = torch.bucketize(P[:, 0].contiguous(), e0).clamp(1, k) - 1
-            j = torch.bucketize(P[:, 1].contiguous(), e1).clamp(1, k) - 1
-            tail_flat = (i == 0) | (i == k - 1) | (j == 0) | (j == k - 1)
-        return tail_flat.view(B, T)
-
-    @torch.no_grad()
-    def _select_point_indices(self, tail_mask_bt: torch.Tensor,
-                              target_points: int, p_tail: float = 0.025) -> torch.Tensor:
-        # Stratify over points: choose ≈ p_tail fraction from tails among B*T points
-        B, T = tail_mask_bt.shape
-        N = B * T
-        idx_all = torch.arange(N, device=tail_mask_bt.device)
-        tail_idx = idx_all[tail_mask_bt.reshape(-1)]
-        non_idx = idx_all[~tail_mask_bt.reshape(-1)]
-        n_tail = min(int(round(p_tail * target_points)), tail_idx.numel())
-        n_non = target_points - n_tail
-        if n_tail == 0 or n_non < 0 or non_idx.numel() == 0:
-            return torch.randperm(N, device=tail_mask_bt.device)[:target_points]
-        sel_tail = tail_idx[torch.randint(tail_idx.numel(), (n_tail,), device=tail_idx.device)]
-        sel_non = non_idx[torch.randint(non_idx.numel(), (n_non,), device=non_idx.device)]
-        sel = torch.cat([sel_tail, sel_non], 0)
-        return sel[torch.randperm(sel.numel(), device=sel.device)]
-    @torch.no_grad()
-    def _init_rarity(self, k: int = 16, wmax: float = 4.0, eps: float = 1e-6):
-        """
-        Build EQUAL-WIDTH histogram edges on the FULL training set and freeze global weights.
-        - Standardize per feature using global mean/std over [B, T].
-        - D == 1: 1D equal-width z-bins in [-zmax, zmax] with zmax from data (at least 3.0, at most 8.0).
-        - D > 1: compute 2D PCA on standardized features via covariance build equal-width grid
-                  for the top-2 components using symmetric ranges count on FULL dataset.
-        - Weights: wd_bins = clamp(mean(c) / (c + eps), max=wmax), then one global normalization to mean=1.
-        - No EMA. Edges, counts, and wd_bins are frozen and reused during training.
-        """
-        device = self.device_id
-
-        # -------- PASS 0: infer D from a single batch and set up accumulators --------
-        x0s0 = next(iter(self.train_loader))[0].to(device)
-        feat0 = self.create_feature_vectors_from_position(x0s0)  # [B0, T, D]
-        D = feat0.shape[-1]
-
-        # -------- PASS 1: global mean/std over FULL dataset --------
-        n_total = 0
-        sum_vec = torch.zeros(D, device=device)
-        sumsq_vec = torch.zeros(D, device=device)
-
-        for x in self.train_loader:
-            x0s = x[0].to(device)
-            F = self.create_feature_vectors_from_position(x0s)  # [B, T, D]
-            sum_vec += F.sum(dim=(0, 1))
-            sumsq_vec += (F * F).sum(dim=(0, 1))
-            n_total += F.shape[0] * F.shape[1]
-
-        mu_vec = (sum_vec / max(1, n_total))  # [D]
-        var_vec = (sumsq_vec / max(1, n_total)) - mu_vec * mu_vec
-        sd_vec = torch.sqrt(var_vec.clamp_min(eps))  # [D]
-
-        mu = mu_vec.view(1, 1, D)
-        sd = sd_vec.view(1, 1, D)
-
-        if D == 1:
-            # -------- PASS 2 (1D): determine symmetric range for equal-width bins --------
-            zabs_max = torch.tensor(0.0, device=device)
-            for x in self.train_loader:
-                x0s = x[0].to(device)
-                F = self.create_feature_vectors_from_position(x0s)
-                z = ((F - mu) / sd).abs()  # [B,T,1]
-                zabs_max = torch.maximum(zabs_max, z.max())
-            zmax = zabs_max.item()
-            zmax = float(max(3.0, min(zmax, 8.0)))  # keep at least ±3σ cap extreme outliers
-
-            e0 = torch.linspace(-zmax, zmax, steps=k + 1, device=device).contiguous()
-
-            # -------- PASS 3 (1D): counts on FULL dataset --------
-            c = torch.zeros(k, device=device)
-            for x in self.train_loader:
-                x0s = x[0].to(device)
-                F = self.create_feature_vectors_from_position(x0s)
-                vals = ((F - mu) / sd).reshape(-1).contiguous()  # [B*T]
-                b = torch.bucketize(vals, e0).clamp(1, k) - 1
-                c += torch.bincount(b, minlength=k).float()
-
-            c_mean = c[c > 0].mean() if (c > 0).any() else torch.tensor(1.0, device=device)
-            w_raw = c_mean / (c + eps)  # rarer -> larger
-            wd_bins = torch.clamp(w_raw, min=1.0, max=wmax)  # never down-weight
-
-            self._rare = {
-                "D": 1,
-                "k": k,
-                "mu": mu.detach().contiguous(),
-                "sd": sd.detach().contiguous(),
-                "edges": (e0.detach().contiguous(),),
-                "counts": c.detach().contiguous(),
-                "wd_bins": wd_bins.detach().contiguous(),
-                "ema": None,
-            }
-            return
-
-        # -------- D > 1 --------
-        # -------- PASS 2: covariance of standardized features (for PCA) --------
-        sum_zz = torch.zeros(D, D, device=device)
-        for x in self.train_loader:
-            x0s = x[0].to(device)
-            F = self.create_feature_vectors_from_position(x0s)  # [B,T,D]
-            Z = ((F - mu) / sd).reshape(-1, D).contiguous()  # [N,D]
-            sum_zz += Z.t() @ (Z)
-        cov = sum_zz / max(1, n_total)
-
-        # top-2 eigenvectors (columns) for PCA projection
-        evals, evecs = torch.linalg.eigh(cov)  # ascending
-        Vt2 = evecs[:, -2:].contiguous()  # [D,2]
-
-        # -------- PASS 3a: determine symmetric ranges in PCA space --------
-        z0_min = torch.tensor(float("inf"), device=device)
-        z0_max = torch.tensor(float("-inf"), device=device)
-        z1_min = torch.tensor(float("inf"), device=device)
-        z1_max = torch.tensor(float("-inf"), device=device)
-
-        for x in self.train_loader:
-            x0s = x[0].to(device)
-            F = self.create_feature_vectors_from_position(x0s)
-            Z = ((F - mu) / sd).reshape(-1, D).contiguous()  # [N,D]
-            P = (Z @ Vt2).contiguous()  # [N,2]
-            z0 = P[:, 0]
-            z1 = P[:, 1]
-            z0_min = torch.minimum(z0_min, z0.min())
-            z0_max = torch.maximum(z0_max, z0.max())
-            z1_min = torch.minimum(z1_min, z1.min())
-            z1_max = torch.maximum(z1_max, z1.max())
-
-        # symmetric ranges enforce at least ±3 and cap at ±8 to avoid extreme tails dominating
-        s0 = float(max(3.0, min(max(abs(z0_min.item()), abs(z0_max.item())), 8.0)))
-        s1 = float(max(3.0, min(max(abs(z1_min.item()), abs(z1_max.item())), 8.0)))
-
-        e0 = torch.linspace(-s0, s0, steps=k + 1, device=device).contiguous()
-        e1 = torch.linspace(-s1, s1, steps=k + 1, device=device).contiguous()
-
-        # -------- PASS 3b: 2D counts on FULL dataset --------
-        c = torch.zeros(k * k, device=device)
-        for x in self.train_loader:
-            x0s = x[0].to(device)
-            F = self.create_feature_vectors_from_position(x0s)
-            Z = ((F - mu) / sd).reshape(-1, D).contiguous()
-            P = (Z @ Vt2).contiguous()  # [N,2]
-            i = torch.bucketize(P[:, 0].contiguous(), e0).clamp(1, k) - 1
-            j = torch.bucketize(P[:, 1].contiguous(), e1).clamp(1, k) - 1
-            bins = (i * k + j)
-            c += torch.bincount(bins, minlength=k * k).float()
-
-        c_mean = c[c > 0].mean() if (c > 0).any() else torch.tensor(1.0, device=device)
-        w_raw = c_mean / (c + eps)
-        wd_bins = torch.clamp(w_raw, min=1.0, max=wmax)
-
-        self._rare = {
-            "D": D,
-            "k": k,
-            "mu": mu.detach().contiguous(),
-            "sd": sd.detach().contiguous(),
-            "Vt": Vt2.detach().contiguous(),
-            "edges": (e0.detach().contiguous(), e1.detach().contiguous()),
-            "counts": c.detach().contiguous(),
-            "wd_bins": wd_bins.detach().contiguous(),
-            "ema": None,
-        }
-
-    @torch.no_grad()
-    def rarity_weights(self, features: torch.Tensor) -> torch.Tensor:
-        """
-        Compute per-element rarity weights for a features tensor [B, T, D]
-        using precomputed _rare.
-        Returns flat weights of shape [B*T] (or reshape as needed by caller).
-        """
-        H = self._rare
-        mu, sd, k = H["mu"], H["sd"], H["k"]
-        B, T, D = features.shape
-        Yb_std = ((features - mu) / sd)
-
-        if H["D"] == 1:
-            e0 = H["edges"][0]
-            vals = Yb_std.reshape(-1).contiguous()
-            b = torch.bucketize(vals, e0).clamp(1, k) - 1
-            y = H["wd_bins"][b]
-            return y  # [B*T]
-
-        Vt2 = H["Vt"]
-        e0, e1 = H["edges"]
-        Zb = (Yb_std.reshape(-1, D).contiguous() @ Vt2).contiguous()  # [B*T,2]
-        i = torch.bucketize(Zb[:, 0].contiguous(), e0).clamp(1, k) - 1
-        j = torch.bucketize(Zb[:, 1].contiguous(), e1).clamp(1, k) - 1
-        bins = (i * k + j)
-        y = H["wd_bins"][bins]
-        return y  # [B*T]
-
 
     def _batch_update(self, loss, base_loss: float, var_loss: float, mean_loss: float) -> [float, float, float, float]:
         """
@@ -311,7 +104,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.loss_aggregator.update(loss.detach().item())
         return loss.detach().item(), base_loss, var_loss, mean_loss
 
-    def _batch_loss_compute(self, outputs: torch.Tensor, targets: torch.Tensor, w_dim, w_tau, epoch: int,
+    def _batch_loss_compute(self, outputs: torch.Tensor, targets: torch.Tensor,  w_tau, epoch: int,
                             batch_idx: int,
                             num_batches: int) -> [float, float, float, float]:
         """
@@ -320,7 +113,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             :param targets: Target values to compare against outputs
             :return: Batch Loss
         """
-        base_loss = ((outputs - targets).pow(2) * w_dim * w_tau).sum(dim=-1).mean()  # Penalise for higher dimensions
+        base_loss = ((outputs - targets).pow(2) * w_tau).sum(dim=-1).mean()  # Penalise for higher dimensions
         print(f"Loss, {base_loss}\n")
         var_loss = ((
                                 self.score_network.module.mlp_state_mapper.hybrid.log_scale - self.score_network.module.mlp_state_mapper.hybrid.log_scale.mean()) ** 2).mean()
@@ -351,21 +144,16 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
         assert features.shape[:2] == (B, T) and features.shape[-1] == D
 
-        # ---- point-level tail selection ----
-        #tail_bt = self._tail_mask_bt(features)  # [B,T] bool
         N_all = B * T
-        N_sel = getattr(self, "point_batch", N_all)  # optional: set self.point_batch default use all
-        p_tail = getattr(self, "p_tail_points", 0.025)
 
         idx_sel = torch.arange(0, N_all, 1).to(self.device_id)
-        #idx_sel = self._select_point_indices(tail_bt, target_points=N_sel, p_tail=p_tail)  # [N_sel]
         # flatten then gather rows
-        xts_flat = xts.reshape(N_all, D)
-        feats_flat = features.reshape(N_all, D)
-        targets_flat = stable_targets.reshape(N_all, -1)  # last dim == D
-        times_flat = diff_times.reshape(N_all)  # [N_all]
+        xts_flat = xts.contiguous().reshape((N_all, D), order="C")
+        feats_flat = features.contiguous().reshape((N_all, D), order="C")
+        targets_flat = stable_targets.contiguous().reshape((N_all, -1) , order="C") # last dim == D
+        times_flat = diff_times.contiguous().reshape((N_all), order="C")  # [N_all]
         eff_full = torch.cat([eff_times] * D, dim=2)  # [B,T,D]
-        eff_flat = eff_full.reshape(N_all, D)
+        eff_flat = eff_full.contiguous().reshape((N_all, D), order="C")
 
         xts_sel = xts_flat[idx_sel].unsqueeze(1)  # [N_sel,1,D]
         feats_sel = feats_flat[idx_sel].unsqueeze(1)  # [N_sel,1,D]
@@ -375,8 +163,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
         outputs = self.score_network.forward(inputs=xts_sel, conditioner=feats_sel,
                                              times=times_sel, eff_times=eff_sel)
-        # sigma2_tau = (1. - torch.exp(-eff_times)).clamp_min(1e-12)  # This is sigma2
-        # beta_tau = torch.exp(-0.5 * eff_times)
 
         if self.loss_factor == 0:  # plain
             w_tau = torch.ones_like(outputs)
@@ -387,14 +173,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         else:
             w_tau = torch.ones_like(outputs)
         # Outputs should be (NumBatches, TimeSeriesLength, 1)
-        # Now implement the stable target field
         # outputs = (outputs + xts / sigma2_tau) * (sigma2_tau / beta_tau)  # This gives us the network D_theta
         assert (outputs.shape == targets_sel.shape)
-        w_dim = 1. + 0 * self.w_dim.view(1, 1, -1)  # [1,1,D]
         yW = y_weights.view(B * T, 1, 1).expand_as(outputs)
         weights = (w_tau * yW).detach()
-        #weights = weights / (weights.mean().clamp_min(1e-12))
-        return self._batch_loss_compute(outputs=outputs, targets=targets_sel, w_dim=w_dim, w_tau=weights.pow(2),
+        return self._batch_loss_compute(outputs=outputs, targets=targets_sel, w_tau=weights.pow(2),
                                         epoch=epoch,
                                         batch_idx=batch_idx, num_batches=num_batches)
 
@@ -562,7 +345,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             x0s = ref_x0s[perm[:batch_size], :, :]
             prop_pool = ref_x0s
             features = self.create_feature_vectors_from_position(x0s)
-            y_weights = torch.ones(x0s.shape[0] * x0s.shape[1], device=self.device_id)#self.rarity_weights(features)  # [B*T]
+            y_weights = torch.ones(x0s.shape[0] * x0s.shape[1], device=self.device_id)
             if self.is_hybrid:
                 # We select diffusion time uniformly at random for each sample at each time (i.e., size (NumBatches, TimeSeries Sequence))
                 diff_times = timesteps[
@@ -589,7 +372,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                                               feat_thresh=feat_thresh)
             else:
                 stable_targets = x0s
-            print(stable_targets.requires_grad)
             batch_loss, batch_base_loss, batch_var_loss, batch_mean_loss = self._run_batch(xts=xts, features=features,
                                                                                            stable_targets=stable_targets,
                                                                                            diff_times=diff_times,
@@ -819,53 +601,14 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     Xs = np.linspace(-4., 4., num=config.ts_length)
                 true_drifts = -(4. * config.quartic_coeff * np.power(Xs,
                                                                      3) + 2. * config.quad_coeff * Xs + config.const)
-            elif "BiPot" in config.data_path and config.ndims > 1:
+            elif "BiPot" in config.data_path and config.ndims > 1 and "coup" not in config.data_path:
                 Xshape = config.ts_length
-                if config.ndims == 12:
-                    Xs = np.concatenate(
-                        [np.linspace(-5, 5, num=Xshape).reshape(-1, 1), np.linspace(-4.7, 4.7, num=Xshape).reshape(-1, 1), \
-                         np.linspace(-4.4, 4.4, num=Xshape).reshape(-1, 1),
-                         np.linspace(-4.2, 4.2, num=Xshape).reshape(-1, 1), \
-                         np.linspace(-4.05, 4.05, num=Xshape).reshape(-1, 1),
-                         np.linspace(-3.9, 3.9, num=Xshape).reshape(-1, 1), \
-                         np.linspace(-3.7, 3.7, num=Xshape).reshape(-1, 1),
-                         np.linspace(-3.6, 3.6, num=Xshape).reshape(-1, 1), \
-                         np.linspace(-3.55, 3.55, num=Xshape).reshape(-1, 1),
-                         np.linspace(-3.48, 3.48, num=Xshape).reshape(-1, 1), \
-                         np.linspace(-3.4, 3.4, num=Xshape).reshape(-1, 1),
-                         np.linspace(-3.4, 3.4, num=Xshape).reshape(-1, 1)],
-                        axis=1)
-                elif config.ndims == 8:
-                    Xs = np.concatenate([np.linspace(-4.9, 4.9, num=Xshape).reshape(-1, 1),
-                                         np.linspace(-4.4, 4.4, num=Xshape).reshape(-1, 1), \
-                                         np.linspace(-4.05, 4.05, num=Xshape).reshape(-1, 1),
-                                         np.linspace(-3.9, 3.9, num=Xshape).reshape(-1, 1), \
-                                         np.linspace(-3.7, 3.7, num=Xshape).reshape(-1, 1),
-                                         np.linspace(-3.6, 3.6, num=Xshape).reshape(-1, 1), \
-                                         np.linspace(-3.5, 3.5, num=Xshape).reshape(-1, 1),
-                                         np.linspace(-3.4, 3.4, num=Xshape).reshape(-1, 1)],
-                                        axis=1)
-                if config.diffusion == 0.1:
-                    Xs /= 5.
-                elif config.diffusion == 1.:
-                    Xs /= 3.
-                if "coup" in config.data_path:
-                    true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
-                                                                                   3) + 2. * np.array(
-                        config.quad_coeff) * Xs + np.array(config.const))
-                    xstar = np.sqrt(
-                        np.maximum(1e-12, -np.array(config.quad_coeff) / (2.0 * np.array(config.quartic_coeff))))
-                    s2 = (config.scale * xstar) ** 2 + 1e-12  # (D,) or (K,1,D)
-                    diff = Xs ** 2 - xstar ** 2  # same shape as prev
-                    phi = np.exp(-(diff ** 2) / (2.0 * s2 * xstar ** 2 + 1e-12))
-                    phi_prime = phi * (-2.0 * Xs * diff / ((config.scale ** 2) * (xstar ** 4 + 1e-12)))
-                    nbr = np.roll(phi, 1, axis=-1) + np.roll(phi, -1, axis=-1)  # same shape as phi
-                    true_drifts = true_drifts - 0.5 * config.coupling * phi_prime * nbr
-                    assert true_drifts.shape == Xs.shape
-                else:
-                    true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
-                                                                                   3) + 2. * np.array(
-                        config.quad_coeff) * Xs + np.array(config.const))
+                Xs = torch.concat(
+                    [torch.linspace(config.lowerlims[i], config.upperlims[i], steps=Xshape).contiguous().reshape((-1, 1), order="C") for i in
+                     range(config.ndims)], dim=1)
+                true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
+                                                                               3) + 2. * np.array(
+                    config.quad_coeff) * Xs + np.array(config.const))
                 true_drifts = true_drifts/(1+config.deltaT*np.abs(true_drifts))
             elif "QuadSin" in config.data_path:
                 if config.diffusion == .1:
@@ -894,12 +637,13 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     [fLnz.euler_simulation(H=config.hurst, N=config.ts_length, deltaT=config.deltaT, X0=np.array(config.initState), Ms=None,
                                            gaussRvs=None,
                                            t0=config.t0, t1=config.t1) for _ in (range(num_paths))]).reshape(
-                    (num_paths, config.ts_length + 1, config.ndims))[:, 1:, :]
-                prev = prev.reshape(-1, config.ndims)
+                    (num_paths, config.ts_length + 1, config.ndims), order="C")[:, 1:, :]
+                prev = prev.reshape((-1, config.ndims), order="C")
                 true_drifts = np.zeros((prev.shape[0], config.ndims))
                 for i in range(config.ndims):
                     true_drifts[:, i] = (prev[:, (i + 1) % config.ndims] - prev[:, i - 2]) * prev[:, i - 1] - prev[:,
                                                                                                           i] * config.forcing_const
+                final_vec_mu_hats = experiment_MLP_DDims_drifts(config=config, Xs=prev, good=self.score_network.module, onlyGauss=False)
 
             elif "DDimsNS" in config.data_path or "coup" in config.data_path:
                 fBiPotNS = FractionalBiPotentialNonSep(num_dims=config.ndims, scale=config.scale, quartic_coeff=config.quartic_coeff, quad_coeff=config.quad_coeff,
@@ -907,9 +651,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                                        X0=np.array(config.initState))
                 prev = np.array(
                     [fBiPotNS.euler_simulation(H=config.hurst, N=config.ts_length, deltaT=config.deltaT, isUnitInterval=True, X0=None, Ms=None,
-                                               t0=config.t0, t1=config.t1).reshape(-1, 1) for _ in range(num_paths)]).reshape(
+                                               t0=config.t0, t1=config.t1).reshape((-1, 1), order="C") for _ in range(num_paths)]).reshape(
                     (num_paths, config.ts_length + 1, config.ndims))[:, 1:, :]
-                prev = prev.reshape(-1, config.ndims)
+                prev = prev.reshape((-1, config.ndims), order="C")
                 true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(prev,
                                                                            3) + 2. * np.array(
                     config.quad_coeff) * prev + np.array(config.const))
@@ -922,13 +666,14 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 nbr = np.roll(phi, 1, axis=-1) + np.roll(phi, -1, axis=-1)  # same shape as phi
                 true_drifts = true_drifts - 0.5 * config.coupling * phi_prime * nbr
                 true_drifts = true_drifts/(1+config.deltaT*np.abs(true_drifts))
-            final_vec_mu_hats = experiment_MLP_DDims_drifts(config=config, Xs=prev, good=self.score_network.module, onlyGauss=False)
+                final_vec_mu_hats = experiment_MLP_DDims_drifts(config=config, Xs=prev, good=self.score_network.module, onlyGauss=False)
         type = "PM"
         assert (type in config.scoreNet_trained_path)
         assert ("_ST_" in config.scoreNet_trained_path)
         enforce_fourier_reg = "NSTgt" if not config.stable_target else ""
         enforce_fourier_reg += "NFMReg_" if not config.enforce_fourier_mean_reg else ""
         enforce_fourier_reg += "New_" if "New" in config.scoreNet_trained_path else ""
+        save_path = ""
         if "BiPot" in config.data_path and config.ndims == 1:
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}fBiPot_DriftEvalExp_{epoch}Nep_{config.t0}t0_{config.deltaT:.3e}dT_{config.quartic_coeff}a_{config.quad_coeff}b_{config.const}c_{config.residual_layers}ResLay_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}").replace(
@@ -957,9 +702,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             save_path = (
                     project_config.ROOT_DIR + f"experiments/results/TSPM_MLP_ST_{config.feat_thresh:.3f}FTh_{enforce_fourier_reg}{config.ndims}DLnz_DriftEvalExp_{epoch}Nep_tl{config.tdata_mult}data_{config.t0}t0_{config.deltaT:.3e}dT_{1}NDT_{config.loss_factor}LFac_BetaMax{config.beta_max:.1e}_{round(config.forcing_const, 3)}FConst").replace(
                 ".", "")
+        assert save_path != ""
         if (config.diffusion == .1) or (config.diffusion == 10.):
-            save_path += f"_Diff{config.diffusion:.1f}".replace(".", "")
-        if config.diffusion == 1. and "BiPot" in config.data_path and config.ndims > 1:
             save_path += f"_Diff{config.diffusion:.1f}".replace(".", "")
         print(f"Save path:{save_path}\n")
         if ("DLnz" not in config.data_path) and ("DDimsNS" not in config.data_path):
@@ -967,12 +711,12 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
         if len(true_drifts.shape) == 1:
-            true_drifts = true_drifts.reshape(-1, 1)
+            true_drifts = true_drifts.reshape((-1, 1), order="C")
         mse = driftevalexp_mse_ignore_nans(true=true_drifts,
-                                           pred=final_vec_mu_hats[:, -1, :, :].reshape(final_vec_mu_hats.shape[0],
+                                           pred=final_vec_mu_hats[:, -1, :, :].reshape((final_vec_mu_hats.shape[0],
                                                                                        final_vec_mu_hats.shape[2],
                                                                                        final_vec_mu_hats.shape[
-                                                                                           -1] * 1).mean(axis=1))
+                                                                                           -1] * 1), order="C").mean(axis=1))
         import pandas as pd
         pd.DataFrame.from_dict({epoch:mse}, orient="index", columns=["mse"]).to_parquet(save_path+"_muhats_MSE.parquet")
         print(f"Current vs Best MSE {mse}, {self.curr_best_evalexp_mse} at Epoch {epoch}\n")
@@ -1084,14 +828,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     assert (eps.shape == (num_paths, 1, config.ndims))
                     true_mean = true_drift(true_states[:, i - 1, :], num_paths=num_paths, config=config)
                     denom = 1.
-                local_mean = multivar_score_based_MLP_drift_OOS(
-                    score_model=self.score_network.module,
-                    num_diff_times=num_diff_times,
-                    diffusion=diffusion,
-                    num_paths=num_paths, ts_step=deltaT,
-                    config=config,
-                    device=self.device_id,
-                    prev=true_states[:, i - 1, :])
 
                 global_mean = multivar_score_based_MLP_drift_OOS(score_model=self.score_network.module,
                                                                  num_diff_times=num_diff_times,
@@ -1104,11 +840,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 true_states[:, [i], :] = (true_states[:, [i - 1], :] \
                                           + true_mean * deltaT \
                                           + eps) / denom
-                local_states[:, [i], :] = (true_states[:, [i - 1], :] + local_mean * deltaT + eps) / denom
                 global_states[:, [i], :] = (global_states[:, [i - 1], :] + global_mean * deltaT + eps) / denom
 
             all_true_states[quant_idx, :, :, :] = true_states
-            all_local_states[quant_idx, :, :, :] = local_states
             all_global_states[quant_idx, :, :, :] = global_states
         enforce_fourier_reg = "NSTgt" if not config.stable_target else ""
         enforce_fourier_reg += "NFMReg_" if not config.enforce_fourier_mean_reg else ""
@@ -1143,15 +877,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 ".", "")
         if (config.diffusion == .1) or (config.diffusion == 10.):
             save_path += f"_Diff{config.diffusion:.1f}".replace(".", "")
-        if config.diffusion == 1. and "BiPot" in config.data_path and config.ndims > 1:
-            save_path += f"_Diff{config.diffusion:.1f}".replace(".", "")
         print(f"Save path for OOS DriftTrack:{save_path}\n")
         np.save(save_path + "_true_states.npy", all_true_states)
         np.save(save_path + "_global_states.npy", all_global_states)
-        np.save(save_path + "_local_states.npy", all_local_states)
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
-        # mse = drifttrack_cummse(true=all_true_states, local=all_local_states, deltaT=config.deltaT)
         mse = drifttrack_mse(true=all_true_states, local=all_global_states, deltaT=config.deltaT)
         print(f"Current vs Best MSE {mse}, {self.curr_best_track_mse} at Epoch {epoch}\n")
         return mse
@@ -1174,33 +904,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         end_epoch = max(max_epochs)
         self.ewma_loss = 0.  # Force recomputation of EWMA losses each time
 
-        # self.curr_best_track_mse = np.inf # Force recomputation once
-        def collect_all_increments(loader, D, limit=None):
-            chunks, seen = [], 0
-            for x0s in loader:  # x0s: [B,T,D] increments Z0
-                z = x0s[0].reshape(-1, D).to('cpu')
-                if limit is not None:
-                    need = max(0, limit - seen)
-                    if need == 0: break
-                    z = z[:need]
-                    seen += z.size(0)
-                chunks.append(z)
-            return torch.cat(chunks, 0)  # [-1,D] on CPU
-
-        D = config.ts_dims
-        all_z = collect_all_increments(self.train_loader, D)  # [-1,D]
-        q = torch.tensor([0.25, 0.75])
-        q25, q75 = torch.quantile(all_z, q, dim=0)  # [D],[D]
-        iqr = (q75 - q25).clamp_min(1e-9)
-        var_robust = (iqr.to(self.device_id) / 1.349) ** 2  # [D]
-        self.register_buffer("w_dim", (1.0 / var_robust).float())
-        if not hasattr(self, "_rare") or getattr(self, "rebuild_hist_each_epoch", False):
-            self._init_rarity(k=16, wmax=4.0, eps=1e-6)
-
         for epoch in range(self.epochs_run, end_epoch):
             set_runtime_global(epoch=epoch)
             t0 = time.time()
-            # Temperature annealing for gumbel softmax
             device_epoch_losses, device_epoch_base_losses, device_epoch_var_losses, device_epoch_mean_losses = self._run_epoch(
                 epoch=epoch,
                 batch_size=batch_size,
@@ -1278,12 +984,13 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                         self.ewma_loss = (1. - 0.92) * all_losses_per_epoch[i] + 0.92 * self.ewma_loss
                     assert (self.ewma_loss != 0.)
                 self.ewma_loss = (1. - 0.92) * curr_loss + 0.92 * self.ewma_loss
-            if epoch >=40: #burn in for scheduler
+            if epoch >=40: # Burn in for scheduler
                 if isinstance(self.scheduler, torch.optim.lr_scheduler.LambdaLR):
                     print("Using LambdaLR")
                     self.scheduler.step()
                 else:
                     self.scheduler.step(self.ewma_loss)
+
             # Log current learning rate:
             current_lr = self.opt.param_groups[0]['lr']
             print(f"Epoch {epoch + 1}: EWMA Loss: {self.ewma_loss:.6f}, LR: {current_lr:.12f}\n")
@@ -1296,7 +1003,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 print(f"Current Loss {curr_loss}\n")
                 self.save_every = 1
                 if ((epoch + 1) % self.save_every == 0) or epoch == 0:
-                    #if config.ndims <= 2 or ("BiPot" in config.data_path and config.ndims > 1):
                     evalexp_mse = self._domain_rmse(config=config, epoch=epoch + 1)
                     if evalexp_mse < self.curr_best_evalexp_mse and (epoch + 1) >= 1:
                         self._save_model(filepath=model_filename, final_epoch=epoch + 1, save_type="EE")

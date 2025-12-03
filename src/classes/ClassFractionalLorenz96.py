@@ -26,14 +26,14 @@ class FractionalLorenz96:
         return incs
 
     def drift_X(self, prev):
-        print(prev.shape)
         assert (len(prev.shape) == 1 and prev.shape[0] == self.ndims)
         driftX = np.zeros_like(prev)
         for i in range(self.ndims):
             driftX[i] = (prev[(i + 1) % self.ndims] - prev[i - 2]) * prev[i - 1] - prev[i]*self.forcing_const
         return driftX
 
-    def increment_state(self, prev: np.ndarray, deltaT: float, M: int):
+    def increment_state(self, prev: np.ndarray, deltaT: float, M: np.ndarray):
+        assert prev.shape[-1] == M.shape[-1] and M.shape[-1] != 1
         driftX = self.drift_X(prev=prev)
         diffX = self.diff * M
         return prev + driftX * deltaT + diffX, driftX

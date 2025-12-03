@@ -71,7 +71,7 @@ class FractionalBiPotentialNonSep:
             if H != 0.5:
                 self.gaussIncs = self.rng.normal(size=2 * N)
             else:
-                self.gaussIncs = self.rng.normal(size=N)
+                self.gaussIncs = self.rng.normal(size=(N, self.ndims))
         else:
             self.gaussIncs = gaussRvs
         if Ms is None:

@@ -254,8 +254,8 @@ def experiment_MLP_DDims_drifts(config, Xs, good, onlyGauss=False):
     ts_step = config.deltaT
     num_diff_times = config.max_diff_steps
     Ndiff_discretisation = config.max_diff_steps
-    num_taus = 1000  # as in your code
-    es = 1  # as in your code
+    num_taus = 1000
+    es = 1
     dtype = torch.float32
     chunk_size = 1024
     # inputs
@@ -268,10 +268,8 @@ def experiment_MLP_DDims_drifts(config, Xs, good, onlyGauss=False):
                                      device=device)
 
     final_vec_mu_hats = torch.empty((Xshape, es, num_taus, config.ts_dims), dtype=dtype, device="cpu")
-    # If you ever set es>1, we must carry vec_Z_taus across diffusion steps per chunk.
-    # We'll implement a generic mechanism that also works for es=1 with minimal overhead.
     n_chunks = math.ceil(Xshape / chunk_size)
-    prev_states_cpu = [None] * n_chunks  # store per-chunk vec_Z_taus on CPU between steps
+    prev_states_cpu = [None] * n_chunks
 
     insert_idx = -1
     with torch.inference_mode():
@@ -290,7 +288,7 @@ def experiment_MLP_DDims_drifts(config, Xs, good, onlyGauss=False):
 
                 # latent state for this chunk at current step
                 if step_i == 0:  # first step => prior sample
-                    vec_Z_taus = torch.zeros(size=(n * num_taus, 1, config.ts_dims), dtype=dtype).to(device)#diffusion.prior_sampling(shape=(n * num_taus, 1, config.ts_dims)).to(device=device,dtype=dtype)
+                    vec_Z_taus = diffusion.prior_sampling(shape=(n * num_taus, 1, config.ts_dims)).to(device=device,dtype=dtype)
                 else:  # subsequent steps => reload state
                     vec_Z_taus = prev_states_cpu[chunk_id].to(device)
 
@@ -352,8 +350,8 @@ def experiment_MLP_DDims_drifts(config, Xs, good, onlyGauss=False):
                 del vec_scores, vec_drift, vec_diffParam, final_mu_hats, means, vec_Z_taus, next_state
 
             insert_idx -= 1
-    # match your original return type
     return final_vec_mu_hats.numpy()
+
 def MLP_1D_drifts(config, PM):
     assert config.ndims == 1
     print("Beta Min : ", config.beta_min)
@@ -458,110 +456,6 @@ def MLP_1D_drifts(config, PM):
     return final_vec_mu_hats[:, -es:, :, :]
 
 
-def LSTM_2D_drifts(PM, config):
-    print("Beta Min : ", config.beta_min)
-    if config.has_cuda:
-        device = int(os.environ["LOCAL_RANK"])
-    else:
-        print("Using CPU\n")
-        device = torch.device("cpu")
-    PM = PM.to(device)
-
-    diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
-    ts_step = config.deltaT
-
-    num_taus = 100
-
-    num_diff_times = config.max_diff_steps
-    Ndiff_discretisation = config.max_diff_steps
-    diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_time,
-                                     steps=Ndiff_discretisation).to(device)
-
-    numXs = 25
-    minx = -1.
-    maxx = -0.9
-    Xs = np.linspace(minx, maxx, numXs)
-    miny = 1.
-    maxy = 1.1
-    Ys = np.linspace(miny, maxy, numXs)
-    Xs, Ys = np.meshgrid(Xs, Ys)
-    Xs = np.column_stack([Xs.ravel(), Ys.ravel()])
-    Xshape = Xs.shape[0]
-    features = find_LSTM_feature_vectors_multiDTS(Xs=Xs, score_model=PM, device=device, config=config)
-    num_feats_per_x = {tuple(x.squeeze().tolist()): features[tuple(x.squeeze().tolist())].shape[0] for x in Xs}
-    # list_num_feats_per_x = list(num_feats_per_x.values())
-    tot_num_feats = np.sum(list(num_feats_per_x.values()))
-    features_tensor = torch.concat(list(features.values()), dim=0).to(device)  # [num_features_per_x, 1, 20]
-    assert (features_tensor.shape[0] == tot_num_feats)
-    final_vec_mu_hats = np.zeros(
-        (Xshape, num_diff_times, num_taus, config.ts_dims))  # Xvalues, DiffTimes, Ztaus, Ts_Dims
-
-    vec_Z_taus = diffusion.prior_sampling(shape=(tot_num_feats * num_taus, 1, config.ts_dims)).to(device)
-    # ts = []
-    es = 1
-    # mu_hats_mean = np.zeros((tot_num_feats, num_taus))
-    # mu_hats_std = np.zeros((tot_num_feats, num_taus))
-    difftime_idx = num_diff_times - 1
-    PM.eval()
-    while difftime_idx >= num_diff_times - es:
-        d = diffusion_times[Ndiff_discretisation - (num_diff_times - 1 - difftime_idx) - 1].to(device)
-        diff_times = torch.stack([d for _ in range(tot_num_feats)]).reshape(tot_num_feats * 1).to(device)
-        eff_times = diffusion.get_eff_times(diff_times=diff_times).unsqueeze(-1).unsqueeze(-1).to(device)
-        vec_diff_times = torch.stack([diff_times for _ in range(num_taus)], dim=0).reshape(num_taus * tot_num_feats)
-        vec_eff_times = torch.stack([eff_times for _ in range(num_taus)], dim=0).reshape(num_taus * tot_num_feats, 1, 1)
-        vec_conditioner = torch.stack([features_tensor for _ in range(num_taus)], dim=0).reshape(
-            num_taus * tot_num_feats,
-            1, -1)
-
-        with torch.no_grad():
-            PM_output = PM.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
-                                            eff_times=vec_eff_times)
-        # assert np.allclose((scores- predicted_score).detach(), 0)
-        beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
-        sigma2_taus = (1. - torch.pow(beta_taus, 2)).to(device)
-        sigma_taus = torch.pow(sigma2_taus, 0.5).to(device)
-
-        if "PM" in config.scoreNet_trained_path:
-            vec_predicted_score = -vec_Z_taus / sigma2_taus + (beta_taus / sigma2_taus) * PM_output
-        else:
-            vec_predicted_score = PM_output
-        vec_scores, vec_drift, vec_diffParam = diffusion.get_conditional_reverse_diffusion(x=vec_Z_taus,
-                                                                                           predicted_score=vec_predicted_score,
-                                                                                           diff_index=torch.Tensor(
-                                                                                               [int((
-                                                                                                       num_diff_times - 1 - difftime_idx))]).to(
-                                                                                               device),
-                                                                                           max_diff_steps=Ndiff_discretisation)
-
-        if "PM" in config.scoreNet_trained_path:
-            final_mu_hats = (-beta_taus*vec_Z_taus / (sigma2_taus)) + ((
-                                                                              (torch.pow(sigma_taus, 2) + (
-                                                                                      torch.pow(
-                                                                                          beta_taus * config.diffusion,
-                                                                                          2) * ts_step)) / (
-                                                                                      ts_step * sigma2_taus)) * PM_output)
-        else:
-            final_mu_hats = (vec_Z_taus / (ts_step * beta_taus)) + ((
-                                                                            (torch.pow(sigma_taus, 2) + (
-                                                                                    torch.pow(
-                                                                                        beta_taus * config.diffusion,
-                                                                                        2) * ts_step)) / (
-                                                                                    ts_step * beta_taus)) * vec_scores)
-
-        assert (final_mu_hats.shape == (num_taus * tot_num_feats, 1, config.ts_dims))
-        A = final_mu_hats.reshape((num_taus, tot_num_feats, config.ts_dims))
-        split_tensors = torch.split(A, list(num_feats_per_x.values()), dim=1)
-        # Compute means along the column dimension
-        means = torch.stack([t.mean(dim=1) for t in split_tensors], dim=1)
-        assert (means.shape == (num_taus, Xshape, config.ts_dims))
-        # print(vec_Z_taus.shape, vec_scores.shape)
-        final_vec_mu_hats[:, difftime_idx, :] = means.permute((1, 0, 2)).cpu().numpy()
-        vec_z = torch.randn_like(vec_drift).to(device)
-        vec_Z_taus = vec_drift + vec_diffParam * vec_z
-        difftime_idx -= 1
-    assert (final_vec_mu_hats.shape == (Xshape, num_diff_times, num_taus, config.ts_dims))
-    return final_vec_mu_hats[:, -es:, :, :]
-
 
 def MLP_fBiPotDDims_drifts(config, PM):
     print("Beta Min : ", config.beta_min)
@@ -570,43 +464,25 @@ def MLP_fBiPotDDims_drifts(config, PM):
     else:
         print("Using CPU\n")
         device = torch.device("cpu")
+    assert "DDims" in config.data_path
     PM = PM.to(device)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     ts_step = config.deltaT
     print(config.scoreNet_trained_path)
     Xshape = config.ts_length
-    num_taus = 100
+    num_taus = 1000
 
     num_diff_times = config.max_diff_steps
     Ndiff_discretisation = config.max_diff_steps
     diffusion_times = torch.linspace(start=config.sample_eps, end=config.end_diff_time,
                                      steps=Ndiff_discretisation).to(device)
-    if config.ndims == 12:
-        Xs = torch.concat([torch.linspace(-5, 5, steps=Xshape).reshape(-1,1),torch.linspace(-4.7, 4.7, steps=Xshape).reshape(-1,1),\
-                             torch.linspace(-4.4, 4.4, steps=Xshape).reshape(-1,1), torch.linspace(-4.2, 4.2, steps=Xshape).reshape(-1,1),\
-                             torch.linspace(-4.05, 4.05, steps=Xshape).reshape(-1,1), torch.linspace(-3.9, 3.9, steps=Xshape).reshape(-1,1), \
-                             torch.linspace(-3.7, 3.7, steps=Xshape).reshape(-1,1), torch.linspace(-3.6, 3.6, steps=Xshape).reshape(-1,1), \
-                             torch.linspace(-3.55, 3.55, steps=Xshape).reshape(-1,1), torch.linspace(-3.48, 3.48, steps=Xshape).reshape(-1,1), \
-                             torch.linspace(-3.4, 3.4, steps=Xshape).reshape(-1,1), torch.linspace(-3.4, 3.4, steps=Xshape).reshape(-1,1)], dim=1)
-    elif config.ndims == 8:
-        Xs = torch.concat([torch.linspace(-4.9, 4.9, steps=Xshape).reshape(-1,1), torch.linspace(-4.4, 4.4, steps=Xshape).reshape(-1,1), \
-                             torch.linspace(-4.05, 4.05, steps=Xshape).reshape(-1,1), torch.linspace(-3.9, 3.9, steps=Xshape).reshape(-1,1), \
-                             torch.linspace(-3.7, 3.7, steps=Xshape).reshape(-1,1), torch.linspace(-3.6, 3.6, steps=Xshape).reshape(-1,1), \
-                             torch.linspace(-3.5, 3.5, steps=Xshape).reshape(-1,1), torch.linspace(-3.4, 3.4, steps=Xshape).reshape(-1,1)], dim=1)
-    if config.diffusion == 0.1:
-        Xs /= 5.
-    elif config.diffusion == 1.:
-        Xs /= 3.
+    Xs = torch.concat([torch.linspace(config.lowerlims[i], config.upperlims[i], steps=Xshape).reshape(-1,1) for i in range(config.ndims)], dim=1)
     features_tensor = torch.stack([Xs for _ in range(1)], dim=0).reshape(Xshape * 1, 1, -1).to(device)
     final_vec_mu_hats = np.zeros(
         (Xshape, num_diff_times, num_taus, config.ts_dims))  # Xvalues, DiffTimes, Ztaus, Ts_Dims
     vec_Z_taus = diffusion.prior_sampling(shape=(Xshape * num_taus, 1, config.ts_dims)).to(device)
 
-    # ts = []
     es = 1
-    ts = []
-    # mu_hats_mean = np.zeros((tot_num_feats, num_taus))
-    # mu_hats_std = np.zeros((tot_num_feats, num_taus))
     difftime_idx = num_diff_times - 1
     PM.eval()
     while difftime_idx >= num_diff_times - es:
@@ -770,7 +646,6 @@ def multivar_score_based_MLP_drift(score_model, num_diff_times, diffusion, num_p
         with torch.no_grad():
             PM_output = score_model.forward(inputs=vec_Z_taus, times=vec_diff_times, conditioner=vec_conditioner,
                                             eff_times=vec_eff_times)
-        # assert np.allclose((scores- predicted_score).detach(), 0)
         beta_taus = torch.exp(-0.5 * eff_times[0, 0, 0]).to(device)
         sigma2_taus = (1. - torch.pow(beta_taus, 2)).to(device)
         sigma_taus = torch.pow(sigma2_taus, 0.5).to(device)
@@ -912,6 +787,7 @@ def drifttrack_cummse(true, local, deltaT):
     return total_local_errors[-1]
 
 def drifttrack_mse(true, local, deltaT):
+    assert true.shape[-1] == local.shape[-1] and local.shape[-1] > 0
     return np.sqrt(np.mean(np.sum(np.power(true - local, 2), axis=-1), axis=(0, 1)))[-1]
 
 
@@ -943,7 +819,7 @@ def multivar_score_based_MLP_drift_OOS(score_model, num_diff_times, diffusion, n
     features_tensor = torch.stack([torch.tensor(prev, dtype=torch.float32) for _ in range(1)], dim=0).reshape(
         num_paths * 1, 1, -1).to(device)
     assert (features_tensor.shape[0] == num_paths)
-    vec_Z_taus = torch.zeros(size=(num_paths * num_taus, 1, config.ts_dims)).to(device)#diffusion.prior_sampling(shape=(num_paths * num_taus, 1, config.ts_dims)).to(device)#
+    vec_Z_taus = diffusion.prior_sampling(shape=(num_paths * num_taus, 1, config.ts_dims)).to(device)#torch.zeros(size=(num_paths * num_taus, 1, config.ts_dims)).to(device)#
     diffusion_times = torch.linspace(config.sample_eps, 1., config.max_diff_steps)
     difftime_idx = Ndiff_discretisation - 1
     while difftime_idx >= Ndiff_discretisation - num_diff_times:
