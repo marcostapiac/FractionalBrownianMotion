@@ -638,7 +638,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                                        X0=np.array(config.initState))
                 Xs = np.array(
                     [fBiPotNS.euler_simulation(H=config.hurst, N=config.ts_length, deltaT=config.deltaT, isUnitInterval=True, X0=None, Ms=None,
-                                               t0=config.t0, t1=config.t1).reshape((-1, 1), order="C") for _ in range(num_paths)]).reshape(
+                                               t0=config.t0, t1=config.t1).reshape((config.ts_length + 1, config.ndims), order="C") for _ in range(num_paths)]).reshape(
                     (num_paths, config.ts_length + 1, config.ndims))[:, 1:, :]
                 Xs = Xs.reshape((-1, config.ndims), order="C")
                 true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
@@ -658,11 +658,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 fBiPot = FractionalBiPotential(num_dims=config.ndims,
                                                quartic_coeff=config.quartic_coeff, quad_coeff=config.quad_coeff,
                                                const=config.const, diff=config.diffusion,
-                                               X0=np.array(config.initState))
+                                               X0=np.array([config.initState]))
                 Xs = np.array(
                     [fBiPot.euler_simulation(H=config.hurst, N=config.ts_length, deltaT=config.deltaT,
                                              isUnitInterval=True, X0=None, Ms=None,
-                                             t0=config.t0, t1=config.t1).reshape((-1, 1), order="C") for _ in
+                                             t0=config.t0, t1=config.t1).reshape((config.ts_length + 1, config.ndims), order="C") for _ in
                      range(num_paths)]).reshape(
                     (num_paths, config.ts_length + 1, config.ndims))[:, 1:, :]
                 Xs = Xs.reshape((-1, config.ndims), order="C")
