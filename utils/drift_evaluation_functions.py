@@ -935,7 +935,7 @@ def multivar_score_based_MLP_drift_OOS(score_model, num_diff_times, diffusion, n
     """ Computes drift using MLP score network when features obtained from LSTM directly """
 
     score_model = score_model.to(device)
-    num_taus = 1000
+    num_taus = 100
     Ndiff_discretisation = config.max_diff_steps
     assert (prev.shape == (num_paths, config.ndims))
     assert (prev[0, :].shape[0] == config.ts_dims)
