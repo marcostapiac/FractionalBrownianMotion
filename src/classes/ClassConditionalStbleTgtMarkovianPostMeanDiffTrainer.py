@@ -16,6 +16,7 @@ from torchmetrics import MeanMetric
 from tqdm import tqdm
 
 from configs import project_config
+from src.classes.ClassFractionalBiPotential import FractionalBiPotential
 from src.classes.ClassFractionalBiPotentialNonSep import FractionalBiPotentialNonSep
 from src.classes.ClassFractionalLorenz96 import FractionalLorenz96
 from src.generative_modelling.models.ClassOUSDEDiffusion import OUSDEDiffusion
@@ -71,6 +72,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.deltaT = torch.Tensor([deltaT]).to(self.device_id)
         self.curr_best_track_mse = np.inf
         self.curr_best_evalexp_mse = np.inf
+        self.curr_best_stochmse = np.inf
 
         self.diffusion = diffusion
         self.train_eps = train_eps
@@ -706,8 +708,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         if (config.diffusion == .1) or (config.diffusion == 10.):
             save_path += f"_Diff{config.diffusion:.1f}".replace(".", "")
         print(f"Save path:{save_path}\n")
-        self.score_network.module.train()
-        self.score_network.module.to(self.device_id)
         if len(true_drifts.shape) == 1:
             true_drifts = true_drifts.reshape((-1, 1), order="C")
         mse = driftevalexp_mse_ignore_nans(true=true_drifts,
@@ -716,11 +716,56 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                                                                        final_vec_mu_hats.shape[
                                                                                            -1] * 1), order="C").mean(axis=1))
         if mse < self.curr_best_evalexp_mse or (epoch % 3) == 0:
-            np.save(save_path + "_muhats.npy", final_vec_mu_hats)
+            np.save(save_path + "_muhats.npy", final_vec_mu_hats[:, -1, :, :].reshape((final_vec_mu_hats.shape[0],
+                                                                                            final_vec_mu_hats.shape[2],
+                                                                                            final_vec_mu_hats.shape[
+                                                                                                -1] * 1),
+                                                                                           order="C").mean(axis=1))
             np.save(save_path + "_truemus.npy", true_drifts)
             np.save(save_path + "_locs.npy", Xs)
             pd.DataFrame.from_dict({epoch:mse}, orient="index", columns=["mse"]).to_parquet(save_path+"_muhats_MSE.parquet")
         print(f"Current vs Best MSE {mse}, {self.curr_best_evalexp_mse} at Epoch {epoch}\n")
+        # Additional Check for BiPotSep MSE
+        num_paths = 100
+        if "BiPot" in config.data_path and config.ndims > 1 and "coup" not in config.data_path:
+            fBiPot = FractionalBiPotential(num_dims=config.ndims,
+                                           quartic_coeff=config.quartic_coeff, quad_coeff=config.quad_coeff,
+                                           const=config.const, diff=config.diffusion,
+                                           X0=np.array(config.initState))
+            Xs = np.array(
+                [fBiPot.euler_simulation(H=config.hurst, N=config.ts_length, deltaT=config.deltaT,
+                                         isUnitInterval=True, X0=None, Ms=None,
+                                         t0=config.t0, t1=config.t1).reshape((-1, 1), order="C") for _ in
+                 range(num_paths)]).reshape(
+                (num_paths, config.ts_length + 1, config.ndims))[:, 1:, :]
+            Xs = Xs.reshape((-1, config.ndims), order="C")
+            true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
+                                                                           3) + 2. * np.array(
+                config.quad_coeff) * Xs + np.array(config.const))
+            true_drifts = true_drifts / (1 + config.deltaT * np.abs(true_drifts))
+            final_vec_mu_hats = experiment_MLP_DDims_drifts(config=config, Xs=Xs, good=self.score_network.module,
+                                                            onlyGauss=False)
+            stochmse = driftevalexp_mse_ignore_nans(true=true_drifts,
+                                               pred=final_vec_mu_hats[:, -1, :, :].reshape((final_vec_mu_hats.shape[0],
+                                                                                            final_vec_mu_hats.shape[2],
+                                                                                            final_vec_mu_hats.shape[
+                                                                                                -1] * 1),
+                                                                                           order="C").mean(axis=1))
+            pd.DataFrame.from_dict({epoch:stochmse}, orient="index", columns=["mse"]).to_parquet(save_path+"_muhats_StochMSE.parquet")
+
+            if stochmse < self.curr_best_stochmse:
+                np.save(save_path + "_muhats_Stoch.npy", final_vec_mu_hats[:, -1, :, :].reshape((final_vec_mu_hats.shape[0],
+                                                                                                final_vec_mu_hats.shape[2],
+                                                                                                final_vec_mu_hats.shape[
+                                                                                                    -1] * 1),
+                                                                                               order="C").mean(axis=1))
+                np.save(save_path + "_truemus_Stoch.npy", true_drifts)
+                np.save(save_path + "_locs_Stoch.npy", Xs)
+                self.curr_best_stochmse = stochmse
+            print(f"Best MSE vs Best StochMSE {self.curr_best_evalexp_mse}, {self.curr_best_stochmse} at Epoch {epoch}\n")
+
+        self.score_network.module.train()
+        self.score_network.module.to(self.device_id)
         return mse
 
     def _tracking_errors(self, epoch, config):
