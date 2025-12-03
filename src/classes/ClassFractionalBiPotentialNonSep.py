@@ -38,7 +38,8 @@ class FractionalBiPotentialNonSep:
     def inverse_lamperti(self, Z: np.ndarray):
         return None  # self.initialVol * np.exp(self.volVol * Z)
 
-    def increment_state(self, prev: np.ndarray, deltaT: float, M: int):
+    def increment_state(self, prev: np.ndarray, deltaT: float, M: np.ndarray):
+        assert prev.shape[-1] == M.shape[-1] and M.shape[-1] != 1
         # driftX = -V'(x) where V(x) = ax^4+bx^2+cx
         driftX = -(4.*self.quartic_coeff * np.power(prev, 3) + 2.*self.quad_coeff * prev + self.const)
         xstar = np.sqrt(np.maximum(1e-12, -self.quad_coeff / (2.0 * self.quartic_coeff)))
