@@ -4,7 +4,10 @@ import numpy as np
 import torch
 from torch import nn
 
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import ConditionalMarkovianTSPostMeanScoreMatching
+from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
+    ConditionalMarkovianTSPostMeanScoreMatching
+
+
 class OUSDEDiffusion(nn.Module):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)

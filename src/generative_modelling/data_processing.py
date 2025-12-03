@@ -3,7 +3,6 @@ from typing import Tuple, Union
 
 import numpy as np
 import torch
-import torchmetrics
 from ml_collections import ConfigDict
 from torch.distributed.elastic.multiprocessing.errors import record
 from torch.utils.data import DataLoader
@@ -28,6 +27,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
     ConditionalLSTMTSPostMeanScoreMatching
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
     ConditionalMarkovianTSPostMeanScoreMatching
+
 
 def prepare_scoreModel_data(data: np.ndarray, batch_size: int, config: ConfigDict) -> DataLoader:
     """

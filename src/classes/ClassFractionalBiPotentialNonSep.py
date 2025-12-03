@@ -3,7 +3,7 @@ from typing import Union
 import numpy as np
 
 from src.classes.ClassFractionalBrownianNoise import FractionalBrownianNoise
-from tqdm import tqdm
+
 
 class FractionalBiPotentialNonSep:
 

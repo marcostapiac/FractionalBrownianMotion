@@ -3,7 +3,7 @@ import math
 import torch
 import torch.nn.functional as F
 from torch import nn
-import numpy as np
+
 """ NOTE: The model below is an adaptation of the implementation of pytorch-ts """
 
 

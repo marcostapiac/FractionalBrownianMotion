@@ -1,9 +1,9 @@
 import math
+import os
 from multiprocessing import shared_memory
 
-import os
-import torch
 import numpy as np
+import torch
 from scipy.special import eval_laguerre
 from torch.nn.utils.rnn import pad_sequence
 

@@ -1,13 +1,13 @@
 # utils/resource_logger.py
 import atexit
-import json
 import os
-import psutil
 import signal
 import threading
 import time
 import weakref
 from typing import Callable, Optional, Any, Dict, List
+
+import psutil
 
 # ---- Optional NVML import ----
 try:
