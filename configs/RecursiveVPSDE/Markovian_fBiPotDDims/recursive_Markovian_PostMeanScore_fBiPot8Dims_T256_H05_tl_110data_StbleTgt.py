@@ -36,7 +36,7 @@ def get_config():
     config.save_freq = 2
     config.lr = 1e-3
     config.max_epochs = [3000]
-    config.ref_batch_size = 512 #256
+    config.ref_batch_size = 1024 #256
     config.batch_size = 256 #256
     config.chunk_size = 512
     config.feat_thresh = 1/1. # 1./100.

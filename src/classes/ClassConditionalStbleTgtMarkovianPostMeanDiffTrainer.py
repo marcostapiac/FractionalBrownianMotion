@@ -604,7 +604,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             elif "BiPot" in config.data_path and config.ndims > 1 and "coup" not in config.data_path:
                 Xshape = config.ts_length
                 Xs = np.concatenate(
-                    [np.linspace(config.lowerlims[i], config.upperlims[i], steps=Xshape).reshape((-1, 1), order="C") for i in
+                    [np.linspace(config.lowerlims[i], config.upperlims[i], num=Xshape).reshape((-1, 1), order="C") for i in
                      range(config.ndims)], axis=1)
                 true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
                                                                                3) + 2. * np.array(
