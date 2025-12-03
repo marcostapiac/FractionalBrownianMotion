@@ -603,9 +603,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                                                      3) + 2. * config.quad_coeff * Xs + config.const)
             elif "BiPot" in config.data_path and config.ndims > 1 and "coup" not in config.data_path:
                 Xshape = config.ts_length
-                Xs = torch.concat(
-                    [torch.linspace(config.lowerlims[i], config.upperlims[i], steps=Xshape).contiguous().reshape((-1, 1)) for i in
-                     range(config.ndims)], dim=1)
+                Xs = np.concatenate(
+                    [np.linspace(config.lowerlims[i], config.upperlims[i], steps=Xshape).reshape((-1, 1), order="C") for i in
+                     range(config.ndims)], axis=1)
                 true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
                                                                                3) + 2. * np.array(
                     config.quad_coeff) * Xs + np.array(config.const))
