@@ -72,7 +72,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.deltaT = torch.Tensor([deltaT]).to(self.device_id)
         self.curr_best_track_mse = np.inf
         self.curr_best_evalexp_mse = np.inf
-        self.curr_best_stochmse = np.inf
 
         self.diffusion = diffusion
         self.train_eps = train_eps
@@ -407,9 +406,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             self.epochs_run = snapshot["EPOCHS_RUN"]
             self.opt.load_state_dict(snapshot["OPTIMISER_STATE"])
             # Here to manually change the LR
-            # if "BiPot" in config.data_path and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./50 and 550<= self.epochs_run <= 600: self.opt.param_groups[0]["lr"]=0.0001
-            # if "QuadSin" in config.data_path and config.sin_space_scale == 4. and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./50 and 630<= self.epochs_run <= 640 : self.opt.param_groups[0]["lr"]=0.0001
-            # if "QuadSin" in config.data_path and config.sin_space_scale == 25. and self.opt.param_groups[0]["lr"] == 0.001 and config.feat_thresh == 1./50. and 100<= self.epochs_run <= 120 : self.opt.param_groups[0]["lr"]=0.0001
 
             try:
                 self.ewma_loss = snapshot["EWMA_LOSS"]
@@ -589,11 +585,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
     def _domain_rmse(self, epoch, config):
         # assert (config.ndims <= 2)
         print(config.data_path)
-        if ("DLnz" not in config.data_path) and ("DDimsNS" not in config.data_path):
-            if config.ndims > 1 and "BiPot" in config.data_path:
-                final_vec_mu_hats = MLP_fBiPotDDims_drifts(PM=self.score_network.module, config=config)
-            elif config.ndims == 1:
-                final_vec_mu_hats = MLP_1D_drifts(PM=self.score_network.module, config=config)
+        if ("DLnz" not in config.data_path) and ("DDims" not in config.data_path):
+            assert config.ndims == 1
+            final_vec_mu_hats = MLP_1D_drifts(PM=self.score_network.module, config=config)
             if "BiPot" in config.data_path and config.ndims == 1:
                 if config.diffusion == 1:
                     Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
@@ -603,15 +597,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     Xs = np.linspace(-4., 4., num=config.ts_length)
                 true_drifts = -(4. * config.quartic_coeff * np.power(Xs,
                                                                      3) + 2. * config.quad_coeff * Xs + config.const)
-            elif "BiPot" in config.data_path and config.ndims > 1 and "coup" not in config.data_path:
-                Xshape = config.ts_length
-                Xs = np.concatenate(
-                    [np.linspace(config.lowerlims[i], config.upperlims[i], num=Xshape).reshape((-1, 1), order="C") for i in
-                     range(config.ndims)], axis=1)
-                true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
-                                                                               3) + 2. * np.array(
-                    config.quad_coeff) * Xs + np.array(config.const))
-                true_drifts = true_drifts/(1+config.deltaT*np.abs(true_drifts))
             elif "QuadSin" in config.data_path:
                 if config.diffusion == .1:
                     Xs = np.linspace(-.15, .15, num=config.ts_length)
@@ -669,6 +654,24 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 true_drifts = true_drifts - 0.5 * config.coupling * phi_prime * nbr
                 true_drifts = true_drifts/(1+config.deltaT*np.abs(true_drifts))
                 final_vec_mu_hats = experiment_MLP_DDims_drifts(config=config, Xs=Xs, good=self.score_network.module, onlyGauss=False)
+            elif "BiPot" in config.data_path and config.ndims > 1 and "coup" not in config.data_path:
+                fBiPot = FractionalBiPotential(num_dims=config.ndims,
+                                               quartic_coeff=config.quartic_coeff, quad_coeff=config.quad_coeff,
+                                               const=config.const, diff=config.diffusion,
+                                               X0=np.array(config.initState))
+                Xs = np.array(
+                    [fBiPot.euler_simulation(H=config.hurst, N=config.ts_length, deltaT=config.deltaT,
+                                             isUnitInterval=True, X0=None, Ms=None,
+                                             t0=config.t0, t1=config.t1).reshape((-1, 1), order="C") for _ in
+                     range(num_paths)]).reshape(
+                    (num_paths, config.ts_length + 1, config.ndims))[:, 1:, :]
+                Xs = Xs.reshape((-1, config.ndims), order="C")
+                true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
+                                                                               3) + 2. * np.array(
+                    config.quad_coeff) * Xs + np.array(config.const))
+                true_drifts = true_drifts / (1 + config.deltaT * np.abs(true_drifts))
+                final_vec_mu_hats = experiment_MLP_DDims_drifts(config=config, Xs=Xs, good=self.score_network.module,
+                                                                onlyGauss=False)
         type = "PM"
         assert (type in config.scoreNet_trained_path)
         assert ("_ST_" in config.scoreNet_trained_path)
@@ -725,45 +728,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             np.save(save_path + "_locs.npy", Xs)
             pd.DataFrame.from_dict({epoch:mse}, orient="index", columns=["mse"]).to_parquet(save_path+"_muhats_MSE.parquet")
         print(f"Current vs Best MSE {mse}, {self.curr_best_evalexp_mse} at Epoch {epoch}\n")
-        # Additional Check for BiPotSep MSE
-        num_paths = 100
-        if "BiPot" in config.data_path and config.ndims > 1 and "coup" not in config.data_path:
-            fBiPot = FractionalBiPotential(num_dims=config.ndims,
-                                           quartic_coeff=config.quartic_coeff, quad_coeff=config.quad_coeff,
-                                           const=config.const, diff=config.diffusion,
-                                           X0=np.array(config.initState))
-            Xs = np.array(
-                [fBiPot.euler_simulation(H=config.hurst, N=config.ts_length, deltaT=config.deltaT,
-                                         isUnitInterval=True, X0=None, Ms=None,
-                                         t0=config.t0, t1=config.t1).reshape((-1, 1), order="C") for _ in
-                 range(num_paths)]).reshape(
-                (num_paths, config.ts_length + 1, config.ndims))[:, 1:, :]
-            Xs = Xs.reshape((-1, config.ndims), order="C")
-            true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
-                                                                           3) + 2. * np.array(
-                config.quad_coeff) * Xs + np.array(config.const))
-            true_drifts = true_drifts / (1 + config.deltaT * np.abs(true_drifts))
-            final_vec_mu_hats = experiment_MLP_DDims_drifts(config=config, Xs=Xs, good=self.score_network.module,
-                                                            onlyGauss=False)
-            stochmse = driftevalexp_mse_ignore_nans(true=true_drifts,
-                                               pred=final_vec_mu_hats[:, -1, :, :].reshape((final_vec_mu_hats.shape[0],
-                                                                                            final_vec_mu_hats.shape[2],
-                                                                                            final_vec_mu_hats.shape[
-                                                                                                -1] * 1),
-                                                                                           order="C").mean(axis=1))
-            pd.DataFrame.from_dict({epoch:stochmse}, orient="index", columns=["mse"]).to_parquet(save_path+"_muhats_StochMSE.parquet")
-
-            if stochmse < self.curr_best_stochmse:
-                np.save(save_path + "_muhats_Stoch.npy", final_vec_mu_hats[:, -1, :, :].reshape((final_vec_mu_hats.shape[0],
-                                                                                                final_vec_mu_hats.shape[2],
-                                                                                                final_vec_mu_hats.shape[
-                                                                                                    -1] * 1),
-                                                                                               order="C").mean(axis=1))
-                np.save(save_path + "_truemus_Stoch.npy", true_drifts)
-                np.save(save_path + "_locs_Stoch.npy", Xs)
-                self.curr_best_stochmse = stochmse
-            print(f"Best MSE vs Best StochMSE {self.curr_best_evalexp_mse}, {self.curr_best_stochmse} at Epoch {epoch}\n")
-
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
         return mse
