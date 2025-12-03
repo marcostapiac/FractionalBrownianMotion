@@ -257,7 +257,7 @@ def experiment_MLP_DDims_drifts(config, Xs, good, onlyGauss=False):
     num_taus = 100
     es = 1
     dtype = torch.float32
-    chunk_size = Xs.shape[0]//4
+    chunk_size = Xs.shape[0]//5
     # inputs
     Xs = torch.as_tensor(Xs, device=device, dtype=dtype)
     Xshape = Xs.shape[0]
