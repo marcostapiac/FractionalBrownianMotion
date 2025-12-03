@@ -3,7 +3,7 @@ import os
 import pickle
 import time
 from typing import Union
-
+import pandas as pd
 import torch
 import torch.distributed as dist
 import torchmetrics
@@ -633,40 +633,40 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             if "DLnz" in config.data_path:
                 fLnz = FractionalLorenz96(X0=config.initState, diff=config.diffusion, num_dims=config.ndims,
                                           forcing_const=config.forcing_const)
-                prev = np.array(
+                Xs = np.array(
                     [fLnz.euler_simulation(H=config.hurst, N=config.ts_length, deltaT=config.deltaT, X0=np.array(config.initState), Ms=None,
                                            gaussRvs=None,
                                            t0=config.t0, t1=config.t1) for _ in (range(num_paths))]).reshape(
                     (num_paths, config.ts_length + 1, config.ndims), order="C")[:, 1:, :]
-                prev = prev.reshape((-1, config.ndims), order="C")
-                true_drifts = np.zeros((prev.shape[0], config.ndims))
+                Xs = Xs.reshape((-1, config.ndims), order="C")
+                true_drifts = np.zeros((Xs.shape[0], config.ndims))
                 for i in range(config.ndims):
-                    true_drifts[:, i] = (prev[:, (i + 1) % config.ndims] - prev[:, i - 2]) * prev[:, i - 1] - prev[:,
+                    true_drifts[:, i] = (Xs[:, (i + 1) % config.ndims] - Xs[:, i - 2]) * Xs[:, i - 1] - Xs[:,
                                                                                                           i] * config.forcing_const
-                final_vec_mu_hats = experiment_MLP_DDims_drifts(config=config, Xs=prev, good=self.score_network.module, onlyGauss=False)
+                final_vec_mu_hats = experiment_MLP_DDims_drifts(config=config, Xs=Xs, good=self.score_network.module, onlyGauss=False)
 
             elif "DDimsNS" in config.data_path or "coup" in config.data_path:
                 fBiPotNS = FractionalBiPotentialNonSep(num_dims=config.ndims, scale=config.scale, quartic_coeff=config.quartic_coeff, quad_coeff=config.quad_coeff,
                                                        const=config.const, diff=config.diffusion, coupling=config.coupling,
                                                        X0=np.array(config.initState))
-                prev = np.array(
+                Xs = np.array(
                     [fBiPotNS.euler_simulation(H=config.hurst, N=config.ts_length, deltaT=config.deltaT, isUnitInterval=True, X0=None, Ms=None,
                                                t0=config.t0, t1=config.t1).reshape((-1, 1), order="C") for _ in range(num_paths)]).reshape(
                     (num_paths, config.ts_length + 1, config.ndims))[:, 1:, :]
-                prev = prev.reshape((-1, config.ndims), order="C")
-                true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(prev,
+                Xs = Xs.reshape((-1, config.ndims), order="C")
+                true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
                                                                            3) + 2. * np.array(
-                    config.quad_coeff) * prev + np.array(config.const))
+                    config.quad_coeff) * Xs + np.array(config.const))
                 xstar = np.sqrt(
                     np.maximum(1e-12, -np.array(config.quad_coeff) / (2.0 * np.array(config.quartic_coeff))))
                 s2 = (config.scale * xstar) ** 2 + 1e-12  # (D,) or (K,1,D)
-                diff = prev ** 2 - xstar ** 2  # same shape as prev
+                diff = Xs ** 2 - xstar ** 2  # same shape as Xs
                 phi = np.exp(-(diff ** 2) / (2.0 * s2 * xstar ** 2 + 1e-12))
-                phi_prime = phi * (-2.0 * prev * diff / ((config.scale ** 2) * (xstar ** 4 + 1e-12)))
+                phi_prime = phi * (-2.0 * Xs * diff / ((config.scale ** 2) * (xstar ** 4 + 1e-12)))
                 nbr = np.roll(phi, 1, axis=-1) + np.roll(phi, -1, axis=-1)  # same shape as phi
                 true_drifts = true_drifts - 0.5 * config.coupling * phi_prime * nbr
                 true_drifts = true_drifts/(1+config.deltaT*np.abs(true_drifts))
-                final_vec_mu_hats = experiment_MLP_DDims_drifts(config=config, Xs=prev, good=self.score_network.module, onlyGauss=False)
+                final_vec_mu_hats = experiment_MLP_DDims_drifts(config=config, Xs=Xs, good=self.score_network.module, onlyGauss=False)
         type = "PM"
         assert (type in config.scoreNet_trained_path)
         assert ("_ST_" in config.scoreNet_trained_path)
@@ -706,8 +706,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         if (config.diffusion == .1) or (config.diffusion == 10.):
             save_path += f"_Diff{config.diffusion:.1f}".replace(".", "")
         print(f"Save path:{save_path}\n")
-        if ("DLnz" not in config.data_path) and ("DDimsNS" not in config.data_path):
-            np.save(save_path + "_muhats.npy", final_vec_mu_hats)
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
         if len(true_drifts.shape) == 1:
@@ -717,8 +715,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                                                                        final_vec_mu_hats.shape[2],
                                                                                        final_vec_mu_hats.shape[
                                                                                            -1] * 1), order="C").mean(axis=1))
-        import pandas as pd
-        pd.DataFrame.from_dict({epoch:mse}, orient="index", columns=["mse"]).to_parquet(save_path+"_muhats_MSE.parquet")
+        if mse < self.curr_best_evalexp_mse or (epoch % 3) == 0:
+            np.save(save_path + "_muhats.npy", final_vec_mu_hats)
+            np.save(save_path + "_truemus.npy", true_drifts)
+            np.save(save_path + "_locs.npy", Xs)
+            pd.DataFrame.from_dict({epoch:mse}, orient="index", columns=["mse"]).to_parquet(save_path+"_muhats_MSE.parquet")
         print(f"Current vs Best MSE {mse}, {self.curr_best_evalexp_mse} at Epoch {epoch}\n")
         return mse
 
@@ -878,11 +879,12 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         if (config.diffusion == .1) or (config.diffusion == 10.):
             save_path += f"_Diff{config.diffusion:.1f}".replace(".", "")
         print(f"Save path for OOS DriftTrack:{save_path}\n")
-        np.save(save_path + "_true_states.npy", all_true_states)
-        np.save(save_path + "_global_states.npy", all_global_states)
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
         mse = drifttrack_mse(true=all_true_states, local=all_global_states, deltaT=config.deltaT)
+        if (mse < self.curr_best_track_mse) or ((epoch + 1) % 3 == 0):
+            np.save(save_path + "_true_states.npy", all_true_states)
+            np.save(save_path + "_global_states.npy", all_global_states)
         print(f"Current vs Best MSE {mse}, {self.curr_best_track_mse} at Epoch {epoch}\n")
         return mse
 
