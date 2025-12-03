@@ -26,6 +26,7 @@ class FractionalLorenz96:
         return incs
 
     def drift_X(self, prev):
+        print(prev.shape)
         assert (len(prev.shape) == 1 and prev.shape[0] == self.ndims)
         driftX = np.zeros_like(prev)
         for i in range(self.ndims):
@@ -52,7 +53,7 @@ class FractionalLorenz96:
             if H != 0.5:
                 self.gaussIncs = self.rng.normal(size=2 * N)
             else:
-                self.gaussIncs = self.rng.normal(size=N)
+                self.gaussIncs = self.rng.normal(size=(N, self.ndims))
         else:
             self.gaussIncs = gaussRvs
         if Ms is None:
@@ -61,7 +62,7 @@ class FractionalLorenz96:
             else:
                 Ms = self.gaussIncs * np.sqrt(deltaT)
         for i in (range(1, N + 1)):
-            Y, d = self.increment_state(prev=Zs[i - 1], deltaT=deltaT, M=Ms[i - 1])
+            Y, d = self.increment_state(prev=Zs[i - 1], deltaT=deltaT, M=Ms[i - 1,:])
             Zs.append(Y)
             Ds.append(d)
         return np.array(Zs), np.array(Ds)

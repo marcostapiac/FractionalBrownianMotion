@@ -46,7 +46,7 @@ class FractionalBiPotential:
     def increment_state(self, prev: np.ndarray, deltaT: float, M: int):
         # driftX = -V'(x) where V(x) = ax^4+bx^2+cx
         driftX = -(4.*self.quartic_coeff * np.power(prev, 3) + 2.*self.quad_coeff * prev + self.const)
-        diffX = self.diff * M
+        diffX = self.diff * M[np.newaxis, :]
         ## See (Weak approximation schemes for SDEs with super-linearly growing coefficients, 2023) for weak solution
         #diffX = diffX/(1.+deltaT*driftX)
         # See Tamed Euler
@@ -68,7 +68,7 @@ class FractionalBiPotential:
             if H != 0.5:
                 self.gaussIncs = self.rng.normal(size=2 * N)
             else:
-                self.gaussIncs = self.rng.normal(size=N)
+                self.gaussIncs = self.rng.normal(size=(N, self.ndims))
         else:
             self.gaussIncs = gaussRvs
         if Ms is None:
@@ -77,5 +77,5 @@ class FractionalBiPotential:
             else:
                 Ms = self.gaussIncs * np.sqrt(deltaT)
         for i in (range(1, N + 1)):
-            Zs.append(self.increment_state(prev=Zs[i - 1], deltaT=deltaT, M=Ms[i - 1]))
+            Zs.append(self.increment_state(prev=Zs[i - 1], deltaT=deltaT, M=Ms[i - 1,:]))
         return np.array(Zs)
