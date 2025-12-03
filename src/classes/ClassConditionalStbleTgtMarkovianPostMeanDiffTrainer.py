@@ -148,12 +148,12 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
         idx_sel = torch.arange(0, N_all, 1).to(self.device_id)
         # flatten then gather rows
-        xts_flat = xts.contiguous().reshape((N_all, D), order="C")
-        feats_flat = features.contiguous().reshape((N_all, D), order="C")
-        targets_flat = stable_targets.contiguous().reshape((N_all, -1) , order="C") # last dim == D
-        times_flat = diff_times.contiguous().reshape((N_all), order="C")  # [N_all]
+        xts_flat = xts.contiguous().reshape((N_all, D))
+        feats_flat = features.contiguous().reshape((N_all, D))
+        targets_flat = stable_targets.contiguous().reshape((N_all, -1) ) # last dim == D
+        times_flat = diff_times.contiguous().reshape((N_all))  # [N_all]
         eff_full = torch.cat([eff_times] * D, dim=2)  # [B,T,D]
-        eff_flat = eff_full.contiguous().reshape((N_all, D), order="C")
+        eff_flat = eff_full.contiguous().reshape((N_all, D))
 
         xts_sel = xts_flat[idx_sel].unsqueeze(1)  # [N_sel,1,D]
         feats_sel = feats_flat[idx_sel].unsqueeze(1)  # [N_sel,1,D]
@@ -604,7 +604,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             elif "BiPot" in config.data_path and config.ndims > 1 and "coup" not in config.data_path:
                 Xshape = config.ts_length
                 Xs = torch.concat(
-                    [torch.linspace(config.lowerlims[i], config.upperlims[i], steps=Xshape).contiguous().reshape((-1, 1), order="C") for i in
+                    [torch.linspace(config.lowerlims[i], config.upperlims[i], steps=Xshape).contiguous().reshape((-1, 1)) for i in
                      range(config.ndims)], dim=1)
                 true_drifts = -(4. * np.array(config.quartic_coeff) * np.power(Xs,
                                                                                3) + 2. * np.array(
