@@ -256,7 +256,7 @@ if __name__ == "__main__":
             job_type="GPU training",
     ):
         assert num_paths == 10240
-        assert config.diffusion == 1.
+        assert config.diffusion == 10.
         t0 = config.t0
         deltaT = config.deltaT
         t1 = deltaT * config.ts_length
