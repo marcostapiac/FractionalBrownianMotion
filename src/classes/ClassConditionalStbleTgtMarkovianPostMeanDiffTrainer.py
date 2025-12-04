@@ -76,7 +76,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.s = nn.Parameter(torch.zeros(self.init_state.shape[-1], dtype=torch.float32, requires_grad=True, device=self.device_id))
 
         # no weight decay for s
-        self.optim_s = torch.optim.Adam({'params': [self.s], 'lr': 1e-4, 'weight_decay': 0.0})
+        self.optim_s = torch.optim.Adam([{'params': [self.s], 'lr': 1e-4, 'weight_decay': 0.0}])
 
         self.diffusion = diffusion
         self.train_eps = train_eps
