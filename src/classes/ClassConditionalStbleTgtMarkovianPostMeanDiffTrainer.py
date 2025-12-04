@@ -107,9 +107,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             """
         loss.backward()  # single gpu functionality
         self.opt.step()
-        self.optim_s.step()
-        with torch.no_grad():
-            self.s.clamp_(self.s_min, self.s_max)
+        #self.optim_s.step()
+        #with torch.no_grad():
+        #    self.s.clamp_(self.s_min, self.s_max)
         self.loss_aggregator.update(loss.detach().item())
         return loss.detach().item(), base_loss, var_loss, mean_loss
 
@@ -124,8 +124,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         """
         base_loss = ((outputs - targets).pow(2) * w_tau).mean(dim=0)#.sum(dim=-1).mean()  # Penalise for higher dimensions
         print(f"MSE per Dim at Epoch {epoch}: [{','.join(f'{v:.8f}' for v in base_loss.detach().cpu().numpy().flatten())}]")
-        print(f"Component MSE {(base_loss * torch.exp(-self.s)).sum().detach().cpu().numpy()}; Component Priors {self.s.sum()}")
-        base_loss = 0.5 * (base_loss * torch.exp(-self.s)).sum() + 0.5 * self.s.sum()
+        #print(f"Component MSE {(base_loss * torch.exp(-self.s)).sum().detach().cpu().numpy()}; Component Priors {self.s.sum()}")
+        base_loss = base_loss.sum() #base_loss = 0.5 * (base_loss * torch.exp(-self.s)).sum() + 0.5 * self.s.sum()
         var_loss = ((
                                 self.score_network.module.mlp_state_mapper.hybrid.log_scale - self.score_network.module.mlp_state_mapper.hybrid.log_scale.mean()) ** 2).mean()
         mean_loss = (torch.mean((self.score_network.module.mlp_state_mapper.hybrid.log_scale - 0.) ** 2))
@@ -150,7 +150,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             :return: Batch Loss
         """
         self.opt.zero_grad()
-        self.optim_s.zero_grad()
+        #self.optim_s.zero_grad()
         B, T, D = xts.shape
         assert (features.shape[:2] == (B, T) and features.shape[-1] == D)
 
@@ -408,6 +408,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         # Snapshot should be python dict
         for param_group in self.opt.param_groups:
             param_group['lr'] = config.lr
+        for param_group in self.optim_s.param_groups:
+            param_group['lr'] = 1e-4
         print(
             f"Before loading snapshot Epochs Run, EWMA Loss, LR: {self.epochs_run, self.ewma_loss, self.opt.param_groups[0]['lr']}\n")
 
@@ -496,7 +498,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                         "TRACK_MSE": self.curr_best_track_mse, "EVALEXP_MSE": self.curr_best_evalexp_mse}
         except AttributeError as e:
             print(e)
-            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(), "EWMA_LOSS": self.ewma_loss,
+            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(),"PERDIM_OPTIMISER_STATE": self.optim_s.state_dict(), "EWMA_LOSS": self.ewma_loss,
                         "VAR_REG": self.var_loss_reg, "MEAN_REG": self.mean_loss_reg}
 
         # self.score_network now points to DDP wrapped object, so we need to access parameters via ".module"
