@@ -595,7 +595,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
     def _domain_rmse(self, epoch, config):
         # assert (config.ndims <= 2)
         #print(config.data_path)
-        if ("DLnz" not in config.data_path) and ("DDimsNS" not in config.data_path):
+        if ("DLnz" not in config.data_path) and ("DDims" not in config.data_path):
             assert config.ndims == 1
             final_vec_mu_hats = MLP_1D_drifts(PM=self.score_network.module, config=config)
             if "BiPot" in config.data_path and config.ndims == 1:
@@ -642,7 +642,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                                                                                           i] * config.forcing_const
                 final_vec_mu_hats = experiment_MLP_DDims_drifts(config=config, Xs=Xs, good=self.score_network.module, onlyGauss=False)
 
-            elif "DDims" in config.data_path or "coup" in config.data_path:
+            elif "DDimsNS" in config.data_path or "coup" in config.data_path:
                 fBiPotNS = FractionalBiPotentialNonSep(num_dims=config.ndims, scale=config.scale, quartic_coeff=config.quartic_coeff, quad_coeff=config.quad_coeff,
                                                        const=config.const, diff=config.diffusion, coupling=config.coupling,
                                                        X0=np.array(config.initState))
