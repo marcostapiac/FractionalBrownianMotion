@@ -72,6 +72,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.deltaT = torch.Tensor([deltaT]).to(self.device_id)
         self.curr_best_track_mse = np.inf
         self.curr_best_evalexp_mse = np.inf
+        self.s_min, self.s_max = -10.0, 10.0  # clamp range
+        self.s = nn.Parameter(torch.zeros(self.init_state.shape[-1], dtype=torch.float32, requires_grad=True, device=self.device_id))
+
+        # no weight decay for s
+        self.optim_s = torch.optim.Adam({'params': [self.s], 'lr': 1e-4, 'weight_decay': 0.0})
 
         self.diffusion = diffusion
         self.train_eps = train_eps
@@ -102,6 +107,9 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             """
         loss.backward()  # single gpu functionality
         self.opt.step()
+        self.optim_s.step()
+        with torch.no_grad():
+            self.s.clamp_(-10.0, 10.0)
         self.loss_aggregator.update(loss.detach().item())
         return loss.detach().item(), base_loss, var_loss, mean_loss
 
@@ -114,7 +122,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             :param targets: Target values to compare against outputs
             :return: Batch Loss
         """
-        base_loss = ((outputs - targets).pow(2) * w_tau).sum(dim=-1).mean()  # Penalise for higher dimensions
+        base_loss = ((outputs - targets).pow(2) * w_tau).mean(dim=0)#.sum(dim=-1).mean()  # Penalise for higher dimensions
+        base_loss = 0.5 * (base_loss * torch.exp(-self.s)).sum() + 0.5 * self.s.sum()
         print(f"Loss, {base_loss}\n")
         var_loss = ((
                                 self.score_network.module.mlp_state_mapper.hybrid.log_scale - self.score_network.module.mlp_state_mapper.hybrid.log_scale.mean()) ** 2).mean()
@@ -140,6 +149,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             :return: Batch Loss
         """
         self.opt.zero_grad()
+        self.optim_s.zero_grad()
         B, T, D = xts.shape
         assert (features.shape[:2] == (B, T) and features.shape[-1] == D)
 
