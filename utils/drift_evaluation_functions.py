@@ -464,7 +464,7 @@ def MLP_fBiPotDDims_drifts(config, PM):
     else:
         print("Using CPU\n")
         device = torch.device("cpu")
-    assert "DDims" in config.data_path
+    assert "DDimsNS" in config.data_path
     PM = PM.to(device)
     diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
     ts_step = config.deltaT
