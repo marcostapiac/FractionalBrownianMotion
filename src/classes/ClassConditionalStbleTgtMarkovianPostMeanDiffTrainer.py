@@ -123,16 +123,17 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             :return: Batch Loss
         """
         base_loss = ((outputs - targets).pow(2) * w_tau).mean(dim=0)#.sum(dim=-1).mean()  # Penalise for higher dimensions
+        print(f"MSE per Dim at Epoch {epoch}, {base_loss}\n")
         base_loss = 0.5 * (base_loss * torch.exp(-self.s)).sum() + 0.5 * self.s.sum()
-        print(f"Loss, {base_loss}\n")
+        print(f"MSE per Dim after Weighting at Epoch {epoch}, {base_loss}\n")
         var_loss = ((
                                 self.score_network.module.mlp_state_mapper.hybrid.log_scale - self.score_network.module.mlp_state_mapper.hybrid.log_scale.mean()) ** 2).mean()
         mean_loss = (torch.mean((self.score_network.module.mlp_state_mapper.hybrid.log_scale - 0.) ** 2))
         reg_var_loss = self.var_loss_reg * var_loss
         reg_mean_loss = self.mean_loss_reg * mean_loss
         loss = base_loss + reg_var_loss + reg_mean_loss
-        print(f"VarReg, VarLoss, RegVarLoss, {self.var_loss_reg, var_loss, reg_var_loss}\n")
-        print(f"MeanReg, MeanLoss, RegMeanLoss, {self.mean_loss_reg, mean_loss, reg_mean_loss}\n")
+        #print(f"VarReg, VarLoss, RegVarLoss, {self.var_loss_reg, var_loss, reg_var_loss}\n")
+        #print(f"MeanReg, MeanLoss, RegMeanLoss, {self.mean_loss_reg, mean_loss, reg_mean_loss}\n")
         return self._batch_update(loss, base_loss=base_loss.detach().item(), var_loss=var_loss.detach().item(),
                                   mean_loss=mean_loss.detach().item())
 
@@ -594,7 +595,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
     def _domain_rmse(self, epoch, config):
         # assert (config.ndims <= 2)
-        print(config.data_path)
+        #print(config.data_path)
         if ("DLnz" not in config.data_path) and ("DDimsNS" not in config.data_path):
             assert config.ndims == 1
             final_vec_mu_hats = MLP_1D_drifts(PM=self.score_network.module, config=config)
@@ -720,7 +721,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         assert save_path != ""
         if (config.diffusion == .1) or (config.diffusion == 10.):
             save_path += f"_Diff{config.diffusion:.1f}".replace(".", "")
-        print(f"Save path:{save_path}\n")
+        #print(f"Save path:{save_path}\n")
         if len(true_drifts.shape) == 1:
             true_drifts = true_drifts.reshape((-1, 1), order="C")
         mse = driftevalexp_mse_ignore_nans(true=true_drifts,
@@ -897,7 +898,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 ".", "")
         if (config.diffusion == .1) or (config.diffusion == 10.):
             save_path += f"_Diff{config.diffusion:.1f}".replace(".", "")
-        print(f"Save path for OOS DriftTrack:{save_path}\n")
+        #print(f"Save path for OOS DriftTrack:{save_path}\n")
         self.score_network.module.train()
         self.score_network.module.to(self.device_id)
         mse = drifttrack_mse(true=all_true_states, local=all_global_states, deltaT=config.deltaT)
@@ -979,8 +980,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     self.mean_loss_reg = min(ratio, 0.01 / config.ts_dims)  # vs 0.01
                 else:
                     self.mean_loss_reg = 0.
-                print(
-                    f"Calibrating Regulatisation: Base {average_base_loss_per_epoch}, Var {average_var_loss_per_epoch}, Mean {average_mean_loss_per_epoch}\n")
+                #print(
+                    #f"Calibrating Regulatisation: Base {average_base_loss_per_epoch}, Var {average_var_loss_per_epoch}, Mean {average_mean_loss_per_epoch}\n")
             else:
                 self.mean_loss_reg = 0.
                 average_base_loss_per_epoch = float(torch.mean(torch.stack(all_gpus_base_losses), dim=0).cpu().numpy())
@@ -1021,7 +1022,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 print("Stored Running Mean {} vs Aggregator Mean {}\n".format(
                     float(torch.mean(torch.tensor(all_losses_per_epoch[self.epochs_run:])).cpu().numpy()), float(
                         self.loss_aggregator.compute().item())))
-                print(f"Current Loss {curr_loss}\n")
+                #print(f"Current Loss {curr_loss}\n")
                 self.save_every = 1
                 if ((epoch + 1) % self.save_every == 0) or epoch == 0:
                     evalexp_mse = self._domain_rmse(config=config, epoch=epoch + 1)
