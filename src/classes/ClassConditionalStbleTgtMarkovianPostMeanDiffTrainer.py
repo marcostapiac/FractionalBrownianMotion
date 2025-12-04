@@ -638,7 +638,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 Xs = np.array(
                     [fLnz.euler_simulation(H=config.hurst, N=config.ts_length, deltaT=config.deltaT, X0=np.array(config.initState), Ms=None,
                                            gaussRvs=None,
-                                           t0=config.t0, t1=config.t1) for _ in (range(num_paths))]).reshape(
+                                           t0=config.t0, t1=config.t1)[0] for _ in (range(num_paths))]).reshape(
                     (num_paths, config.ts_length + 1, config.ndims), order="C")[:, 1:, :]
                 Xs = Xs.reshape((-1, config.ndims), order="C")
                 true_drifts = np.zeros((Xs.shape[0], config.ndims))
