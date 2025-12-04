@@ -72,7 +72,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.deltaT = torch.Tensor([deltaT]).to(self.device_id)
         self.curr_best_track_mse = np.inf
         self.curr_best_evalexp_mse = np.inf
-        self.s_min, self.s_max = -10.0, 10.0  # clamp range
+        self.s_min, self.s_max = -2.0, 2.0  # clamp range
         self.s = nn.Parameter(torch.zeros(self.init_state.shape[-1], dtype=torch.float32, requires_grad=True, device=self.device_id))
 
         # no weight decay for s
@@ -109,7 +109,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         self.opt.step()
         self.optim_s.step()
         with torch.no_grad():
-            self.s.clamp_(-2.0, 2.0)
+            self.s.clamp_(self.s_min, self.s_max)
         self.loss_aggregator.update(loss.detach().item())
         return loss.detach().item(), base_loss, var_loss, mean_loss
 
@@ -416,6 +416,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             snapshot = torch.load(snapshot_path, map_location=loc)
             self.epochs_run = snapshot["EPOCHS_RUN"]
             self.opt.load_state_dict(snapshot["OPTIMISER_STATE"])
+            self.optim_s.load_state_dict(snapshot["PERDIM_OPTIMISER_STATE"])
+
             # Here to manually change the LR
 
             try:
@@ -488,7 +490,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             :return: None
         """
         try:
-            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(),
+            snapshot = {"EPOCHS_RUN": epoch + 1, "OPTIMISER_STATE": self.opt.state_dict(),"PERDIM_OPTIMISER_STATE": self.optim_s.state_dict(),
                         "SCHEDULER_STATE": self.scheduler.state_dict(), "EWMA_LOSS": self.ewma_loss,
                         "VAR_REG": self.var_loss_reg, "MEAN_REG": self.mean_loss_reg,
                         "TRACK_MSE": self.curr_best_track_mse, "EVALEXP_MSE": self.curr_best_evalexp_mse}
