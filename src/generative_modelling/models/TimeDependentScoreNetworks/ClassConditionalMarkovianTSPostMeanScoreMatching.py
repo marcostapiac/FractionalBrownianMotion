@@ -169,8 +169,8 @@ class MLPStateMapper(nn.Module):
             nn.Linear(ts_input_dim, hidden_dim),
             nn.ELU()
         )
-        self.linear2 = nn.Linear(ts_input_dim + hidden_dim + 2 * M, hidden_dim)
-        self.linear3 = nn.Linear(hidden_dim, target_dims)
+        self.linear2 = nn.Linear(int(3*ts_input_dim) + hidden_dim + 2 * M, int(2*hidden_dim))
+        self.linear3 = nn.Linear(int(2*hidden_dim), target_dims)
 
     def forward(self, x):
         assert (x.ndim == 3 and x.size(1) == 1) # [batch, 1, D]
@@ -178,7 +178,7 @@ class MLPStateMapper(nn.Module):
 
         x_raw = self.preprocess(x)            # [batch, hidden_dim]
         x_fourier = self.hybrid(x)            # [batch, 2M]
-        x_combined = torch.cat([x, x_raw, x_fourier], dim=-1)  # [batch, D+hidden_dim + 2M]
+        x_combined = torch.cat([x, torch.pow(x,2), torch.pow(x, 3),x_raw, x_fourier], dim=-1)  # [batch, 3D+hidden_dim + 2M]
         x = F.elu(self.linear2(x_combined))   # [batch, hidden_dim]
         x = self.linear3(x)                   # [batch, target_dims]
         return x.unsqueeze(1)                 # [batch, 1, target_dims]
