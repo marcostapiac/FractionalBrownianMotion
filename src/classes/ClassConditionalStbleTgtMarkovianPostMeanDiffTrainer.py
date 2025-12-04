@@ -123,7 +123,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             :return: Batch Loss
         """
         base_loss = ((outputs - targets).pow(2) * w_tau).mean(dim=0)#.sum(dim=-1).mean()  # Penalise for higher dimensions
-        print(f"MSE per Dim at Epoch {epoch}: {base_loss.detach().item():.8f}")
+        print(f"MSE per Dim at Epoch {epoch}: [{','.join(f'{v: .8f}' for v in base_loss.cpu().numpy())}]")
         base_loss = 0.5 * (base_loss * torch.exp(-self.s)).sum() + 0.5 * self.s.sum()
         var_loss = ((
                                 self.score_network.module.mlp_state_mapper.hybrid.log_scale - self.score_network.module.mlp_state_mapper.hybrid.log_scale.mean()) ** 2).mean()
