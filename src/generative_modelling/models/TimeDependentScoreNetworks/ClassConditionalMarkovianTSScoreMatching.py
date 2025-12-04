@@ -149,7 +149,6 @@ class HybridStates(nn.Module):
 
         # TRAIN vs EVAL for Gumbel
         if self.training:
-            print(f"Used temp annealing {self.tau}\n")
             u = torch.rand_like(self.gate_logits).clamp(1e-6, 1 - 1e-6)
             gumbel = -torch.log(-torch.log(u))
             logits = self.gate_logits + gumbel
