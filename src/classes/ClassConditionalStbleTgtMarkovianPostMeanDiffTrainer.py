@@ -457,7 +457,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 self.opt,
                 mode='min',  # We're monitoring a loss that should decrease.
                 factor=0.5,  # Reduce learning rate by 50% (more conservative than 90%).
-                patience=30 if config.ts_dims > 1 else 60,  # Wait for 30 epochs of no sufficient improvement.
+                patience=60,  # Wait for 60 epochs of no sufficient improvement.
                 verbose=True,  # Print a message when the LR is reduced.
                 threshold=1e-3,  # Set the threshold for what counts as improvement.
                 threshold_mode='rel',  # Relative change compared to the best value so far.
@@ -475,7 +475,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 self.opt,
                 mode='min',  # We're monitoring a loss that should decrease.
                 factor=0.5,  # Reduce learning rate by 50% (more conservative than 90%).
-                patience=30 if config.ts_dims > 1 else 60,  # Wait for 30 epochs of no sufficient improvement.
+                patience=60,  # Wait for 60 epochs of no sufficient improvement.
                 verbose=True,  # Print a message when the LR is reduced.
                 threshold=1e-3,  # Set the threshold for what counts as improvement.
                 threshold_mode='rel',  # Relative change compared to the best value so far.
