@@ -68,7 +68,7 @@ def IID_NW_multivar_estimator_gpu(
         t0: float,
         truncate: bool = True,
         M_tile: int = 32,  # micro-batch states
-        Nn_tile: int | None = 512_000,  # micro-batch samples (None => full)
+        Nn_tile: int  = 512_000,  # micro-batch samples (None => full)
         stable: bool = True,
 ) -> torch.Tensor:
     """
@@ -179,9 +179,9 @@ def process_IID_bandwidth_gpu(
         prevPath_np: np.ndarray,  # (N, n, d) float64/32 — host
         path_incs_np: np.ndarray,  # (N, n, d) float64/32 — host
         seed_seq,  # numpy.SeedSequence child
-        device_str: str | None = None,
+        device_str: str  = None,
         M_tile: int = 32,
-        Nn_tile: int | None = 512_000,
+        Nn_tile: int  = 512_000,
         stable: bool = True,
 ):
     """
