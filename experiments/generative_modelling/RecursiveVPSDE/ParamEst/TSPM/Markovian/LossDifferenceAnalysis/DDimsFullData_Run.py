@@ -105,10 +105,9 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
 
         # Euler-Maruyama Scheme for Tracking Errors
         for i in tqdm(range(1, num_time_steps + 1)):
-            #eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT) * config.diffusion
+            eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT) * config.diffusion
 
-            #assert (eps.shape == (num_paths, 1, config.ndims))
-            eps = np.random.randn(num_paths, 1, 1)* np.sqrt(deltaT) * config.diffusion
+            assert (eps.shape == (num_paths, 1, config.ndims))
             true_mean = true_drifts(state=true_states[:, i - 1, :], device_id=device_id, config=config).cpu().numpy()
             denom = 1.
             score_mean = multivar_score_based_MLP_drift_OOS(score_model=good,
@@ -389,7 +388,7 @@ for config in [ddimsNS_12d_config, ddimsNS_8d_config]:
     xadd3 = np.logspace(2.0, 4.0, 11)[1:]  # 10 values > -0.05
     bws = np.concatenate([grid_1d, xadd, xadd2, xadd3])
     bws = np.stack([bws for m in range(config.ndims)], axis=-1)
-    bw = bws[58, :] if config.ndims == 8 else bws[31,:]
+    bw = bws[26, :] if config.ndims == 8 else bws[27,:]
     assert bw.shape[0] == config.ndims and len(bw.shape) == 1
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))

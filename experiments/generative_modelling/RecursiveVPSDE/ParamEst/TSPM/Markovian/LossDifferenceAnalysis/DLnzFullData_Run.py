@@ -111,10 +111,9 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
 
         # Euler-Maruyama Scheme for Tracking Errors
         for i in tqdm(range(1, num_time_steps + 1)):
-            # eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT) * config.diffusion
+            eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT) * config.diffusion
 
-            # assert (eps.shape == (num_paths, 1, config.ndims))
-            eps = np.random.randn(num_paths, 1, 1) * np.sqrt(deltaT) * config.diffusion
+            assert (eps.shape == (num_paths, 1, config.ndims))
             true_mean = true_drifts(state=true_states[:, i - 1, :], device_id=device_id,config=config).cpu().numpy()
             denom = 1.
             score_mean = multivar_score_based_MLP_drift_OOS(score_model=good,
