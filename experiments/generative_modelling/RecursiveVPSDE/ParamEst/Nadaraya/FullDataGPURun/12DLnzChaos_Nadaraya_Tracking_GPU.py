@@ -17,7 +17,7 @@ from utils.resource_logger import ResourceLogger, set_runtime_global
 #   Helper: device + dtypes
 # ---------------------------
 
-def _get_device(device_str: str | None = None):
+def _get_device(device_str: str  = None):
     if device_str is not None:
         return torch.device(device_str)
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -60,7 +60,7 @@ def IID_NW_multivar_estimator_gpu(
         t0: float,
         truncate: bool = True,
         M_tile: int = 32,  # micro-batch states
-        Nn_tile: int | None = 512_000,  # micro-batch samples (None => full)
+        Nn_tile: int  = 512_000,  # micro-batch samples (None => full)
         stable: bool = True,
 ) -> torch.Tensor:
     """
@@ -171,9 +171,9 @@ def process_IID_bandwidth_gpu(
         prevPath_np: np.ndarray,  # (N, n, d) float64/32 — host
         path_incs_np: np.ndarray,  # (N, n, d) float64/32 — host
         seed_seq,  # numpy.SeedSequence child
-        device_str: str | None = None,
+        device_str: str  = None,
         M_tile: int = 32,
-        Nn_tile: int | None = 512_000,
+        Nn_tile: int  = 512_000,
         stable: bool = True,
 ):
     """
