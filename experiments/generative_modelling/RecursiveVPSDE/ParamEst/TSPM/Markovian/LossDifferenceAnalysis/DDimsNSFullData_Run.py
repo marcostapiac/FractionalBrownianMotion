@@ -19,7 +19,7 @@ from configs.RecursiveVPSDE.Markovian_fBiPotDDims_NonSep.recursive_Markovian_Pos
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
     ConditionalMarkovianTSPostMeanScoreMatching
-from utils.drift_evaluation_functions import multivar_score_based_MLP_drift_OOS
+from utils.drift_evaluation_functions import multivar_score_based_MLP_drift_OOS, experiment_MLP_DDims_drifts
 
 
 # In[8]:
@@ -124,6 +124,9 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
                                                             ts_step=deltaT, config=config,
                                                             device=device_id,
                                                             prev=score_states[:, i - 1, :])
+            dsm  = experiment_MLP_DDims_drifts(config=config, Xs=true_states[:, i-1, :], good=good)
+
+            assert np.allclose(score_mean.reshape(dsm.shape), dsm, rtol=1e-6, atol=1e-6)
             local_score_mean = multivar_score_based_MLP_drift_OOS(score_model=good,
                                                                   num_diff_times=num_diff_times,
                                                                   diffusion=diffusion,
