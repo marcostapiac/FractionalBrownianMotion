@@ -25,7 +25,7 @@ from utils.drift_evaluation_functions import multivar_score_based_MLP_drift_OOS
 # In[8]:
 
 
-def _get_device(device_str: str | None = None):
+def _get_device(device_str: str  = None):
     if device_str is not None:
         return torch.device(device_str)
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -210,7 +210,7 @@ def IID_NW_multivar_estimator_gpu(
     t0: float,
     truncate: bool = True,
     M_tile: int = 32,                     # micro-batch states
-    Nn_tile: int | None = 512_000,        # micro-batch samples (None => full)
+    Nn_tile: int  = 512_000,        # micro-batch samples (None => full)
     stable: bool = True,
 ) -> torch.Tensor:
     """
