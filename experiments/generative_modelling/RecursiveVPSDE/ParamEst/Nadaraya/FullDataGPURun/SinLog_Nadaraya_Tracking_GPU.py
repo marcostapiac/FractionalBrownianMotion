@@ -2,6 +2,7 @@ import math
 from multiprocessing import shared_memory
 
 import numpy as np
+import pandas as pd
 import torch
 from tqdm import tqdm
 
@@ -193,6 +194,9 @@ def process_IID_bandwidth_gpu(
     true_states = torch.zeros((num_state_paths, 1 + num_time_steps, d), dtype=torch.float32, device=device)
     global_states = torch.zeros_like(true_states)
     local_states = torch.zeros_like(true_states)
+    true_drifts = torch.zeros_like(true_states)
+    global_drifts = torch.zeros_like(true_drifts)
+    local_drifts = torch.zeros_like(true_drifts)
 
     init = torch.as_tensor(np.asarray(config.initState, dtype=np.float32), device=device)
     true_states[:, 0, :] = init
@@ -232,6 +236,9 @@ def process_IID_bandwidth_gpu(
         true_states[:, i, :] = true_states[:, i - 1, :] + true_mean * deltaT + eps
         global_states[:, i, :] = global_states[:, i - 1, :] + global_mean * deltaT + eps
         local_states[:, i, :] = true_states[:, i - 1, :] + local_mean * deltaT + eps
+        true_drifts[:, i, :] = true_mean
+        global_drifts[:, i, :] = global_mean
+        local_drifts[:, i, :] = local_mean
 
     # Return as numpy for saving consistency with your code
     return {
@@ -239,6 +246,9 @@ def process_IID_bandwidth_gpu(
             true_states.detach().cpu().numpy(),
             global_states.detach().cpu().numpy(),
             local_states.detach().cpu().numpy(),
+            true_drifts.detach().cpu().numpy(),
+            global_drifts.detach().cpu().numpy(),
+            local_drifts.detach().cpu().numpy(),
         )
     }
 
@@ -340,8 +350,12 @@ if __name__ == "__main__":
             all_true_states = np.concatenate([v[0][np.newaxis, :] for v in results.values()], axis=0)
             all_global_states = np.concatenate([v[1][np.newaxis, :] for v in results.values()], axis=0)
             all_local_states = np.concatenate([v[2][np.newaxis, :] for v in results.values()], axis=0)
-            assert (all_true_states.shape == all_global_states.shape == all_local_states.shape)
+            all_true_drifts = np.concatenate([v[3][np.newaxis, :] for v in results.values()], axis=0)
+            all_global_drifts = np.concatenate([v[4][np.newaxis, :] for v in results.values()], axis=0)
+            all_local_drifts = np.concatenate([v[5][np.newaxis, :] for v in results.values()], axis=0)
 
+            assert (
+                    all_true_states.shape == all_global_states.shape == all_local_states.shape == all_true_drifts.shape == all_global_drifts.shape == all_local_drifts.shape)
             assert num_paths == 10240
 
             save_path = (
@@ -351,47 +365,15 @@ if __name__ == "__main__":
             np.save(save_path + "_true_states.npy", all_true_states)
             np.save(save_path + "_global_states.npy", all_global_states)
             np.save(save_path + "_local_states.npy", all_local_states)
-
-            M_tile = 1024
-            Nn_tile = 512000
-            stable = True
-            num_dhats = 1  # No variability given we use same training dataset
-            device = _get_device(None)
-            all_true_states = np.zeros((100 * 256, config.ts_dims))
-            Xs = torch.linspace(-1.5, 1.5, all_true_states.shape[0])[:, np.newaxis].to(device)
-            all_true_states = true_drift_gpu(prev=Xs, num_paths=all_true_states.shape[0], config=config)[:, 0,
-                              :].cpu().numpy()
-            unif_is_drift_hats = np.zeros((all_true_states.shape[0], num_dhats, config.ts_dims))
-            # Xs = torch.as_tensor(all_true_states, dtype=torch.float32, device=device).contiguous()
-            for k in (range(num_dhats)):
-                is_ss_path_observations = is_path_observations[np.random.choice(is_idxs, size=num_paths, replace=False),
-                                          :]
-                is_prevPath_observations = is_ss_path_observations[:, 1:-1]
-                is_path_incs = np.diff(is_ss_path_observations, axis=1)[:, 1:]
-                is_prevPath_observations = torch.as_tensor(is_prevPath_observations, dtype=torch.float32,
-                                                           device=device).contiguous()
-                is_path_incs = torch.as_tensor(is_path_incs, dtype=torch.float32, device=device).contiguous()
-                # inv_H: prefer diagonal vector if possible
-                inv_H_np = np.asarray(inv_H)
-                if inv_H_np.ndim == 2 and np.allclose(inv_H_np, np.diag(np.diag(inv_H_np))):
-                    inv_H_vec = np.diag(inv_H_np).astype(np.float32)
-                    inv_H = torch.as_tensor(inv_H_vec, device=device)
-                else:
-                    inv_H = torch.as_tensor(inv_H_np.astype(np.float32), device=device)
-
-                unif_is_drift_hats[:, k, :] = IID_NW_multivar_estimator_gpu(
-                    is_prevPath_observations, is_path_incs, inv_H, float(norm_const),
-                    Xs, float(config.t1), float(config.t0),
-                    truncate=False, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
-                ).cpu().numpy()
-            est_unif_is_drift_hats = np.nanmean(unif_is_drift_hats, axis=1)
-            assert est_unif_is_drift_hats.shape == all_true_states.shape
-            assert all_true_states.shape[-1] == 1
-            mses[bw_idx] = (
-            bws[bw_idx, 0], np.nanmean(np.sum(np.power(est_unif_is_drift_hats - all_true_states, 2), axis=-1), axis=-1))
+            np.save(save_path + "_true_drifts.npy", all_true_drifts)
+            np.save(save_path + "_global_drifts.npy", all_global_drifts)
+            np.save(save_path + "_local_drifts.npy", all_local_drifts)
+            mse = np.nanmean(np.sum(
+                np.power(all_local_drifts.reshape(-1, config.ts_dims) - all_true_drifts.reshape(-1, config.ts_dims), 2),
+                axis=-1), axis=-1)
+            mses[bw_idx] = (bws[bw_idx, 0], mse)
             save_path = save_path.replace("DriftTrack", "DriftEvalExp")
             print(f"Save path for EvalExp {save_path}\n")
-            import pandas as pd
 
             pd.DataFrame.from_dict({bw_idx: mses[bw_idx]}, orient="index", columns=["bw", "mse"]).to_parquet(
                 save_path + f"_muhats_MSE_bwidx{bw_idx}.pickle")
