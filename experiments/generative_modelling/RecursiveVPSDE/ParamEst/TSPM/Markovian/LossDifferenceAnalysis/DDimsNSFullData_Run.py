@@ -124,9 +124,6 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
                                                             ts_step=deltaT, config=config,
                                                             device=device_id,
                                                             prev=score_states[:, i - 1, :])
-            dsm  = experiment_MLP_DDims_drifts(config=config, Xs=true_states[:, i-1, :], good=good)
-
-            assert np.allclose(score_mean.reshape(dsm.shape), dsm, rtol=1e-6, atol=1e-6)
             local_score_mean = multivar_score_based_MLP_drift_OOS(score_model=good,
                                                                   num_diff_times=num_diff_times,
                                                                   diffusion=diffusion,
@@ -134,6 +131,8 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
                                                                   ts_step=deltaT, config=config,
                                                                   device=device_id,
                                                                   prev=true_states[:, i - 1, :])
+            dsm  = experiment_MLP_DDims_drifts(config=config, Xs=true_states[:, i-1, :], good=good)
+            assert np.allclose(local_score_mean.reshape(dsm.shape), dsm, rtol=1e-6, atol=1e-6)
             x = torch.as_tensor(nad_states[:, i - 1, :], device=device_id, dtype=torch.float32).contiguous()
             nad_mean = IID_NW_multivar_estimator_gpu(
                 prevPath_observations=prevPath_observations, path_incs=prevPath_incs, inv_H=inv_H,
