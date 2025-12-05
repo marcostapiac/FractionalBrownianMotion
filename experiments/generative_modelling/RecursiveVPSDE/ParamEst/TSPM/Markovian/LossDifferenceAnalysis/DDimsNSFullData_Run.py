@@ -371,10 +371,8 @@ for config in [ddimsNS_12d_config, ddimsNS_8d_config]:
     root_score_dir = root_dir
     
     if "8DDimsNS" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/8DDimsNSLessData/"
         ts_type = "8DDimsNS"
     elif "12DDimsNS" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/12DDimsNSLessData/"
         ts_type = "12DDimsNS"
     print(f"Starting {ts_type}\n")
     model_dir = "/".join(config.scoreNet_trained_path.split("/")[:-1]) + "/"
