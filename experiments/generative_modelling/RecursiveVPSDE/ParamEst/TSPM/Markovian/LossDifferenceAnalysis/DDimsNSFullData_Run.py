@@ -134,6 +134,8 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
             dsm  = experiment_MLP_DDims_drifts(config=config, Xs=true_states[:, i-1, :], good=good)
             dsm = dsm[:, -1, :, :].reshape((dsm.shape[0],dsm.shape[2],dsm.shape[
                                                                                            -1] * 1), order="C").mean(axis=1)
+            print(dsm.reshape(-1, config.ts_dims)[:3, :])
+            print(local_score_mean.reshape(-1, config.ts_dims)[:3, :])
             assert np.allclose(local_score_mean.reshape(dsm.shape), dsm, rtol=1e-6, atol=1e-6)
             x = torch.as_tensor(nad_states[:, i - 1, :], device=device_id, dtype=torch.float32).contiguous()
             nad_mean = IID_NW_multivar_estimator_gpu(
