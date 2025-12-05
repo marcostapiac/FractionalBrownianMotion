@@ -156,14 +156,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
             nad_drifts[:, [i], :] = nad_mean
             score_drifts_at_true[:, [i], :] = local_score_mean
             nad_drifts_at_true[:, [i], :] = local_nad_mean
-            print("\n\n====SCORE===\n\n")
-            print(np.mean(np.sum(
-                np.power(true_mean.reshape((-1, config.ndims), order="C")-local_score_mean.reshape((-1, config.ndims), order="C"), 2), axis=-1)))
-            print("\n\n====NAD===\n\n")
-            print(np.mean(np.sum(
-                np.power(true_mean.reshape((-1, config.ndims), order="C") - local_nad_mean.reshape((-1, config.ndims),
-                                                                                                     order="C"), 2),
-                axis=-1)))
+
 
         all_true_states[quant_idx, :, :, :] = true_states
         all_score_states[quant_idx, :, :, :] = score_states
@@ -173,6 +166,16 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
         all_nad_drifts[quant_idx, :, :, :] = nad_drifts
         all_score_drifts_at_true[quant_idx, :, :, :] = score_drifts_at_true
         all_nad_drifts_at_true[quant_idx, :, :, :] = nad_drifts_at_true
+        print("\n\n====SCORE===\n\n")
+        print(np.mean(np.sum(
+            np.power(all_true_drifts.reshape((-1, config.ndims), order="C") - all_score_drifts_at_true.reshape((-1, config.ndims),
+                                                                                                 order="C"), 2),
+            axis=-1)))
+        print("\n\n====NAD===\n\n")
+        print(np.mean(np.sum(
+            np.power(all_true_drifts.reshape((-1, config.ndims), order="C") - all_nad_drifts_at_true.reshape((-1, config.ndims),
+                                                                                               order="C"), 2),
+            axis=-1)))
     del prevPath_observations, prevPath_incs
     return all_true_states, all_score_states, all_nad_states, num_time_steps, all_true_drifts, all_score_drifts, all_nad_drifts, all_score_drifts_at_true, all_nad_drifts_at_true
 
