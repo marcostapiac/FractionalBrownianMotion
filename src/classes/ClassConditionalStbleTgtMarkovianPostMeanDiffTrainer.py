@@ -27,6 +27,7 @@ from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditional
 from utils.drift_evaluation_functions import MLP_1D_drifts, multivar_score_based_MLP_drift_OOS, \
     driftevalexp_mse_ignore_nans, MLP_fBiPotDDims_drifts, drifttrack_mse, stochastic_burgers_drift, \
     build_q_nonneg, experiment_MLP_DDims_drifts
+from utils.math_functions import generate_fSinLog, generate_fBiPot, generate_fQuadSin
 from utils.resource_logger import set_runtime_global
 
 
@@ -599,10 +600,11 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
 
     def _domain_rmse(self, epoch, config):
         # assert (config.ndims <= 2)
+        num_paths = 100
         #print(config.data_path)
         if ("DLnz" not in config.data_path) and ("DDims" not in config.data_path):
             assert config.ndims == 1
-            final_vec_mu_hats = MLP_1D_drifts(PM=self.score_network.module, config=config)
+            """final_vec_mu_hats = MLP_1D_drifts(PM=self.score_network.module, config=config)
             if "BiPot" in config.data_path and config.ndims == 1:
                 if config.diffusion == 1:
                     Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
@@ -630,8 +632,32 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                     Xs = np.linspace(-1.5, 1.5, num=config.ts_length)
                 true_drifts = (-np.sin(config.sin_space_scale * Xs) * np.log(
                     1 + config.log_space_scale * np.abs(Xs)) / config.sin_space_scale)
+            """
+            if "BiPot" in config.data_path:
+                data = generate_fBiPot(num_dims=config.ndims, config=config, T=config.ts_length,
+                                       isUnitInterval=config.isUnitInterval,
+                                       S=num_paths,
+                                       H=config.hurst, a=config.quartic_coeff, b=config.quad_coeff, c=config.const,
+                                       diff=config.diffusion,
+                                       initial_state=config.initState)
+
+            elif "QuadSinHF" in config.data_path:
+                data = generate_fQuadSin(config=config, T=config.ts_length, isUnitInterval=config.isUnitInterval,
+                                         S=num_paths,
+                                         H=config.hurst, a=config.quad_coeff, b=config.sin_coeff,
+                                         c=config.sin_space_scale,
+                                         diff=config.diffusion,
+                                         initial_state=config.initState)
+            elif "SinLog" in config.data_path:
+                data = generate_fSinLog(config=config, T=config.ts_length, isUnitInterval=config.isUnitInterval,
+                                        S=num_paths,
+                                        H=config.hurst, b=config.log_space_scale, c=config.sin_space_scale,
+                                        diff=config.diffusion,
+                                        initial_state=config.initState)
+            Xs = data.reshape((-1, config.ndims), order="C")
+            final_vec_mu_hats = experiment_MLP_DDims_drifts(config=config, Xs=Xs, good=self.score_network.module,
+                                                            onlyGauss=False)
         else:
-            num_paths = 100
             if "DLnz" in config.data_path:
                 fLnz = FractionalLorenz96(X0=config.initState, diff=config.diffusion, num_dims=config.ndims,
                                           forcing_const=config.forcing_const)
