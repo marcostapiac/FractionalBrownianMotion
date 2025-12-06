@@ -654,7 +654,8 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                         H=config.hurst, b=config.log_space_scale, c=config.sin_space_scale,
                                         diff=config.diffusion,
                                         initial_state=config.initState)
-            Xs = data.reshape((-1, config.ndims), order="C")
+            data = data.astype(float)
+            Xs = data.reshape((-1, config.ndims), order="C", dtype=torch.float32)
             final_vec_mu_hats = experiment_MLP_DDims_drifts(config=config, Xs=Xs, good=self.score_network.module,
                                                             onlyGauss=False)
         else:
