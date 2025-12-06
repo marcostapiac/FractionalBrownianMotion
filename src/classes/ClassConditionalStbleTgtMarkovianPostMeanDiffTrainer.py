@@ -640,7 +640,10 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                        H=config.hurst, a=config.quartic_coeff, b=config.quad_coeff, c=config.const,
                                        diff=config.diffusion,
                                        initial_state=config.initState)
-
+                data = data.astype(float)
+                Xs = data.reshape((-1, config.ndims), order="C")
+                true_drifts = -(4. * config.quartic_coeff * np.power(Xs,
+                                                                     3) + 2. * config.quad_coeff * Xs + config.const)
             elif "QuadSinHF" in config.data_path:
                 data = generate_fQuadSin(config=config, T=config.ts_length, isUnitInterval=config.isUnitInterval,
                                          S=num_paths,
@@ -648,14 +651,20 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                                          c=config.sin_space_scale,
                                          diff=config.diffusion,
                                          initial_state=config.initState)
+                data = data.astype(float)
+                Xs = data.reshape((-1, config.ndims), order="C")
+                true_drifts = (-2. * config.quad_coeff * Xs + config.sin_coeff * config.sin_space_scale * np.sin(
+                    config.sin_space_scale * Xs))
             elif "SinLog" in config.data_path:
                 data = generate_fSinLog(config=config, T=config.ts_length, isUnitInterval=config.isUnitInterval,
                                         S=num_paths,
                                         H=config.hurst, b=config.log_space_scale, c=config.sin_space_scale,
                                         diff=config.diffusion,
                                         initial_state=config.initState)
-            data = data.astype(float)
-            Xs = data.reshape((-1, config.ndims), order="C")
+                data = data.astype(float)
+                Xs = data.reshape((-1, config.ndims), order="C")
+                true_drifts = (-np.sin(config.sin_space_scale * Xs) * np.log(
+                    1 + config.log_space_scale * np.abs(Xs)) / config.sin_space_scale)
             final_vec_mu_hats = experiment_MLP_DDims_drifts(config=config, Xs=Xs, good=self.score_network.module,
                                                             onlyGauss=False)
         else:
