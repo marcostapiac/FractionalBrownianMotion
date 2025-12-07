@@ -258,6 +258,17 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
     all_hermite_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
     all_ridge_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
 
+    all_true_drifts = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_score_drifts = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_nad_drifts = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_hermite_drifts = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_ridge_drifts = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+
+    all_score_drifts_at_true = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_nad_drifts_at_true = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_hermite_drifts_at_true = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_ridge_drifts_at_true = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+
     for quant_idx in (range(rmse_quantile_nums)):
         good.eval()
         initial_state = np.repeat(np.atleast_2d(config.initState)[np.newaxis, :], num_paths, axis=0)
@@ -269,6 +280,17 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
         hermite_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
         ridge_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
 
+        true_drift = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+        score_drifts = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+        nad_drifts = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+        hermite_drifts = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+        ridge_drifts = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+
+        score_drifts_at_true = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+        nad_drifts_at_true = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+        ridge_drifts_at_true = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+        hermite_drifts_at_true = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+
         # Initialise the "true paths"
         true_states[:, [0], :] = initial_state + 0.00001 * np.random.randn(*initial_state.shape)
         # Initialise the "global score-based drift paths"
@@ -278,7 +300,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
         hermite_states[:, [0], :] = true_states[:, [0],
                                     :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
         ridge_states[:, [0], :] = true_states[:, [0],
-                                    :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
+                                  :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
         # Euler-Maruyama Scheme for Tracking Errors
         for i in tqdm(range(1, num_time_steps + 1)):
             eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT) * config.diffusion
@@ -293,6 +315,14 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
                                                             ts_step=deltaT, config=config,
                                                             device=device_id,
                                                             prev=score_states[:, i - 1, :])
+
+            local_score_mean = multivar_score_based_MLP_drift_OOS(score_model=good,
+                                                                  num_diff_times=num_diff_times,
+                                                                  diffusion=diffusion,
+                                                                  num_paths=num_paths,
+                                                                  ts_step=deltaT, config=config,
+                                                                  device=device_id,
+                                                                  prev=true_states[:, i - 1, :])
 
             x = torch.as_tensor(nad_states[:, i - 1, :], device=device_id, dtype=torch.float32).contiguous()
             nad_mean = IID_NW_multivar_estimator_gpu(
@@ -309,7 +339,24 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
             del x
             x = torch.as_tensor(ridge_states[:, i - 1, :], device=device_id, dtype=torch.float32).contiguous()
             ridge_basis = spline_basis(paths=x, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
-            ridge_mean = construct_Ridge_estimator(coeffs=ridge_coeffs, B=ridge_basis, LN=LN, device_id=device_id).cpu().numpy()[:, np.newaxis, :]
+            ridge_mean = construct_Ridge_estimator(coeffs=ridge_coeffs, B=ridge_basis, LN=LN,
+                                                   device_id=device_id).cpu().numpy()[:, np.newaxis, :]
+            del x
+
+            x = torch.as_tensor(true_states[:, i - 1, :], device=device_id, dtype=torch.float32).contiguous()
+            local_nad_mean = IID_NW_multivar_estimator_gpu(
+                prevPath_observations=prevPath_observations, path_incs=prevPath_incs, inv_H=inv_H,
+                norm_const=float(norm_const),
+                x=x, t1=float(config.t1), t0=float(config.t0),
+                truncate=False, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
+            ).cpu().numpy()[:, np.newaxis, :]
+            local_hermite_basis = hermite_basis_GPU(R=R, paths=x, device_id=device_id)
+            local_hermite_mean = construct_Hermite_drift(basis=local_hermite_basis,
+                                                         coefficients=hermite_coeffs).cpu().numpy()[:,
+                                 np.newaxis, :]
+            local_ridge_basis = spline_basis(paths=x, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
+            local_ridge_mean = construct_Ridge_estimator(coeffs=ridge_coeffs, B=local_ridge_basis, LN=LN,
+                                                         device_id=device_id).cpu().numpy()[:, np.newaxis, :]
             del x
 
             true_states[:, [i], :] = (true_states[:, [i - 1], :] + true_mean * deltaT + eps) / denom
@@ -318,14 +365,38 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
             hermite_states[:, [i], :] = (hermite_states[:, [i - 1], :] + hermite_mean * deltaT + eps) / denom
             ridge_states[:, [i], :] = (ridge_states[:, [i - 1], :] + ridge_mean * deltaT + eps) / denom
 
+            true_drift[:, [i], :] = true_mean
+            score_drifts[:, [i], :] = score_mean
+            nad_drifts[:, [i], :] = nad_mean
+            hermite_drifts[:, [i], :] = hermite_mean
+            ridge_drifts[:, [i], :] = ridge_mean
+            score_drifts_at_true[:, [i], :] = local_score_mean
+            nad_drifts_at_true[:, [i], :] = local_nad_mean
+            hermite_drifts_at_true[:, [i], :] = local_hermite_mean
+            ridge_drifts_at_true[:, [i], :] = local_ridge_mean
+
         all_true_states[quant_idx, :, :, :] = true_states
         all_score_states[quant_idx, :, :, :] = score_states
         all_nad_states[quant_idx, :, :, :] = nad_states
         all_hermite_states[quant_idx, :, :, :] = hermite_states
         all_ridge_states[quant_idx, :, :, :] = ridge_states
 
+        all_true_drifts[quant_idx, :, :, :] = true_drift
+        all_score_drifts[quant_idx, :, :, :] = score_drifts
+        all_nad_drifts[quant_idx, :, :, :] = nad_drifts
+        all_hermite_drifts[quant_idx, :, :, :] = hermite_drifts
+        all_ridge_drifts[quant_idx, :, :, :] = ridge_drifts
+
+        all_score_drifts_at_true[quant_idx, :, :, :] = score_drifts_at_true
+        all_nad_drifts_at_true[quant_idx, :, :, :] = nad_drifts_at_true
+        all_hermite_drifts_at_true[quant_idx, :, :, :] = hermite_drifts_at_true
+        all_ridge_drifts_at_true[quant_idx, :, :, :] = ridge_drifts_at_true
+
     del prevPath_observations, prevPath_incs
-    return all_true_states, all_score_states, all_nad_states, all_hermite_states, all_ridge_states, num_time_steps
+    return all_true_states, all_score_states, all_nad_states, all_hermite_states, all_ridge_states, \
+           all_true_drifts, all_score_drifts, all_nad_drifts, all_hermite_drifts, all_ridge_drifts, \
+           all_score_drifts_at_true, all_nad_drifts_at_true, all_hermite_drifts_at_true, all_ridge_drifts_at_true, num_time_steps
+
 
 
 def get_best_epoch(config, type):
@@ -625,7 +696,9 @@ for config in [quadsin_config]:
     assert (B.shape[0] == Z.shape[0] and len(B.shape)==len(Z.shape) == 2)
     ridge_coeffs = find_optimal_Ridge_estimator_coeffs(B=B, Z=Z, KN=KN, LN=LN, M=M, device_id=device_id)
 
-    all_true_paths, all_score_paths, all_nad_paths, all_hermite_paths, all_ridge_paths, num_time_steps = generate_synthetic_paths(
+    all_true_paths, all_score_paths, all_nad_paths, all_hermite_paths, all_ridge_paths, \
+    all_true_drifts, all_score_drift_ests, all_nad_drift_ests, all_hermite_drift_ests, all_ridge_drift_ests, \
+    all_score_drift_ests_true_law, all_nad_drift_ests_true_law, all_hermite_drift_ests_true_law, all_ridge_drift_ests_true_law, num_time_steps = generate_synthetic_paths(
         config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable,
         prevPath_observations=is_prevPath_obs, prevPath_incs=is_prevPath_incs, inv_H=inv_H, norm_const=norm_const, R=R,
         hermite_coeffs=hermite_coeffs, ridge_coeffs=ridge_coeffs, AN=AN, BN=BN)
@@ -635,15 +708,16 @@ for config in [quadsin_config]:
     all_hermite_paths = all_hermite_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
     all_ridge_paths = all_ridge_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
 
-    BB, TT, DD = all_score_paths.shape
-    
-    all_true_states = all_true_paths.reshape((-1, config.ts_dims), order="C")
-    all_score_states = all_score_paths.reshape((-1, config.ts_dims), order="C")
-    all_nad_states = all_nad_paths.reshape((-1, config.ts_dims), order="C")
-    all_hermite_states = all_hermite_paths.reshape((-1, config.ts_dims), order="C")
-    all_ridge_states = all_ridge_paths.reshape((-1, config.ts_dims), order="C")
+    all_true_paths = all_true_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
+    all_score_paths = all_score_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
+    all_nad_paths = all_nad_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
+    all_hermite_paths = all_hermite_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
+    all_ridge_paths = all_ridge_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
 
-    true_drift = true_drifts(state=all_true_states, device_id=device_id, config=config).cpu().numpy()[:, 0, :]
+    BB, TT, DD = all_score_paths.shape
+    true_drift = true_drifts(state=all_true_paths.reshape((-1, config.ts_dims), order="C"), device_id=device_id,
+                             config=config).cpu().numpy()[:, 0, :]
+    """
     torch.cuda.synchronize()
     torch.cuda.empty_cache()
     gc.collect()
@@ -658,7 +732,7 @@ for config in [quadsin_config]:
     all_nad_drift_ests_true_law = np.full_like(true_drift, np.nan, dtype=float)
     all_hermite_drift_ests_true_law = np.full_like(true_drift, np.nan, dtype=float)
     all_ridge_drift_ests_true_law = np.full_like(true_drift, np.nan, dtype=float)
-
+    """
     all_score_drift_ests_uniform = np.full_like(true_drift, np.nan, dtype=float)
     all_nad_drift_ests_uniform = np.full_like(true_drift, np.nan, dtype=float)
     all_hermite_drift_ests_uniform = np.full_like(true_drift, np.nan, dtype=float)
@@ -677,13 +751,13 @@ for config in [quadsin_config]:
     hermite_state_eval_std[ts_type] = np.nanstd(np.sum((all_true_paths - all_hermite_paths) ** 2, axis=-1), axis=0, ddof=1)
     ridge_state_eval_std[ts_type] = np.nanstd(np.sum((all_true_paths - all_ridge_paths) ** 2, axis=-1), axis=0, ddof=1)
     
-    uniform_positions = torch.linspace(-0.15, 0.15, all_true_states.shape[0], device="cpu", dtype=torch.float32)[:,
+    uniform_positions = torch.linspace(-0.15, 0.15, true_drift.shape[0], device="cpu", dtype=torch.float32)[:,
                         np.newaxis]
     uniform_true_drifts = true_drifts(device_id=device_id, state=uniform_positions,
                                       config=config).cpu().numpy().flatten()[:, np.newaxis]
     assert uniform_true_drifts.shape == all_score_drift_ests_uniform.shape
-    for k in tqdm(range(0, all_score_states.shape[0], block_size)):
-        # Score Alt
+    for k in tqdm(range(0, true_drift.shape[0], block_size)):
+        """# Score Alt
         curr_states = torch.tensor(all_score_states[k:k + block_size, :], device=device_id, dtype=torch.float32)
         drift_ests = experiment_MLP_DDims_drifts(config=config, Xs=curr_states, good=good, onlyGauss=False)
         drift_ests = drift_ests[:, -1, :, :].reshape(drift_ests.shape[0], drift_ests.shape[2], drift_ests.shape[
@@ -744,7 +818,7 @@ for config in [quadsin_config]:
         all_ridge_drift_ests_true_law[k:k + block_size, :] = ridge_drift_est
         del curr_states
 
-
+        """
         # Score Uniform
         curr_states = uniform_positions[k:k + block_size, :].to(device_id)
         drift_ests = experiment_MLP_DDims_drifts(config=config, Xs=curr_states, good=good, onlyGauss=False)
