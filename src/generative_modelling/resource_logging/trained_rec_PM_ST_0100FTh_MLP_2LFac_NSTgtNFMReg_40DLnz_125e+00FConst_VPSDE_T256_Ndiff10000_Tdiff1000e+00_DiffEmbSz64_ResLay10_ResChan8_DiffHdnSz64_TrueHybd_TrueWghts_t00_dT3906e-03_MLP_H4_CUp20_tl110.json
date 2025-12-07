@@ -1,31 +1,31 @@
 {
   "job_type": "GPU training",
   "start_time": 1764882954.843789,
-  "end_time": 1764963506.3801153,
-  "wall_clock_sec": 80551.53632616997,
-  "cpu_percent_avg": 11.421279761904765,
+  "end_time": 1765016177.0901606,
+  "wall_clock_sec": 133222.24637150764,
+  "cpu_percent_avg": 10.508370837083696,
   "cpu_percent_peak": 17.4,
-  "ram_used_MB_avg": 38917.44959390479,
+  "ram_used_MB_avg": 36471.87783477232,
   "ram_used_MB_peak": 54595.743744,
-  "gpu_util_avg": 93.49255952380952,
+  "gpu_util_avg": 93.28982898289829,
   "gpu_util_peak": 100.0,
-  "gpu_mem_MB_avg": 25686.374985142727,
+  "gpu_mem_MB_avg": 25691.632423402913,
   "gpu_mem_MB_peak": 25699.680256,
   "gpu": {
     "enabled": true,
     "index": 0,
     "name": "NVIDIA GeForce RTX 3090",
     "mem_total_MB": 25769.803776,
-    "samples": 672
+    "samples": 1111
   },
-  "samples": 672,
+  "samples": 1111,
   "interval_sec": 120.0,
   "runtime": {
     "initial": {
       "epoch": 0
     },
     "current": {
-      "epoch": 3609
+      "epoch": 5999
     }
   },
   "metadata": {}
