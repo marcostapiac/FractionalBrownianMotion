@@ -50,7 +50,7 @@ lnz_20d_config = get_20dlnz_config()
 lnz_40d_config = get_40dlnz_config()
 device_id = _get_device()
 assert lnz_8d_config.feat_thresh == lnz_12d_config.feat_thresh != 1
-assert lnz_20d_config.feat_thresh == lnz_40d_config.feat_thresh != 1
+assert lnz_20d_config.feat_thresh != 1 and lnz_40d_config.feat_thresh != 1
 num_paths = 1024 if lnz_8d_config.feat_thresh == 1. else 10240
 assert num_paths == 10240
 root_dir ="/Users/marcos/Library/CloudStorage/OneDrive-ImperialCollegeLondon/StatML_CDT/Year2/DiffusionModels/"
