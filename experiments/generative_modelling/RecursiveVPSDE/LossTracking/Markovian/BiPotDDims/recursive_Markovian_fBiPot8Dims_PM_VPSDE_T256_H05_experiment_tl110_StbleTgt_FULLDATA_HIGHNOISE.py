@@ -26,7 +26,6 @@ if __name__ == "__main__":
         assert (config.early_stop_idx == 0)
         assert (config.tdata_mult == 110)
         assert config.diffusion == 10.
-        assert config.diffusion == 1.
         print(config.scoreNet_trained_path, config.dataSize)
         rng = np.random.default_rng()
         scoreModel = ConditionalMarkovianTSPostMeanScoreMatching(*config.model_parameters)
