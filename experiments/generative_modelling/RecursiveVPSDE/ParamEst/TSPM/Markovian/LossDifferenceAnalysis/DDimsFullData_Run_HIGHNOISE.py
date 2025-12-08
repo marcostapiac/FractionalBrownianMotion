@@ -394,7 +394,7 @@ for config in [ddims_12d_config, ddims_8d_config]:
     assert bw.shape[0] == config.ndims and len(bw.shape) == 1
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
-    Nn_tile = 256000
+    Nn_tile = 128000
     stable = True
     block_size = 512
 
