@@ -327,7 +327,7 @@ is_obs, is_prevPath_obs, is_prevPath_incs = prepare_for_nadaraya(config=config, 
 bw = np.logspace(-3.55, -0.05, 30)[[-1]]
 inv_H = np.diag(np.power(bw, -2))
 norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
-Nn_tile = 128000
+Nn_tile = 256000
 stable = True
 block_size = 32
 

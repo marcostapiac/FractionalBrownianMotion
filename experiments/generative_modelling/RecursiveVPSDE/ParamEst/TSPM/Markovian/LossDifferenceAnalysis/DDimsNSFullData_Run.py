@@ -411,9 +411,9 @@ for config in [ddimsNS_12d_config, ddimsNS_8d_config]:
     assert bw.shape[0] == config.ndims and len(bw.shape) == 1
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
-    Nn_tile = 128000
+    Nn_tile = 256000
     stable = True
-    block_size = 512
+    block_size = 1024
 
     all_true_paths, all_score_paths, all_nad_paths, num_time_steps, true_drift, all_score_drift_ests, all_nad_drift_ests, all_score_drift_ests_true_law, all_nad_drift_ests_true_law = generate_synthetic_paths(
         config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable,
