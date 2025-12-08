@@ -647,7 +647,7 @@ for config in [bipot_config]:
     assert bw.shape[0] == 1 and len(bw.shape) == 1
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
-    Nn_tile = 512000
+    Nn_tile = 256000
     stable = True
     block_size = 1024
 
