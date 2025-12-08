@@ -448,7 +448,7 @@ def IID_NW_multivar_estimator_gpu(
         t0: float,
         truncate: bool = True,
         M_tile: int = 32,  # micro-batch states
-        Nn_tile: int  = 512_000,  # micro-batch samples (None => full)
+        Nn_tile: int  = 256_000,  # micro-batch samples (None => full)
         stable: bool = True,
 ) -> torch.Tensor:
     """
@@ -668,9 +668,9 @@ for config in [bipot_config]:
     assert bw.shape[0] == 1 and len(bw.shape) == 1
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
-    Nn_tile = 128000
+    Nn_tile = 64000
     stable = True
-    block_size = 512
+    block_size = 128
 
     # Prepare for Hermite
     R = 33
