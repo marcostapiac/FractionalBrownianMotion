@@ -1,12 +1,12 @@
 {
   "job_type": "GPU training",
   "start_time": 1765182377.1781058,
-  "end_time": 1765194750.7188466,
-  "wall_clock_sec": 12373.540740728378,
-  "cpu_percent_avg": 15.68942307692307,
-  "cpu_percent_peak": 16.0,
-  "ram_used_MB_avg": 37717.58269046153,
-  "ram_used_MB_peak": 37905.543168,
+  "end_time": 1765200517.26848,
+  "wall_clock_sec": 18140.09037423134,
+  "cpu_percent_avg": 15.76184210526317,
+  "cpu_percent_peak": 16.8,
+  "ram_used_MB_avg": 38212.27425684211,
+  "ram_used_MB_peak": 41543.430144,
   "gpu_util_avg": null,
   "gpu_util_peak": null,
   "gpu_mem_MB_avg": null,
@@ -18,14 +18,14 @@
     "mem_total_MB": null,
     "samples": 0
   },
-  "samples": 104,
+  "samples": 152,
   "interval_sec": 120.0,
   "runtime": {
     "initial": {
       "epoch": 6000
     },
     "current": {
-      "epoch": 6195
+      "epoch": 6284
     }
   },
   "metadata": {}
