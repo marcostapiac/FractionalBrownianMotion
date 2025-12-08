@@ -46,7 +46,7 @@ def true_drifts(device_id, config, state):
 ddims_8d_config = get_8ddims_config()
 ddims_12d_config = get_12ddims_config()
 device_id = _get_device()
-assert ddims_8d_config.feat_thresh == ddims_12d_config.feat_thresh
+assert ddims_8d_config.feat_thresh != 1 and ddims_12d_config.feat_thresh != 1
 num_paths = 1024 if ddims_8d_config.feat_thresh == 1. else 10240
 assert num_paths == 10240
 assert ddims_8d_config.diffusion == ddims_12d_config.diffusion == 1.
