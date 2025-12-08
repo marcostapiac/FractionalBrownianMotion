@@ -49,7 +49,6 @@ device_id = _get_device()
 assert ddims_8d_config.feat_thresh != 1 and ddims_12d_config.feat_thresh != 1
 num_paths = 1024 if ddims_8d_config.feat_thresh == 1. else 10240
 assert num_paths == 10240
-assert ddims_8d_config.diffusion == ddims_12d_config.diffusion == 1.
 root_dir ="/Users/marcos/Library/CloudStorage/OneDrive-ImperialCollegeLondon/StatML_CDT/Year2/DiffusionModels/"
 
 
