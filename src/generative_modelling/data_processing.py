@@ -14,7 +14,7 @@ from src.classes.ClassConditionalSDESampler import ConditionalSDESampler
 from src.classes.ClassConditionalStbleTgtLSTMPostMeanDiffTrainer import ConditionalStbleTgtLSTMPostMeanDiffTrainer
 from src.classes.ClassConditionalStbleTgtMarkovianPostMeanDiffTrainer import \
     ConditionalStbleTgtMarkovianPostMeanDiffTrainer
-from src.classes.ClassConditionalStbleTgtMarkovianScoreDiffTrainer2 import ConditionalStbleTgtMarkovianScoreDiffTrainer
+from src.classes.ClassConditionalStbleTgtMarkovianScoreDiffTrainer import ConditionalStbleTgtMarkovianScoreDiffTrainer
 from src.classes.ClassCorrector import VESDECorrector, VPSDECorrector
 from src.classes.ClassPredictor import AncestralSamplingPredictor, \
     ConditionalAncestralSamplingPredictor, ConditionalReverseDiffusionSamplingPredictor, \

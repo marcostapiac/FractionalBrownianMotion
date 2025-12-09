@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 import torch
 
-from src.classes.ClassConditionalStbleTgtMarkovianScoreDiffTrainer2 import \
+from src.classes.ClassConditionalStbleTgtMarkovianScoreDiffTrainer import \
     ConditionalStbleTgtMarkovianScoreDiffTrainer
 from src.generative_modelling.data_processing import train_and_save_recursive_diffusion_model
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
