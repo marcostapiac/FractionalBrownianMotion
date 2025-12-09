@@ -354,6 +354,15 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
             hermite_drifts_at_true[:, [i], :] = local_hermite_mean
             ridge_drifts_at_true[:, [i], :] = local_ridge_mean
 
+            print("\n\n===SCORE===\n\n")
+            print(np.mean(np.sum(np.power(true_mean-local_score_mean, 2), axis=-1), axis=(0,1)))
+            print("\n\n===HERMITE===\n\n")
+            print(np.mean(np.sum(np.power(true_mean-local_hermite_mean, 2), axis=-1), axis=(0,1)))
+            print("\n\n===RIDGE===\n\n")
+            print(np.mean(np.sum(np.power(true_mean-local_ridge_mean, 2), axis=-1), axis=(0,1)))
+            print("\n\n===NAD===\n\n")
+            print(np.mean(np.sum(np.power(true_mean-local_nad_mean, 2), axis=-1), axis=(0,1)))
+
         all_true_states[quant_idx, :, :, :] = true_states
         all_score_states[quant_idx, :, :, :] = score_states
         all_nad_states[quant_idx, :, :, :] = nad_states
@@ -520,7 +529,6 @@ def IID_NW_multivar_estimator_gpu(
 
 
 def prepare_for_nadaraya(config, num_paths):
-    num_paths = 10
     deltaT = config.deltaT
     t1 = deltaT * config.ts_length
     is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :, np.newaxis]
@@ -682,7 +690,6 @@ for config in [quadsin_config]:
     all_ridge_paths = all_ridge_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
     BB, TT, DD = all_score_paths.shape
     true_drift = true_drifts(state=all_true_paths.reshape((-1, config.ts_dims), order="C"), device_id=device_id, config=config).cpu().numpy()[:, 0, :]
-    raise RuntimeError
     """torch.cuda.synchronize()
     torch.cuda.empty_cache()
     gc.collect()
