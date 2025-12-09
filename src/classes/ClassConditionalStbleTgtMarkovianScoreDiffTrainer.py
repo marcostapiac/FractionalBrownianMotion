@@ -36,7 +36,7 @@ from utils.resource_logger import set_runtime_global
 # Tutorial: https://www.youtube.com/watch?v=-LAtx9Q6DA8
 
 
-class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
+class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
 
     def __init__(self,
                  diffusion: Union[VESDEDiffusion, OUSDEDiffusion, VPSDEDiffusion],
