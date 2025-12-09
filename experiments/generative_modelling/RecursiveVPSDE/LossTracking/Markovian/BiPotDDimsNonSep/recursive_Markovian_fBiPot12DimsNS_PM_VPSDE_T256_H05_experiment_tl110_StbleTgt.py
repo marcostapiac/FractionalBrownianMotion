@@ -12,7 +12,7 @@ from utils.resource_logger import ResourceLogger
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.Markovian_fBiPotDDims_NonSep.recursive_Markovian_PostMeanScore_fBiPot12DimsNS_T256_H05_tl_110data_StbleTgt_FULLDATA import \
+    from configs.RecursiveVPSDE.Markovian_fBiPotDDims_NonSep.recursive_Markovian_PostMeanScore_fBiPot12DimsNS_T256_H05_tl_110data_StbleTgt import \
         get_config
 
     config = get_config()
@@ -43,7 +43,7 @@ if __name__ == "__main__":
                         config.ts_length - 1)), 1200000)))
             training_size = 1024 if config.feat_thresh == 1. else 10240
             print(training_size)
-            assert training_size == 10240
+            assert training_size == 1024
             assert config.feat_thresh != 1.
             data = np.load(config.data_path, allow_pickle=True)
             assert (data.shape[0] >= training_size)

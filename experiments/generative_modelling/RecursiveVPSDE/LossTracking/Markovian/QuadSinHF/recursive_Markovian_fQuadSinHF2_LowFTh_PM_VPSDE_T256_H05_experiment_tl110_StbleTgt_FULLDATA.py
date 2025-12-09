@@ -15,7 +15,7 @@ from utils.resource_logger import ResourceLogger
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.Markovian_fQuadSinHF.recursive_Markovian_PostMeanScore_fQuadSinHF2_LowFTh_T256_H05_tl_110data_StbleTgt import get_config
+    from configs.RecursiveVPSDE.Markovian_fQuadSinHF.recursive_Markovian_PostMeanScore_fQuadSinHF2_LowFTh_T256_H05_tl_110data_StbleTgt_FULLDATA import get_config
     config = get_config()
     with ResourceLogger(
             interval=120,
@@ -26,7 +26,7 @@ if __name__ == "__main__":
         assert (config.early_stop_idx == 0)
         assert (config.tdata_mult == 110)
         assert (config.sin_space_scale == 25.)
-        assert (config.feat_thresh == 1./1.)
+        #assert (config.feat_thresh == 1./500.)
         print(config.scoreNet_trained_path, config.dataSize)
         rng = np.random.default_rng()
         scoreModel = ConditionalMarkovianTSPostMeanScoreMatching(
@@ -45,9 +45,18 @@ if __name__ == "__main__":
                             config.ts_length - 1)), 10240)))
             training_size = 1024 if config.feat_thresh == 1. else 10240
             print(training_size)
-            assert training_size == 1024
-            data = np.load(config.data_path, allow_pickle=True)
-            assert (data.shape[0] >= training_size)
+            assert training_size == 10240
+            try:
+                data = np.load(config.data_path, allow_pickle=True)
+                assert (data.shape[0] >= training_size)
+            except (FileNotFoundError, pickle.UnpicklingError, AssertionError) as e:
+                print("Error {}; generating synthetic data\n".format(e))
+                data = generate_fQuadSin(config=config, T=config.ts_length, isUnitInterval=config.isUnitInterval,
+                                         S=training_size,
+                                         H=config.hurst, a=config.quad_coeff, b=config.sin_coeff, c=config.sin_space_scale,
+                                         diff=config.diffusion,
+                                         initial_state=config.initState)
+                np.save(config.data_path, data)
             data = np.concatenate([data[:, [0]] - config.initState, np.diff(data, axis=1)], axis=1)
             data = np.atleast_3d(data[:training_size, :])
             assert (data.shape == (training_size, config.ts_length, config.ts_dims))

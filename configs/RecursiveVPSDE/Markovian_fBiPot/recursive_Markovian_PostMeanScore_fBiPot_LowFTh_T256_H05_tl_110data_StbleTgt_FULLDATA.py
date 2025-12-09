@@ -12,18 +12,20 @@ def get_config():
     # Data set parameters
     config.ndims = 1
     config.hurst = 0.5
+    config.quartic_coeff = 1./4.
+    config.quad_coeff = -1./2.
+    config.const = 0.
     config.diffusion = 1.
     config.initState = 0.
     config.ts_length = 256
     config.t0 = 0.
-    config.deltaT = 1./(256)
+    config.deltaT = 1. / (256)
     config.t1 = config.deltaT*config.ts_length
-    config.sin_space_scale = 2.
-    config.log_space_scale = 5.
-    config.data_path = project_config.ROOT_DIR + "data/fSinLog_samples_t0{:g}_dT{:.3e}_T{}_{}b_{}c_{}Diff_{}Init".format(
-        config.t0, config.deltaT, config.ts_length,config.log_space_scale, config.sin_space_scale,
+    config.data_path = project_config.ROOT_DIR + "data/fBiPot_samples_t0{:g}_dT{:.3e}_T{}_{}a_{}b_{}c_{}Diff_{}Init".format(
+        config.t0, config.deltaT, config.ts_length, config.quartic_coeff, config.quad_coeff, config.const,
         config.diffusion, config.initState).replace(
         ".", "") + ".npy"
+
 
     # Training hyperparameters
     config.max_diff_steps = 10000
@@ -31,11 +33,11 @@ def get_config():
     config.end_diff_time = 1.
     config.save_freq = 2
     config.lr = 1e-3
-    config.max_epochs = [18000]
+    config.max_epochs = [6000]
     config.ref_batch_size = 1024
     config.batch_size = 256
     config.chunk_size = 512
-    config.feat_thresh = 1./1.#1/500.
+    config.feat_thresh = 1./500.#1./500.
     config.isfBm = True
     config.isUnitInterval = True
     config.hybrid = True
@@ -54,15 +56,15 @@ def get_config():
     config.residual_channels = 8
     config.diff_hidden_size = 64
     config.dialation_length = 10
-    config.enforce_fourier_mean_reg = False
-    
-    config.reg_label = "NFMReg" if not config.enforce_fourier_mean_reg else ""
-    config.stable_target = False
-    config.stable_target_label = "NSTgt" if not config.stable_target else ""
 
     # MLP Architecture parameters
     config.mlp_hidden_dims = 4
     config.condupsampler_length = 20
+    config.enforce_fourier_mean_reg = False
+
+    config.reg_label = "NFMReg" if not config.enforce_fourier_mean_reg else ""
+    config.stable_target = False
+    config.stable_target_label = "NSTgt" if not config.stable_target else ""
 
     # TSM Architecture parameters
     config.lstm_hiddendim = 20
@@ -73,19 +75,19 @@ def get_config():
             config.lstm_dropout > 0 and config.lstm_numlay > 1))
 
     # Model filepath
-    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_ST_{:.3f}FTh_PM_MLP_{}LFac_{}{}_fSinLog_VPSDE_T{}_Ndiff{}_Tdiff{:.3e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_{}b_{}c_MLP_H{}_CUp{}_tl{}".format(
-        config.feat_thresh, config.loss_factor, config.stable_target_label, config.reg_label,
+    mlpFileName = project_config.ROOT_DIR + "src/generative_modelling/trained_models/trained_rec_ST_{:.3f}FTh_PM_MLP_{}LFac_{}{}_fBiPot_VPSDE_T{}_Ndiff{}_Tdiff{:.3e}_DiffEmbSz{}_ResLay{}_ResChan{}_DiffHdnSz{}_{}Hybd_{}Wghts_t0{:g}_dT{:.3e}_{}a_{}b_{}c_MLP_H{}_CUp{}_tl{}".format(
+        config.feat_thresh, config.loss_factor, config.reg_label,config.stable_target_label,
         config.ts_length,
         config.max_diff_steps, config.end_diff_time, 
         config.temb_dim,
         config.residual_layers, config.residual_channels, config.diff_hidden_size, config.hybrid, config.weightings, config.t0, config.deltaT,
-        config.log_space_scale, config.sin_space_scale, config.mlp_hidden_dims, config.condupsampler_length, config.tdata_mult).replace(".", "")
+        config.quartic_coeff, config.quad_coeff, config.const, config.mlp_hidden_dims, config.condupsampler_length, config.tdata_mult).replace(".", "")
 
     config.model_choice = "MLP"
     config.scoreNet_trained_path = mlpFileName
     config.model_parameters = [config.max_diff_steps, config.temb_dim, config.diff_hidden_size, config.ts_dims, config.mlp_hidden_dims,
-                                      config.condupsampler_length, config.residual_layers,
-                       config.residual_channels, config.dialation_length]
+                                              config.condupsampler_length, config.residual_layers,
+                               config.residual_channels, config.dialation_length]
 
     # Snapshot filepath
     config.scoreNet_snapshot_path = config.scoreNet_trained_path.replace("trained_models/", "snapshots/")

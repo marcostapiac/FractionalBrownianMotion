@@ -12,7 +12,7 @@ from utils.resource_logger import ResourceLogger
 
 if __name__ == "__main__":
     # Data parameters
-    from configs.RecursiveVPSDE.Markovian_12DLorenz.recursive_Markovian_PostMeanScore_12DLorenz_Chaos_T256_H05_tl_110data_StbleTgt_FULLDATA import \
+    from configs.RecursiveVPSDE.Markovian_12DLorenz.recursive_Markovian_PostMeanScore_12DLorenz_Chaos_T256_H05_tl_110data_StbleTgt import \
         get_config
 
     config = get_config()
@@ -44,7 +44,7 @@ if __name__ == "__main__":
                 max(1000, min(int(config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad) / (
                             config.ts_length - 1)), 10240)))
             training_size = 1024 if config.feat_thresh == 1. else 10240
-            assert training_size == 10240
+            assert training_size == 1024
             data = np.load(config.data_path, allow_pickle=True)
             assert (data.shape[0] >= training_size)
             data = np.concatenate([data[:, [0], :] - np.array(config.initState).reshape((1, 1, config.ndims)), np.diff(data, axis=1)], axis=1)
