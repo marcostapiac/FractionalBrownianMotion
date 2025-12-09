@@ -863,7 +863,7 @@ def multivar_score_based_MLP_drift_OOS(score_model, num_diff_times, diffusion, n
                                                                                     torch.pow(
                                                                                         beta_taus * config.diffusion,
                                                                                         2) * ts_step)) / (
-                                                                                    ts_step * beta_taus)) * vec_scores)
+                                                                                    ts_step * beta_taus)) * vec_predicted_score)
 
         assert (final_mu_hats.shape == (num_taus * num_paths, 1, config.ts_dims))
         means = final_mu_hats.reshape((num_taus, num_paths, config.ts_dims))
