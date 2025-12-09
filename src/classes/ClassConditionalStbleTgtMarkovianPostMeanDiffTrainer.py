@@ -723,7 +723,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
                 true_drifts = true_drifts / (1 + config.deltaT * np.abs(true_drifts))
                 final_vec_mu_hats = experiment_MLP_DDims_drifts(config=config, Xs=Xs, good=self.score_network.module,
                                                                 onlyGauss=False)
-        type = "PM"
+        type = ""
         assert (type in config.scoreNet_trained_path)
         assert ("_ST_" in config.scoreNet_trained_path)
         enforce_fourier_reg = "NSTgt" if not config.stable_target else ""
