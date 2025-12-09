@@ -1,25 +1,4 @@
 
-
-#!/usr/bin/env python
-import gc
-import io
-import math
-import os
-import time
-
-import numpy as np
-import pandas as pd  # if you call pd.* before the late import
-import torch
-from tqdm import tqdm
-import scipy
-from configs import project_config
-from configs.RecursiveVPSDE.Markovian_fQuadSinHF.recursive_Markovian_PostMeanScore_fQuadSinHF2_LowFTh_T256_H05_tl_110data_StbleTgt_FULLDATA import \
-    get_config
-from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
-from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
-    ConditionalMarkovianTSPostMeanScoreMatching
-from utils.drift_evaluation_functions import experiment_MLP_DDims_drifts
-from utils.drift_evaluation_functions import multivar_score_based_MLP_drift_OOS
 # !/usr/bin/env python
 import gc
 import io
@@ -358,7 +337,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
             local_ridge_mean = construct_Ridge_estimator(coeffs=ridge_coeffs, B=local_ridge_basis, LN=LN,
                                                          device_id=device_id).cpu().numpy()[:, np.newaxis, :]
             del x
-
+            print(score_mean.shape, eps.shape, score_states[:, [i - 1], :].shape)
             true_states[:, [i], :] = (true_states[:, [i - 1], :] + true_mean * deltaT + eps) / denom
             score_states[:, [i], :] = (score_states[:, [i - 1], :] + score_mean * deltaT + eps) / denom
             nad_states[:, [i], :] = (nad_states[:, [i - 1], :] + nad_mean * deltaT + eps) / denom
@@ -541,6 +520,7 @@ def IID_NW_multivar_estimator_gpu(
 
 
 def prepare_for_nadaraya(config, num_paths):
+    num_paths = 10
     deltaT = config.deltaT
     t1 = deltaT * config.ts_length
     is_path_observations = np.load(config.data_path, allow_pickle=True)[:num_paths, :, np.newaxis]
@@ -700,15 +680,9 @@ for config in [quadsin_config]:
     all_nad_paths = all_nad_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
     all_hermite_paths = all_hermite_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
     all_ridge_paths = all_ridge_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
-
-    all_true_paths = all_true_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
-    all_score_paths = all_score_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
-    all_nad_paths = all_nad_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
-    all_hermite_paths = all_hermite_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
-    all_ridge_paths = all_ridge_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
-
     BB, TT, DD = all_score_paths.shape
     true_drift = true_drifts(state=all_true_paths.reshape((-1, config.ts_dims), order="C"), device_id=device_id, config=config).cpu().numpy()[:, 0, :]
+    raise RuntimeError
     """torch.cuda.synchronize()
     torch.cuda.empty_cache()
     gc.collect()

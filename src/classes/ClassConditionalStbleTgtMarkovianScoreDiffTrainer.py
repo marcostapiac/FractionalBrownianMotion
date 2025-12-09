@@ -25,7 +25,7 @@ from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
     ConditionalMarkovianTSPostMeanScoreMatching
 from utils.drift_evaluation_functions import MLP_1D_drifts, multivar_score_based_MLP_drift_OOS, \
-    driftevalexp_mse_ignore_nans, MLP_fBiPotDDims_drifts, drifttrack_mse, stochastic_burgers_drift, \
+    driftevalexp_mse_ignore_nans, drifttrack_mse, stochastic_burgers_drift, \
     build_q_nonneg, experiment_MLP_DDims_drifts
 from utils.math_functions import generate_fSinLog, generate_fBiPot, generate_fQuadSin
 from utils.resource_logger import set_runtime_global
@@ -584,7 +584,7 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
                 final_vec_mu_hats = experiment_MLP_DDims_drifts(config=config, Xs=Xs, good=self.score_network.module,
                                                                 onlyGauss=False)
         type = "PM"
-        assert (type in config.scoreNet_trained_path)
+        assert (type not in config.scoreNet_trained_path)
         assert ("_ST_" in config.scoreNet_trained_path)
         enforce_fourier_reg = "NSTgt" if not config.stable_target else ""
         enforce_fourier_reg += "NFMReg_" if not config.enforce_fourier_mean_reg else ""
