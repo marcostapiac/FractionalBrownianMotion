@@ -282,6 +282,7 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
                                   :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
         # Euler-Maruyama Scheme for Tracking Errors
         for i in tqdm(range(1, num_time_steps + 1)):
+            print("\nFirst Loop\n")
             eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT) * config.diffusion
 
             assert (eps.shape == (num_paths, 1, config.ndims))
