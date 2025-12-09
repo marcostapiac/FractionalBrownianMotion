@@ -189,6 +189,8 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
         # outputs = (outputs + xts / sigma2_tau) * (sigma2_tau / beta_tau)  # This gives us the network D_theta
         assert (outputs.shape == targets_sel.shape)
         yW = y_weights.view(B * T, 1, 1).expand_as(outputs)
+        print(yW.shape)
+        print(w_tau.shape)
         weights = (w_tau * yW).detach()
         return self._batch_loss_compute(outputs=outputs, targets=targets_sel, w_tau=weights.pow(2),
                                         epoch=epoch,
@@ -917,7 +919,7 @@ class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
             current_lr = self.opt.param_groups[0]['lr']
             print(f"Epoch {epoch + 1}: EWMA Loss: {self.ewma_loss:.6f}, LR: {current_lr:.12f}\n")
             learning_rates.append(current_lr)
-
+            raise RuntimeError
             if self.device_id == 0 or type(self.device_id) == torch.device:
                 print("Stored Running Mean {} vs Aggregator Mean {}\n".format(
                     float(torch.mean(torch.tensor(all_losses_per_epoch[self.epochs_run:])).cpu().numpy()), float(
