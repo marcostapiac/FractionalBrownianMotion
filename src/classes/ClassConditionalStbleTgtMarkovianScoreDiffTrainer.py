@@ -36,7 +36,7 @@ from utils.resource_logger import set_runtime_global
 # Tutorial: https://www.youtube.com/watch?v=-LAtx9Q6DA8
 
 
-class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
+class ConditionalStbleTgtMarkovianScoreDiffTrainer(nn.Module):
 
     def __init__(self,
                  diffusion: Union[VESDEDiffusion, OUSDEDiffusion, VPSDEDiffusion],
@@ -180,7 +180,7 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
         if self.loss_factor == 0:  # plain
             w_tau = torch.ones_like(outputs)
         elif self.loss_factor == 1:  # schedule-weighted
-            w_tau = self.diffusion.get_loss_weighting(eff_times=eff_times.detach())
+            w_tau = self.diffusion.get_loss_weighting(eff_times=eff_sel.detach()).expand_as(outputs)
         elif self.loss_factor == 2 or self.loss_factor == 21:  # deltaT scaling
             w_tau = torch.ones_like(outputs) #/ torch.sqrt(self.deltaT)
         else:
@@ -917,7 +917,6 @@ class ConditionalStbleTgtMarkovianPostMeanDiffTrainer(nn.Module):
             current_lr = self.opt.param_groups[0]['lr']
             print(f"Epoch {epoch + 1}: EWMA Loss: {self.ewma_loss:.6f}, LR: {current_lr:.12f}\n")
             learning_rates.append(current_lr)
-
             if self.device_id == 0 or type(self.device_id) == torch.device:
                 print("Stored Running Mean {} vs Aggregator Mean {}\n".format(
                     float(torch.mean(torch.tensor(all_losses_per_epoch[self.epochs_run:])).cpu().numpy()), float(

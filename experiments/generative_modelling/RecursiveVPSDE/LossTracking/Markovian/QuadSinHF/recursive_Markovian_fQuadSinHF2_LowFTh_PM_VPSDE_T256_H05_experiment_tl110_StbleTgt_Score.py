@@ -3,7 +3,7 @@ import pickle
 import numpy as np
 import torch
 
-from src.classes.ClassConditionalStbleTgtMarkovianScoreDiffTrainer2 import \
+from src.classes.ClassConditionalStbleTgtMarkovianScoreDiffTrainer import \
     ConditionalStbleTgtMarkovianScoreDiffTrainer
 from src.generative_modelling.data_processing import train_and_save_recursive_diffusion_model
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
@@ -34,7 +34,7 @@ if __name__ == "__main__":
         diffusion = VPSDEDiffusion(beta_max=config.beta_max, beta_min=config.beta_min)
         print(
             config.tdata_mult * sum(p.numel() for p in scoreModel.parameters() if p.requires_grad) / (config.ts_length - 1))
-        init_experiment(config=config)
+        #init_experiment(config=config)
         end_epoch = max(config.max_epochs)
         try:
             scoreModel.load_state_dict(torch.load(config.scoreNet_trained_path + "_NEp" + str(end_epoch)))
@@ -46,6 +46,7 @@ if __name__ == "__main__":
             training_size = 1024 if config.feat_thresh == 1. else 10240
             print(training_size)
             assert training_size == 10240
+            training_size = 512
             data = np.load(config.data_path, allow_pickle=True)
             assert (data.shape[0] >= training_size)
             data = np.concatenate([data[:, [0]] - config.initState, np.diff(data, axis=1)], axis=1)
