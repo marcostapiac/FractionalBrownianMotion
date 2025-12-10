@@ -2,6 +2,7 @@ import numpy as np
 import pandas as pd
 import scipy
 import torch
+from tqdm import tqdm
 
 from configs import project_config
 from configs.RecursiveVPSDE.Markovian_fQuadSinHF.recursive_Markovian_PostMeanScore_fQuadSinHF2_LowFTh_T256_H05_tl_110data_StbleTgt_FULLDATA import \
@@ -129,7 +130,75 @@ def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M, device_id):
     a = torch.as_tensor(a, device=device_id, dtype=torch.float32)
     return a
 
+def generate_synthetic_paths(config, device_id, ridge_coeffs, AN, BN):
+    rmse_quantile_nums = 1
+    num_paths = 1000
+    num_time_steps = int(5 * config.ts_length)
+    deltaT = config.deltaT
+    all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_ridge_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
 
+    all_true_drifts = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_ridge_drifts = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+
+    all_ridge_drifts_at_true = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+
+    for quant_idx in (range(rmse_quantile_nums)):
+        initial_state = np.repeat(np.atleast_2d(config.initState)[np.newaxis, :], num_paths, axis=0)
+        assert (initial_state.shape == (num_paths, 1, config.ndims))
+
+        true_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+        ridge_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+
+        true_drift = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+        ridge_drifts = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+
+        ridge_drifts_at_true = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+
+        # Initialise the "true paths"
+        true_states[:, [0], :] = initial_state + 0.00001 * np.random.randn(*initial_state.shape)
+        # Initialise the "global score-based drift paths"
+        ridge_states[:, [0], :] = true_states[:, [0],
+                                  :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
+        # Euler-Maruyama Scheme for Tracking Errors
+        for i in tqdm(range(1, num_time_steps + 1)):
+            eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT) * config.diffusion
+
+            assert (eps.shape == (num_paths, 1, config.ndims))
+            true_mean = true_drifts(state=true_states[:, i - 1, :], device_id=device_id,
+                                    config=config).cpu().numpy()
+            denom = 1.
+            x = torch.as_tensor(ridge_states[:, i - 1, :], device=device_id, dtype=torch.float32).contiguous()
+            ridge_basis = spline_basis(paths=x, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
+            ridge_mean = construct_Ridge_estimator(coeffs=ridge_coeffs, B=ridge_basis, LN=LN,
+                                                   device_id=device_id).cpu().numpy()[:, np.newaxis, :]
+            del x
+            x = torch.as_tensor(true_states[:, i - 1, :], device=device_id, dtype=torch.float32).contiguous()
+            local_ridge_basis = spline_basis(paths=x, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
+            local_ridge_mean = construct_Ridge_estimator(coeffs=ridge_coeffs, B=local_ridge_basis, LN=LN,
+                                                         device_id=device_id).cpu().numpy()[:, np.newaxis, :]
+            del x
+
+            true_states[:, [i], :] = (true_states[:, [i - 1], :] + true_mean * deltaT + eps) / denom
+            ridge_states[:, [i], :] = (ridge_states[:, [i - 1], :] + ridge_mean * deltaT + eps) / denom
+
+            true_drift[:, [i], :] = true_mean
+
+            ridge_drifts[:, [i], :] = ridge_mean
+
+            ridge_drifts_at_true[:, [i], :] = local_ridge_mean
+
+        all_true_states[quant_idx, :, :, :] = true_states
+        all_ridge_states[quant_idx, :, :, :] = ridge_states
+
+        all_true_drifts[quant_idx, :, :, :] = true_drift
+        all_ridge_drifts[quant_idx, :, :, :] = ridge_drifts
+
+        all_ridge_drifts_at_true[quant_idx, :, :, :] = ridge_drifts_at_true
+
+    return all_true_states, all_ridge_states, \
+           all_true_drifts, all_ridge_drifts, \
+           all_ridge_drifts_at_true, num_time_steps
 
 config = get_config()
 config.feat_thresh = 1./500.
@@ -155,47 +224,41 @@ KNs = np.arange(1, 60, 1)
 AN = -1.5
 BN = -AN
 numXs = 1024
-Xs = torch.linspace(AN - 0.5, BN + 0.5, numXs+1).reshape(1, -1)
 LN = np.log(num_paths)
 M = 3 if "BiPot" in config.data_path else 2
-true_drift = true_drifts(device_id=device_id,config=config, state=Xs[:, :-1]).squeeze().cpu().numpy().reshape((numXs, config.ndims))
-true_drift[Xs[:, :-1].flatten() < AN, :] = np.nan
-true_drift[Xs[:, :-1].flatten() > BN, :] = np.nan
 mses = {}
-for KN in KNs:
+save_path = (
+        project_config.ROOT_DIR + f"experiments/results/Ridge_fQuadSinHF_DriftEvalExp_{num_paths}NPaths_{config.deltaT:.3e}dT").replace(
+    ".", "")
+for idxKN in range(0,KNs.shape[0]):
+    KN = KNs[idxKN]
     B = spline_basis(paths=paths, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
     Z = np.power(deltaT,-1)*np.diff(paths, axis=1).reshape((paths.shape[0]*(paths.shape[1]-1),1))
     Z = torch.tensor(Z, dtype=torch.float32, device=device_id)
     assert (B.shape[0] == Z.shape[0] and len(B.shape)==len(Z.shape) == 2)
-    coeffs = find_optimal_Ridge_estimator_coeffs(B=B, Z=Z, KN=KN, LN=LN, M=M, device_id=device_id)
-    unif_B = spline_basis(paths=Xs, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
-    ridge_drift = construct_Ridge_estimator(coeffs=coeffs, B=unif_B, LN=LN, device_id=device_id).cpu().numpy().flatten().reshape((numXs, config.ndims))
-    ridge_drift[Xs[:, :-1].flatten() < AN, :] = np.nan
-    ridge_drift[Xs[:, :-1].flatten() > BN, :] = np.nan
-    mse = np.nanmean(np.sum(np.power(ridge_drift - true_drift, 2), axis=-1), axis=-1)
-    mses[KN] = [mse]
+    ridge_coeffs = find_optimal_Ridge_estimator_coeffs(B=B, Z=Z, KN=KN, LN=LN, M=M, device_id=device_id)
+    all_true_paths,  _, all_true_drifts,  _, \
+     all_ridge_drift_ests_true_law, num_time_steps = generate_synthetic_paths(
+        config=config, device_id=device_id, ridge_coeffs=ridge_coeffs, AN=AN, BN=BN)
+    all_true_drifts = all_true_drifts.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
+    all_true_paths = all_true_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
+    # True MSE
+    BB, TT, DD = all_true_drifts.shape
+    mse = np.cumsum(np.nanmean(np.sum(np.power(
+        all_true_drifts.reshape((BB, TT, DD), order="C") - all_ridge_drift_ests_true_law.reshape((BB, TT, DD),
+                                                                                                 order="C"), 2),
+        axis=-1),
+        axis=0)) / np.arange(1, TT + 1)
+    mses[KN] = [mse[-1]]
+    if mse[-1] < np.min(list(mses.values())):
+        np.save(save_path + "_drift_est.npy", all_ridge_drift_ests_true_law)
+        np.save(save_path + "_true_drift.npy", all_true_drifts)
+        np.save(save_path + "_true_paths.npy", all_true_paths)
     print(KN, mse)
 
-save_path = (
-        project_config.ROOT_DIR + f"experiments/results/Ridge_fQuadSinHF_DriftEvalExp_{num_paths}NPaths_{config.deltaT:.3e}dT").replace(
-    ".", "")
 mses = (pd.DataFrame(mses)).T
 mses.columns = mses.columns.astype(str)
 mses.to_parquet(save_path + "_MSEs.parquet", engine="fastparquet")
-Kidx = np.argmin(mses.values.flatten())
-KN = KNs[Kidx]
-B = spline_basis(paths=paths, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
-Z = np.power(deltaT,-1)*np.diff(paths, axis=1).reshape((paths.shape[0]*(paths.shape[1]-1),1))
-Z = torch.tensor(Z, dtype=torch.float32, device=device_id)
-
-assert (B.shape[0] == Z.shape[0] and len(B.shape)==len(Z.shape) == 2)
-coeffs = find_optimal_Ridge_estimator_coeffs(B=B, Z=Z, KN=KN, LN=LN, M=M, device_id=device_id)
-unif_B = spline_basis(paths=Xs, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
-ridge_drift = construct_Ridge_estimator(coeffs=coeffs, B=unif_B, LN=LN, device_id=device_id).cpu().numpy().flatten().reshape((numXs, config.ndims))
-ridge_drift[Xs[:, :-1].flatten() < AN, :] = np.nan
-ridge_drift[Xs[:, :-1].flatten() > BN, :] = np.nan
-np.save(save_path + "_drift_est.npy",ridge_drift)
-np.save(save_path + "_true_drift.npy",true_drift)
 
 
 
