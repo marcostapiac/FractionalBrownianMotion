@@ -673,6 +673,7 @@ for config in [sinlog_config]:
         config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable,
         prevPath_observations=is_prevPath_obs, prevPath_incs=is_prevPath_incs, inv_H=inv_H, norm_const=norm_const, R=R,
         hermite_coeffs=hermite_coeffs, ridge_coeffs=ridge_coeffs, AN=AN, BN=BN)
+    all_true_drifts = all_true_drifts.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
     all_true_paths = all_true_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
     all_score_paths = all_score_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
     all_nad_paths = all_nad_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
@@ -684,11 +685,11 @@ for config in [sinlog_config]:
     all_nad_paths = all_nad_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
     all_hermite_paths = all_hermite_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
     all_ridge_paths = all_ridge_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
+    true_drift = true_drifts(state=all_true_paths.reshape((-1, config.ts_dims), order="C"), device_id=device_id, config=config).cpu().numpy()[:, 0, :]
 
     BB, TT, DD = all_score_paths.shape
-    true_drift = true_drifts(state=all_true_paths.reshape((-1, config.ts_dims), order="C"), device_id=device_id,
-                             config=config).cpu().numpy()[:, 0, :]
-    """torch.cuda.synchronize()
+    """
+    torch.cuda.synchronize()
     torch.cuda.empty_cache()
     gc.collect()
     time.sleep(5)
@@ -827,41 +828,41 @@ for config in [sinlog_config]:
 
     # ALt MSE
     mse = np.cumsum(np.nanmean(np.sum(np.power(
-        true_drift.reshape(((BB, TT, DD)), order="C") - all_score_drift_ests.reshape(((BB, TT, DD)), order="C"), 2),
+        all_true_drifts.reshape(((BB, TT, DD)), order="C") - all_score_drift_ests.reshape(((BB, TT, DD)), order="C"), 2),
         axis=-1), axis=0)) / np.arange(1, TT + 1)
     score_eval[ts_type] = mse
     mse = np.cumsum(np.nanmean(np.sum(
-        np.power(true_drift.reshape(((BB, TT, DD)), order="C") - all_nad_drift_ests.reshape(((BB, TT, DD)), order="C"),
+        np.power(all_true_drifts.reshape(((BB, TT, DD)), order="C") - all_nad_drift_ests.reshape(((BB, TT, DD)), order="C"),
                  2), axis=-1), axis=0)) / np.arange(1, TT + 1)
     nad_eval[ts_type] = mse
     mse = np.cumsum(np.nanmean(np.sum(
         np.power(
-            true_drift.reshape(((BB, TT, DD)), order="C") - all_hermite_drift_ests.reshape(((BB, TT, DD)), order="C"),
+            all_true_drifts.reshape(((BB, TT, DD)), order="C") - all_hermite_drift_ests.reshape(((BB, TT, DD)), order="C"),
             2), axis=-1), axis=0)) / np.arange(1, TT + 1)
     hermite_eval[ts_type] = mse
     mse = np.cumsum(np.nanmean(np.sum(
         np.power(
-            true_drift.reshape(((BB, TT, DD)), order="C") - all_ridge_drift_ests.reshape(((BB, TT, DD)), order="C"),
+            all_true_drifts.reshape(((BB, TT, DD)), order="C") - all_ridge_drift_ests.reshape(((BB, TT, DD)), order="C"),
             2), axis=-1), axis=0)) / np.arange(1, TT + 1)
     ridge_eval[ts_type] = mse
 
     # True MSE
     mse = np.cumsum(np.nanmean(np.sum(np.power(
-        true_drift.reshape(((BB, TT, DD)), order="C") - all_score_drift_ests_true_law.reshape(((BB, TT, DD)),
+        all_true_drifts.reshape(((BB, TT, DD)), order="C") - all_score_drift_ests_true_law.reshape(((BB, TT, DD)),
                                                                                               order="C"), 2), axis=-1),
         axis=0)) / np.arange(1, TT + 1)
     score_eval_true_law[ts_type] = mse
     mse = np.cumsum(np.nanmean(np.sum(np.power(
-        true_drift.reshape(((BB, TT, DD)), order="C") - all_nad_drift_ests_true_law.reshape(((BB, TT, DD)), order="C"),
+        all_true_drifts.reshape(((BB, TT, DD)), order="C") - all_nad_drift_ests_true_law.reshape(((BB, TT, DD)), order="C"),
         2), axis=-1), axis=0)) / np.arange(1, TT + 1)
     nad_eval_true_law[ts_type] = mse
     mse = np.cumsum(np.nanmean(np.sum(np.power(
-        true_drift.reshape(((BB, TT, DD)), order="C") - all_hermite_drift_ests_true_law.reshape(((BB, TT, DD)),
+        all_true_drifts.reshape(((BB, TT, DD)), order="C") - all_hermite_drift_ests_true_law.reshape(((BB, TT, DD)),
                                                                                                 order="C"),
         2), axis=-1), axis=0)) / np.arange(1, TT + 1)
     hermite_eval_true_law[ts_type] = mse
     mse = np.cumsum(np.nanmean(np.sum(np.power(
-        true_drift.reshape(((BB, TT, DD)), order="C") - all_ridge_drift_ests_true_law.reshape(((BB, TT, DD)),
+        all_true_drifts.reshape(((BB, TT, DD)), order="C") - all_ridge_drift_ests_true_law.reshape(((BB, TT, DD)),
                                                                                                 order="C"),
         2), axis=-1), axis=0)) / np.arange(1, TT + 1)
     ridge_eval_true_law[ts_type] = mse
@@ -886,49 +887,49 @@ for config in [sinlog_config]:
     std = np.nanstd(np.sum(np.power(uniform_true_drifts - all_ridge_drift_ests_uniform, 2), axis=-1), axis=0, ddof=1)
     ridge_uniform_eval_std[ts_type] = std
 
-    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
+    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((all_true_drifts.reshape((BB, TT, DD),
                                                                                   order="C") - all_score_drift_ests.reshape(
         (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
                     axis=0, ddof=1)
     score_eval_std[ts_type] = std
-    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
+    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((all_true_drifts.reshape((BB, TT, DD),
                                                                                   order="C") - all_nad_drift_ests.reshape(
         (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
                     axis=0, ddof=1)
 
     nad_eval_std[ts_type] = std
-    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
+    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((all_true_drifts.reshape((BB, TT, DD),
                                                                                   order="C") - all_hermite_drift_ests.reshape(
         (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
                     axis=0, ddof=1)
 
     hermite_eval_std[ts_type] = std
-    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
+    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((all_true_drifts.reshape((BB, TT, DD),
                                                                                   order="C") - all_ridge_drift_ests.reshape(
         (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
                     axis=0, ddof=1)
 
     ridge_eval_std[ts_type] = std
 
-    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
+    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((all_true_drifts.reshape((BB, TT, DD),
                                                                                   order="C") - all_nad_drift_ests_true_law.reshape(
         (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
                     axis=0, ddof=1)
     nad_eval_true_law_std[ts_type] = std
 
-    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
+    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((all_true_drifts.reshape((BB, TT, DD),
                                                                                   order="C") - all_score_drift_ests_true_law.reshape(
         (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
                     axis=0, ddof=1)
     score_eval_true_law_std[ts_type] = std
 
-    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
+    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((all_true_drifts.reshape((BB, TT, DD),
                                                                                   order="C") - all_hermite_drift_ests_true_law.reshape(
         (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
                     axis=0, ddof=1)
     hermite_eval_true_law_std[ts_type] = std
 
-    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((true_drift.reshape((BB, TT, DD),
+    std = np.nanstd(np.cumsum(np.where(~np.isnan(se := np.sum((all_true_drifts.reshape((BB, TT, DD),
                                                                                   order="C") - all_ridge_drift_ests_true_law.reshape(
         (BB, TT, DD), order="C")) ** 2, axis=-1)), se, 0.0), axis=1) / np.maximum(1, np.cumsum(~np.isnan(se), axis=1)),
                     axis=0, ddof=1)
