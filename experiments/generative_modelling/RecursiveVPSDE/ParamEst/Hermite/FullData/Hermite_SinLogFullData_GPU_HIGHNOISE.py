@@ -238,9 +238,9 @@ for R in np.arange(2, 41, 1):
     print(R, mse)
     mses[R] = [mse]
     if mse < np.min(list(mses.values())):
-        np.save(save_path + "_drift_est.npy", all_hermite_drift_ests_true_law)
-        np.save(save_path + "_true_drift.npy", all_true_drifts)
-        np.save(save_path + "_true_paths.npy", all_true_paths)
+        np.save(save_path + f"_{R}_drift_est.npy", all_hermite_drift_ests_true_law)
+        np.save(save_path + f"_{R}_true_drift.npy", all_true_drifts)
+        np.save(save_path + f"_{R}_true_paths.npy", all_true_paths)
 
 mses = (pd.DataFrame(mses)).T
 mses.columns = mses.columns.astype(str)
