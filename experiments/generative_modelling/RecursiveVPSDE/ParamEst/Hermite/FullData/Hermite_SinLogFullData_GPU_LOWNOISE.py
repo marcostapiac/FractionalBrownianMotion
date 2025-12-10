@@ -116,6 +116,83 @@ def _get_device(device_str: str | None = None):
         return torch.device(device_str)
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
+def true_drifts(device_id, config, state):
+    state = torch.tensor(state, device=device_id, dtype=torch.float32)
+    drift = (-torch.sin(config.sin_space_scale * state) * torch.log(
+        1 + config.log_space_scale * torch.abs(state)) / config.sin_space_scale)
+    return drift[:, np.newaxis, :]
+
+def generate_synthetic_paths(config, device_id, R, hermite_coeffs):
+    rmse_quantile_nums = 1
+    num_paths = 1000
+    num_time_steps = int(5* config.ts_length)
+    deltaT = config.deltaT
+    all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_hermite_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+
+
+    all_true_drifts = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_hermite_drifts = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_hermite_drifts_at_true = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+
+    for quant_idx in (range(rmse_quantile_nums)):
+        initial_state = np.repeat(np.atleast_2d(config.initState)[np.newaxis, :], num_paths, axis=0)
+        assert (initial_state.shape == (num_paths, 1, config.ndims))
+
+        true_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+        hermite_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+
+        true_drift = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+        hermite_drifts = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+        hermite_drifts_at_true = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+
+        # Initialise the "true paths"
+        true_states[:, [0], :] = initial_state + 0.00001 * np.random.randn(*initial_state.shape)
+        hermite_states[:, [0], :] = true_states[:, [0],
+                                    :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
+        # Euler-Maruyama Scheme for Tracking Errors
+        for i in tqdm(range(1, num_time_steps + 1)):
+            eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT) * config.diffusion
+
+            assert (eps.shape == (num_paths, 1, config.ndims))
+            true_mean = true_drifts(state=true_states[:, i - 1, :], device_id=device_id, config=config).cpu().numpy()
+            denom = 1.
+
+            del x
+            x = torch.as_tensor(hermite_states[:, i - 1, :], device=device_id, dtype=torch.float32).contiguous()
+            hermite_basis = hermite_basis_GPU(R=R, paths=x, device_id=device_id)
+            hermite_mean = construct_Hermite_drift(basis=hermite_basis, coefficients=hermite_coeffs).cpu().numpy()[:,
+                           np.newaxis, :]
+            del x
+
+
+            x = torch.as_tensor(true_states[:, i - 1, :], device=device_id, dtype=torch.float32).contiguous()
+            local_hermite_basis = hermite_basis_GPU(R=R, paths=x, device_id=device_id)
+            local_hermite_mean = construct_Hermite_drift(basis=local_hermite_basis, coefficients=hermite_coeffs).cpu().numpy()[:,
+                           np.newaxis, :]
+
+            true_states[:, [i], :] = (true_states[:, [i - 1], :] + true_mean * deltaT + eps) / denom
+
+            hermite_states[:, [i], :] = (hermite_states[:, [i - 1], :] + hermite_mean * deltaT + eps) / denom
+
+            true_drift[:, [i], :] = true_mean
+
+            hermite_drifts[:, [i], :] = hermite_mean
+            hermite_drifts_at_true[:, [i], :] = local_hermite_mean
+
+
+        all_true_states[quant_idx, :, :, :] = true_states
+        all_hermite_states[quant_idx, :, :, :] = hermite_states
+
+        all_true_drifts[quant_idx, :, :, :] = true_drift
+        all_hermite_drifts[quant_idx, :, :, :] = hermite_drifts
+
+        all_hermite_drifts_at_true[quant_idx, :, :, :] = hermite_drifts_at_true
+
+    return all_true_states,  all_hermite_states, \
+           all_true_drifts,all_hermite_drifts,\
+           all_hermite_drifts_at_true, num_time_steps
+
 
 config = get_config()
 config.feat_thresh = 1./500
@@ -138,39 +215,34 @@ paths = torch.concatenate(
                   dtype=torch.float32),
      paths], dim=1)
 assert paths.shape == (num_paths, config.ts_length + 1)
-
-numXs = 1024  # config.ts_length
-Xs = torch.linspace(-.15, .15, numXs).reshape(1, -1)
-def true_drifts(device_id, config, state):
-    state = torch.tensor(state, device=device_id, dtype=torch.float32)
-    drift = (-torch.sin(config.sin_space_scale * state) * torch.log(
-        1 + config.log_space_scale * torch.abs(state)) / config.sin_space_scale)
-    return drift[:, np.newaxis, :]
-
-true_drift = true_drifts(device_id=device_id, config=config, state=Xs).cpu().squeeze().numpy().reshape((numXs, config.ndims))
-# In[9]:
-mses = {}
-for R in np.arange(2, 41, 1):
-    basis = hermite_basis_GPU(R=R, paths=paths, device_id=device_id)
-    coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None, device_id=device_id))
-    basis = hermite_basis_GPU(R=R, paths=Xs, device_id=device_id)
-    bhat = construct_Hermite_drift(basis=basis, coefficients=coeffs).cpu().squeeze().numpy().reshape((numXs, config.ndims))
-    print(bhat.shape, true_drift.shape)
-    mse = np.nanmean(np.sum(np.power(bhat - true_drift, 2), axis=-1), axis=-1)
-    print(R, mse)
-    mses[R] = [mse]
 save_path = (
         project_config.ROOT_DIR + f"experiments/results/Hermite_fSinLog_DriftEvalExp_{num_paths}NPaths_{config.deltaT:.3e}dT_Diff{config.diffusion:.1f}").replace(
     ".", "")
+mses = {}
+for R in np.arange(2, 41, 1):
+    basis = hermite_basis_GPU(R=R, paths=paths, device_id=device_id)
+    hermite_coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None, device_id=device_id))
+    all_true_paths, _, \
+    all_true_drifts, _, \
+    all_hermite_drift_ests_true_law, num_time_steps = generate_synthetic_paths(
+        config=config, device_id=device_id, R=R,
+        hermite_coeffs=hermite_coeffs)
+    all_true_drifts = all_true_drifts.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
+    all_true_paths = all_true_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
+    BB, TT, DD = all_true_drifts.shape
+    mse = np.cumsum(np.nanmean(np.sum(np.power(
+        all_true_drifts.reshape((BB, TT, DD), order="C") - all_hermite_drift_ests_true_law.reshape((BB, TT, DD),
+                                                                                                 order="C"), 2),
+        axis=-1),
+        axis=0)) / np.arange(1, TT + 1)
+    mse = mse[-1]
+    print(R, mse)
+    mses[R] = [mse]
+    if mse < np.min(list(mses.values())):
+        np.save(save_path + "_drift_est.npy", all_hermite_drift_ests_true_law)
+        np.save(save_path + "_true_drift.npy", all_true_drifts)
+        np.save(save_path + "_true_paths.npy", all_true_paths)
+
 mses = (pd.DataFrame(mses)).T
 mses.columns = mses.columns.astype(str)
 mses.to_parquet(save_path + "_MSEs.parquet", engine="fastparquet")
-Ridx = np.argmin(mses.values.flatten())
-R = np.arange(2, 41, 1)[Ridx]
-basis = hermite_basis_GPU(R=R, paths=paths, device_id=device_id)
-coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None, device_id=device_id))
-basis = hermite_basis_GPU(R=R, paths=Xs, device_id=device_id)
-bhat = construct_Hermite_drift(basis=basis, coefficients=coeffs).cpu().squeeze().numpy()
-np.save(save_path + "_drift_est.npy",bhat)
-np.save(save_path + "_true_drift.npy",true_drift)
-
