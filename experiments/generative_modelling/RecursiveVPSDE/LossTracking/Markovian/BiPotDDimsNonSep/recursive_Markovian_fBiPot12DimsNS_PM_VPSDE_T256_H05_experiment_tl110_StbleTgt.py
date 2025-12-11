@@ -44,7 +44,7 @@ if __name__ == "__main__":
             training_size = 1024 if config.feat_thresh == 1. else 10240
             print(training_size)
             assert training_size == 1024
-            assert config.feat_thresh != 1.
+            assert config.feat_thresh == 1.
             data = np.load(config.data_path, allow_pickle=True)
             assert (data.shape[0] >= training_size)
             data = np.concatenate([data[:, [0],:] - config.initState, np.diff(data, axis=1)], axis=1)
