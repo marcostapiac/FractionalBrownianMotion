@@ -65,7 +65,21 @@ def construct_Z_vector(R, T, basis, paths):
     assert (basis.shape[-1] == R)
     N = basis.shape[0]
     dXs = torch.diff(paths, dim=1) / T
-    Z = torch.diagonal(basis.permute((2, 0, 1)) @ (dXs.T), dim1=1, dim2=2)
+    A = basis.permute((2, 0, 1)).contiguous()
+    B = dXs.T.contiguous()
+    chunk_R = 20
+    parts = []
+    for i in range(0, R, chunk_R):
+        gc.collect()
+        torch.cuda.empty_cache()
+
+        Ai = A[i:i + chunk_R]  # shape (c, N, M)
+        # compute Z_chunk[r_chunk, i_index] = sum_j Ai[r_chunk, i_index, j] * B[j, i_index]
+        Zi = torch.einsum('rij,ji->ri', Ai, B)  # shape (c, N)
+        parts.append(Zi)
+    Z = torch.cat(parts, dim=0)  # shape (R, N)
+    # Z = torch.diagonal(basis.permute((2, 0, 1)) @ (dXs.T), dim1=1, dim2=2)
+    assert (Z.shape == (R, N))
     assert (Z.shape == (R, N))
     Z = Z.mean(axis=-1, keepdims=True)
     assert (Z.shape == (R, 1)), f"Z vector is shape {Z.shape} but should be {(R, 1)}"
