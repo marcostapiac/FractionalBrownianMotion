@@ -47,8 +47,8 @@ if __name__ == "__main__":
             print(training_size)
             assert training_size == 1024
             assert config.feat_thresh == 1.
-            data = np.load(config.data_path, allow_pickle=True)[]
-            assert (data.shape[0] >= training_size
+            data = np.load(config.data_path, allow_pickle=True)
+            assert (data.shape[0] >= training_size)
             data = np.concatenate([data[:, [0],:] - config.initState, np.diff(data, axis=1)], axis=1)
             data = np.atleast_3d(data[:training_size, :])
             assert (data.shape == (training_size, config.ts_length, config.ts_dims))
