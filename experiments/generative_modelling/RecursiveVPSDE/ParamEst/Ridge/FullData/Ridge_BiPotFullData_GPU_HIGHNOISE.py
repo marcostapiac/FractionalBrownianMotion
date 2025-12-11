@@ -223,7 +223,7 @@ assert paths.shape == (num_paths, config.ts_length + 1)
 device_id = _get_device()
 
 KNs = np.arange(1, 60, 1)
-AN = -4
+AN = -6
 BN = -AN
 numXs = 1024
 LN = np.log(num_paths)
