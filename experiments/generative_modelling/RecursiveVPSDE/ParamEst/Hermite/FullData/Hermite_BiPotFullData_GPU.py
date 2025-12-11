@@ -208,7 +208,7 @@ t0 = config.t0
 t1 = deltaT * num_time_steps
 device_id = _get_device()
 paths = torch.tensor(np.load(config.data_path, allow_pickle=True)[:num_paths, :], device=device_id, dtype=torch.float32)
-paths = torch.concatenate(
+paths = torch.cat(
     [torch.tensor(np.repeat((np.array(config.initState)).reshape((1, 1)), paths.shape[0], axis=0), device=device_id,
                   dtype=torch.float32),
      paths], dim=1)

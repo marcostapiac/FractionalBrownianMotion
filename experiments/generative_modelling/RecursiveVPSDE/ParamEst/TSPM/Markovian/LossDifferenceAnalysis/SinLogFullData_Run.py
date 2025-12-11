@@ -753,7 +753,7 @@ for config in [sinlog_config]:
 
         # Ridge Alt
         curr_states = torch.tensor(all_ridge_states[k:k + block_size, :], device=device_id, dtype=torch.float32).T
-        curr_states = torch.concatenate([curr_states, torch.zeros((1, 1), device=device_id, dtype=torch.float32)], dim=-1)
+        curr_states = torch.cat([curr_states, torch.zeros((1, 1), device=device_id, dtype=torch.float32)], dim=-1)
         
         ridge_basis = spline_basis(paths=curr_states, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
         ridge_drift_est = construct_Ridge_estimator(coeffs=ridge_coeffs, B=ridge_basis, LN=LN,device_id=device_id).cpu().numpy().flatten().reshape((curr_states.shape[1]-1, config.ndims))
@@ -781,7 +781,7 @@ for config in [sinlog_config]:
         all_hermite_drift_ests_true_law[k:k + block_size, :] = hermite_drift_est
 
         # Ridge True
-        curr_states = torch.concatenate([curr_states.T, torch.zeros((1, 1), device=device_id, dtype=torch.float32)], dim=-1)
+        curr_states = torch.cat([curr_states.T, torch.zeros((1, 1), device=device_id, dtype=torch.float32)], dim=-1)
         
         ridge_basis = spline_basis(paths=curr_states, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
         ridge_drift_est = construct_Ridge_estimator(coeffs=ridge_coeffs, B=ridge_basis, LN=LN,device_id=device_id).cpu().numpy().flatten().reshape((curr_states.shape[1]-1, config.ndims))
@@ -810,7 +810,7 @@ for config in [sinlog_config]:
         all_hermite_drift_ests_uniform[k:k + block_size, :] = hermite_drift_est
 
         # Ridge Uniform
-        curr_states = torch.concatenate([curr_states.T, torch.zeros((1, 1), device=device_id, dtype=torch.float32)], dim=-1)
+        curr_states = torch.cat([curr_states.T, torch.zeros((1, 1), device=device_id, dtype=torch.float32)], dim=-1)
 
         
         ridge_basis = spline_basis(paths=curr_states, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
