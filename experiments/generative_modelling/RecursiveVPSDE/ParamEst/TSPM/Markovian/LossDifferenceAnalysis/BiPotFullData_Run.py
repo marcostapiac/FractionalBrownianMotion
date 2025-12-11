@@ -656,7 +656,7 @@ for config in [bipot_config]:
 
     # Prepare for Ridge
     M = 3
-    KN = 1
+    KN = 4
     LN = np.log(num_paths)
     AN = -1.5
     BN = -AN

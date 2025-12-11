@@ -257,6 +257,7 @@ for idxKN in tqdm(range(0,KNs.shape[0])):
         axis=0)) / np.arange(1, TT + 1)
     mses[KN] = [mse[-1]]
     if mse[-1] <= np.nanmin(list(mses.values())):
+        print(save_path, KN)
         np.save(save_path + f"_{KN}_drift_est.npy", all_ridge_drift_ests_true_law)
         np.save(save_path + f"_{KN}_true_drift.npy", all_true_drifts)
         np.save(save_path + f"_{KN}_true_paths.npy", all_true_paths)

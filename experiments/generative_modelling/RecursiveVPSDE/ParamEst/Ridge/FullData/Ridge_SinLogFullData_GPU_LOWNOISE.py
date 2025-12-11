@@ -225,7 +225,7 @@ assert paths.shape == (num_paths, config.ts_length + 1)
 device_id = _get_device()
 
 KNs = np.arange(1, 60, 1)
-AN = -0.15
+AN = -0.25
 BN = -AN
 LN = np.log(num_paths)
 M = 3 if "BiPot" in config.data_path else 2
