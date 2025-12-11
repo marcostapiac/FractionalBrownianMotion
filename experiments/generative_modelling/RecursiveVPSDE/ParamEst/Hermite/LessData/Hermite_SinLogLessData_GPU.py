@@ -172,7 +172,6 @@ def generate_synthetic_paths(config, device_id, R, hermite_coeffs):
             true_mean = true_drifts(state=true_states[:, i - 1, :], device_id=device_id, config=config).cpu().numpy()
             denom = 1.
 
-            del x
             x = torch.as_tensor(hermite_states[:, i - 1, :], device=device_id, dtype=torch.float32).contiguous()
             hermite_basis = hermite_basis_GPU(R=R, paths=x, device_id=device_id)
             hermite_mean = construct_Hermite_drift(basis=hermite_basis, coefficients=hermite_coeffs).cpu().numpy()[:,
