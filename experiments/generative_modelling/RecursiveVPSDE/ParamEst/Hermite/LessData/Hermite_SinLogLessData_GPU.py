@@ -237,21 +237,25 @@ save_path = (
 mses = {}
 for R in np.arange(2, 41, 1):
     basis = hermite_basis_GPU(R=R, paths=paths, device_id=device_id)
-    hermite_coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None, device_id=device_id))
-    all_true_paths, _, \
-    all_true_drifts, _, \
-    all_hermite_drift_ests_true_law, num_time_steps = generate_synthetic_paths(
-        config=config, device_id=device_id, R=R,
-        hermite_coeffs=hermite_coeffs)
-    all_true_drifts = all_true_drifts.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
-    all_true_paths = all_true_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
-    BB, TT, DD = all_true_drifts.shape
-    mse = np.cumsum(np.nanmean(np.sum(np.power(
-        all_true_drifts.reshape((BB, TT, DD), order="C") - all_hermite_drift_ests_true_law.reshape((BB, TT, DD),
-                                                                                                 order="C"), 2),
-        axis=-1),
-        axis=0)) / np.arange(1, TT + 1)
-    mse = mse[-1]
+    try:
+        hermite_coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None, device_id=device_id))
+        all_true_paths, _, \
+        all_true_drifts, _, \
+        all_hermite_drift_ests_true_law, num_time_steps = generate_synthetic_paths(
+            config=config, device_id=device_id, R=R,
+            hermite_coeffs=hermite_coeffs)
+        all_true_drifts = all_true_drifts.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
+        all_true_paths = all_true_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
+        BB, TT, DD = all_true_drifts.shape
+        mse = np.cumsum(np.nanmean(np.sum(np.power(
+            all_true_drifts.reshape((BB, TT, DD), order="C") - all_hermite_drift_ests_true_law.reshape((BB, TT, DD),
+                                                                                                     order="C"), 2),
+            axis=-1),
+            axis=0)) / np.arange(1, TT + 1)
+        mse = mse[-1]
+    except torch.linalg.LinAlgError as e:
+        print(e)
+        mse = np.nan
     print(R, mse)
     mses[R] = [mse]
     if mse < np.min(list(mses.values())):
