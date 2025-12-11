@@ -250,6 +250,8 @@ for R in np.arange(2, 41, 1):
     mse = mse[-1]
     print(R, mse)
     mses[R] = [mse]
+    print(mse)
+    print(np.min(list(mses.values())))
     if mse < np.min(list(mses.values())):
         np.save(save_path + f"_{R}_drift_est.npy", all_hermite_drift_ests_true_law)
         np.save(save_path + f"_{R}_true_drift.npy", all_true_drifts)
