@@ -135,8 +135,8 @@ def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M, device_id):
 
 def generate_synthetic_paths(config, device_id, ridge_coeffs, AN, BN):
     rmse_quantile_nums = 1
-    num_paths = 1000
-    num_time_steps = int(5 * config.ts_length)
+    num_paths = 100
+    num_time_steps = int(1 * config.ts_length)
     deltaT = config.deltaT
     all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
     all_ridge_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
