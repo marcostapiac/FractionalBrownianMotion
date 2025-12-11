@@ -102,7 +102,6 @@ def find_optimal_Ridge_estimator_coeffs(B, Z, KN, LN, M, device_id):
     def obj(larr):
         # keep optimizer precision
         l = torch.as_tensor(larr, device=device_id, dtype=torch.float64)
-        print(np.min(np.linalg.eigvalsh(BTB + l * I)), l)
         inv = torch.linalg.inv(BTB + l * I) @ BTZ
         val = torch.abs(inv.T @ inv - const_t).item()  # scalar float
         return val
