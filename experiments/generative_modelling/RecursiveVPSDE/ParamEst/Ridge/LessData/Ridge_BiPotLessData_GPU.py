@@ -162,7 +162,7 @@ def generate_synthetic_paths(config, device_id, ridge_coeffs, AN, BN):
         ridge_states[:, [0], :] = true_states[:, [0],
                                   :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
         # Euler-Maruyama Scheme for Tracking Errors
-        for i in tqdm(range(1, num_time_steps + 1)):
+        for i in (range(1, num_time_steps + 1)):
             eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT) * config.diffusion
 
             assert (eps.shape == (num_paths, 1, config.ndims))
@@ -233,7 +233,7 @@ mses = {}
 save_path = (
         project_config.ROOT_DIR + f"experiments/results/Ridge_fBiPot_DriftEvalExp_{num_paths}NPaths_{config.deltaT:.3e}dT").replace(
     ".", "")
-for idxKN in range(0,KNs.shape[0]):
+for idxKN in tqdm(range(0,KNs.shape[0])):
     KN = KNs[idxKN]
     B = spline_basis(paths=paths, KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
     Z = np.power(deltaT,-1)*np.diff(paths, axis=1).reshape((paths.shape[0]*(paths.shape[1]-1),1))
@@ -253,11 +253,11 @@ for idxKN in range(0,KNs.shape[0]):
         axis=-1),
         axis=0)) / np.arange(1, TT + 1)
     mses[KN] = [mse[-1]]
-    if mse[-1] < np.min(list(mses.values())):
+    if mse[-1] <= np.nanmin(list(mses.values())):
         np.save(save_path + f"_{KN}_drift_est.npy", all_ridge_drift_ests_true_law)
         np.save(save_path + f"_{KN}_true_drift.npy", all_true_drifts)
         np.save(save_path + f"_{KN}_true_paths.npy", all_true_paths)
-    print(KN, mse)
+    print(KN, mse[-1])
 
 mses = (pd.DataFrame(mses)).T
 mses.columns = mses.columns.astype(str)
