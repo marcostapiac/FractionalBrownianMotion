@@ -231,7 +231,7 @@ save_path = (
         project_config.ROOT_DIR + f"experiments/results/Hermite_fBiPot_DriftEvalExp_{num_paths}NPaths_{config.deltaT:.3e}dT").replace(
     ".", "")
 mses = {}
-for R in np.arange(20, 41, 1):
+for R in np.arange(2, 41, 1):
     basis = hermite_basis_GPU(R=R, paths=paths, device_id=device_id)
     hermite_coeffs = (estimate_coefficients(R=R, deltaT=deltaT, basis=basis, paths=paths, t1=t1, Phi=None, device_id=device_id))
     all_true_paths, _, \
