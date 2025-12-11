@@ -5,12 +5,13 @@ import math
 import numpy as np
 import pandas as pd
 import torch
+from tqdm import tqdm
 
 from configs import project_config
 from configs.RecursiveVPSDE.Markovian_fQuadSinHF.recursive_Markovian_PostMeanScore_fQuadSinHF2_LowFTh_T256_H05_tl_110data_StbleTgt_FULLDATA import \
     get_config
 
-
+from tqdm import tqdm
 def basis_number_selection(paths, num_paths, num_time_steps, deltaT, t1, device_id):
     poss_Rs = torch.arange(1, 11)
     kappa = 1.  # See just above Section 5
@@ -157,7 +158,6 @@ def generate_synthetic_paths(config, device_id, R, hermite_coeffs):
             true_mean = true_drifts(state=true_states[:, i - 1, :], device_id=device_id, config=config).cpu().numpy()
             denom = 1.
 
-            del x
             x = torch.as_tensor(hermite_states[:, i - 1, :], device=device_id, dtype=torch.float32).contiguous()
             hermite_basis = hermite_basis_GPU(R=R, paths=x, device_id=device_id)
             hermite_mean = construct_Hermite_drift(basis=hermite_basis, coefficients=hermite_coeffs).cpu().numpy()[:,
