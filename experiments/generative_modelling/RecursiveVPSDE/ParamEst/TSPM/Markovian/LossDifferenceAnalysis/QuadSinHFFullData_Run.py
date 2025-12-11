@@ -295,7 +295,6 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
                                   :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
         # Euler-Maruyama Scheme for Tracking Errors
         for i in tqdm(range(1, num_time_steps + 1)):
-            print("\nFirst Loop\n")
             eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT) * config.diffusion
 
             assert (eps.shape == (num_paths, 1, config.ndims))
@@ -367,15 +366,6 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
             nad_drifts_at_true[:, [i], :] = local_nad_mean
             hermite_drifts_at_true[:, [i], :] = local_hermite_mean
             ridge_drifts_at_true[:, [i], :] = local_ridge_mean
-
-            print("\n\n===SCORE===\n\n")
-            print(np.mean(np.sum(np.power(true_mean-local_score_mean, 2), axis=-1), axis=(0,1)))
-            print("\n\n===HERMITE===\n\n")
-            print(np.mean(np.sum(np.power(true_mean-local_hermite_mean, 2), axis=-1), axis=(0,1)))
-            print("\n\n===RIDGE===\n\n")
-            print(np.mean(np.sum(np.power(true_mean-local_ridge_mean, 2), axis=-1), axis=(0,1)))
-            print("\n\n===NAD===\n\n")
-            print(np.mean(np.sum(np.power(true_mean-local_nad_mean, 2), axis=-1), axis=(0,1)))
 
         all_true_states[quant_idx, :, :, :] = true_states
         all_score_states[quant_idx, :, :, :] = score_states
