@@ -255,9 +255,6 @@ for R in np.arange(2, 41, 1):
     mses[R] = [mse]
     if mse <= np.min(list(mses.values())):
         np.save(save_path + f"_{R}_drift_est.npy", all_hermite_drift_ests_true_law)
-        print(np.load(save_path + f"_{R}_drift_est.npy", allow_pickle=True))
-        print(save_path + f"_{R}_drift_est.npy")
-        raise RuntimeError
         np.save(save_path + f"_{R}_true_drift.npy", all_true_drifts)
         np.save(save_path + f"_{R}_true_paths.npy", all_true_paths)
     fmses = (pd.DataFrame(mses)).T
