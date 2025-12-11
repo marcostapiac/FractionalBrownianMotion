@@ -124,8 +124,8 @@ def _get_device(device_str: str | None = None):
 
 def generate_synthetic_paths(config, device_id, R, hermite_coeffs):
     rmse_quantile_nums = 1
-    num_paths = 1000
-    num_time_steps = int(5* config.ts_length)
+    num_paths = 100
+    num_time_steps = int(1* config.ts_length)
     deltaT = config.deltaT
     all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
     all_hermite_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
@@ -240,7 +240,9 @@ for R in np.arange(2, 41, 1):
         np.save(save_path + f"_{R}_drift_est.npy", all_hermite_drift_ests_true_law)
         np.save(save_path + f"_{R}_true_drift.npy", all_true_drifts)
         np.save(save_path + f"_{R}_true_paths.npy", all_true_paths)
-
+    fmses = (pd.DataFrame(mses)).T
+    fmses.columns = fmses.columns.astype(str)
+    fmses.to_parquet(save_path + f"_{R}_MSEs.parquet", engine="fastparquet")
 mses = (pd.DataFrame(mses)).T
 mses.columns = mses.columns.astype(str)
 mses.to_parquet(save_path + "_MSEs.parquet", engine="fastparquet")
