@@ -677,7 +677,7 @@ for config in [quadsin_config]:
     block_size = 1024
 
     # Prepare for Hermite
-    R = 22
+    R = 19
     hermite_basis = hermite_basis_GPU(R=R, paths=is_obs.squeeze(), device_id=device_id)
     hermite_coeffs = (
         estimate_coefficients(R=R, deltaT=config.deltaT, basis=hermite_basis, paths=is_obs.squeeze(), t1=config.t1,device_id=device_id, Phi=None))
