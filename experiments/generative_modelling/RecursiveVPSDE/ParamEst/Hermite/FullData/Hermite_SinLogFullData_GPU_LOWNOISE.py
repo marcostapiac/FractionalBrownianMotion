@@ -42,7 +42,6 @@ def basis_number_selection(paths, num_paths, num_time_steps, deltaT, t1, device_
 
 def hermite_basis_GPU(R, device_id, paths):
     paths = torch.as_tensor(paths, device=device_id, dtype=torch.float32)
-    print(paths.shape)
     assert paths.ndim == 2 and paths.shape[0] >= 1
     N, D = paths.shape
     basis = torch.empty((N, D, R), device=device_id, dtype=torch.float32)
@@ -226,6 +225,7 @@ paths = torch.cat(
     [torch.tensor(np.repeat((np.array(config.initState)).reshape((1, 1)), paths.shape[0], axis=0), device=device_id,
                   dtype=torch.float32),
      paths], dim=1)
+print(paths.shape)
 assert paths.shape == (num_paths, config.ts_length + 1)
 save_path = (
         project_config.ROOT_DIR + f"experiments/results/Hermite_fSinLog_DriftEvalExp_{num_paths}NPaths_{config.deltaT:.3e}dT_Diff{config.diffusion:.1f}").replace(
