@@ -110,7 +110,7 @@ def construct_Hermite_drift(basis, coefficients):
     return b_hat
 
 
-def _get_device(device_str: str | None = None):
+def _get_device(device_str: str  = None):
     if device_str is not None:
         return torch.device(device_str)
     return torch.device("cuda" if torch.cuda.is_available() else "cpu")
