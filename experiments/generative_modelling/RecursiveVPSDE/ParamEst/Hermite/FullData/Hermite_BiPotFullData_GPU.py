@@ -71,6 +71,8 @@ def construct_Z_vector(R, T, basis, paths):
     assert (basis.shape[-1] == R)
     N = basis.shape[0]
     dXs = torch.diff(paths, dim=1) / T
+    print(basis.permute((2, 0, 1)).shape)
+    raise RuntimeError
     Z = torch.diagonal(basis.permute((2, 0, 1)) @ (dXs.T), dim1=1, dim2=2)
     assert (Z.shape == (R, N))
     Z = Z.mean(axis=-1, keepdims=True)
