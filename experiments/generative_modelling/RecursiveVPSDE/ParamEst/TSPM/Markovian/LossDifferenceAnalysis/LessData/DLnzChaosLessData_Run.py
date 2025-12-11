@@ -23,7 +23,6 @@ from configs.RecursiveVPSDE.Markovian_8DLorenz.recursive_Markovian_PostMeanScore
 from src.generative_modelling.models.ClassVPSDEDiffusion import VPSDEDiffusion
 from src.generative_modelling.models.TimeDependentScoreNetworks.ClassConditionalMarkovianTSPostMeanScoreMatching import \
     ConditionalMarkovianTSPostMeanScoreMatching
-from utils.drift_evaluation_functions import experiment_MLP_DDims_drifts
 from utils.drift_evaluation_functions import multivar_score_based_MLP_drift_OOS
 
 
@@ -50,7 +49,8 @@ lnz_12d_config = get_12dlnz_config()
 lnz_20d_config = get_20dlnz_config()
 lnz_40d_config = get_40dlnz_config()
 device_id = _get_device()
-assert lnz_8d_config.feat_thresh == lnz_12d_config.feat_thresh == lnz_20d_config.feat_thresh == lnz_40d_config.feat_thresh
+assert lnz_8d_config.feat_thresh == lnz_12d_config.feat_thresh != 1
+assert lnz_20d_config.feat_thresh != 1 and lnz_40d_config.feat_thresh != 1
 num_paths = 1024 if lnz_8d_config.feat_thresh == 1. else 10240
 assert num_paths == 1024
 root_dir ="/Users/marcos/Library/CloudStorage/OneDrive-ImperialCollegeLondon/StatML_CDT/Year2/DiffusionModels/"
@@ -79,6 +79,12 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
     all_true_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
     all_score_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
     all_nad_states = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_true_drifts = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_score_drifts = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_nad_drifts = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_score_drifts_at_true = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+    all_nad_drifts_at_true = np.zeros(shape=(rmse_quantile_nums, num_paths, 1 + num_time_steps, config.ndims))
+
     for quant_idx in (range(rmse_quantile_nums)):
         good.eval()
         initial_state = np.repeat(np.atleast_2d(config.initState)[np.newaxis, :], num_paths, axis=0)
@@ -88,45 +94,77 @@ def generate_synthetic_paths(config, device_id, good, inv_H, norm_const, prevPat
         score_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
         nad_states = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
 
+        true_drift = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+        score_drifts = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+        nad_drifts = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+
+        score_drifts_at_true = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+        nad_drifts_at_true = np.zeros(shape=(num_paths, 1 + num_time_steps, config.ndims))
+
         # Initialise the "true paths"
         true_states[:, [0], :] = initial_state + 0.00001 * np.random.randn(*initial_state.shape)
         # Initialise the "global score-based drift paths"
         score_states[:, [0], :] = true_states[:, [0], :]
         nad_states[:, [0], :] = true_states[:, [0],
-                                  :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
+                                :]  # np.repeat(initial_state[np.newaxis, :], num_diff_times, axis=0)
 
         # Euler-Maruyama Scheme for Tracking Errors
         for i in tqdm(range(1, num_time_steps + 1)):
             eps = np.random.randn(num_paths, 1, config.ndims) * np.sqrt(deltaT) * config.diffusion
 
             assert (eps.shape == (num_paths, 1, config.ndims))
-            true_mean = true_drifts(state=true_states[:, i - 1, :], device_id=device_id,config=config).cpu().numpy()
+            true_mean = true_drifts(state=true_states[:, i - 1, :], device_id=device_id, config=config).cpu().numpy()
             denom = 1.
             score_mean = multivar_score_based_MLP_drift_OOS(score_model=good,
-                                                             num_diff_times=num_diff_times,
-                                                             diffusion=diffusion,
-                                                             num_paths=num_paths,
-                                                             ts_step=deltaT, config=config,
-                                                             device=device_id,
-                                                             prev=score_states[:, i - 1, :])
-
+                                                            num_diff_times=num_diff_times,
+                                                            diffusion=diffusion,
+                                                            num_paths=num_paths,
+                                                            ts_step=deltaT, config=config,
+                                                            device=device_id,
+                                                            prev=score_states[:, i - 1, :])
+            local_score_mean = multivar_score_based_MLP_drift_OOS(score_model=good,
+                                                                  num_diff_times=num_diff_times,
+                                                                  diffusion=diffusion,
+                                                                  num_paths=num_paths,
+                                                                  ts_step=deltaT, config=config,
+                                                                  device=device_id,
+                                                                  prev=true_states[:, i - 1, :])
             x = torch.as_tensor(nad_states[:, i - 1, :], device=device_id, dtype=torch.float32).contiguous()
             nad_mean = IID_NW_multivar_estimator_gpu(
-                        prevPath_observations=prevPath_observations, path_incs=prevPath_incs, inv_H=inv_H, norm_const=float(norm_const),
-                        x=x, t1=float(config.t1), t0=float(config.t0),
-                        truncate=False, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
-                    ).cpu().numpy()[:, np.newaxis, :]
+                prevPath_observations=prevPath_observations, path_incs=prevPath_incs, inv_H=inv_H,
+                norm_const=float(norm_const),
+                x=x, t1=float(config.t1), t0=float(config.t0),
+                truncate=False, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
+            ).cpu().numpy()[:, np.newaxis, :]
+            x = torch.as_tensor(true_states[:, i - 1, :], device=device_id, dtype=torch.float32).contiguous()
+            local_nad_mean = IID_NW_multivar_estimator_gpu(
+                prevPath_observations=prevPath_observations, path_incs=prevPath_incs, inv_H=inv_H,
+                norm_const=float(norm_const),
+                x=x, t1=float(config.t1), t0=float(config.t0),
+                truncate=False, M_tile=M_tile, Nn_tile=Nn_tile, stable=stable
+            ).cpu().numpy()[:, np.newaxis, :]
             true_states[:, [i], :] = (true_states[:, [i - 1], :] \
                                       + true_mean * deltaT \
                                       + eps) / denom
             score_states[:, [i], :] = (score_states[:, [i - 1], :] + score_mean * deltaT + eps) / denom
             nad_states[:, [i], :] = (nad_states[:, [i - 1], :] + nad_mean * deltaT + eps) / denom
 
+            true_drift[:, [i], :] = true_mean
+            score_drifts[:, [i], :] = score_mean
+            nad_drifts[:, [i], :] = nad_mean
+            score_drifts_at_true[:, [i], :] = local_score_mean
+            nad_drifts_at_true[:, [i], :] = local_nad_mean
+
         all_true_states[quant_idx, :, :, :] = true_states
         all_score_states[quant_idx, :, :, :] = score_states
         all_nad_states[quant_idx, :, :, :] = nad_states
+        all_true_drifts[quant_idx, :, :, :] = true_drift
+        all_score_drifts[quant_idx, :, :, :] = score_drifts
+        all_nad_drifts[quant_idx, :, :, :] = nad_drifts
+        all_score_drifts_at_true[quant_idx, :, :, :] = score_drifts_at_true
+        all_nad_drifts_at_true[quant_idx, :, :, :] = nad_drifts_at_true
     del prevPath_observations, prevPath_incs
-    return all_true_states, all_score_states, all_nad_states, num_time_steps
+    return all_true_states, all_score_states, all_nad_states, num_time_steps, all_true_drifts, all_score_drifts, all_nad_drifts, all_score_drifts_at_true, all_nad_drifts_at_true
 
 
 def get_best_epoch(config, type):
@@ -309,7 +347,8 @@ def run_nadaraya_single_bw(config, is_path_observations, states, M_tile, inv_H, 
 # In[20]:
 
 
-import gc, time
+import gc
+
 score_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 score_eval_true_law = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
 nad_eval = {t: np.inf for t in ["8DLnz", "12DLnz", "20DLnz", "40DLnz"]}
@@ -330,23 +369,22 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
     root_score_dir = root_dir
     
     if "8DLnz" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/8DLnzChaosLessData/"
+        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/8DLnzChaos/"
         ts_type = "8DLnz"
     elif "12DLnz" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/12DLnzChaosLessData/"
+        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/12DLnzChaos/"
         ts_type = "12DLnz"
     elif "20DLnz" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/20DLnzChaosLessData/"
+        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/20DLnzChaos/"
         ts_type = "20DLnz"
     elif "40DLnz" in config.data_path:
-        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/40DLnzChaosLessData/"
+        root_score_dir = root_dir + f"ExperimentResults/TSPM_Markovian/40DLnzChaos/"
         ts_type = "40DLnz"
     print(f"Starting {ts_type}\n")
     model_dir = "/".join(config.scoreNet_trained_path.split("/")[:-1]) + "/"
     entered = False
-    best_epoch = get_best_epoch(config=config,type="EE")
     for file in os.listdir(model_dir):
-        if config.scoreNet_trained_path in os.path.join(model_dir, file) and ("EE" in file and "Trk" not in file) and str(best_epoch) in file:
+        if config.scoreNet_trained_path in os.path.join(model_dir, file) and ("EE" not in file and "Trk" not in file):
             good = ConditionalMarkovianTSPostMeanScoreMatching(
         *config.model_parameters)
             entered = True
@@ -362,21 +400,38 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
     xadd2 = np.logspace(1.0, 2.0, 11)[1:]  # 10 values > -0.05
     bws = np.concatenate([grid_1d, xadd, xadd2])
     bws = np.stack([bws for m in range(config.ndims)], axis=-1)
-    bw = bws[-1, :]
+    if config.ndims == 40:
+        bw = bws[30, :]
+    elif config.ndims == 20:
+        bw = bws[29, :]
+    elif config.ndims == 12:
+        bw = bws[28, :]
+    elif config.ndims == 8:
+        bw = bws[27, :]
+
     assert bw.shape[0] == config.ndims and len(bw.shape) == 1
     inv_H = np.diag(np.power(bw, -2))
     norm_const = 1 / np.sqrt((2. * np.pi) ** config.ndims * (1. / np.linalg.det(inv_H)))
-    Nn_tile = 2560000
+    Nn_tile = 256000
     stable = True
     block_size = 1024
 
-    all_true_paths, all_score_paths, all_nad_paths, num_time_steps = generate_synthetic_paths(config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable, prevPath_observations=is_prevPath_obs, prevPath_incs=is_prevPath_incs, inv_H=inv_H, norm_const=norm_const)
-    all_true_paths = all_true_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
-    all_score_paths = all_score_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
-    all_nad_paths = all_nad_paths.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
+    all_true_paths, all_score_paths, all_nad_paths, num_time_steps, true_drift, all_score_drift_ests, all_nad_drift_ests, all_score_drift_ests_true_law, all_nad_drift_ests_true_law = generate_synthetic_paths(
+        config=config, device_id=device_id, good=good, M_tile=block_size, Nn_tile=Nn_tile, stable=stable,
+        prevPath_observations=is_prevPath_obs, prevPath_incs=is_prevPath_incs, inv_H=inv_H, norm_const=norm_const)
+    all_true_paths = all_true_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
+    all_score_paths = all_score_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
+    all_nad_paths = all_nad_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
+    true_drift = true_drift.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
+    all_score_drift_ests = all_score_drift_ests.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
+    all_nad_drift_ests = all_nad_drift_ests.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
+    all_score_drift_ests_true_law = all_score_drift_ests_true_law.reshape((-1, num_time_steps + 1, config.ts_dims),
+                                                                          order="C")
+    all_nad_drift_ests_true_law = all_nad_drift_ests_true_law.reshape((-1, num_time_steps + 1, config.ts_dims),
+                                                                      order="C")
     BB, TT, DD = all_score_paths.shape
-    
-    all_true_states = all_true_paths.reshape((-1, config.ts_dims), order="C")
+
+    """all_true_states = all_true_paths.reshape((-1, config.ts_dims), order="C")
     all_score_states = all_score_paths.reshape((-1, config.ts_dims), order="C")
     all_nad_states = all_nad_paths.reshape((-1, config.ts_dims), order="C")
 
@@ -388,12 +443,12 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
     all_score_drift_ests = np.zeros_like(true_drift)
     all_nad_drift_ests = np.zeros_like(true_drift)
     all_score_drift_ests_true_law = np.zeros_like(true_drift)
-    all_nad_drift_ests_true_law = np.zeros_like(true_drift)
+    all_nad_drift_ests_true_law = np.zeros_like(true_drift)"""
     score_state_eval[ts_type] = (np.nanmean(np.sum(np.power(all_true_paths - all_score_paths, 2), axis=-1), axis=0))
     nad_state_eval[ts_type] = (np.nanmean(np.sum(np.power(all_true_paths - all_nad_paths, 2), axis=-1), axis=0))
     score_state_eval_std[ts_type] = np.nanstd(np.sum((all_true_paths - all_score_paths) ** 2, axis=-1), axis=0, ddof=1)
     nad_state_eval_std[ts_type] = np.nanstd(np.sum((all_true_paths - all_nad_paths) ** 2, axis=-1), axis=0, ddof=1)
-    for k in tqdm(range(0, all_score_states.shape[0], block_size)):
+    """for k in tqdm(range(0, all_score_states.shape[0], block_size)):
         curr_states = torch.tensor(all_score_states[k:k+block_size, :], device=device_id, dtype=torch.float32)
         drift_ests = experiment_MLP_DDims_drifts(config=config, Xs=curr_states, good=good, onlyGauss=False)
         drift_ests= drift_ests[:, -1, :, :].reshape(drift_ests.shape[0],drift_ests.shape[2],drift_ests.shape[
@@ -415,7 +470,20 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
         all_nad_drift_ests_true_law[k:k+block_size,:] = nad_drift_est
         torch.cuda.synchronize()
         torch.cuda.empty_cache()
-        gc.collect()
+        gc.collect()"""
+    save_path = (
+            project_config.ROOT_DIR + f"experiments/results/DLnz_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
+        ".", "")
+    np.save(save_path + f"_{config.ts_dims}_true_paths.npy", all_true_paths)
+    np.save(save_path + f"_{config.ts_dims}_score_paths.npy", all_score_paths)
+    np.save(save_path + f"_{config.ts_dims}_nad_paths.npy", all_nad_paths)
+
+    np.save(save_path + f"_{config.ts_dims}_true_drifts.npy", true_drift)
+    np.save(save_path + f"_{config.ts_dims}_score_drifts.npy", all_score_drift_ests)
+    np.save(save_path + f"_{config.ts_dims}_nad_drifts.npy", all_nad_drift_ests)
+    np.save(save_path + f"_{config.ts_dims}_score_drifts_at_true.npy", all_score_drift_ests_true_law)
+    np.save(save_path + f"_{config.ts_dims}_nad_drifts_at_true.npy", all_nad_drift_ests_true_law)
+
     mse = np.cumsum(np.nanmean(np.sum(np.power(
         true_drift.reshape(((BB, TT, DD)), order="C") - all_score_drift_ests.reshape(((BB, TT, DD)), order="C"), 2),
                                    axis=-1), axis=0)) / np.arange(1, TT + 1)
@@ -470,18 +538,23 @@ for config in [lnz_40d_config, lnz_12d_config, lnz_20d_config, lnz_8d_config]:
 import pandas as pd
 save_path = (project_config.ROOT_DIR + f"experiments/results/DLnzChaos_NewLongerDriftEvalExp_MSEs_{num_paths}NPaths").replace(
             ".", "")
+np.save(save_path+"_true_paths.npy", all_true_paths)
+np.save(save_path+"_score_paths.npy", all_score_paths)
+np.save(save_path+"_nad_paths.npy", all_nad_paths)
 pd.DataFrame.from_dict(score_eval).to_parquet(save_path + "_score_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval).to_parquet(save_path + "_nad_MSE.parquet")
 pd.DataFrame.from_dict(nad_eval_true_law).to_parquet(save_path + "_nad_true_law_MSE.parquet")
 pd.DataFrame.from_dict(score_eval_true_law).to_parquet(save_path + "_score_true_law_MSE.parquet")
 pd.DataFrame.from_dict(score_state_eval).to_parquet(save_path + "_score_state_MSE.parquet")
 pd.DataFrame.from_dict(nad_state_eval).to_parquet(save_path + "_nad_state_MSE.parquet")
+
 pd.DataFrame.from_dict(score_eval_std).to_parquet(save_path + "_score_MSE_STD.parquet")
 pd.DataFrame.from_dict(nad_eval_std).to_parquet(save_path + "_nad_MSE_STD.parquet")
 pd.DataFrame.from_dict(nad_eval_true_law_std).to_parquet(save_path + "_nad_true_law_MSE_STD.parquet")
 pd.DataFrame.from_dict(score_eval_true_law_std).to_parquet(save_path + "_score_true_law_MSE_STD.parquet")
 pd.DataFrame.from_dict(score_state_eval_std).to_parquet(save_path + "_score_state_MSE_STD.parquet")
 pd.DataFrame.from_dict(nad_state_eval_std).to_parquet(save_path + "_nad_state_MSE_STD.parquet")
+
 print("Score vs Nadaraya Alt Law", "\n", score_eval, "\n", nad_eval, "End\n")
 print("Score vs Nadaraya True Law", "\n", score_eval_true_law, "\n", nad_eval_true_law, "End\n")
 print("Score vs Nadaraya State Eval", "\n", score_state_eval, "\n", nad_state_eval, "End\n")
