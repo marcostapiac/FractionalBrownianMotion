@@ -257,7 +257,8 @@ for R in np.arange(2, 41, 1):
         mse = np.nan
     print(R, mse)
     mses[R] = [mse]
-    if not np.isnan(mse) and mse <= np.nanmin(list(mses.values())):
+    print(mse, np.nanmin(list(mses.values())))
+    if mse <= np.nanmin(list(mses.values())):
         np.save(save_path + f"_{R}_drift_est.npy", all_hermite_drift_ests_true_law)
         np.save(save_path + f"_{R}_true_drift.npy", all_true_drifts)
         np.save(save_path + f"_{R}_true_paths.npy", all_true_paths)
