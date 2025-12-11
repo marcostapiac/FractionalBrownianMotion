@@ -244,6 +244,8 @@ for R in np.arange(2, 41, 1):
         hermite_coeffs=hermite_coeffs)
     all_true_drifts = all_true_drifts.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
     all_true_paths = all_true_paths.reshape((-1, num_time_steps + 1, config.ts_dims), order="C")
+    all_hermite_drift_ests_true_law = all_hermite_drift_ests_true_law.reshape((-1, num_time_steps+1, config.ts_dims), order="C")
+
     BB, TT, DD = all_true_drifts.shape
     mse = np.cumsum(np.nanmean(np.sum(np.power(
         all_true_drifts.reshape((BB, TT, DD), order="C") - all_hermite_drift_ests_true_law.reshape((BB, TT, DD),
@@ -253,7 +255,7 @@ for R in np.arange(2, 41, 1):
     mse = mse[-1]
     print(R, mse)
     mses[R] = [mse]
-    if mse < np.min(list(mses.values())):
+    if mse <= np.min(list(mses.values())):
         np.save(save_path + f"_{R}_drift_est.npy", all_hermite_drift_ests_true_law)
         np.save(save_path + f"_{R}_true_drift.npy", all_true_drifts)
         np.save(save_path + f"_{R}_true_paths.npy", all_true_paths)
