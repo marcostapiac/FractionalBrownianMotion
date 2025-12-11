@@ -5,7 +5,7 @@ import torch
 from tqdm import tqdm
 
 from configs import project_config
-from configs.RecursiveVPSDE.Markovian_fSinLog.recursive_Markovian_PostMeanScore_fSinLog_LowFTh_T256_H05_tl_110data_StbleTgt_LOWNOISE import \
+from configs.RecursiveVPSDE.Markovian_fSinLog.recursive_Markovian_PostMeanScore_fSinLog_LowFTh_T256_H05_tl_110data_StbleTgt_HIGHNOISE import \
     get_config
 
 
@@ -209,7 +209,7 @@ config = get_config()
 config.feat_thresh = 1./500.
 num_paths = 1024 if config.feat_thresh == 1. else 10240
 assert num_paths == 10240
-assert config.diffusion == 0.1
+assert config.diffusion == 10.
 num_time_steps = config.ts_length
 isUnitInterval = True
 diff = config.diffusion
