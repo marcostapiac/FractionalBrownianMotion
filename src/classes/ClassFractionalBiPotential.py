@@ -79,7 +79,4 @@ class FractionalBiPotential:
                 Ms = self.gaussIncs * np.sqrt(deltaT)
         for i in (range(1, N + 1)):
             Zs.append(self.increment_state(prev=Zs[i - 1], deltaT=deltaT, M=Ms[i - 1,:]))
-        print(len(Zs))
-        print(Zs)
-        print(Zs[0].shape)
         return np.array(Zs)
