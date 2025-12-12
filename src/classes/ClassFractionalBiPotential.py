@@ -81,4 +81,5 @@ class FractionalBiPotential:
             Zs.append(self.increment_state(prev=Zs[i - 1], deltaT=deltaT, M=Ms[i - 1,:]))
         print(len(Zs))
         print(Zs)
+        print(Zs[0].shape)
         return np.array(Zs)
