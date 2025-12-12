@@ -230,6 +230,7 @@ KNs = np.arange(1, 60, 1)
 AN = -0.20
 BN = -AN
 numXs = 1024
+
 LN = np.log(num_paths)
 M = 3 if "BiPot" in config.data_path else 2
 mses = {}
