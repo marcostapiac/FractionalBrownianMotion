@@ -224,7 +224,7 @@ device_id = _get_device()
 
 
 KNs = np.arange(1, 60, 1)
-AN = -2.
+AN = -1.5
 BN = -AN
 
 numXs = 1024

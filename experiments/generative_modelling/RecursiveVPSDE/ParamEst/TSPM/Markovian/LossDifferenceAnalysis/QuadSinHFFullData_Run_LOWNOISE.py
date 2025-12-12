@@ -678,7 +678,7 @@ for config in [quadsin_config]:
 
     # Prepare for Ridge
     M = 2
-    KN = 11
+    KN = 15
     LN = np.log(num_paths)
     AN = -0.20
     BN = -AN
