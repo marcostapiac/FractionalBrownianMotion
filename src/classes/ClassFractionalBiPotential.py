@@ -53,7 +53,6 @@ class FractionalBiPotential:
         # See Tamed Euler
         if self.ndims > 1:
             driftX = driftX/(1.+deltaT*np.abs(driftX))
-        print(prev, diffX, driftX)
         return prev + driftX * deltaT + diffX
 
     def euler_simulation(self, H: float, N: int, isUnitInterval: bool, t0: float, t1: float, deltaT: float,
@@ -80,4 +79,6 @@ class FractionalBiPotential:
                 Ms = self.gaussIncs * np.sqrt(deltaT)
         for i in (range(1, N + 1)):
             Zs.append(self.increment_state(prev=Zs[i - 1], deltaT=deltaT, M=Ms[i - 1,:]))
+        print(len(Zs))
+        print(Zs)
         return np.array(Zs)
