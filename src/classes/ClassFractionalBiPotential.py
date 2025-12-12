@@ -62,9 +62,9 @@ class FractionalBiPotential:
         if t1==1: assert (isUnitInterval == True)
         assert (time_ax[-1] == t1 and time_ax[0] == t0)
         if X0 is None:
-            Zs = [self.initialVol]  # [self.lamperti(self.initialVol)]
+            Zs = [np.atleast_2d(self.initialVol)]  # [self.lamperti(self.initialVol)]
         else:
-            Zs = [X0]  # [self.lamperti(X0)]
+            Zs = [np.atleast_2d(X0)]  # [self.lamperti(X0)]
         if gaussRvs is None:
             if H != 0.5:
                 self.gaussIncs = self.rng.normal(size=2 * N)
