@@ -692,7 +692,7 @@ for config in [sinlog_config]:
 
     # Prepare for Ridge
     M = 2
-    KN = 46
+    KN = 4
     LN = np.log(num_paths)
     AN = -0.25
     BN = -AN
