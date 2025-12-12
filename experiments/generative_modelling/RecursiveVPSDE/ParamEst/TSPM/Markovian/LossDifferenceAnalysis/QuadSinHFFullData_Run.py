@@ -670,9 +670,9 @@ for config in [quadsin_config]:
 
     # Prepare for Ridge
     M = 2
-    KN = 45
+    KN = 53
     LN = np.log(num_paths)
-    AN = -1.7
+    AN = -1.5
     BN = -AN
     B = spline_basis(paths=is_obs.squeeze(), KN=KN, AN=AN, BN=BN, M=M, device_id=device_id)
     Z = np.power(config.deltaT,-1)*np.diff(is_obs.squeeze(), axis=1).reshape((is_obs.squeeze().shape[0]*(is_obs.squeeze().shape[1]-1),1))
